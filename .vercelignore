@@ -1,0 +1,4 @@
+# Publish only the Director's Assistant; keep the source books and working files off the website.
+*
+!DMAssistant_Osmotic_Expanse.html
+!vercel.json
