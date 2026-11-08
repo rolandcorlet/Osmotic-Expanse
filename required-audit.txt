@@ -1,0 +1,143 @@
+﻿(no deligated.js: Cannot find module 'C:\Users\rolan\Downloads\Dungeon Master Assistant\preworld\src\deligated.js'
+Require stack:
+- C:\Users\rolan\Downloads\Dungeon Master Assistant\preworld\package.json)
+=== FUNCTIONAL: ids the code looks up by name ===
+  MISSING narration:description-as-clue
+  MISSING narration:part-damage-is-behaviour
+  MISSING narration:describe-hp-band
+  MISSING narration:describe-condition-band
+  MISSING narration:describe-downed
+  MISSING narration:describe-concentration
+  MISSING narration:describe-exhaustion
+  MISSING narration:no-numbers-in-player-line
+  MISSING narration:narration-refusal
+  MISSING narration:narration-features (scalar)
+  MISSING narration:description-band-coverage (scalar)
+  MISSING firewall:audience-vocab-reference
+  MISSING firewall:secret-to-whom
+  MISSING firewall:false-fact-tracking
+  MISSING firewall:leak-alert
+  MISSING firewall:hp-numbers-are-dm-side
+  MISSING firewall:player-visible-markers
+  MISSING firewall:hidden-check-suppression
+  MISSING firewall:firewall-refusal
+  MISSING firewall:firewall-features (scalar)
+  MISSING readaloud:read-aloud-mechanically-silent
+  MISSING readaloud:read-aloud-rolling-rule
+  MISSING readaloud:dressing-ids-reference
+  MISSING readaloud:read-aloud-length
+  MISSING readaloud:read-aloud-refusal
+  MISSING readaloud:readaloud-features (scalar)
+  MISSING treasure_flavour:item-flavour-purpose
+  MISSING treasure_flavour:flavour-mechanically-loud
+  MISSING treasure_flavour:hoard-ids-reference
+  MISSING treasure_flavour:hoard-magic-items-column
+  MISSING treasure_flavour:individual-treasure-completeness
+  MISSING treasure_flavour:government-d100-unrecoverable
+  MISSING treasure_flavour:flavour-creator-culture-gap
+  MISSING treasure_flavour:treasure-quantity-is-dm-call
+  MISSING treasure_flavour:flavour-creator-d20 (table)
+  MISSING treasure_flavour:flavour-history-d8 (table)
+  MISSING treasure_flavour:flavour-minor-property-d20 (table)
+  MISSING treasure_flavour:flavour-quirk-d12 (table)
+  MISSING world_events:world-events-refusal
+  MISSING world_events:world-shaking-events-d10 (table)
+  MISSING world_events:leader-types-d6 (table)
+  MISSING world_events:cataclysmic-disasters-d10 (table)
+  MISSING world_events:invading-forces-d8 (table)
+  MISSING world_events:lost-resource-d8 (table)
+  MISSING world_events:new-organizations-d10 (table)
+  MISSING world_events:discoveries-d10 (table)
+  MISSING dressing:dressing-noises (table)
+  MISSING dressing:dressing-air (table)
+  MISSING dressing:dressing-odors (table)
+  MISSING dressing:dressing-general-features (table)
+  MISSING dressing:dressing-general-furnishings (table)
+  MISSING dressing:dressing-religious-articles (table)
+  MISSING dressing:dressing-mage-furnishings (table)
+  MISSING dressing:dressing-utensils-and-personal-items (table)
+  MISSING dressing:dressing-container-contents (table)
+  MISSING dressing:dressing-books-scrolls-tomes (table)
+  MISSING dressing:trick-objects (table)
+  MISSING dressing:tricks (table)
+  MISSING downtime:downtime-activity-day-rule
+  MISSING downtime:downtime-defers-to-phb
+  MISSING downtime:carousing-roll-method
+  MISSING downtime:business-roll-method
+  MISSING downtime:business-unpaid-debt-penalty
+  MISSING downtime:business-cost-input-required
+  MISSING downtime:dm-keeps-the-rulings
+  MISSING downtime:carousing-d100-level (table)
+  MISSING downtime:running-a-business-d100 (table)
+  MISSING extras:hirelings-p94
+  MISSING extras:contacts-p93
+  MISSING extras:patrons-p94
+  MISSING extras:npc-party-members-p92
+  MISSING extras:adventurer-npcs-p93
+  MISSING extras:loyalty-optional-rule-p93
+  MISSING extras:loyalty-max-charisma-input
+  MISSING extras:loyalty-deltas-p93
+  MISSING extras:loyalty-scope-p93
+  MISSING extras:low-level-follower-examples (scalar)
+  MISSING sidetier:milestone-rewards-p261 (scalar)
+  MISSING pointer calendar.json:lifestyle-billing-cycle
+  MISSING pointer resources.json:rest-variants
+  MISSING pointer memory.json:notebook-elements
+  MISSING pointer disclosure.json:npc-loyalty-hidden
+
+=== MANIFEST: slots by asking module, measured against the baked payload ===
+  app: 2 slot(s), 0 not resolving
+  app, engine: 3 slot(s), 0 not resolving
+  chargen: 5 slot(s), 0 not resolving
+  copilot: 36 slot(s), 0 not resolving
+  copilot, copilot_ui: 1 slot(s), 0 not resolving
+  delegated: 32 slot(s), 0 not resolving
+  delegated_ui: 4 slot(s), 0 not resolving
+  engine: 57 slot(s), 0 not resolving
+  memory: 4 slot(s), 0 not resolving
+  memory_ui: 7 slot(s), 0 not resolving
+  narration: 10 slot(s), 0 not resolving
+  narration, narration_ui: 5 slot(s), 0 not resolving
+  narration_ui: 4 slot(s), 0 not resolving
+
+=== PARAMS on present, non-refusal rows (from the engines' own lists) ===
+  narration narration:state-change-to-evidence params fields, bands, requiresSubject, autoApply
+  narration narration:drafter-does-not-decide params autoChoose, autoApply, recommendsNothing
+  narration firewall:what-may-i-say params question, outputs, decidesForDm, withheldCounted
+  narration firewall:reveal-cost params costKinds, printedCostFound, defaultCost
+  narration firewall:prompt-audience-before-request params enforcedAt, playerAudienceDigits, mmPointersExcluded, withheldReported
+  narration firewall:generated-never-canon params promotionRequired, promotionLogged, defaultEnabled, generatedCarriesCite
+  narration readaloud:read-aloud-register params namesReadAloudText, metagameRisk, printedLimitFound
+  narration readaloud:anchor-p31-correction params mapAnchor, isReachOfTitan, dmgP30P31Hold, citeInstead
+  narration readaloud:dressing-corpus-completeness params tables, entries, perEntryProvenance, fileLevelLicense, fileDeclaredGaps
+  narration world_events:world-shaking-die-disagreement params headerDie, proseDie, resolvedBy, quietWinner
+  narration world_events:sub-table-coverage params withoutSubTable, inventSubTable
+  narration world_events:holy-days-in-calendar params pushIntoCalendar, refFile, refIds, retranscribeHolidays, writeToCalendarFile
+  narration world_events:events-cadence params printedInterval, whenNotToShakeRef
+  narration world_events:disaster-reroll-caveat params rerollIfConflicts, resemblesOurWorldExcept
+  narration world_events:mythic-magnify params magnifyToGrandScale, dieFromDisagreement
+  delegated downtime:stronghold-land-and-papers params awayDaysPenaltyPerDay, oversightRequired, papers, smallEstateGp, largeEstateGpMin, scalarId
+  delegated downtime:crafting-magic-item-requirements params progressIncrementGp, hoursPerCraftDay, multipleCraftersContributionGpPerDay, prerequisites, scalarId, lifestyleRelief
+  delegated downtime:sacred-rites-benefit params minimumDays, benefitDurationDie, benefitUnit, priestOrLayperson, calendarPushAllowed
+  delegated downtime:rumor-check-and-shift params dc, ability, skills, attitudeShiftSteps, failureConsequence, perDayCostGp, scalarId, individualsMayDisagree
+  delegated downtime:selling-check-and-refusal params check, dc, assistanceEffect, failureSearchDays, multipleItemsRule, neverSalable, locationGate, basePriceRefFile, basePriceRefIds
+  delegated downtime:training-to-gain-levels-variant params optIn, defaultOn, whatIsDelayed, scalarId, costIsTotalNotPerDay
+  delegated downtime:garrison-hirelings-unusable params usable, survivingOrphanValues, monsterStatPointer, refusalLine
+  delegated downtime:downtime-principle params levelPaceControl, investmentDevice, higherLevelDowntime
+  delegated downtime:creating-downtime-activities params tests, appGeneratesActivity, refusalLine
+  delegated downtime:vignette-brief-assembly params transport, secondTransportAllowed, generatedTag, wallAppliedBefore, refusalWhenOff, canonRequiresReview
+  delegated extras:hireling-pay-open params skilledPerDayGp, untrainedPerDayGp, messengerPerMileCp, coachCabCityCp, coachCabBetweenTownsPerMileCp, roadOrGateTollCp, shipsPassagePerMileSp, payIsMinimum, spellcastersExcluded
+  delegated extras:extras-p94 params rollForFace, personaRefFile, personaRefIds, nameSourceInBuild, refusalLine
+  delegated extras:low-level-followers-p92 params scalarId, backupPurpose, xpShare, levelsFasterThanAdventurers, adventurersAdvancementSlowed, instakillWarning, crossRefE4
+  delegated extras:loyalty-bands-p93 params bands, resolvedBy, quietWinner
+  delegated extras:loyalty-band-overlap-at-10 params overlapValue, bothReadings, resolvedBy, quietWinner, ruleRefFile, ruleRefIds
+  delegated extras:persona-tables-by-id params refFile, refIds, notesRefFile, notesRefIds, retranscribe, labelRolledFaceAsPrompt
+  delegated extras:extras-never-canon-without-review params writesMemoryOnRoll, writesMemoryOnLoyaltyChange, canonDoor, playerViewShowsLoyalty, audienceAlways
+  delegated sidetier:no-solo-rules-in-print params soloProcedureInPrint, citedParts, designParts, saysSoOnScreen
+  delegated sidetier:side-scene-review-gate params proposedState, canonDoor, bothDirectionsChecked, revocable, generationTagsCarried, autoApprove, refFile, refIds, canonRefFile, canonRefIds
+  delegated sidetier:small-groups-p236 params optionsForSmallGroups, warnings, backupsLevelWithMains, followersRefFile, followersRefIds, healingSurgeRefFile, healingSurgeRefIds
+  delegated sidetier:level-advancement-variants-p261 params variants, sessionRate, assumedSessionHours, whoAnnouncesTheLevel, scalarId
+  delegated sidetier:noncombat-challenge-xp-p261 params decider, gaugeBy, meaningfulRiskRequired, difficultyRefFile, difficultyRefIds
+  delegated sidetier:absence-downtime-link params downtimeRefFile, downtimeRefIds, notebookRefFile, notebookRefIds, rejoinHookRequired
+  delegated sidetier:side-tier-is-dm-side params visibilityKey, defaultOn, playerViewContent, neverPlayerSide, vocabRefFile, vocabRefIds
+  delegated sidetier:delegated-prefs-design params keys, defaults, canHoldApiKey, canHoldEndpoint, autoPostingSwitchExists, adapterReusedNotForked

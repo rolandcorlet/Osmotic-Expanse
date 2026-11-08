@@ -1,0 +1,54 @@
+﻿check-only (nothing written)  2821.9 KB
+
+  file                  tables    rows  scalars   rules  blocks  index    pat    phr  declared gaps  non-verified
+  briefing                  0       0        0       2       0      0      0      0              2             1
+  calendar                  0       0        3       8       0      0      0      0             10             5
+  chargen                   0       0        1       4       0      0      0      0              1             0
+  clocks                    2      33        2       4       0      0      0      0              2             1
+  combat_ledger             0       0        0      12       0      0      0      0              5             1
+  conditions                0       0        4      12       0      0      0      0             11             1
+  copilot                   0       0        4      15       0      0      0      0              1             4
+  cr_xp                     0       0        1       0       0      0      0      0              1             0
+  dcs_damage                0       0        2       0       0      0      0      0              0             0
+  disclosure                0       0        2       1       0      0      0      0              0             0
+  downtime                  3       3        6      17       0      0      0      0              9            11
+  dressing                  3      46        0       5       0      0      0      0              0             1
+  encounter                 0       0        7       0       0      0      0      0              0             0
+  extras                    0       0        2      16       0      0      0      0              1             2
+  firewall                  0       0        2      12       0      0      0      0              0             2
+  memory                    0       0        4      24       0      0      0      0              1             1
+  monsters_mm               0       0        0       0       0      0      0      0              0             0
+  monsters_srd              2      18        0       0      60      0      0      0             58             1
+  narration                 0       0        2      11       0      0     10     28              0            40
+  npc                      14      56        2       0       0      0      0      0              0             9
+  readaloud                 0       0        2       8       0      0      0     12              0            15
+  resources                 0       0        2       7       0      0      0      0              5             1
+  rules_index               0       0        0       0       0    117      0      0              0            14
+  sidetier                  0       0        3       9       0      0      0      0              3             5
+  treasure                 10     100        1       2       0      0      0      0             13             2
+  treasure_flavour          1       6        0      10       0      0      0      0              1             2
+  world_books               0       0        0       0       0      0      0      0              0             0
+  world_events              4      82        1       7       0      0      0      0              1             4
+  world_slots               0       0        1       0       0      0      0      0              0             1
+  TOTAL                    39     344       54     186      60    117     10     40            125           124
+
+  library: 60 SRD blocks (CC-BY) · 0 Monster Manual pointers (INCLUDED, DM-only)
+  rules index: 98 cited answers · 19 deferrals the app refuses to answer for
+  narration tier: 10 patterns · 40 phrases · 5/5 Phase 4 data files in the payload · dressing.json 3 tables copied from phase0 unchanged
+  delegated tier: 3/3 Phase 5 data files · 14 activities the chapter prints · 12 roles an extra can hold · 5 answers to an absent player · 3 tab(s) from delegated_ui.js
+  pointers: 69 *RefIds params in the payload, 0 dangling · rows marked unrecoverable and refused by the engine: 0
+  DM-only content: this artifact indexes a book this machine's DM owns. It is for that table only; ship with --no-dm-only.
+
+10 warning(s) — not blocking, but they are the honest kind:
+  ! monsters_srd.json: table[bestiary-modifying-templates] cites a book but no section ("BESTIARY ‘Modifying Templates’") — the Books tab can jump to a section, not to a whole book [world-cite]
+  ! monsters_srd.json: table[bestiary-abiotic-hazards] cites a book but no section ("BESTIARY ‘Abiotic Entities and Hazards’") — the Books tab can jump to a section, not to a whole book [world-cite]
+  ! 1 slot(s) are answered under a different id or a different file than the manifest names: legendary-resistance (answered in combat_ledger.json). The file-agnostic lookups still find them, but the World tab will keep the manifest's file listed as empty until the manifest catches up [world-manifest]
+  ! the library has no block answering 11 of the 71 creatures the LYTIC BESTIARY prints: RULEBREAK INSTANCE, THE SAME, TWICE, THE UNNUMBERED, REVERSE BLOOM, INVERTED LUNG, THE LONG ECHO, THE QUIET, CURATOR MANIFESTATION, PEPTIDE CONSTRUCT (the Atlas Constructor's print), RELIC-BEARER (template, any Order or Colonist), HOST / VESSEL (template, any Colonist or creature) — coverage, not a count [world-library]
+  ! monsters_mm.json carries no pointer rows: the Codex has not pointed this build at any DM-owned book, so the DM's build and the shareable build differ only in the file being dropped. Legal — and it means --no-dm-only cannot regress anything [world-shareable]
+  ! payload pointers: 69 pointer params naming 47 distinct ids, all of them present in this payload (481 ids in total) — the tiers defer instead of forking [p5-pointers]
+  ! src/engine.js is not byte-identical to phase5/src/engine.js — that freeze belongs to Phase 6, whose engine only re-laid out borrowed canon. Pre-World edits the engines on purpose (the world's own vocabulary, the two economies, the pointer lookups); the check is kept as a report of where the divergence starts: first difference at byte 1203: phase5 "Some transcribed entries carry the page reference under `source` inste" vs here "PRE-WORLD: the view this engine is handed can CHANGE during a session " [p6-engine-freeze]
+  ! the payload gained chargen.json, world_books.json, world_slots.json against the Phase 5 pipeline — Pre-World bakes these from world/*.json (WORLD-CONTRACT §1); the old pipeline has no equivalent [p6-payload-diff]
+  ! offline surface: every URL in the artifact is the shell's own attribution (1) or a cite recorded in a provenance field (0) — the Phase 4 and Phase 5 tiers add none, and nothing is endpoint-shaped
+  ! ui-copy-from-data: no UI string literal duplicates a payload sentence — the screens read what the data says [ui-copy-from-data]
+
+Open the file directly — it needs no server. Campaign state lives in this browser (localStorage); use Export for a portable copy.
