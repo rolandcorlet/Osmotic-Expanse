@@ -1,9 +1,12 @@
-# Publish only the two apps; keep the source books and working files off the websites.
-# The Director's site serves DMAssistant_Osmotic_Expanse.html; the Players site (Root Directory
-# "players") serves players/index.html.
-*
-!DMAssistant_Osmotic_Expanse.html
-!vercel.json
-!players/
-!players/index.html
-!index.html
+# Keep the source books and working files off both websites.
+# The Director's site serves DMAssistant_Osmotic_Expanse.html (vercel.json rewrites / to it);
+# the Players site (Root Directory "players") serves players/index.html.
+# Written as a deny list: Vercel cannot re-include a file under a folder that "*" has excluded.
+*.md
+*.docx
+*.pdf
+*.sav
+*.txt
+*.py
+chargen/
+lessons/
