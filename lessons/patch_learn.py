@@ -12,6 +12,14 @@ c='  function screenRollHelper() {'
 assert s.count(c)==1
 fn='''  /* OSMOTIC: Learn to Play — seven animated lessons, embedded whole and opened from a Blob so the app stays one file. */
   var LEARN_URL = null;
+  window.addEventListener("message", function (ev) {
+    if (!ev.data || typeof ev.data.oxLearnFull !== "boolean") return;
+    var f = document.getElementById("learnFrame"); if (!f || ev.source !== f.contentWindow) return;
+    f.style.cssText = ev.data.oxLearnFull ? LEARN_FULL : LEARN_NORMAL;
+    document.documentElement.style.overflow = ev.data.oxLearnFull ? "hidden" : "";
+  });
+  var LEARN_NORMAL = "width:100%;height:calc(100vh - 150px);min-height:780px;border:0;border-radius:12px;background:#070d14";
+  var LEARN_FULL = "position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;border:0;border-radius:0;background:#000";
   function screenLearn() {
     if (!LEARN_URL) {
       try {
@@ -22,7 +30,7 @@ fn='''  /* OSMOTIC: Learn to Play — seven animated lessons, embedded whole and
     }
     return '<div class="featcheck"><h2>Learn to Play</h2><span class="badge">7 animated lessons</span>' +
       '<span class="cite">the core loop for new players: the roll, building a pool, the Pulse Cycle, attacks, Stress, reactions and Overdrive</span></div>' +
-      '<iframe title="Learn to Play" src="' + LEARN_URL + '" style="width:100%;height:calc(100vh - 150px);min-height:780px;border:0;border-radius:12px;background:#070d14" allow="autoplay"></iframe>';
+      '<iframe id="learnFrame" title="Learn to Play" src="' + LEARN_URL + '" style="' + LEARN_NORMAL + '" allow="autoplay; fullscreen" allowfullscreen></iframe>';
   }
 
 '''

@@ -64,9 +64,24 @@
   $("bAuto").onclick = function () { auto = !auto; this.classList.toggle("on", auto); this.textContent = auto ? "❚❚ Pause" : "▶ Auto-play"; if (auto) arm(); else clearTimeout(timer); };
   $("bSpeak").onclick = function () { speak = !speak; this.classList.toggle("on", speak); this.textContent = speak ? "🔊 Reading aloud" : "🔈 Read aloud"; say(); };
   if (!window.speechSynthesis) $("bSpeak").style.display = "none";
+  /* Full screen: the Fullscreen API where allowed, otherwise fill the window. Esc or the button returns. */
+  var wrap = $("stagewrap");
+  function isFull() { return wrap.classList.contains("full"); }
+  function setFull(on) {
+    wrap.classList.toggle("full", on);
+    try { if (window.parent !== window) window.parent.postMessage({ oxLearnFull: on }, "*"); } catch (e) {}
+    $("bFull").textContent = on ? "✕ Exit full screen" : "⛶ Full screen"; $("bFull").classList.toggle("on", on);
+    var fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (on && !fs && wrap.requestFullscreen) wrap.requestFullscreen().catch(function () {});
+    if (!on && fs && document.exitFullscreen) document.exitFullscreen().catch(function () {});
+    setTimeout(fit, 60);
+  }
+  $("bFull").onclick = function () { setFull(!isFull()); };
+  document.addEventListener("fullscreenchange", function () { if (!document.fullscreenElement && isFull()) setFull(false); else fit(); });
+  $("viewer").addEventListener("dblclick", function () { setFull(!isFull()); });
   document.addEventListener("keydown", function (e) {
     if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
-    if (e.key === "ArrowRight") $("bNext").onclick(); else if (e.key === "ArrowLeft") go(step - 1); else if (e.key === " ") { e.preventDefault(); $("bAuto").onclick.call($("bAuto")); }
+    if (e.key === "f" || e.key === "F") { setFull(!isFull()); return; } if (e.key === "Escape" && isFull()) { setFull(false); return; } if (e.key === "ArrowRight") $("bNext").onclick(); else if (e.key === "ArrowLeft") go(step - 1); else if (e.key === " ") { e.preventDefault(); $("bAuto").onclick.call($("bAuto")); }
   });
 
   /* ---------------- Try it yourself ---------------- */
