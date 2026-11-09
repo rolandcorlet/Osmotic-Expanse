@@ -18955,6 +18955,10 @@ window.DM_MEMORY_UI = (function () {
     var RENAME = { hoard: "Harvest & Consumption", combat: "Pulse War", narrate: "Description as Clue" };
     TABS.forEach(function (t) { if (RENAME[t[0]]) t[1] = RENAME[t[0]]; });
   })();
+  /* REMOVED TABS: the Director marked these Not needed; they are gone from the strip, Tab Setup and every link. */
+  var DM_REMOVED = ["conditions", "resources", "clocks", "loot", "userview", "continuity", "recall", "copilot", "library", "npc", "firewall", "readaloud", "events", "downtime", "extras", "sidereview", "editing"];
+  for (var rti = TABS.length - 1; rti >= 0; rti--) { if (DM_REMOVED.indexOf(TABS[rti][0]) >= 0) TABS.splice(rti, 1); }
+  function tabGone(id) { return DM_REMOVED.indexOf(id) >= 0; }
 
   /* OSMOTIC — tab preferences. Kept in this browser's localStorage under its own key (not in the campaign
    * file, so the campaign validator and Export/Import are untouched). `off` holds the ids marked not needed;
@@ -19058,16 +19062,14 @@ window.DM_MEMORY_UI = (function () {
   window.addEventListener("hashchange", function () {
     var h = String(location.hash || "").replace(/^#/, "");
     if (!allTabs().some(function (t) { return t[0] === h; })) return;   // an unknown hash changes nothing, silently
-    if (ui.tab === h) return;
-    ui.tab = h;
-    render();
+    if (ui.tab === h || tabGone(h)) return; ui.tab = h; render();
   });
 
   function renderTabs() {
     try { tabPrefsSync(); } catch (eT) {}
     // PRE-WORLD HOOK (tabs): the static strip plus the tabs the campaign's own books created. A book added
     // mid-session shows up the same render it was added on; a book removed loses its tab the same way.
-    tabsEl.innerHTML = allTabs().filter(function (t) {
+    tabsEl.innerHTML = allTabs().filter(function (t) { if (tabGone(t[0])) return false;
       // OSMOTIC: a hidden not-needed tab still shows while it is the open one, so the DM is never stranded.
       return !(tabIsOff(t[0]) && ui.tab !== t[0]); /* not-needed tabs are removed from the bar; Tab Setup brings them back */
     }).map(function (t) {
@@ -19149,6 +19151,7 @@ window.DM_MEMORY_UI = (function () {
 
   /* ------------------------------------------------------------- body dispatcher */
   function render() {
+    if (tabGone(ui.tab)) ui.tab = "roster";
     rememberFormValues();          // capture what the DM typed BEFORE the DOM is replaced
     // A few actions write state that is ALSO an ordinary input value (the purse is the one that bit:
     // "add the coins to the purse" updated the ledger, then the snapshot above restored the old numbers
