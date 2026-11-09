@@ -1,4 +1,8 @@
-# Publish only the Director's Assistant; keep the source books and working files off the website.
+# Publish only the two apps; keep the source books and working files off the websites.
+# The Director's site serves DMAssistant_Osmotic_Expanse.html; the Players site (Root Directory
+# "players") serves players/index.html.
 *
 !DMAssistant_Osmotic_Expanse.html
 !vercel.json
+!players/
+!players/index.html
