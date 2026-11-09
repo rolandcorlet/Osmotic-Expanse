@@ -658,7 +658,7 @@ Rim ──3── Mid-Strata ──4── Foundry Belt
 
 Six powers run the Expanse. None of them are villains, which is why all of them are dangerous. Each entry gives you: what they say they want, what they actually want, what they will sell you, what they will ask, what they will **lyse you for**, and three faces.
 
-**Standing ladder** (Core VIII) is one of six rungs: *Hostile / Wary / Neutral / Obliging / Confided / Bound*. Each rung up costs a Vector's worth of service and one scene where you chose the faction over your own comfort. Each rung down costs one sentence.
+**Standing ladder.** Standing is Core §8.7's 0–10 track and its four bands (Hostile 0–1 · Wary 2–5 · Client 6–8 · Kin 9–10). The Codex names six rungs inside those bands: *Hostile* (0–1) · *Wary* (2–3) · *Neutral* (4–5) · *Obliging* (6–7) · *Confided* (8) · *Bound* (9–10). Each rung up costs a Vector's worth of service and one scene where you chose the faction over your own comfort. Each rung down costs one sentence.
 
 ---
 
@@ -830,7 +830,7 @@ The Code is not a metaphor to the faithful, and it is not entirely a metaphor to
 | --: | :-- | :-- | :-- |
 | 1 | **Containment** | nothing crosses a colony's membrane unread | registers grant +2 dice to find an unregistered organism; a registered organism gains +1 Cohesion per scene it is lawful in |
 | 2 | **Non-Waste** | a body must be harvested or buried in a licensed ground | leaving a body unharvested advances the Colony Clock; a harvested body pays Codon to *whoever holds the licence* (usually not the killer) |
-| 3 | **Catalysis is debt** | a gift of synthesis must be recorded | the Gene-Debt on Relics; a Cohort that pays a debt clears 1 Stress and +1 Cohesion (Core §9.8) |
+| 3 | **Catalysis is debt** | a gift of synthesis must be recorded | the Gene-Debt on Relics; a Cohort that pays a debt clears 1 Stress and +1 Cohesion (Core §9.7) |
 | 4 | **Tonicity is truth** | you may not lie about what you are: state your lineage, your tonic, your Oaths | an organism that voluntarily states all three gains +1 die on its next contest that Beat; refusal costs 1 Cohesion among the faithful |
 | 5 | **The Code is written** | do not rewrite a region's rules; do not cut the Sequence Forest | Deep Naming and Rule Break (Relics) advance the Core Clock; Curators act at 4 |
 | 6 | **A body is its own argument** | do not hijack, do not rewrite a body without consent | the Underground's weaponised version: an organism whose sequence was altered without consent may invoke **Argument** — a free contested contest (AFF vs violator's RTC) at AT 16 against any claim the violator makes anywhere |
@@ -1062,7 +1062,7 @@ Notice Codon *falls* as tiers rise. That is deliberate: at Tier 4–5, the game 
 
 ## 10.5 Gene-Debt and its collectors
 
-A **Gene-Debt** (Core §9.8) is a Relic's price written into your own sequence: it can be *bequeathed*, *traded*, and *collected*. Track debts on the Cohort sheet as a clock of 4 segments. Advance when: a Tide passes without a payment, the Cohort uses the Relic's Rule Break, or a collector makes contact.
+A **Gene-Debt** (Core §9.7) is a Relic's price written into your own sequence: it can be *bequeathed*, *traded*, and *collected*. Track debts on the Cohort sheet as a clock of 4 segments. Advance when: a Tide passes without a payment, the Cohort uses the Relic's Rule Break, or a collector makes contact.
 
 **d10 — who comes for the debt**
 
@@ -1111,7 +1111,7 @@ Players remember the fights where they *lost something*. Do it fairly:
 
 ## 10.8 Twelve sinks that create stories
 
-1. **Upkeep** (Symbiotes 1 S/Beat, assets 5 S/Beat, Retainers 5–20 S/Beat)
+1. **Upkeep** (Symbiotes 2–10 S/Beat (Core §9.6), assets 5 S/Beat, Retainers 5–20 S/Beat)
 2. **Licence fees** for gear and for your own Name
 3. **Toll arches** and Guild passage
 4. **Harvest rights** purchased before you loot (the legal way)

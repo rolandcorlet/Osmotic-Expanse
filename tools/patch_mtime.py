@@ -28,7 +28,7 @@ CONVT = [["1 minute", "10", "", ""], ["1 Fugue Interval", "600", "1", "1⁄24"],
          ["1 Metabolic Beat", "14,400", "24", "1"], ["1 Pulse Ten (app)", "144,000", "240", "10"], ["1 Drift Season", "432,000", "720", "30"],
          ["1 Osmotic Tide", "1,728,000", "2,880", "120"], ["1 Great Cycle", "", "46,080", "1,920 (the Codex prints ~1,900)"]]
 REC = [["A quiet Cycle (no ATP spent, no damage taken)", "1 Cycle", "−1 Stress"], ["Vent", "1 PP in combat (2 ATP)", "−2 Stress"],
-       ["Chemotactic Rite", "1 Fugue Interval (3 Substrate each)", "all Stress and +2 Cohesion (CORE §11.6); §5.8 prints −3 Stress — the Director rules"],
+       ["Chemotactic Rite", "1 Fugue Interval (3 Substrate each)", "all Stress and +2 Cohesion (CORE §5.8, §11.6)"],
        ["Reconstitution (short rest)", "1 Fugue Interval", "all Stress, full ATP, heal VSC + Hull MI"],
        ["Dormant Cycle (long rest)", "6 hours", "full MI, Lysis Countdown cleared, once-per-encounter features refreshed"]]
 PHASES = [["Isotonic Rise", "neutral → slightly hypertonic", "travel is cheap; healing normal; PP full"],

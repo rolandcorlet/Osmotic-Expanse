@@ -170,7 +170,7 @@ A body is a thing that decides what gets in and what stays out. So **the players
 **9 · THE CHAPEL FERRY (pilgrimage).** The **Undissolvable Congregation** (CODEX §7.4) has been letting the Wastes digest them *slowly and deliberately* for Beats beyond counting. They run a ferry and chapel network inside the Unread, and their chemistry is a passport: the body has been tolerating them for years.
 *Cost:* a rite, and **one name to carry into the Nodule and say aloud**. *Surfaces:* the Chapel, together. *Advantage:* **sponsored** — Tolerance contests at AT 10 instead of AT 14, and the Congregation will hide the Cohort once, inside themselves, which is a scene nobody forgets. *Debt:* the name must be spoken **at the Nodule, in front of the Undersigned**. Choir truths are true and every one costs something (CODEX §7.6): if it is a rule, saying it advances **CORE 1** and one region of the Wastes changes its physics for the rest of the campaign.
 
-**10 · THE GENE-DEBT DOOR (something inside wants to come home).** The Underground lends you a Relic fragment whose Gene-Debt *pulls* toward the half of itself the Unread swallowed nine Great Cycles ago (CORE §9.8, §9.7; CODEX §10.5). You do not go in. The Host opens for the Relic, and you go through the opening.
+**10 · THE GENE-DEBT DOOR (something inside wants to come home).** The Underground lends you a Relic fragment whose Gene-Debt *pulls* toward the half of itself the Unread swallowed nine Great Cycles ago (CORE §9.7; CODEX §10.5). You do not go in. The Host opens for the Relic, and you go through the opening.
 *Cost:* a **4-segment Gene-Debt Clock** from the first hour, and when it fills the collector (a Choir rite-official) knows exactly where you are — including, on the worst roll, *inside*. *Advantage:* the Host's tissue is **friendly**: Sentinels read you as kin of a stored object, and the Relic itself is a real tool (one Rule Break, once, at a price). *Debt:* the Debt is the Vector's mid-point reversal: the collector arrives *inside the body*, in the only compartment where nobody can leave.
 
 **11 · THE BREACHER'S HATCH (the uncreative answer, priced honestly).** A Membrane Breacher charge, 40 S of acid, three Beats of noise, and a hole in a person who was not asked.
@@ -590,7 +590,7 @@ Always Masked (CORE §4.7). No attacks. No BSP as an enemy: it is not a fight.
 RELIC: THE RECEIPT        Legendary · 1 slot · a document, and a heavy one
 BENEFIT: once per scene, in any registered ground, invoke the Closing's consent:
          one AT 20 social act the Warden Circles cannot refuse to hear.
-GENE-DEBT (4 segments, CORE §9.8 / CODEX §10.5): the debt is now yours.
+GENE-DEBT (4 segments, CORE §9.7 / CODEX §10.5): the debt is now yours.
   Advance when: you invoke the benefit; you hide it from a Warden arch; you let a
   registered ground decide the case.  At FILL: the Deep Choir names you publicly,
   CORE CLOCK +1, and one PC's LINEAGE is implicated in the Closing in front of

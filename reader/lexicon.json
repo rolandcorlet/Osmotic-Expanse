@@ -1,0 +1,3338 @@
+{
+ "version": 1,
+ "cats": {
+  "person": {
+   "label": "People",
+   "color": "#f2b36b"
+  },
+  "place": {
+   "label": "Places",
+   "color": "#6fc3df"
+  },
+  "time": {
+   "label": "Time",
+   "color": "#b49cf2"
+  },
+  "lineage": {
+   "label": "Lineages & bodies",
+   "color": "#7ee0a1"
+  },
+  "faction": {
+   "label": "Factions & offices",
+   "color": "#f08a8a"
+  },
+  "society": {
+   "label": "Society & custom",
+   "color": "#e5d36a"
+  },
+  "rule": {
+   "label": "Rules & mechanics",
+   "color": "#5ee6d0"
+  }
+ },
+ "terms": [
+  {
+   "name": "Metabolic Time",
+   "cat": "time",
+   "def": "How the Expanse counts time — by what bodies do: a Pulse Cycle, a Fugue Interval, a Beat, a Drift Season, a Tide. Organisms call it the Rhythm.",
+   "aka": [
+    "the Rhythm"
+   ],
+   "rx": [],
+   "see": [
+    "beat",
+    "osmotic-tide"
+   ],
+   "src": "CORE §8.1",
+   "level": "player",
+   "scope": null,
+   "id": "metabolic-time"
+  },
+  {
+   "name": "Pulse Cycle",
+   "cat": "time",
+   "def": "About six seconds — one round of a fight, in which every organism takes its turn.",
+   "aka": [
+    "Pulse Cycles",
+    "Cycle",
+    "Cycles"
+   ],
+   "rx": [],
+   "see": [
+    "metabolic-time"
+   ],
+   "src": "CORE §4.2, §8.1",
+   "level": "player",
+   "scope": null,
+   "id": "pulse-cycle"
+  },
+  {
+   "name": "Fugue Interval",
+   "cat": "time",
+   "def": "About an hour. A short rest, one leg of travel, or most of a scene takes one Fugue Interval.",
+   "aka": [
+    "Fugue Intervals",
+    "Interval",
+    "Intervals"
+   ],
+   "rx": [],
+   "see": [
+    "beat"
+   ],
+   "src": "CORE §8.1",
+   "level": "player",
+   "scope": null,
+   "id": "fugue-interval"
+  },
+  {
+   "name": "Beat",
+   "cat": "time",
+   "def": "A day: 24 Fugue Intervals, 20 of them lit and 4 of them dim. Wages, rent and rations are counted by the Beat.",
+   "aka": [
+    "Beats",
+    "Metabolic Beat",
+    "Metabolic Beats"
+   ],
+   "rx": [],
+   "see": [
+    "dim",
+    "fugue-interval"
+   ],
+   "src": "CORE §8.1",
+   "level": "player",
+   "scope": null,
+   "id": "beat"
+  },
+  {
+   "name": "dim",
+   "cat": "time",
+   "def": "The four dark hours at the end of every Beat: curfew, sleep, and the time when smugglers, lovers and the night pumps move.",
+   "aka": [
+    "the dim",
+    "this dim",
+    "that dim",
+    "a dim"
+   ],
+   "rx": [],
+   "see": [
+    "beat"
+   ],
+   "src": "CORE §8.1; QUORUM §16.1",
+   "level": "player",
+   "scope": null,
+   "id": "dim"
+  },
+  {
+   "name": "Pulse Ten",
+   "cat": "time",
+   "def": "Ten Beats — the colonies' week. Three Pulse Tens make a Drift Season.",
+   "aka": [
+    "Pulse Tens"
+   ],
+   "rx": [],
+   "see": [
+    "drift-season"
+   ],
+   "src": "QUORUM §12.1 (an app and colony convention)",
+   "level": "player",
+   "scope": null,
+   "id": "pulse-ten"
+  },
+  {
+   "name": "Drift Season",
+   "cat": "time",
+   "def": "About 30 Beats — a season. Currents reroute and contracts rewrite. Each phase of the Tide lasts one Drift Season.",
+   "aka": [
+    "Drift Seasons"
+   ],
+   "rx": [],
+   "see": [
+    "osmotic-tide"
+   ],
+   "src": "CORE §8.1",
+   "level": "player",
+   "scope": null,
+   "id": "drift-season"
+  },
+  {
+   "name": "Osmotic Tide",
+   "cat": "time",
+   "def": "The year: four Drift Seasons in which the whole world's saltiness swings — Isotonic Rise, Hypertonic Zenith, Isotonic Fall, Hypotonic Zenith — and every region changes with it.",
+   "aka": [
+    "Tide",
+    "Tides",
+    "Osmotic Tides"
+   ],
+   "rx": [],
+   "see": [
+    "isotonic-rise",
+    "hypertonic-zenith",
+    "isotonic-fall",
+    "hypotonic-zenith"
+   ],
+   "src": "CORE §8.1; CODEX §5.3",
+   "level": "player",
+   "scope": null,
+   "id": "osmotic-tide"
+  },
+  {
+   "name": "Great Cycle",
+   "cat": "time",
+   "def": "Sixteen Tides — a generation. At its end comes the Rereading, when registers are purged and old debts re-read.",
+   "aka": [
+    "Great Cycles"
+   ],
+   "rx": [],
+   "see": [
+    "rereading"
+   ],
+   "src": "CODEX §5.1",
+   "level": "player",
+   "scope": null,
+   "id": "great-cycle"
+  },
+  {
+   "name": "Isotonic Rise",
+   "cat": "time",
+   "def": "The spring of the Tide: the water is gentle, travel is cheap, and everyone signs contracts. Its festival is the Contract Fair.",
+   "aka": [
+    "Rise"
+   ],
+   "rx": [],
+   "see": [
+    "contract-fair"
+   ],
+   "src": "CODEX §5.3",
+   "level": "player",
+   "scope": null,
+   "id": "isotonic-rise"
+  },
+  {
+   "name": "Hypertonic Zenith",
+   "cat": "time",
+   "def": "The salt season: the whole world turns salty and water leaves every body that cannot hold it. The dense rich thrive; the watery poor shrink. Its festival is the Salt Vigil.",
+   "aka": [
+    "Zenith",
+    "Hypertonic"
+   ],
+   "rx": [],
+   "see": [
+    "salt-vigil",
+    "dry",
+    "swollen"
+   ],
+   "src": "CODEX §5.3; QUORUM §5.3",
+   "level": "player",
+   "scope": null,
+   "id": "hypertonic-zenith"
+  },
+  {
+   "name": "Isotonic Fall",
+   "cat": "time",
+   "def": "The autumn of the Tide: recovery, harvest and mourning. Its festival is the Rendering.",
+   "aka": [
+    "Fall"
+   ],
+   "rx": [],
+   "see": [
+    "rendering"
+   ],
+   "src": "CODEX §5.3",
+   "level": "player",
+   "scope": null,
+   "id": "isotonic-fall"
+  },
+  {
+   "name": "Hypotonic Zenith",
+   "cat": "time",
+   "def": "The wet season: water floods into every body. The poor grow strong, the rich bloat, raids and swarms spread. Its festival is the Swell.",
+   "aka": [
+    "Hypotonic"
+   ],
+   "rx": [],
+   "see": [
+    "swell"
+   ],
+   "src": "CODEX §5.3; QUORUM §5.3",
+   "level": "player",
+   "scope": null,
+   "id": "hypotonic-zenith"
+  },
+  {
+   "name": "Contract Fair",
+   "cat": "society",
+   "def": "The Isotonic Rise festival (3 Beats): debts signed, Oaths sworn, couples conjugate, offices are chosen for the Tide. An Oath sworn here costs nothing to swear.",
+   "aka": [
+    "Fair"
+   ],
+   "rx": [],
+   "see": [
+    "oath",
+    "conjugation"
+   ],
+   "src": "QUORUM §12.1",
+   "level": "player",
+   "scope": null,
+   "id": "contract-fair"
+  },
+  {
+   "name": "Salt Vigil",
+   "cat": "society",
+   "def": "The Hypertonic Zenith festival: fasting and rationing, water rights read aloud, the Deep Choir's long note, arrears audited and duels fought in the open.",
+   "aka": [
+    "Vigil"
+   ],
+   "rx": [],
+   "see": [
+    "oath-duel",
+    "long-note"
+   ],
+   "src": "QUORUM §12.1",
+   "level": "player",
+   "scope": null,
+   "id": "salt-vigil"
+  },
+  {
+   "name": "Rendering",
+   "cat": "society",
+   "def": "The Isotonic Fall festival (2 Beats): the year's dead are read by the Ash and rendered, so nothing of them is wasted, and their last memories are honoured.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "reclaimers-ash",
+    "reader"
+   ],
+   "src": "QUORUM §12.1",
+   "level": "player",
+   "scope": null,
+   "id": "rendering"
+  },
+  {
+   "name": "Swell",
+   "cat": "society",
+   "def": "The Hypotonic Zenith carnival (a Pulse Ten): masks are lawful, the poor rule the streets, current-races run, and every Issue the Pump backs starts stronger.",
+   "aka": [
+    "the Swell"
+   ],
+   "rx": [],
+   "see": [
+    "hypotonic-zenith",
+    "pump"
+   ],
+   "src": "QUORUM §12.1",
+   "level": "player",
+   "scope": null,
+   "id": "swell"
+  },
+  {
+   "name": "Rereading",
+   "cat": "society",
+   "def": "Once every Great Cycle, every register is purged and every old debt re-read. The Unlisted may ask to be listed again.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "great-cycle",
+    "unlisted"
+   ],
+   "src": "CODEX §5.1; QUORUM §12.1",
+   "level": "player",
+   "scope": null,
+   "id": "rereading"
+  },
+  {
+   "name": "Hearth",
+   "cat": "society",
+   "def": "The shared warm heart of a household, hab or colony: where meals are eaten together, Rites are breathed and news is shared. Lower-case, a hearth is a registered household.",
+   "aka": [
+    "Hearths",
+    "hearth",
+    "hearths"
+   ],
+   "rx": [],
+   "see": [
+    "rite",
+    "chemotactic-rite"
+   ],
+   "src": "QUORUM §2.1",
+   "level": "player",
+   "scope": null,
+   "id": "hearth"
+  },
+  {
+   "name": "Rite",
+   "cat": "society",
+   "def": "A ritual with chemical weight — a shared meal, a naming, a registration, a mourning. Rites change Cohesion, moods and standing.",
+   "aka": [
+    "Rites"
+   ],
+   "rx": [],
+   "see": [
+    "chemotactic-rite"
+   ],
+   "src": "CORE §11.6",
+   "level": "player",
+   "scope": null,
+   "id": "rite"
+  },
+  {
+   "name": "Chemotactic Rite",
+   "cat": "society",
+   "def": "A shared meal of rendered Substrate at a Hearth (1 Fugue Interval): it clears everyone's Stress, builds Cohesion and warms moods.",
+   "aka": [
+    "shared meal"
+   ],
+   "rx": [],
+   "see": [
+    "hearth",
+    "stress"
+   ],
+   "src": "CORE §11.6",
+   "level": "player",
+   "scope": null,
+   "id": "chemotactic-rite"
+  },
+  {
+   "name": "Oath-duel",
+   "cat": "society",
+   "def": "A formal duel fought in the open to settle a sworn Motion. Killing either duellist is a crime, interrupting is a scandal, watching is a legal act.",
+   "aka": [
+    "duel",
+    "duels",
+    "Oath-duels"
+   ],
+   "rx": [],
+   "see": [
+    "yield",
+    "salt-vigil"
+   ],
+   "src": "CODEX §5.5; QUORUM §12.4",
+   "level": "player",
+   "scope": null,
+   "id": "oath-duel"
+  },
+  {
+   "name": "Long note",
+   "cat": "society",
+   "def": "The Deep Choir's pressure-song: one note sustained by Barophil throats for a whole Beat, sung at the Salt Vigil.",
+   "aka": [
+    "long note"
+   ],
+   "rx": [],
+   "see": [
+    "deep-choir",
+    "barophil"
+   ],
+   "src": "QUORUM §14.1",
+   "level": "player",
+   "scope": null,
+   "id": "long-note"
+  },
+  {
+   "name": "Current-race",
+   "cat": "society",
+   "def": "The Swell's great sport: riding a channel current through a marked course of three checkpoints, with big bets.",
+   "aka": [
+    "current-race",
+    "current-races"
+   ],
+   "rx": [],
+   "see": [
+    "swell"
+   ],
+   "src": "QUORUM §14.5",
+   "level": "player",
+   "scope": null,
+   "id": "current-race"
+  },
+  {
+   "name": "Masks",
+   "cat": "society",
+   "def": "Scent-masks hide what an organism is. Normally a crime against the Sacred Code's fourth Precept; lawful during the Swell.",
+   "aka": [
+    "masks",
+    "masked"
+   ],
+   "rx": [],
+   "see": [
+    "swell",
+    "sacred-code"
+   ],
+   "src": "QUORUM §12.1",
+   "level": "player",
+   "scope": null,
+   "id": "masks"
+  },
+  {
+   "name": "Stress",
+   "cat": "rule",
+   "def": "Metabolic Stress: the fraying of a body's chemistry, marked on a track of 8. Too much slows you down; at 8 the body starts eating itself. Rest, a Vent or a shared meal clears it.",
+   "aka": [
+    "Metabolic Stress"
+   ],
+   "rx": [],
+   "see": [
+    "vent",
+    "chemotactic-rite"
+   ],
+   "src": "CORE §5.8",
+   "level": "player",
+   "scope": null,
+   "id": "stress"
+  },
+  {
+   "name": "Vent",
+   "cat": "rule",
+   "def": "A hard exhalation of spent chemistry that clears some Stress at the cost of energy (ATP).",
+   "aka": [
+    "Vented",
+    "Venting",
+    "Vents"
+   ],
+   "rx": [],
+   "see": [
+    "stress",
+    "atp"
+   ],
+   "src": "CORE §5.8",
+   "level": "player",
+   "scope": null,
+   "id": "vent"
+  },
+  {
+   "name": "ATP",
+   "cat": "rule",
+   "def": "An organism's energy — what it burns to move, fight and work. Also a living currency: Host-Cities take their rent in it.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "vent",
+    "host-city"
+   ],
+   "src": "CORE §2.1",
+   "level": "player",
+   "scope": null,
+   "id": "atp"
+  },
+  {
+   "name": "Substrate",
+   "cat": "rule",
+   "def": "Matter, and the Expanse's money, counted in S. A colonist's whole Beat of work is worth about 5 S.",
+   "aka": [
+    "S"
+   ],
+   "rx": [
+    "(?<=\\d )S\\b"
+   ],
+   "see": [],
+   "src": "CORE §2.2; QUORUM §9.5",
+   "level": "player",
+   "scope": null,
+   "id": "substrate"
+  },
+  {
+   "name": "Cohesion",
+   "cat": "rule",
+   "def": "How well a group's chemistry agrees, 0–10. A Cohort builds it by shared meals and kept promises; a colony has its own Colony Cohesion.",
+   "aka": [
+    "Colony Cohesion"
+   ],
+   "rx": [],
+   "see": [
+    "hearth"
+   ],
+   "src": "CORE §2.5; QUORUM §2.4",
+   "level": "player",
+   "scope": null,
+   "id": "cohesion"
+  },
+  {
+   "name": "Oath",
+   "cat": "rule",
+   "def": "A promise folded into your own chromatin, so breaking it damages your body. The Expanse's whole social contract.",
+   "aka": [
+    "Oaths"
+   ],
+   "rx": [],
+   "see": [
+    "oath-box",
+    "ledger"
+   ],
+   "src": "CORE §11.4",
+   "level": "player",
+   "scope": null,
+   "id": "oath"
+  },
+  {
+   "name": "Oath box",
+   "cat": "rule",
+   "def": "Each organism can hold a few Oaths at once (one box each). An unspent box is a promise still waiting to be kept — and the Ash will not render a body with one.",
+   "aka": [
+    "Oath boxes"
+   ],
+   "rx": [],
+   "see": [
+    "oath",
+    "reclaimers-ash"
+   ],
+   "src": "CORE §11.4; CODEX §7.4",
+   "level": "player",
+   "scope": null,
+   "id": "oath-box"
+  },
+  {
+   "name": "Ledger",
+   "cat": "rule",
+   "def": "One page of who owes whom: owed to you, you owe, and who witnessed it. Every line is one sentence.",
+   "aka": [
+    "Ledgers"
+   ],
+   "rx": [],
+   "see": [
+    "oath",
+    "digestion-pact"
+   ],
+   "src": "QUORUM Ch. 6",
+   "level": "player",
+   "scope": null,
+   "id": "ledger"
+  },
+  {
+   "name": "Quorum",
+   "cat": "society",
+   "def": "How a colony decides: everyone who cares breathes signal into the Hearth air, and when the air is thick enough with one answer the whole colony knows it at once.",
+   "aka": [
+    "Quorums"
+   ],
+   "rx": [],
+   "see": [
+    "quorum-speaker",
+    "signal",
+    "quench"
+   ],
+   "src": "QUORUM Ch. 4",
+   "level": "player",
+   "scope": null,
+   "id": "quorum"
+  },
+  {
+   "name": "Signal",
+   "cat": "rule",
+   "def": "The molecule organisms breathe into the air to argue a Quorum. The rich can pay for more of it — 'breathing heavily'.",
+   "aka": [
+    "signal",
+    "breathing heavily",
+    "Breathe heavily"
+   ],
+   "rx": [],
+   "see": [
+    "quorum"
+   ],
+   "src": "QUORUM §4.2",
+   "level": "player",
+   "scope": null,
+   "id": "signal"
+  },
+  {
+   "name": "Quench",
+   "cat": "rule",
+   "def": "A political crime: an enzyme breathed into the air that destroys the other side's signal, so the Quorum is stolen. It leaves a residue that can be hunted afterwards.",
+   "aka": [
+    "quench",
+    "quenching",
+    "quenched",
+    "Quorum-quenching"
+   ],
+   "rx": [],
+   "see": [
+    "quorum"
+   ],
+   "src": "QUORUM §4.5",
+   "level": "player",
+   "scope": null,
+   "id": "quench"
+  },
+  {
+   "name": "Issue",
+   "cat": "rule",
+   "def": "A question before a colony's Quorum, argued on a track until the air reaches Quorum one way or the other.",
+   "aka": [
+    "Issues"
+   ],
+   "rx": [],
+   "see": [
+    "quorum"
+   ],
+   "src": "QUORUM §4.1",
+   "level": "player",
+   "scope": null,
+   "id": "issue"
+  },
+  {
+   "name": "Convocation",
+   "cat": "rule",
+   "def": "An argument in a room with three to six parties and one Motion on the table — a market, council, trial or treaty.",
+   "aka": [
+    "Convocations"
+   ],
+   "rx": [],
+   "see": [
+    "reveal",
+    "walk"
+   ],
+   "src": "QUORUM §4.9",
+   "level": "player",
+   "scope": null,
+   "id": "convocation"
+  },
+  {
+   "name": "Reveal",
+   "cat": "rule",
+   "def": "A Convocation move: produce evidence — a witnessed line, a register entry, a memory — and win a step without arguing.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "convocation"
+   ],
+   "src": "QUORUM §4.10",
+   "level": "player",
+   "scope": null,
+   "id": "reveal"
+  },
+  {
+   "name": "Walk",
+   "cat": "rule",
+   "def": "A Convocation move: withdraw from the room in front of everyone, so all must answer why you left.",
+   "aka": [
+    "Walks"
+   ],
+   "rx": [],
+   "see": [
+    "convocation"
+   ],
+   "src": "QUORUM §4.10",
+   "level": "player",
+   "scope": null,
+   "id": "walk"
+  },
+  {
+   "name": "Yield",
+   "cat": "rule",
+   "def": "A chemical white flag an organism cannot fake. Whoever kills a yielding organism marks Stress on every witness — so fights and duels can end.",
+   "aka": [
+    "yield",
+    "yielded",
+    "yielding"
+   ],
+   "rx": [],
+   "see": [
+    "oath-duel"
+   ],
+   "src": "CORE §4.14",
+   "level": "player",
+   "scope": null,
+   "id": "yield"
+  },
+  {
+   "name": "Assay",
+   "cat": "rule",
+   "def": "A chemical trial: the Lysosome reads the accused's body for the truth, and the colony decides what the reading means.",
+   "aka": [
+    "assay",
+    "assayed",
+    "Assayed"
+   ],
+   "rx": [],
+   "see": [
+    "lysosome",
+    "unlisted"
+   ],
+   "src": "QUORUM §10.2",
+   "level": "player",
+   "scope": null,
+   "id": "assay"
+  },
+  {
+   "name": "Unlisted",
+   "cat": "society",
+   "def": "An organism struck from (or never written into) the registers: no rights, no water ration, no lawful contracts, and invisible to every tax — which is why rebels and smugglers move through them.",
+   "aka": [
+    "Unlisting",
+    "unlisted"
+   ],
+   "rx": [],
+   "see": [
+    "register",
+    "rereading"
+   ],
+   "src": "CODEX §7.2; QUORUM §5.5",
+   "level": "player",
+   "scope": null,
+   "id": "unlisted"
+  },
+  {
+   "name": "Register",
+   "cat": "society",
+   "def": "A colony's living record of who is 'self' — who belongs, with what lineage and Oaths. To be listed is to have rights.",
+   "aka": [
+    "register",
+    "registers",
+    "registered",
+    "listed"
+   ],
+   "rx": [],
+   "see": [
+    "registrar",
+    "unlisted"
+   ],
+   "src": "CODEX §7.2",
+   "level": "player",
+   "scope": null,
+   "id": "register"
+  },
+  {
+   "name": "Dormant Cycle",
+   "cat": "rule",
+   "def": "Six hours of true sleep in a safe nest or cyst: the long rest that restores a body.",
+   "aka": [
+    "Dormant Cycles"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE §5.10",
+   "level": "player",
+   "scope": null,
+   "id": "dormant-cycle"
+  },
+  {
+   "name": "Dormant",
+   "cat": "rule",
+   "def": "Unconscious: an organism with no Membrane Integrity left. A Dormant body is alive but cannot act.",
+   "aka": [
+    "Dormancy"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE §5.4",
+   "level": "player",
+   "scope": null,
+   "id": "dormant"
+  },
+  {
+   "name": "Frailty",
+   "cat": "lineage",
+   "def": "The weakness every lineage is born with, as much a social fact as a physical one.",
+   "aka": [
+    "Frailties"
+   ],
+   "rx": [],
+   "see": [
+    "literal",
+    "obligate-drifter"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "frailty"
+  },
+  {
+   "name": "Literal",
+   "cat": "lineage",
+   "def": "The Immunan Frailty: they cannot be deceived by words and cannot deceive. Asked a direct question, they must answer truthfully unless an Oath forbids it — and even refusing hurts.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "immunan"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "literal"
+  },
+  {
+   "name": "Obligate Drifter",
+   "cat": "lineage",
+   "def": "The Flagellan Frailty: a Flagellan that stops moving loses its strength. They cannot hold a still post, and long stillness brings 'the ache'.",
+   "aka": [
+    "the ache"
+   ],
+   "rx": [],
+   "see": [
+    "flagellan"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "obligate-drifter"
+  },
+  {
+   "name": "Slow Reaction",
+   "cat": "lineage",
+   "def": "The Barophil Frailty: always a beat behind a fast room or a fast fight.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "barophil"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "slow-reaction"
+  },
+  {
+   "name": "Registered",
+   "cat": "lineage",
+   "def": "The Lysosan Frailty: every ward and gate can see they are 'not quite standard', so Wardens distrust them.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "lysosan"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "registered"
+  },
+  {
+   "name": "Budline",
+   "cat": "society",
+   "def": "A family: everyone descended from one founding division. Budlines share a scent-root, a root name, debts and Oaths.",
+   "aka": [
+    "budline",
+    "budlines",
+    "Budlines"
+   ],
+   "rx": [],
+   "see": [
+    "bud",
+    "root-elder",
+    "root-name"
+   ],
+   "src": "QUORUM §7.1",
+   "level": "player",
+   "scope": null,
+   "id": "budline"
+  },
+  {
+   "name": "Bud",
+   "cat": "society",
+   "def": "A new organism, made when a body divides. Buds are dependents until they come of age.",
+   "aka": [
+    "bud",
+    "buds",
+    "budded",
+    "budding"
+   ],
+   "rx": [],
+   "see": [
+    "division",
+    "budline"
+   ],
+   "src": "QUORUM §7.5",
+   "level": "player",
+   "scope": null,
+   "id": "bud"
+  },
+  {
+   "name": "Division",
+   "cat": "society",
+   "def": "How organisms reproduce: one body becomes two, and both remember being one — every memory up to that moment.",
+   "aka": [
+    "divide",
+    "divided",
+    "divides",
+    "divisions"
+   ],
+   "rx": [],
+   "see": [
+    "bud"
+   ],
+   "src": "QUORUM §7.5",
+   "level": "player",
+   "scope": null,
+   "id": "division"
+  },
+  {
+   "name": "Root-elder",
+   "cat": "society",
+   "def": "The oldest living member of a budline, who can call any member home once a Tide.",
+   "aka": [
+    "root-elder"
+   ],
+   "rx": [],
+   "see": [
+    "budline"
+   ],
+   "src": "QUORUM §7.1",
+   "level": "player",
+   "scope": null,
+   "id": "root-elder"
+  },
+  {
+   "name": "Root name",
+   "cat": "society",
+   "def": "The ritual family part of a name — 'of the Seven Ladders' — given at the budline's Hearth.",
+   "aka": [
+    "root name"
+   ],
+   "rx": [],
+   "see": [
+    "budline"
+   ],
+   "src": "QUORUM §7.2",
+   "level": "player",
+   "scope": null,
+   "id": "root-name"
+  },
+  {
+   "name": "Ward",
+   "cat": "society",
+   "def": "A dependent taken in by Rite (Wardship) and raised as one's own. At gates, 'wards' are also the living sensors that read who is self.",
+   "aka": [
+    "ward",
+    "wards",
+    "Wardship"
+   ],
+   "rx": [],
+   "see": [
+    "register"
+   ],
+   "src": "QUORUM §7.6",
+   "level": "player",
+   "scope": null,
+   "id": "ward"
+  },
+  {
+   "name": "Plasmid",
+   "cat": "society",
+   "def": "A small, giftable sequence — a knack or habit (like a lullaby that calms the frightened), passed body to body at a Hearth. Giving one is the deepest courtesy.",
+   "aka": [
+    "plasmid",
+    "plasmids",
+    "Plasmids"
+   ],
+   "rx": [],
+   "see": [
+    "hearth"
+   ],
+   "src": "QUORUM §7.4",
+   "level": "player",
+   "scope": null,
+   "id": "plasmid"
+  },
+  {
+   "name": "Conjugation",
+   "cat": "society",
+   "def": "Two organisms linking membranes and exchanging sequence: marriage, contract and shared inheritance at once, sworn at a Hearth before both budlines.",
+   "aka": [
+    "conjugate",
+    "conjugated",
+    "conjugating",
+    "conjugation"
+   ],
+   "rx": [],
+   "see": [
+    "budline",
+    "contract-fair"
+   ],
+   "src": "QUORUM §7.3",
+   "level": "player",
+   "scope": null,
+   "id": "conjugation"
+  },
+  {
+   "name": "Incubation",
+   "cat": "society",
+   "def": "Keeping watch while another organism takes its Dormant Cycle in the open — an intimate favour, because a sleeping body cannot mask what it is.",
+   "aka": [
+    "incubation"
+   ],
+   "rx": [],
+   "see": [
+    "dormant-cycle"
+   ],
+   "src": "QUORUM §7.6",
+   "level": "player",
+   "scope": null,
+   "id": "incubation"
+  },
+  {
+   "name": "Cleaner Pact",
+   "cat": "society",
+   "def": "A paid arrangement with a grooming guild that keeps parasites out of your membranes.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "QUORUM §7.6",
+   "level": "player",
+   "scope": null,
+   "id": "cleaner-pact"
+  },
+  {
+   "name": "Brooding",
+   "cat": "society",
+   "def": "Carrying a child, sequence or seed inside your own body across water it could not cross alone.",
+   "aka": [
+    "brooded",
+    "brooder",
+    "brooder's"
+   ],
+   "rx": [],
+   "see": [
+    "bud"
+   ],
+   "src": "QUORUM §7.6",
+   "level": "player",
+   "scope": null,
+   "id": "brooding"
+  },
+  {
+   "name": "Digestion Pact",
+   "cat": "society",
+   "def": "Selling your own future body to the Ash while you live: half its harvest value now, and they read and render you when you die.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "reclaimers-ash",
+    "rendering"
+   ],
+   "src": "QUORUM §7.6",
+   "level": "player",
+   "scope": null,
+   "id": "digestion-pact"
+  },
+  {
+   "name": "Memory strand",
+   "cat": "society",
+   "def": "A sealed crystal of an organism's recorded memories, kept as an heirloom or a last message. Some open only once.",
+   "aka": [
+    "memory strand",
+    "strand",
+    "strands"
+   ],
+   "rx": [],
+   "see": [
+    "reader"
+   ],
+   "src": "CORE §11.7; QUORUM §14.3",
+   "level": "player",
+   "scope": null,
+   "id": "memory-strand"
+  },
+  {
+   "name": "Trail-script",
+   "cat": "society",
+   "def": "Writing: scent laid down in sequence along a surface, read by following it.",
+   "aka": [
+    "trail-script"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "QUORUM §11.5",
+   "level": "player",
+   "scope": null,
+   "id": "trail-script"
+  },
+  {
+   "name": "Condition",
+   "cat": "society",
+   "def": "Class, measured as concentration: the Dry (dense and rich), the Settled (the middle) and the Swollen (watery and poor).",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "dry",
+    "settled",
+    "swollen"
+   ],
+   "src": "QUORUM Ch. 5",
+   "level": "player",
+   "scope": null,
+   "id": "condition"
+  },
+  {
+   "name": "Dry",
+   "cat": "society",
+   "def": "The rich: dense, salted organisms living in sealed pockets kept steady by pumps others work.",
+   "aka": [
+    "the Dry"
+   ],
+   "rx": [],
+   "see": [
+    "condition",
+    "hypertonic-zenith"
+   ],
+   "src": "QUORUM §5.1",
+   "level": "player",
+   "scope": null,
+   "id": "dry"
+  },
+  {
+   "name": "Settled",
+   "cat": "society",
+   "def": "The middle condition: a trade, a Hearth, a little saved.",
+   "aka": [
+    "the Settled"
+   ],
+   "rx": [],
+   "see": [
+    "condition"
+   ],
+   "src": "QUORUM §5.1",
+   "level": "player",
+   "scope": null,
+   "id": "settled"
+  },
+  {
+   "name": "Swollen",
+   "cat": "society",
+   "def": "The poor: dilute, water-heavy organisms in the low, wet districts — strong in the wet season, shrinking in the salt.",
+   "aka": [
+    "the Swollen"
+   ],
+   "rx": [],
+   "see": [
+    "condition",
+    "pump"
+   ],
+   "src": "QUORUM §5.1",
+   "level": "player",
+   "scope": null,
+   "id": "swollen"
+  },
+  {
+   "name": "Hauler",
+   "cat": "society",
+   "def": "A worker of the Pump who carries water and goods uphill. A hauler earns about 4 S a Beat.",
+   "aka": [
+    "hauler",
+    "haulers",
+    "Haulers"
+   ],
+   "rx": [],
+   "see": [
+    "pump"
+   ],
+   "src": "QUORUM §9.3",
+   "level": "player",
+   "scope": null,
+   "id": "hauler"
+  },
+  {
+   "name": "Nursery",
+   "cat": "society",
+   "def": "Where a colony's young buds are cared for. In many colonies every hab must feed one nursery shift.",
+   "aka": [
+    "nursery"
+   ],
+   "rx": [],
+   "see": [
+    "bud"
+   ],
+   "src": "QUORUM §2.8",
+   "level": "player",
+   "scope": null,
+   "id": "nursery"
+  },
+  {
+   "name": "Hab",
+   "cat": "place",
+   "def": "A dwelling cluster in a colony — a 'hab-hill' in the Mid-Strata can be the size of a hill.",
+   "aka": [
+    "hab",
+    "habs",
+    "hab-hill",
+    "hab-hills"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §6.3",
+   "level": "player",
+   "scope": null,
+   "id": "hab"
+  },
+  {
+   "name": "Sacred Code",
+   "cat": "society",
+   "def": "Seven Precepts enforced as law across the Expanse — for example, nothing crosses a colony's membrane unread; the dead must be harvested; you may not lie about what you are.",
+   "aka": [
+    "Precept",
+    "Precepts",
+    "the Code"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §8.2",
+   "level": "player",
+   "scope": null,
+   "id": "sacred-code"
+  },
+  {
+   "name": "Charter",
+   "cat": "society",
+   "def": "A colony's founding promises — or a licence that lets a band of adventurers work outside the membrane.",
+   "aka": [
+    "charter"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "QUORUM §2.6, Ch. 15",
+   "level": "player",
+   "scope": null,
+   "id": "charter"
+  },
+  {
+   "name": "Channel",
+   "cat": "society",
+   "def": "An illegal pore in a colony's membrane that lets goods (or water) leak through unread. Smugglers are 'channel-makers'.",
+   "aka": [
+    "channel-maker"
+   ],
+   "rx": [],
+   "see": [
+    "sacred-code"
+   ],
+   "src": "QUORUM §9.4",
+   "level": "player",
+   "scope": null,
+   "id": "channel"
+  },
+  {
+   "name": "Host-City",
+   "cat": "place",
+   "def": "A Vast living organism that carries thousands of tenants in its body and migrates with the Tide. Rent is paid in ATP; its immune cells are the police.",
+   "aka": [
+    "Host-Cities"
+   ],
+   "rx": [],
+   "see": [
+    "old-mother-brine",
+    "rent-well"
+   ],
+   "src": "QUORUM Ch. 13",
+   "level": "player",
+   "scope": null,
+   "id": "host-city"
+  },
+  {
+   "name": "Rent Well",
+   "cat": "place",
+   "def": "Where a Host-City's tenants feed it their rent, one ATP a Beat.",
+   "aka": [
+    "Rent Wells"
+   ],
+   "rx": [],
+   "see": [
+    "host-city"
+   ],
+   "src": "QUORUM §13.2",
+   "level": "player",
+   "scope": null,
+   "id": "rent-well"
+  },
+  {
+   "name": "Organ",
+   "cat": "society",
+   "def": "A colony is a body with six organs — the Membrane, Pump, Vacuole, Nucleolus, Hearth and Lysosome. Every organism belongs to one.",
+   "aka": [
+    "organ",
+    "organs"
+   ],
+   "rx": [],
+   "see": [
+    "pump",
+    "lysosome"
+   ],
+   "src": "QUORUM Ch. 2",
+   "level": "player",
+   "scope": null,
+   "id": "organ"
+  },
+  {
+   "name": "Membrane",
+   "cat": "society",
+   "def": "The colony's border organ: gates, registers, and who is let in.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "porter",
+    "registrar"
+   ],
+   "src": "QUORUM §2.1",
+   "level": "player",
+   "scope": null,
+   "id": "membrane"
+  },
+  {
+   "name": "Pump",
+   "cat": "society",
+   "def": "The colony's labour organ: the haulers who carry goods and water uphill.",
+   "aka": [
+    "the Pump"
+   ],
+   "rx": [],
+   "see": [
+    "hauler"
+   ],
+   "src": "QUORUM §2.1, §9.3",
+   "level": "player",
+   "scope": null,
+   "id": "pump"
+  },
+  {
+   "name": "Vacuole",
+   "cat": "society",
+   "def": "The colony's stores: water rights, rations and the treasury.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "tally-keeper",
+    "steward"
+   ],
+   "src": "QUORUM §2.1",
+   "level": "player",
+   "scope": null,
+   "id": "vacuole"
+  },
+  {
+   "name": "Nucleolus",
+   "cat": "society",
+   "def": "The colony's council organ, which reads the Quorum and keeps the colony's sequence.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "assembly",
+    "quorum-speaker"
+   ],
+   "src": "QUORUM §2.1",
+   "level": "player",
+   "scope": null,
+   "id": "nucleolus"
+  },
+  {
+   "name": "Lysosome",
+   "cat": "society",
+   "def": "The colony's organ of waste, the dead and justice — where bodies are read, rendered and assayed.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "reader",
+    "assay"
+   ],
+   "src": "QUORUM §2.1",
+   "level": "player",
+   "scope": null,
+   "id": "lysosome"
+  },
+  {
+   "name": "Assembly",
+   "cat": "faction",
+   "def": "The colony's seven office-holders deciding ordinary business: fifteen voices, eight to pass.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "nucleolus"
+   ],
+   "src": "QUORUM §3.3",
+   "level": "player",
+   "scope": null,
+   "id": "assembly"
+  },
+  {
+   "name": "Porter",
+   "cat": "faction",
+   "def": "The office that commands a colony's gates and decides who is read. Also a Warden rank.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "membrane"
+   ],
+   "src": "CODEX §7.2; QUORUM §3.1",
+   "level": "player",
+   "scope": null,
+   "id": "porter"
+  },
+  {
+   "name": "Registrar",
+   "cat": "faction",
+   "def": "The office that keeps the register — entering and erasing who is listed — and witnesses every Oath.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "register"
+   ],
+   "src": "QUORUM §3.1",
+   "level": "player",
+   "scope": null,
+   "id": "registrar"
+  },
+  {
+   "name": "Tally-Keeper",
+   "cat": "faction",
+   "def": "The office that sets and audits the water tally. If the tally fails, the colony can default.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "tally"
+   ],
+   "src": "CODEX §12.2; QUORUM §3.1",
+   "level": "player",
+   "scope": null,
+   "id": "tally-keeper"
+  },
+  {
+   "name": "Tally",
+   "cat": "society",
+   "def": "The colony's tax and water account, assessed by hearth.",
+   "aka": [
+    "tally",
+    "water tally"
+   ],
+   "rx": [],
+   "see": [
+    "tally-keeper"
+   ],
+   "src": "CODEX §6.3; QUORUM §2.6",
+   "level": "player",
+   "scope": null,
+   "id": "tally"
+  },
+  {
+   "name": "Steward",
+   "cat": "faction",
+   "def": "The office that feeds the colony from its store and can pay a poor household's arrears.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "vacuole"
+   ],
+   "src": "QUORUM §3.1",
+   "level": "player",
+   "scope": null,
+   "id": "steward"
+  },
+  {
+   "name": "Muster",
+   "cat": "faction",
+   "def": "The office that calls the colony's militia.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "QUORUM §3.1",
+   "level": "player",
+   "scope": null,
+   "id": "muster"
+  },
+  {
+   "name": "Printwright",
+   "cat": "faction",
+   "def": "The office holding a colony's leased Hegemony print shop.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "ribosome-hegemony"
+   ],
+   "src": "QUORUM §3.1",
+   "level": "player",
+   "scope": null,
+   "id": "printwright"
+  },
+  {
+   "name": "Reader",
+   "cat": "faction",
+   "def": "An Ash reader of the dead: they open their own body around a dead one and read its last memories.",
+   "aka": [
+    "Readers",
+    "Ash Reader",
+    "Ash Readers",
+    "Reading"
+   ],
+   "rx": [],
+   "see": [
+    "reclaimers-ash",
+    "rendering"
+   ],
+   "src": "CODEX §7.4",
+   "level": "player",
+   "scope": null,
+   "id": "reader"
+  },
+  {
+   "name": "Quorum Speaker",
+   "cat": "faction",
+   "def": "The organism trusted to taste the Hearth air and announce what the colony has decided. Not every Speaker is perfectly honest.",
+   "aka": [
+    "Speaker"
+   ],
+   "rx": [],
+   "see": [
+    "quorum"
+   ],
+   "src": "QUORUM §4.4",
+   "level": "player",
+   "scope": null,
+   "id": "quorum-speaker"
+  },
+  {
+   "name": "Ribosome Hegemony",
+   "cat": "faction",
+   "def": "The industrial power: foundries, licences and loans. It never breaks a contract in writing — it reinterprets one.",
+   "aka": [
+    "Hegemony"
+   ],
+   "rx": [],
+   "see": [
+    "brine-office"
+   ],
+   "src": "CODEX §7.1",
+   "level": "player",
+   "scope": null,
+   "id": "ribosome-hegemony"
+  },
+  {
+   "name": "Brine Office",
+   "cat": "faction",
+   "def": "The Hegemony's waste-logistics desk — quietly its most powerful, because it decides who gets feedstock. It also lends money.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "ribosome-hegemony"
+   ],
+   "src": "CODEX §7.1",
+   "level": "player",
+   "scope": null,
+   "id": "brine-office"
+  },
+  {
+   "name": "Warden Circles",
+   "cat": "faction",
+   "def": "The gate-keepers and register-keepers: 'nothing enters a colony that has not been read'. To be unlisted is to be outside their law.",
+   "aka": [
+    "Wardens",
+    "Warden"
+   ],
+   "rx": [],
+   "see": [
+    "register"
+   ],
+   "src": "CODEX §7.2",
+   "level": "player",
+   "scope": null,
+   "id": "warden-circles"
+  },
+  {
+   "name": "Flow Guilds",
+   "cat": "faction",
+   "def": "The Flagellan currents-people: couriers, tolls and open water. They run the Currentpost.",
+   "aka": [
+    "Flow Guild",
+    "Guild",
+    "Guilds"
+   ],
+   "rx": [],
+   "see": [
+    "currentpost"
+   ],
+   "src": "CODEX §7.3",
+   "level": "player",
+   "scope": null,
+   "id": "flow-guilds"
+  },
+  {
+   "name": "Reclaimers' Ash",
+   "cat": "faction",
+   "def": "The faith and trade of the dead: they harvest and read bodies, believing an unharvested body is a soul wasted. They will not render a body with an unkept Oath.",
+   "aka": [
+    "the Ash",
+    "Ash"
+   ],
+   "rx": [],
+   "see": [
+    "reader",
+    "rendering",
+    "lipidpost"
+   ],
+   "src": "CODEX §7.4",
+   "level": "player",
+   "scope": null,
+   "id": "reclaimers-ash"
+  },
+  {
+   "name": "Sequence Underground",
+   "cat": "faction",
+   "def": "The Lysosan-founded network of secrets, forgeries and hidden hosts.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "unlisted"
+   ],
+   "src": "CODEX §7.5",
+   "level": "player",
+   "scope": null,
+   "id": "sequence-underground"
+  },
+  {
+   "name": "Deep Choir",
+   "cat": "faction",
+   "def": "The Barophil faith of the world's slow hardening; they sing the long note.",
+   "aka": [
+    "Choir"
+   ],
+   "rx": [],
+   "see": [
+    "long-note"
+   ],
+   "src": "CODEX §7.6",
+   "level": "player",
+   "scope": null,
+   "id": "deep-choir"
+  },
+  {
+   "name": "Currentpost",
+   "cat": "society",
+   "def": "The Flow Guilds' messages and passage along charted currents: one region a Beat, for a toll.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "flow-guilds"
+   ],
+   "src": "QUORUM §11.1",
+   "level": "player",
+   "scope": null,
+   "id": "currentpost"
+  },
+  {
+   "name": "Lipidpost",
+   "cat": "society",
+   "def": "The Ash's corpse-wagons: slow (a region a Tide) but impossible to search or stop, because censoring a funeral breaks the Sacred Code.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "reclaimers-ash"
+   ],
+   "src": "QUORUM §11.1",
+   "level": "player",
+   "scope": null,
+   "id": "lipidpost"
+  },
+  {
+   "name": "Bridge post",
+   "cat": "society",
+   "def": "The Hegemony's registered mail on the Ribbon Bridges — reliable, and read.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "ribosome-hegemony"
+   ],
+   "src": "QUORUM §11.1",
+   "level": "player",
+   "scope": null,
+   "id": "bridge-post"
+  },
+  {
+   "name": "Lineage",
+   "cat": "lineage",
+   "def": "One of the six peoples of the Expanse, each a body plan and a politics: Amoeban, Epithalian, Flagellan, Lysosan, Immunan, Barophil.",
+   "aka": [
+    "lineage",
+    "lineages"
+   ],
+   "rx": [],
+   "see": [
+    "frailty"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "lineage"
+  },
+  {
+   "name": "Amoeban",
+   "cat": "lineage",
+   "def": "'The Unfinished': shapeless, flowing chemists, digesters and actors. Useful, never quite trusted.",
+   "aka": [
+    "Amoebans"
+   ],
+   "rx": [],
+   "see": [
+    "lineage"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "amoeban"
+  },
+  {
+   "name": "Epithalian",
+   "cat": "lineage",
+   "def": "'The Walled': sheet-bodied builders, architects and contract-signers — the lineage others call civilisation.",
+   "aka": [
+    "Epithalians"
+   ],
+   "rx": [],
+   "see": [
+    "lineage"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "epithalian"
+  },
+  {
+   "name": "Flagellan",
+   "cat": "lineage",
+   "def": "'The Rowed': finned, lashed swimmers born in the Great Flows — couriers, navigators, smugglers. They cannot keep still.",
+   "aka": [
+    "Flagellans"
+   ],
+   "rx": [],
+   "see": [
+    "obligate-drifter"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "flagellan"
+  },
+  {
+   "name": "Lysosan",
+   "cat": "lineage",
+   "def": "'The Latent': library-bodies that carry sequences not their own — brokers, spies, archivists, distrusted by Wardens.",
+   "aka": [
+    "Lysosans"
+   ],
+   "rx": [],
+   "see": [
+    "registered"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "lysosan"
+  },
+  {
+   "name": "Immunan",
+   "cat": "lineage",
+   "def": "'The Registered': the lineage of recognising — wardens, registrars, witnesses. They cannot lie.",
+   "aka": [
+    "Immunans"
+   ],
+   "rx": [],
+   "see": [
+    "literal"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "immunan"
+  },
+  {
+   "name": "Barophil",
+   "cat": "lineage",
+   "def": "'The Hardened': dense, slow, pressure-proof extremophiles who outlast everyone; the Deep Choir's singers.",
+   "aka": [
+    "Barophils"
+   ],
+   "rx": [],
+   "see": [
+    "slow-reaction",
+    "deep-choir"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "barophil"
+  },
+  {
+   "name": "Phenotype",
+   "cat": "lineage",
+   "def": "An organism's trade or calling — one of 24, like a class.",
+   "aka": [
+    "Phenotypes"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "ATLAS §3",
+   "level": "player",
+   "scope": null,
+   "id": "phenotype"
+  },
+  {
+   "name": "Pheromological Messenger",
+   "cat": "lineage",
+   "def": "A Flagellan calling: carrier of words and scents across the water, and often a storyteller.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "flagellan"
+   ],
+   "src": "ATLAS §3",
+   "level": "player",
+   "scope": null,
+   "id": "pheromological-messenger"
+  },
+  {
+   "name": "Pathogen Scout",
+   "cat": "lineage",
+   "def": "A Lysosan calling: a scout who can slip through a region's defences unread.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "lysosan"
+   ],
+   "src": "ATLAS §3",
+   "level": "player",
+   "scope": null,
+   "id": "pathogen-scout"
+  },
+  {
+   "name": "Kinetic Striker",
+   "cat": "lineage",
+   "def": "A Flagellan fighter whose speed seems to let it arrive twice: it turns Momentum into impact, and is the reason walls have short lives.",
+   "aka": [
+    "Kinetic Strikers",
+    "Striker",
+    "Strikers"
+   ],
+   "rx": [],
+   "see": [
+    "flagellan",
+    "momentum"
+   ],
+   "src": "ATLAS §3",
+   "level": "player",
+   "scope": null,
+   "id": "kinetic-striker"
+  },
+  {
+   "name": "Organism",
+   "cat": "lineage",
+   "def": "Every person in the Expanse is an organism — a single living cell-being.",
+   "aka": [
+    "organism",
+    "organisms"
+   ],
+   "rx": [],
+   "see": [
+    "lineage"
+   ],
+   "src": "CORE",
+   "level": "player",
+   "scope": null,
+   "id": "organism"
+  },
+  {
+   "name": "The Osmotic Expanse",
+   "cat": "place",
+   "def": "The world: an interior ocean of living chemistry — the Great Vesicle — where every person is a cell-being and every law is also physics.",
+   "aka": [
+    "the Expanse",
+    "Expanse"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE",
+   "level": "player",
+   "scope": null,
+   "id": "the-osmotic-expanse"
+  },
+  {
+   "name": "Sump Nine",
+   "cat": "place",
+   "def": "A poor salvage settlement of about 1,800 organisms at a channel mouth on the Fork of the Second Flow, where wrecks wash up.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "fork-of-the-second-flow"
+   ],
+   "src": "CORE §8.2; QUORUM §17.2",
+   "level": "player",
+   "scope": null,
+   "id": "sump-nine"
+  },
+  {
+   "name": "Second Flow",
+   "cat": "place",
+   "def": "A colony of 14,000 in the Mid-Strata, run by a water-tally council — and the name of the current it sits on.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "fork-of-the-second-flow"
+   ],
+   "src": "CODEX §6.3",
+   "level": "player",
+   "scope": null,
+   "id": "second-flow"
+  },
+  {
+   "name": "Fork of the Second Flow",
+   "cat": "place",
+   "def": "A branch of the Second Flow's current, running down to Sump Nine.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "sump-nine"
+   ],
+   "src": "CORE §8.2",
+   "level": "player",
+   "scope": null,
+   "id": "fork-of-the-second-flow"
+  },
+  {
+   "name": "Ash Rows",
+   "cat": "place",
+   "def": "Where a colony's dead hang in their husks, waiting for the Ash to read and render them.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "reclaimers-ash",
+    "rendering"
+   ],
+   "src": "CODEX §6.3",
+   "level": "player",
+   "scope": null,
+   "id": "ash-rows"
+  },
+  {
+   "name": "Gel moat",
+   "cat": "place",
+   "def": "A colony defence of thick gel; in Sump Nine the nursery sits at the warm bottom of it.",
+   "aka": [
+    "gel moat"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE §7.5",
+   "level": "player",
+   "scope": null,
+   "id": "gel-moat"
+  },
+  {
+   "name": "Somatic gate",
+   "cat": "place",
+   "def": "A living gate that reads who passes and can be talked to.",
+   "aka": [
+    "somatic gate"
+   ],
+   "rx": [],
+   "see": [
+    "porter"
+   ],
+   "src": "CORE §7.5",
+   "level": "player",
+   "scope": null,
+   "id": "somatic-gate"
+  },
+  {
+   "name": "Cytoplasmic Mid-Strata",
+   "cat": "place",
+   "def": "The heartland: suspended colony-habs tethered by cables, home to most living organisms.",
+   "aka": [
+    "Mid-Strata"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §6.3",
+   "level": "player",
+   "scope": null,
+   "id": "cytoplasmic-mid-strata"
+  },
+  {
+   "name": "Lysosomal Wastes",
+   "cat": "place",
+   "def": "The render-pit deserts where the Ash are strong and the dead are processed.",
+   "aka": [
+    "the Wastes",
+    "Wastes"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §6.7",
+   "level": "player",
+   "scope": null,
+   "id": "lysosomal-wastes"
+  },
+  {
+   "name": "Lipid Plateaus",
+   "cat": "place",
+   "def": "A desert of fat: pale congealed plateaus walked by Barophil herds.",
+   "aka": [
+    "Plateaus"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §6.2",
+   "level": "player",
+   "scope": null,
+   "id": "lipid-plateaus"
+  },
+  {
+   "name": "Tallow Market",
+   "cat": "place",
+   "def": "A floating bazaar on the Lipid Plateaus with no registers, where you can buy someone else's Oath — and be bound by it.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "oath",
+    "ledger"
+   ],
+   "src": "CODEX §6.2",
+   "level": "player",
+   "scope": null,
+   "id": "tallow-market"
+  },
+  {
+   "name": "Great Flows",
+   "cat": "place",
+   "def": "The great nutrient currents of the Expanse; the Flagellans' birthplace.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "flagellan"
+   ],
+   "src": "CODEX §6.4",
+   "level": "player",
+   "scope": null,
+   "id": "great-flows"
+  },
+  {
+   "name": "Peri-Membrane Rim",
+   "cat": "place",
+   "def": "The edge of the world, where the outer membrane is close enough to feel.",
+   "aka": [
+    "the Rim",
+    "Rim"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §6.1",
+   "level": "player",
+   "scope": null,
+   "id": "peri-membrane-rim"
+  },
+  {
+   "name": "Knot Nine",
+   "cat": "place",
+   "def": "A city where seven Ribbon Bridges cross: a market and a courtroom.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CODEX §6.5",
+   "level": "player",
+   "scope": null,
+   "id": "knot-nine"
+  },
+  {
+   "name": "Ribbon Bridges",
+   "cat": "place",
+   "def": "Protein highways spun across thousands of Drifts; on a bridge, an Oath is enforced by the bridge.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "knot-nine"
+   ],
+   "src": "CODEX §6.5",
+   "level": "player",
+   "scope": null,
+   "id": "ribbon-bridges"
+  },
+  {
+   "name": "Old Mother Brine",
+   "cat": "place",
+   "def": "A great Host-City: a slow, motherly saline giant carrying thirty thousand tenants and the Flow Guilds' headquarters.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "host-city"
+   ],
+   "src": "QUORUM §13.5",
+   "level": "player",
+   "scope": null,
+   "id": "old-mother-brine"
+  },
+  {
+   "name": "Momentum",
+   "cat": "rule",
+   "def": "The charge an organism builds by moving fast: +1 die and a stronger push on its next Strike.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "kinetic-striker"
+   ],
+   "src": "CORE §4.3",
+   "level": "player",
+   "scope": null,
+   "id": "momentum"
+  },
+  {
+   "name": "Vat Crew",
+   "cat": "faction",
+   "def": "The Ash's hard-harvest labourers: unionised, dangerous work in the render vats. Rivals of the scholarly Ash Readers.",
+   "aka": [
+    "Vat Crews"
+   ],
+   "rx": [],
+   "see": [
+    "reclaimers-ash"
+   ],
+   "src": "CODEX §7",
+   "level": "player",
+   "scope": null,
+   "id": "vat-crew"
+  },
+  {
+   "name": "Motion",
+   "cat": "society",
+   "def": "The one question on the table in a Convocation or Quorum — the thing the room must decide.",
+   "aka": [
+    "Motions"
+   ],
+   "rx": [],
+   "see": [
+    "convocation",
+    "oath"
+   ],
+   "src": "QUORUM §4.9",
+   "level": "player",
+   "scope": null,
+   "id": "motion"
+  },
+  {
+   "name": "Pressure",
+   "cat": "rule",
+   "def": "A Convocation move: lean on someone with threat or status. It can win a rung — but if it fails, the room turns toward Hostile and the colony's Clock advances.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "convocation",
+    "walk"
+   ],
+   "src": "QUORUM §4.10",
+   "level": "player",
+   "scope": null,
+   "id": "pressure"
+  },
+  {
+   "name": "Interior",
+   "cat": "society",
+   "def": "A colony's unrest, 0–8: its Stress. It climbs when organs die, when a Quorum is stolen, when strikes begin.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "cohesion"
+   ],
+   "src": "QUORUM §2.6",
+   "level": "player",
+   "scope": null,
+   "id": "interior"
+  },
+  {
+   "name": "Room mood",
+   "cat": "rule",
+   "def": "A Convocation room has a mood — Hungry, Grieving, Hostile and so on — that helps moves which suit it and hinders moves which don't.",
+   "aka": [
+    "Hungry",
+    "Hostile",
+    "Grieving"
+   ],
+   "rx": [],
+   "see": [
+    "convocation"
+   ],
+   "src": "QUORUM §4.9; CORE §11.3",
+   "level": "player",
+   "scope": null,
+   "id": "room-mood"
+  },
+  {
+   "name": "Lisk-of-the-Seven-Ladders",
+   "cat": "person",
+   "def": "The narrator: a young Flagellan messenger who tells this tale at the Rendering.",
+   "aka": [
+    "Lisk"
+   ],
+   "rx": [],
+   "see": [
+    "oro"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "lisk-of-the-seven-ladders"
+  },
+  {
+   "name": "Oro",
+   "cat": "person",
+   "def": "Oro-of-the-Seven-Ladders: a Swollen Flagellan hauler of Sump Nine's Pump, ward of Sefa.",
+   "aka": [
+    "Oro-of-the-Seven-Ladders"
+   ],
+   "rx": [],
+   "see": [
+    "sefa",
+    "mesk"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "oro"
+  },
+  {
+   "name": "Sefa",
+   "cat": "person",
+   "def": "Old Sefa: root-elder of the Seven Ladders budline, who leads the haulers' Hearth Rite.",
+   "aka": [
+    "Sefa-of-the-Seven-Ladders",
+    "Old Sefa"
+   ],
+   "rx": [],
+   "see": [
+    "oro"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "sefa"
+  },
+  {
+   "name": "Seven Ladders",
+   "cat": "person",
+   "def": "A hauling budline of Sump Nine; its founder cut seven ladders up the sump's north wall.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "budline"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "seven-ladders"
+  },
+  {
+   "name": "Mesk",
+   "cat": "person",
+   "def": "Mesk-of-the-Clean-Count: an Immunan, apprentice to the Registrar — and unable to lie.",
+   "aka": [
+    "Mesk-of-the-Clean-Count"
+   ],
+   "rx": [],
+   "see": [
+    "literal",
+    "quell"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "mesk"
+  },
+  {
+   "name": "Quell",
+   "cat": "person",
+   "def": "Sump Nine's Registrar: a Lysosan struck from the register in a purge, who went on keeping it anyway.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "registrar",
+    "unlisted"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "quell"
+  },
+  {
+   "name": "Varrow",
+   "cat": "person",
+   "def": "An Amoeban Ash Reader of great age and kindness.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "reader"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "varrow"
+  },
+  {
+   "name": "Yarrow",
+   "cat": "person",
+   "def": "Yarrow-who-went-ahead: a Lysosan Pathogen Scout whose body washes into Sump Nine's channel.",
+   "aka": [
+    "Yarrow-who-went-ahead"
+   ],
+   "rx": [],
+   "see": [
+    "pathogen-scout"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "yarrow"
+  },
+  {
+   "name": "Corvane",
+   "cat": "person",
+   "def": "Corvane of the Sealed Pocket: a Dry Epithalian who wants the empty Steward's office.",
+   "aka": [
+    "Corvane of the Sealed Pocket"
+   ],
+   "rx": [],
+   "see": [
+    "steward",
+    "dry"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "corvane"
+  },
+  {
+   "name": "Henn",
+   "cat": "person",
+   "def": "Sump Nine's frightened Tally-Keeper, behind on the colony's loan.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "tally-keeper"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "henn"
+  },
+  {
+   "name": "Grue",
+   "cat": "person",
+   "def": "Sump Nine's Muster: a vast, slow Barophil who sings the long note.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "muster",
+    "barophil"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "grue"
+  },
+  {
+   "name": "Dunmore",
+   "cat": "person",
+   "def": "A scarred old Barophil hauler of the Pump.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "hauler"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "dunmore"
+  },
+  {
+   "name": "Tannet",
+   "cat": "person",
+   "def": "The Epithalian keeper of Sump Nine's nursery.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "nursery"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "tannet"
+  },
+  {
+   "name": "Ket",
+   "cat": "person",
+   "def": "Sump Nine's Porter: a stiff Immunan at the somatic gate.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "porter"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "ket"
+  },
+  {
+   "name": "Wend",
+   "cat": "person",
+   "def": "Sump Nine's Quorum Speaker: an old Lysosan, honest enough most of the time.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "quorum-speaker"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "wend"
+  },
+  {
+   "name": "Lune",
+   "cat": "person",
+   "def": "A Hegemony factor from the Brine Office.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "brine-office"
+   ],
+   "src": "",
+   "level": "player",
+   "scope": "what-the-water-owed",
+   "id": "lune"
+  },
+  {
+   "name": "Archivist Dol",
+   "cat": "person",
+   "def": "A register-keeper at Knot Nine, rumoured to erase entries for the Sequence Underground.",
+   "aka": [
+    "Dol"
+   ],
+   "rx": [],
+   "see": [
+    "register"
+   ],
+   "src": "CODEX §7.2",
+   "level": "player",
+   "scope": null,
+   "id": "archivist-dol"
+  },
+  {
+   "name": "Activation Threshold",
+   "cat": "rule",
+   "def": "The number a pool must equal or beat.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "activation-threshold"
+  },
+  {
+   "name": "Affectives",
+   "cat": "rule",
+   "def": "Status-signal speech.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "affectives"
+  },
+  {
+   "name": "AE",
+   "cat": "rule",
+   "def": "The golden catalyst that makes Bursts cheap; also *gold-tinted residue* in loot.",
+   "aka": [
+    "Aetheric Enzyme"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "ae"
+  },
+  {
+   "name": "Anchored",
+   "cat": "rule",
+   "def": "Pathway rank 2.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "anchored"
+  },
+  {
+   "name": "Antigen register",
+   "cat": "rule",
+   "def": "A faction's list of recognised \"self\" chemistries.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "antigen-register"
+  },
+  {
+   "name": "Apparatus",
+   "cat": "rule",
+   "def": "A weapon or tool-organ.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "apparatus"
+  },
+  {
+   "name": "Autophagy",
+   "cat": "rule",
+   "def": "Eating yourself for fuel.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "autophagy"
+  },
+  {
+   "name": "Baseline",
+   "cat": "rule",
+   "def": "3 × dice, the un-rolled success.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "baseline"
+  },
+  {
+   "name": "Bands",
+   "cat": "rule",
+   "def": "Contact/near/mid/far/loose distance zones.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "bands"
+  },
+  {
+   "name": "Bond",
+   "cat": "rule",
+   "def": "A two-way chemical agreement between organisms.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "bond"
+  },
+  {
+   "name": "Breach",
+   "cat": "rule",
+   "def": "Damage exceeding MI by 8+; instant Dormancy.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "breach"
+  },
+  {
+   "name": "Breach Overflow",
+   "cat": "rule",
+   "def": "The amount you beat a Threshold by.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "breach-overflow"
+  },
+  {
+   "name": "Bulk",
+   "cat": "rule",
+   "def": "Carried matter.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "bulk"
+  },
+  {
+   "name": "Burst",
+   "cat": "rule",
+   "def": "A catalytic procedure (magic).",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "burst"
+  },
+  {
+   "name": "Catabolic",
+   "cat": "rule",
+   "def": "Energy-starved condition.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "catabolic"
+  },
+  {
+   "name": "Catalysis",
+   "cat": "rule",
+   "def": "The Pathway of Bursts.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "catalysis"
+  },
+  {
+   "name": "Catalyst",
+   "cat": "rule",
+   "def": "An organism that uses Bursts.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "catalyst"
+  },
+  {
+   "name": "Codon",
+   "cat": "rule",
+   "def": "Earned information; progression.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "codon"
+  },
+  {
+   "name": "Sustained Reaction",
+   "cat": "rule",
+   "def": "A Burst you hold.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "sustained-reaction"
+  },
+  {
+   "name": "Curator",
+   "cat": "rule",
+   "def": "The Nucleoid's answer to overreach.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "curator"
+  },
+  {
+   "name": "Denatured",
+   "cat": "rule",
+   "def": "Catalytic functions impaired.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "denatured"
+  },
+  {
+   "name": "Detection Phase",
+   "cat": "rule",
+   "def": "The contested scent roll before a Pulse War.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "detection-phase"
+  },
+  {
+   "name": "Drift",
+   "cat": "rule",
+   "def": "~2 m of fluid, and the unit of movement.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "drift"
+  },
+  {
+   "name": "Enzymatic Pathway",
+   "cat": "rule",
+   "def": "A learned skill, rank 0–4.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "enzymatic-pathway"
+  },
+  {
+   "name": "Escalation",
+   "cat": "rule",
+   "def": "Paying a higher Tier's cost for a known Burst.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "escalation"
+  },
+  {
+   "name": "Expressed",
+   "cat": "rule",
+   "def": "Pathway rank 1.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "expressed"
+  },
+  {
+   "name": "Flow",
+   "cat": "rule",
+   "def": "Your Drift speed; also current strength.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "flow"
+  },
+  {
+   "name": "Frequency Check",
+   "cat": "rule",
+   "def": "Initiative.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "frequency-check"
+  },
+  {
+   "name": "Gene-Debt",
+   "cat": "rule",
+   "def": "The price a Relic takes.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "gene-debt"
+  },
+  {
+   "name": "Gift",
+   "cat": "rule",
+   "def": "A lineage's once-per-scene ability.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "gift"
+  },
+  {
+   "name": "Graft",
+   "cat": "rule",
+   "def": "Installed alien biology; armour and organs; uses Slots.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "graft"
+  },
+  {
+   "name": "Grow",
+   "cat": "rule",
+   "def": "Gain a Level.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "grow"
+  },
+  {
+   "name": "Harvest",
+   "cat": "rule",
+   "def": "Extracting Specimens and Substrate from the dead.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "harvest"
+  },
+  {
+   "name": "Hull",
+   "cat": "rule",
+   "def": "Structural tradition, 3/4/6, part of MI.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "hull"
+  },
+  {
+   "name": "Runaway Catalysis",
+   "cat": "rule",
+   "def": "No Inhibitors, two 6s.",
+   "aka": [
+    "Hypercatalysis"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "runaway-catalysis"
+  },
+  {
+   "name": "Inhibitor",
+   "cat": "rule",
+   "def": "A rolled 1: costs attention, marks Stress.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "inhibitor"
+  },
+  {
+   "name": "Latent",
+   "cat": "rule",
+   "def": "Pathway rank 0.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "latent"
+  },
+  {
+   "name": "Legacy",
+   "cat": "rule",
+   "def": "A successor organism built from the dead.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "legacy"
+  },
+  {
+   "name": "Lysis Countdown",
+   "cat": "rule",
+   "def": "Boxes to death.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "lysis-countdown"
+  },
+  {
+   "name": "Lysis",
+   "cat": "rule",
+   "def": "Death; your contents join the world.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "lysis"
+  },
+  {
+   "name": "Membrane Integrity",
+   "cat": "rule",
+   "def": "Hit points.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "membrane-integrity"
+  },
+  {
+   "name": "Membrane Threshold",
+   "cat": "rule",
+   "def": "How hard you are to connect with.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "membrane-threshold"
+  },
+  {
+   "name": "Nucleoid",
+   "cat": "rule",
+   "def": "The Core's centre; the AT 24 rung.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "nucleoid"
+  },
+  {
+   "name": "Order",
+   "cat": "rule",
+   "def": "One of the seven enemy traditions.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "order"
+  },
+  {
+   "name": "Overflow",
+   "cat": "rule",
+   "def": "See Breach Overflow.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "overflow"
+  },
+  {
+   "name": "Overdrive",
+   "cat": "rule",
+   "def": "Buying dice with energy or body.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "overdrive"
+  },
+  {
+   "name": "Parasitic graft",
+   "cat": "rule",
+   "def": "A graft that chose you.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "parasitic-graft"
+  },
+  {
+   "name": "Pathway",
+   "cat": "rule",
+   "def": "See Enzymatic Pathway.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "pathway"
+  },
+  {
+   "name": "Pulse Points",
+   "cat": "rule",
+   "def": "Action economy per Cycle.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "pulse-points"
+  },
+  {
+   "name": "Pulse War",
+   "cat": "rule",
+   "def": "A fight.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "pulse-war"
+  },
+  {
+   "name": "Reagent Pool",
+   "cat": "rule",
+   "def": "The dice you roll.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "reagent-pool"
+  },
+  {
+   "name": "Reconstitution",
+   "cat": "rule",
+   "def": "Short rest.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "reconstitution"
+  },
+  {
+   "name": "Rejection",
+   "cat": "rule",
+   "def": "Too many Slots.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "rejection"
+  },
+  {
+   "name": "Relic",
+   "cat": "rule",
+   "def": "A rule-breaking artefact with a Gene-Debt.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "relic"
+  },
+  {
+   "name": "Rider",
+   "cat": "rule",
+   "def": "A Burst/weapon's extra effect on Runaway Catalysis.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "rider"
+  },
+  {
+   "name": "Scene",
+   "cat": "rule",
+   "def": "One continuous situation with one purpose in one place: a Pulse War from Detection to its end, one negotiation, one leg of travel, one harvest. It ends when the place, the purpose or the people change, or after about one Fugue Interval (~1 hour). *Once per scene* resets then (§8.1).",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "scene"
+  },
+  {
+   "name": "Segment",
+   "cat": "rule",
+   "def": "A swarm body unit.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "segment"
+  },
+  {
+   "name": "Sovereign",
+   "cat": "rule",
+   "def": "Pathway rank 4.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "sovereign"
+  },
+  {
+   "name": "Soak",
+   "cat": "rule",
+   "def": "Damage reduction.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "soak"
+  },
+  {
+   "name": "Specimen",
+   "cat": "rule",
+   "def": "Harvested genetic loot (C/G/P/T).",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "specimen"
+  },
+  {
+   "name": "Split Frequency",
+   "cat": "rule",
+   "def": "Holding PP to act later in the Cycle.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "split-frequency"
+  },
+  {
+   "name": "Stages I–IV",
+   "cat": "rule",
+   "def": "Level bands 1/6/11/16.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "stages-i-iv"
+  },
+  {
+   "name": "Symbiote",
+   "cat": "rule",
+   "def": "A bonded living creature.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "symbiote"
+  },
+  {
+   "name": "Symbiosis",
+   "cat": "rule",
+   "def": "The Pathway of bonds and command.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "symbiosis"
+  },
+  {
+   "name": "Synthesis Choice",
+   "cat": "rule",
+   "def": "The paid upgrade at each Growth.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "synthesis-choice"
+  },
+  {
+   "name": "Tier",
+   "cat": "rule",
+   "def": "Threat band, tied to Level bands.",
+   "aka": [
+    "1–5"
+   ],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "tier"
+  },
+  {
+   "name": "Tonicity",
+   "cat": "rule",
+   "def": "Whether water wants to be inside you.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "tonicity"
+  },
+  {
+   "name": "Total Lysis",
+   "cat": "rule",
+   "def": "Death.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "total-lysis"
+  },
+  {
+   "name": "Vector",
+   "cat": "rule",
+   "def": "A quest: a task that transmits you somewhere.",
+   "aka": [],
+   "rx": [],
+   "see": [],
+   "src": "CORE Appendix B",
+   "level": "player",
+   "scope": null,
+   "id": "vector"
+  }
+ ]
+}

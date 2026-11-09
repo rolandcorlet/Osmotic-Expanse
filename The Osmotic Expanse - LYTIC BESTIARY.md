@@ -843,7 +843,7 @@ Standing orders (assigned at print, changed by a 2-PP Synthesis action); one ins
 
 ### RELIC-BEARER (template, any Order or Colonist)
 Add to any block: **+1 to all pools; one Relic's benefit; one Gene-Debt (4-segment clock).**
-When the bearer's Debt clock fills, the Relic's Rule Break activates *unbidden* once, and then the Relic **goes quiet** until a collector arrives. Killing a Relic-Bearer transfers the Debt to the killer (DM Codex §10.6). The relic itself is a Relic per Core §9.8, with its own personality if the table earns one.
+When the bearer's Debt clock fills, the Relic's Rule Break activates *unbidden* once, and then the Relic **goes quiet** until a collector arrives. Killing a Relic-Bearer transfers the Debt to the killer (DM Codex §10.6). The relic itself is a Relic per Core §9.7, with its own personality if the table earns one.
 
 ### HOST / VESSEL (template, any Colonist or creature)
 Add: **one Wraith or Hijacker Insert installed; its own features reduced by one rank; at 0 MI it does not die — the *tenant* leaves** and can flee, negotiate, or take another host within three bands.

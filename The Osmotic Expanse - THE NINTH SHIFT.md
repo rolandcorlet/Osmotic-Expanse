@@ -173,7 +173,7 @@ Each Wage prints: **where you land**, **what it gives you (mechanically)**, and 
 | --: | :-- | :-- | :-- | :-- |
 | 1 | **Relief Print Crew** (the advertisement: four organisms, RTC 3 or better) | Filing Gate | Badge 1 free; the Gate honours your contract; +2 dice on Synthesis contests involving the Line (§10.1) | You are on the wage book: BADGE advances on *any* print you make for the Hegemony, and the Row remembers the exact date you signed |
 | 2 | **Arrested and put to work** (the Wardens' labour rider, form 9-C) | Filing Gate, in cuffs | Legal exemption from every licence in the Belt for 3 Beats (you are state labour: your gear is not yours to be licensed); Warden escort once | A Warden register entry exists for you. **Archivist Dol** can find it, or eat it, or both (§8.3) |
-| 3 | **Debt called in as labour** (CORE §9.8, Gene-Debt; CODEX §10.5) | Shiftless Row, the alley | Your Gene-Debt advances stop for 6 Beats, and the Hegemony's own Smiths will retune one graft free | The Foundry now holds your debt at a *labour* rate, which is worse than the money rate, and it is a Clock (§3.3) with your name on it |
+| 3 | **Debt called in as labour** (CORE §9.7, Gene-Debt; CODEX §10.5) | Shiftless Row, the alley | Your Gene-Debt advances stop for 6 Beats, and the Hegemony's own Smiths will retune one graft free | The Foundry now holds your debt at a *labour* rate, which is worse than the money rate, and it is a Clock (§3.3) with your name on it |
 | 4 | **The Row's errand** (Steward Nine-Grudge hires you to carry a grievance to the Court) | The picket hearth | Badge 0 (Kin of the Row): repairs at cost, one free lie, one free hiding; +1 die with any Row NPC | The grievance is real, and it is *about you* — you are named in it as witness, and the Court will call you |
 | 5 | **Insurance assessors** (the Mutuality sends you to assess a claim on a collapsed foundry organ) | Organ 118's maintenance cage | The Mutuality's backing: once per movement, an invoice that pays for a rescue (see §6.9); the Auditors must hear you as a *party* | You must assess honestly. A false assessment is an Oath broken (CORE §11.4): 2 Countdown boxes, and the Fund knows |
 | 6 | **Scab crew, three times the rate** (hired by the Convoy) | Filing Gate, escorted | 240 S now, Badge 2, and a Warden escort through the Row | Every Row organism knows your faces before you arrive; the Row will not attack you, it will **not serve you**, which is slower (§3.2) |
@@ -284,7 +284,7 @@ A player may **lean** on a cliché once per NPC per Vector: state the cliché ba
 
 No new monster type. **The same procedures, better at finding you.**
 
-**Paper ladder:** a **memo** (free, funny, wrong) → a **form** (someone must sign; that is the Cohort) → a **fine** (Substrate, and it is small, which is the insult) → a **suspension** (a licence, a wage, or a hearth stops) → a **seizure** (an Apparatus, a graft, a Specimen: CORE §10.7's honest breakage, with printed fair warning) → a **lien** (your body is now collateral; CORE §9.8's Gene-Debt grammar, CODEX §10.5's collectors).
+**Paper ladder:** a **memo** (free, funny, wrong) → a **form** (someone must sign; that is the Cohort) → a **fine** (Substrate, and it is small, which is the insult) → a **suspension** (a licence, a wage, or a hearth stops) → a **seizure** (an Apparatus, a graft, a Specimen: CORE §10.7's honest breakage, with printed fair warning) → a **lien** (your body is now collateral; CORE §9.7's Gene-Debt grammar, CODEX §10.5's collectors).
 
 **Force ladder:** a **challenge** (say PRESENT; answer chemically, walk on) → a **charge** (a Warden states a register reason; it is a wrong reason) → an **escort** (you are walked somewhere; this is a scene, not a fight) → a **warrant** (four Wardens, and they would prefer not) → **THE RELIEF** (§10.6, and they invoice) → a **licensed crew with a bailiff** (which is the Vector's worst ending and it arrives with paperwork already stamped).
 
@@ -323,7 +323,7 @@ The sites are a **pointcrawl**, not a map: five nodes, printed routes between th
 
 **The queue is real.** Roll d6 on §13.3 for whoever is next to you when you arrive, and again for anyone you wait behind for more than one scene. Waiting is a **resource**: a Cohort that spends a Beat in the queue may rewind one Clock segment (§3.3). Say that in the first minute.
 
-**The Form (handout, Appendix A).** Eleven boxes. Ticking a box is a legal act and some of them are **Keys** (§5.2) or Gene-Debt segments (CORE §9.8, CODEX §10.5). **Read the boxes aloud, one at a time, and let the players ask questions.** The clerk answers truthfully within the limits of what the clerk knows, which is the entire engine of the scene. Nothing here is a trap the players cannot see: three boxes are lies **about the Foundry**, not about the players.
+**The Form (handout, Appendix A).** Eleven boxes. Ticking a box is a legal act and some of them are **Keys** (§5.2) or Gene-Debt segments (CORE §9.7, CODEX §10.5). **Read the boxes aloud, one at a time, and let the players ask questions.** The clerk answers truthfully within the limits of what the clerk knows, which is the entire engine of the scene. Nothing here is a trap the players cannot see: three boxes are lies **about the Foundry**, not about the players.
 
 **What can be taken here, lawfully (three of them, and each one is a scene):**
 1. the **numbered shells** the queue-leaver left when they stopped being a queue-member (they are dead, they have been dead three Beats, they are holding a licence for a district two regions away — an unclaimed licence is *worth 100 S and a conversation*);
@@ -656,7 +656,7 @@ BENEFIT: once per scene, stamp one object in Contact as FINISHED.
   the foundry's shredder-villi — arrives for it within the scene (integrity 50,
   Kinetic 5 per Cycle, and it is not malicious, it is collection).
   Stamped gear cannot be repaired, re-folded, or claimed by anyone.
-GENE-DEBT (4 segments, CORE §9.8 / CODEX §10.5): the debt is now yours.
+GENE-DEBT (4 segments, CORE §9.7 / CODEX §10.5): the debt is now yours.
   Advance when: you stamp a thing that was still running; you stamp your own graft
   to make a point; you stamp in licensed ground in front of an auditor.
   At FILL: the Barrel comes for one licensed thing you own, in public, and it is

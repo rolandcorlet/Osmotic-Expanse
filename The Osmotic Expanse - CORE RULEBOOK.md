@@ -595,7 +595,18 @@ Inhibitors are not a damage system; they are an **attention** system. Every 1 yo
 | 7 | On your next failed roll, roll on the Cascade table |
 | 8 | **Autophagic Collapse**: immediately mark 2 Lysis Countdown boxes and drop to Stress 5 |
 
-**Clearing Stress:** −1 at the end of a Cycle in which you spent no ATP and took no damage; −2 for a **Vent** action (2 ATP, 1 PP); all cleared by a **Reconstitution**; −3 by a **Chemotactic Rite** (a colony meal, 1 Cohesion).
+**Clearing Stress:** −1 at the end of a Cycle in which you spent no ATP and took no damage; −2 for a **Vent** action (2 ATP, 1 PP); all cleared by a **Reconstitution**; all cleared, and +2 Cohesion, by a **Chemotactic Rite** (a shared colony meal: 3 S each, 1 Fugue Interval; §11.6).
+
+**Cascade table (d6).** Roll when Stress 7 turns a failed roll into a cascade (above), or when a Legacy Scar sends you here (§5.7, *Unstable genome*). The effect lands at once, on top of the failure.
+
+| d6 | Cascade | Effect |
+| --: | :-- | :-- |
+| 1 | **Spill** | Lose 1d6 ATP; your next Burst this scene costs +2 ATP |
+| 2 | **Seizure** | Lose all remaining PP this Cycle; you cannot hold a Reserve until your next turn |
+| 3 | **Misfire** | The failed action resolves anyway, at half value, against you or the nearest ally (Director's choice) |
+| 4 | **Flare** | Your chemistry broadcasts: you are **Marked** until the end of the next Cycle and cannot use Concealment this scene |
+| 5 | **Tear** | Take 1d6 damage that ignores Soak, and gain **Leaking** |
+| 6 | **Runaway Inhibition** | Mark 1 more Stress (at 8, Autophagic Collapse follows) |
 
 ## 5.9 Autophagy
 
@@ -891,7 +902,7 @@ An organism that survives long enough acquires **a place**. Colony rules live in
 | **Vessel (drift skiff, symbiotic)** | 600–4000 S | Cross regions without Flow contests; carries 10–40 Bulk |
 | **Warden contract** (reputation purchase) | 500 S or a service | One Order or faction will not shoot first, once |
 
-**Upkeep is the point.** A colony with five assets costs 30 S a Beat. That number is why you take the next Vector.
+**Upkeep is the point.** A colony with five assets costs 30 S a Beat. That number is why you take the next Vector. Read it against the wealth table (§9.2): at Tier 1 a Cohort earns 30–60 S per PC per level, so it can carry a Niche and little more. A Clientele's income (about 5 S per colonist per Beat) or a mid-tier Vector's yield is what pays for the rest — assets are a Tier 2–3 ambition, by design.
 
 ## 8.5 Retainers, minions, and symbiotes
 
@@ -905,7 +916,7 @@ Chemotaxis is the Expanse's internet. To buy information: name what you want to 
 
 ## 8.7 Reputation: six anchor factions
 
-Tracked 0–10 with three states: **Hostile (0–1)**, **Wary (2–5)**, **Client (6–8)**, **Kin (9–10)**. Full details in the Codex; players need only know the ladder and that **every act of harvest, mercy, or contract is witnessed** by someone's chemistry.
+Tracked 0–10 in four states: **Hostile (0–1)**, **Wary (2–5)**, **Client (6–8)**, **Kin (9–10)**. Full details in the Codex; players need only know the ladder and that **every act of harvest, mercy, or contract is witnessed** by someone's chemistry.
 
 | Faction | Wants | Hates |
 | :-- | :-- | :-- |
