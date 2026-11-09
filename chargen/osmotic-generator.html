@@ -231,6 +231,7 @@ h3.sub .small{font:400 12px system-ui,sans-serif}
 .lcard .art{background-position:center 82%;background-size:120% auto}
 .pav{background-size:130% auto!important;background-position:center 80%!important}
 .chip.bad{border-color:rgba(240,122,122,.6);color:var(--bad)}
+.note{font-size:12.5px;color:#cfdae6;border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px 11px}.note b{color:var(--ink)}
 
 /* ---- Osmotic Expanse character sheet (shared by the generator and the Characters tab) ---- */
 .oxs{--s-bg:#0c1219;--s-card:#121b25;--s-card2:#182331;--s-line:#263547;--s-ink:#e9f0f7;--s-dim:#9fb0c3;--s-faint:#6a7c90;
@@ -872,8 +873,9 @@ var OSMOTIC = {
     }
     var growthChoices = st.level - 1, bumpTotal = 0;
     for (n in bumps) bumpTotal += bumps[n] | 0;
-    var spentChoices = OSMOTIC.sum([grown.VSC, grown.DFF, grown.RTC, grown.OSM, grown.AFF]) + bumpTotal;
-    if (spentChoices > growthChoices) warnings.push(spentChoices + " Synthesis Choices spent but only " + growthChoices + " Growth" + (growthChoices === 1 ? "" : "s") + " have happened (ATLAS §4.1)");
+    var burstChoices = Math.max(0, (in_.bursts || []).length - (ad["Chemical Literacy"] ? 1 : 0)), adaptChoices = adaptations.length;
+    var spentChoices = OSMOTIC.sum([grown.VSC, grown.DFF, grown.RTC, grown.OSM, grown.AFF]) + bumpTotal + burstChoices + adaptChoices;
+    if (spentChoices > growthChoices) warnings.push(spentChoices + " Synthesis Choices spent (Baseline grades, Pathway ranks, Bursts and Adaptations each cost one) but only " + growthChoices + " Growth" + (growthChoices === 1 ? "" : "s") + " have happened — Level " + st.level + " gives " + growthChoices + " (ATLAS §4.1)");
     if (st.level === 1) {
       for (n in rankOf) if (rankOf[n] > 2) warnings.push(n + " rank " + rankOf[n] + ": never above 2 at creation (ATLAS §1 Step 4)");
       var extrasChosen = 0; for (n in extra) if (extra[n]) extrasChosen++;
@@ -1042,7 +1044,7 @@ var OXSHEET = (function () {
       vital("Lysis Countdown", sh.countdown, "boxes · VSC + ⌈Hull/2⌉ + 2", "#d66fae") + "</div>" +
       '<div class="oxs-minis">' + mini("Soak", sh.soak) + mini("Graft slots", (sh.graftSlotsUsed | 0) + " / " + (sh.graftSlots | 0)) +
       mini("Frequency", (sh.frequency >= 0 ? "+" : "") + sh.frequency) + mini("Unrushed sense", sh.unrushedSense) +
-      mini("Hot Bursts", sh.aeCapacity) + mini("Codon", sh.codon) + "</div>");
+      mini("Hot-Burst limit", sh.aeCapacity) + mini("Codon", sh.codon) + "</div>");
     /* baselines */
     var bl = sh.baselines || {}, arr = sh.baselinesArray || {}, adj = sh.baselinesAdj || {}, gr = sh.baselinesGrown || {};
     h += sec("▣", "Metabolic Baselines", "Grade 1–6 · dice you bring when the world tests you",
@@ -1116,7 +1118,7 @@ var OXSHEET = (function () {
     gear += allGear.length ? '<div class="oxs-gear">' + allGear.map(item).join("") + "</div>" : '<div class="oxs-empty">Nothing bought yet — the kit you buy in Step 5 appears here as cards.</div>';
     h += sec("⚔", "Equipment", "everything bought, with what it does", gear);
     var bd = sh.burstDetails || [], ad = sh.adaptationDetails || [];
-    h += sec("✷", "Bursts & Adaptations", "Bursts known · " + (sh.aeCapacity != null ? sh.aeCapacity + " can be hot at once" : ""),
+    h += sec("✷", "Bursts & Adaptations", "Bursts known: " + (sh.burstDetails || []).length + (sh.aeCapacity != null ? " · AE capacity: up to " + sh.aeCapacity + " hot at once" : "") + " · each Burst/Adaptation costs a Synthesis Choice (Level 2+)",
       '<div class="oxs-gh">✷ Bursts <span class="oxs-xc">' + bd.length + "</span></div>" +
       (bd.length ? '<div class="oxs-gear">' + bd.map(item).join("") + "</div>" : '<div class="oxs-empty">No Bursts written down.</div>') +
       '<div class="oxs-gh">⟳ Adaptations <span class="oxs-xc">' + ad.length + "</span></div>" +
@@ -1405,23 +1407,27 @@ function r5(m) {
 function r6(m) {
   var doms = ["ALL", "PROTEAN", "LYTIC", "OSMOTIC", "THERMIC", "GALVANIC", "SOMATIC"], bonded = String(m.phenotype.dom || "").toUpperCase();
   var showDom = UI.burstDom === "BONDED" ? bonded : UI.burstDom;
-  var h = '<div class="tray"><span class="pill ' + (m.bursts.length <= m.aeCapacity ? "ok" : "bad") + '">Hot Bursts ' + m.bursts.length + " / " + m.aeCapacity + "</span>" +
-    '<span class="small">AE capacity = RTC + Catalysis. Tier I at Level 1, II at 6, III at 11, IV at 16. Outside your Bonded Domain (' + esc(m.phenotype.dom) + "): +2 ATP and +1 Stress.</span></div>";
+  var left = m.growthChoices - m.choicesSpent;
+  var h = '<div class="tray"><span class="pill ' + (left >= 0 ? "ok" : "bad") + '">Synthesis Choices left ' + Math.max(0, left) + " of " + m.growthChoices + "</span>" +
+    '<span class="pill">Bursts known ' + m.bursts.length + '</span><span class="pill ' + (m.bursts.length <= m.aeCapacity ? "" : "bad") + '">Hot-Burst limit (AE capacity) ' + m.aeCapacity + "</span></div>" +
+    '<div class="note">' + (S.level === 1
+      ? "<b>Level 1 organisms start with no catalogue Bursts and no Adaptations.</b> Creation (ATLAS §1, Steps 1–8) never grants them. From <b>Level 2</b>, each Growth gives <b>one Synthesis Choice</b>, spent on a Baseline grade, a Pathway rank, a Burst <i>or</i> an Adaptation (ATLAS §4.1). A Burst can also be learned from a Specimen of a creature that uses it (CORE §6.2). Raise the Level in Step 5 to plan ahead."
+      : "Each Burst and each Adaptation uses one of your <b>" + m.growthChoices + "</b> Synthesis Choices (one per Growth since Level 1), shared with Baseline grades and Pathway ranks. AE capacity (RTC + Catalysis) is how many Bursts can be <i>hot</i> at once — not how many you may learn. Tier I at Level 1, II at 6, III at 11, IV at 16. Outside your Bonded Domain (" + esc(m.phenotype.dom) + "): +2 ATP and +1 Stress.") + "</div>";
   h += '<div class="filters">' + doms.map(function (d) {
     return '<button type="button" class="chip' + (showDom === d ? " on" : "") + '" data-a="bdom" data-v="' + d + '" style="--c:' + dcol(d) + '">' + (d === "ALL" ? "All domains" : d.charAt(0) + d.slice(1).toLowerCase()) + (d === bonded ? " ★" : "") + "</button>";
   }).join("") + "</div>";
   h += '<div class="bgrid">' + ATLAS.bursts.filter(function (b) { return showDom === "ALL" || b.d === showDom || S.bursts.indexOf(b.n) >= 0; }).map(function (b) {
-    var on = S.bursts.indexOf(b.n) >= 0, lock = b.t > m.tierMax, br = KIT_RULES.bursts[b.n] || {}, cost = String(b.c).split("/");
+    var on = S.bursts.indexOf(b.n) >= 0, lock = b.t > m.tierMax, br = KIT_RULES.bursts[b.n] || {}, cost = String(b.c).split("/"), nochoice = !on && left <= 0;
     return '<div class="bcard' + (on ? " on" : "") + (lock ? " lock" : "") + '" style="--c:' + dcol(b.d) + '"><div class="ih"><b>' + esc(b.n) + '</b><button type="button" class="kn info" data-kg="bursts" data-kn="' + esc(b.n) + '">ⓘ</button></div>' +
       '<div class="ist"><em class="dm">' + esc(b.d.charAt(0) + b.d.slice(1).toLowerCase()) + "</em><em>Tier " + ["", "I", "II", "III", "IV"][b.t] + "</em><em>" + esc(cost[0]) + " ATP · " + esc(cost[1]) + " PP</em><em>" + esc(b.b) + "</em>" + (b.d === bonded ? "<em class=\"bonded\">bonded</em>" : "") + "</div>" +
       '<div class="id">' + esc(br.e || "") + "</div>" +
-      '<button type="button" class="pick" data-a="burst" data-n="' + esc(b.n) + '"' + (lock && !on ? " disabled" : "") + ">" + (on ? "✓ Known" : lock ? "🔒 Level " + [1, 6, 11, 16][b.t - 1] : "＋ Learn") + "</button></div>";
+      '<button type="button" class="pick" data-a="burst" data-n="' + esc(b.n) + '"' + ((lock || nochoice) && !on ? " disabled" : "") + ">" + (on ? "✓ Known — remove" : lock ? "🔒 Level " + [1, 6, 11, 16][b.t - 1] : nochoice ? (S.level === 1 ? "🔒 from Level 2" : "🔒 no Synthesis Choice left") : "＋ Learn (1 Synthesis Choice)") + "</button></div>";
   }).join("") + "</div>";
-  h += '<details class="adx"' + (S.level > 1 || S.adaptations.length ? " open" : "") + '><summary><h3 class="sub">Adaptations <span class="small">' + S.adaptations.length + " taken · each costs one Synthesis Choice, gained at a Growth (Level 2+) · " + m.choicesSpent + " of " + m.growthChoices + " Growth choices already used by Baselines/Pathways</span></h3></summary>";
+  h += '<details class="adx"' + (S.level > 1 || S.adaptations.length ? " open" : "") + '><summary><h3 class="sub">Adaptations <span class="small">' + S.adaptations.length + " taken · each costs one Synthesis Choice (Level 2+) and the Substrate listed</span></h3></summary>";
   h += '<div class="bgrid">' + ATLAS.adaptations.map(function (a) {
-    var on = S.adaptations.indexOf(a.n) >= 0;
+    var on = S.adaptations.indexOf(a.n) >= 0, nochoice = !on && left <= 0;
     return '<div class="bcard ad' + (on ? " on" : "") + '" style="--c:#7ed67e"><div class="ih"><b>' + esc(a.n) + '</b><span class="cost">' + esc(a.s) + "</span></div>" +
-      '<div class="id">' + esc(a.e) + '</div><button type="button" class="pick" data-a="adapt" data-n="' + esc(a.n) + '">' + (on ? "✓ Taken" : "＋ Take") + "</button></div>";
+      '<div class="id">' + esc(a.e) + '</div><button type="button" class="pick" data-a="adapt" data-n="' + esc(a.n) + '"' + (nochoice ? " disabled" : "") + ">" + (on ? "✓ Taken — remove" : nochoice ? (S.level === 1 ? "🔒 from Level 2" : "🔒 no Synthesis Choice left") : "＋ Take (1 Synthesis Choice)") + "</button></div>";
   }).join("") + "</div></details>";
   return h;
 }
@@ -1433,7 +1439,7 @@ function stepStatus(m) {
     3: true,
     4: !(S.level === 1 && ex !== 2) && !/rank \d: never above|additional Pathways/.test(w),
     5: m.spent <= m.budget && m.slotsUsed <= m.slots && !/buys one Apparatus|Testate|Antigen Hood/.test(w),
-    6: !/Bursts written down|is Tier/.test(w),
+    6: !/Bursts written down|is Tier|Synthesis Choices spent/.test(w),
     7: !!(S.name || "").trim()
   };
 }
