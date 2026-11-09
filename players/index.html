@@ -19072,7 +19072,7 @@ window.DM_MEMORY_UI = (function () {
     // mid-session shows up the same render it was added on; a book removed loses its tab the same way.
     tabsEl.innerHTML = allTabs().filter(function (t) { if (PA_KEEP.indexOf(t[0]) < 0) return false;
       // OSMOTIC: a hidden not-needed tab still shows while it is the open one, so the DM is never stranded.
-      return !(TABPREFS.hide && tabIsOff(t[0]) && ui.tab !== t[0]);
+      return !(tabIsOff(t[0]) && ui.tab !== t[0]); /* not-needed tabs are removed from the bar; Tab Setup brings them back */
     }).map(function (t) {
       var n = badgeFor(t[0]);
       var off = tabIsOff(t[0]);
@@ -19369,12 +19369,10 @@ window.DM_MEMORY_UI = (function () {
     var tabs = allTabs().filter(function (t) { return t[0] !== "tabsetup"; });
     var offCount = tabs.filter(function (t) { return tabIsOff(t[0]); }).length;
     var out = '<h3>Tab Setup</h3><div class="small dim">This assistant began life as a general tool, so some tabs do ' +
-      "not fit the Osmotic Expanse. Mark a tab <b>Not needed</b> and it is redded out in the tab bar. It still opens if you " +
-      "click it, and nothing in it is deleted. These choices are saved <b>in this campaign</b>, so they survive a reload or a new " +
+      "not fit the Osmotic Expanse. Mark a tab <b>Not needed</b> and it is removed from the tab bar. Nothing in it is deleted: " +
+      "set it back to <b>Needed</b> here and it returns. These choices are saved <b>in this campaign</b>, so they survive a reload or a new " +
       "version of the app, and travel with Export / Import.</div>";
-    out += '<div class="row" style="margin-top:8px">' +
-      '<label class="small"><input type="checkbox" data-tphide="1"' + (TABPREFS.hide ? " checked" : "") + "> " +
-      "hide not-needed tabs from the bar instead of redding them out</label></div>";
+    
     out += '<div class="row"><button class="btn small" data-tpall="on">mark all needed</button>' +
       '<span class="small dim">' + offCount + " of " + tabs.length + " tabs marked not needed</span></div>";
     out += '<table class="tpgrid">' + tabs.map(function (t) {
@@ -19382,7 +19380,7 @@ window.DM_MEMORY_UI = (function () {
       return '<tr class="' + (off ? "redrow" : "") + '"><td><b>' + esc(t[1]) + '</b> <span class="small dim">#' + esc(t[0]) + "</span></td>" +
         '<td style="width:190px"><select class="inp" data-tpsel="' + esc(t[0]) + '">' +
         '<option value="on"' + (off ? "" : " selected") + ">Needed</option>" +
-        '<option value="off"' + (off ? " selected" : "") + ">Not needed (red out)</option>" +
+        '<option value="off"' + (off ? " selected" : "") + ">Not needed (removed)</option>" +
         "</select></td></tr>";
     }).join("") + "</table>";
     return out;
