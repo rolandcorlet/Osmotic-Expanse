@@ -8,8 +8,8 @@ def rep(a, b, n=1):
     pat = re.compile(r"\s+".join(re.escape(x) for x in a.split()))
     c = len(pat.findall(s)); assert c == n, (a[:60], c); s = pat.sub(lambda m: b, s)
 
-KEEP = ["learn", "askbooks", "bitsight", "rollhelper", "chargen", "characters", "colours"]
-NAMES = '{learn:"Learn to Play",askbooks:"Ask the Books",bitsight:"BitSight",rollhelper:"Roll Helper",chargen:"Char/Gen",characters:"Characters",colours:"Colours"}'
+KEEP = ["learn", "askbooks", "bitsight", "rollhelper", "mtime", "chargen", "characters", "colours"]
+NAMES = '{learn:"Learn to Play",askbooks:"Ask the Books",bitsight:"BitSight",rollhelper:"Roll Helper",mtime:"Metabolic Time",chargen:"Char/Gen",characters:"Characters",colours:"Colours"}'
 
 # 1. name
 rep("<title>Director’s Assistant · The Osmotic Expanse</title>", "<title>Players Assistant · The Osmotic Expanse</title>")
