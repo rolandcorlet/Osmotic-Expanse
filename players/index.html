@@ -475,6 +475,151 @@
 .rh-steps .rh-body>h3{margin-bottom:4px}
 .rh-steps{gap:8px}
 }
+/* ---- Roll Helper v3: labelled fields, grouped; a wide result panel */
+.rh-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;margin:2px 0 6px}
+.rh-fields.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.rh-fields .wide{grid-column:1 / -1}
+.rh-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rh-fld .fl{font:600 12.5px/1.2 system-ui,sans-serif;color:var(--dim);display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-fld .fl abbr{text-decoration:none;cursor:help}
+.rh-body .rh-fld select,.rh-body .rh-fld input[type=number]{width:100%;height:36px;font-size:14.5px}
+.rh-body .rh-fld input[type=number]{text-align:center;font:700 17px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.rh-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:8px;margin:2px 0 6px}
+.rh-tiles .tile.wide2{grid-column:span 2}
+.rh-tiles .tile .fl{justify-content:center}
+.rh-sub{font:700 12.5px/1 system-ui,sans-serif;color:var(--ink);margin:8px 0 5px;display:flex;align-items:center;gap:3px;opacity:.85}
+.rh-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.rh-chip{display:inline-flex;align-items:center;gap:1px}
+.rh-meta{color:var(--dim);font-size:13px;line-height:1.45;margin-top:4px}
+.rh-meta b{color:var(--ink)}
+.rh-meta.warn{color:var(--warn-c)}
+.rh-na{display:flex;align-items:center;height:36px;color:var(--faint);font-size:13px}
+@media (min-width:1051px){
+.rh-flow{grid-template-columns:minmax(0,1.45fr) minmax(400px,1fr)}
+.rh-steps{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)}
+.rh-steps.attack>.rh-step:nth-child(1){grid-column:1 / 3;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(2){grid-column:3 / 5;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(3){grid-column:1 / 5;grid-row:2}
+.rh-steps.attack>.rh-step:nth-child(4){grid-column:1 / 3;grid-row:3}
+.rh-steps.attack>.rh-step:nth-child(5){grid-column:3 / 5;grid-row:3}
+.rh-steps.defence{grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+.rh-steps .rh-body>h3{font-size:15.5px}
+.rh-steps .rh-body{padding:10px 13px 8px}
+.rh-steps .rh-num{width:24px;height:24px;font-size:13px}
+.rh-steps .rh-body>h3{padding-left:30px}
+.rh-steps .rh-body .rh-fld select,.rh-steps .rh-body .rh-fld input[type=number]{width:100%;height:34px}
+}
+.rh-final .rhl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:6px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);font-size:13px}
+.rh-final .rhl .lead{flex:1 0 100%;font-weight:650;color:var(--ink)}
+.rh-final .rhl .rht{border:0;background:transparent;padding:0;color:var(--dim)}
+.rh-final .rhl .rht .tv{color:var(--ink);font-weight:700}
+.rh-final .rhl .rhres{margin-left:auto;background:var(--accent);color:var(--bg);font-weight:800;padding:2px 9px;border-radius:999px}
+.rh-final .rhsub{font-size:12px;color:var(--faint);padding:3px 0}
+/* ---- v3b: the question's answer sits in the card header; compact working */
+@media (min-width:1051px){
+.rh-steps .rh-body{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-content:start}
+.rh-steps .rh-body>*{grid-column:1 / -1}
+.rh-steps .rh-body>h3{grid-column:1;align-self:center;margin:0 0 8px}
+.rh-steps .rh-body>h3+.rh-fields.hd{grid-column:2;margin:0 0 8px;align-self:center}
+.rh-steps .rh-body>h3+.rh-fields.hd .fl{display:none}
+.rh-steps .rh-tiles{grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+.rh-steps .rh-sub{margin:4px 0 4px}
+.rh-steps .rh-sit{display:none}
+.rh-steps .rh-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-steps .rh-chips{gap:5px}
+.rh-steps .rh-chip label.small{padding:3px 9px 3px 6px}
+}
+.rh-final .rhl .lead{flex:0 0 auto}
+.rh-final .rhl .tn i{display:none}
+.rh-final .rhl .rht{display:inline-flex;align-items:center;gap:3px}
+.rh-final .rhl .rht .rhi,.rh-final .rhl .rht button{transform:scale(.85)}
+.rh-final .rhl{padding:4px 0;font-size:12.5px}
+.rh-final .promptbox{font-size:13px;line-height:1.4}
+.rh-final .promptbox>div{margin:3px 0}
+/* ---- v3c: step 1 is a strip across the top; 2|5 then 3|4 */
+@media (min-width:1051px){
+.rh-steps.attack,.rh-steps.defence{grid-template-rows:auto minmax(0,1fr) minmax(0,1fr)}
+.rh-steps>.rh-step:nth-child(1){grid-column:1 / 5 !important;grid-row:1 !important}
+.rh-steps>.rh-step:nth-child(1) .rh-body{grid-template-columns:minmax(0,6fr) minmax(0,4fr)}
+.rh-steps>.rh-step:nth-child(1) .rh-body>h3{justify-self:start}
+.rh-steps>.rh-step:nth-child(1) .rh-body>h3+.rh-fields.hd{justify-self:end;width:min(100%,300px)}
+.rh-steps .rh-body>.rh-grp{grid-column:auto}
+.rh-steps .rh-body>.rh-grp.n:first-of-type{grid-column:1 / -1}
+.rh-steps.attack>.rh-step:nth-child(2){grid-column:1 / 3 !important;grid-row:2 !important}
+.rh-steps.attack>.rh-step:nth-child(5){grid-column:3 / 5 !important;grid-row:2 !important}
+.rh-steps.attack>.rh-step:nth-child(3){grid-column:1 / 4 !important;grid-row:3 !important}
+.rh-steps.attack>.rh-step:nth-child(4){grid-column:4 / 5 !important;grid-row:3 !important}
+.rh-steps.defence>.rh-step:nth-child(2){grid-column:1 / 3 !important;grid-row:2 !important}
+.rh-steps.defence>.rh-step:nth-child(3){grid-column:3 / 5 !important;grid-row:2 !important}
+.rh-steps.defence>.rh-step:nth-child(4){grid-column:1 / 5 !important;grid-row:3 !important}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-body>h3{font-size:14.5px}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-fld .fl{display:none}
+}
+.rh-final.rh-tight:not(.v-work) .rhf>:not(h4){display:none}
+.rh-final.rh-tight.v-work .promptbox,.rh-final.rh-tight.v-work .rhf~.row{display:none}
+.rh-final.rh-tight .rhf h4::after{content:"  · show the working";font-weight:500;color:var(--accent)}
+.rh-final.rh-tight.v-work .rhf h4::after{content:"  · back to the result"}
+.rh-final.rh-tight.v-work .rhf h4::before{transform:rotate(90deg)}
+/* ---- v3d */
+.rh-steps .rh-grp .rh-tiles{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+.rh-steps .rh-grp .rh-tiles .fl{justify-content:center;overflow:visible}
+.rh-steps .rh-tiles .tile .fl{font-size:12px}
+@media (min-width:1051px){
+.rh-steps.attack>.rh-step:nth-child(4) .rh-fld .fl{display:flex;white-space:normal}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-meta{white-space:normal}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-tiles{grid-column:1;grid-template-columns:repeat(2,minmax(58px,76px))}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-tiles .tile{grid-column:auto}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-chips{grid-column:2;flex-direction:column;align-items:flex-start;align-self:end;margin:0 0 6px}
+.rh-steps.defence>.rh-step:nth-child(3) .rh-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>h3{grid-column:1 / -1}
+.rh-steps .rh-chip label.small{white-space:nowrap}
+.rh-steps .rh-chip{max-width:100%;min-width:0}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-chip label.small,.rh-steps.attack>.rh-step:nth-child(5) .rh-chip label.small{white-space:normal;border-radius:12px}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>.rh-tiles{grid-column:1;grid-template-columns:repeat(2,minmax(58px,76px))}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>.rh-tiles .tile{grid-column:auto}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>.rh-chips{grid-column:2;flex-direction:column;align-items:flex-start;align-self:end;margin:0 0 6px}
+}
+.rh-final.rh-tight .rh-body{display:flex;flex-direction:column}
+.rh-final.rh-tight .rhf{order:9;margin-top:auto}
+.rh-final.rh-tight:not(.v-work) .rhf h4{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--panel2)}
+.rh-final.rh-tight:not(.v-work) .rhf{border-top:0}
+/* ---- short screens: a slimmer page header, so the working tabs get the height */
+@media (max-height:900px) and (min-width:1051px){
+body>header{padding:7px 20px 5px}
+body>header h1{font-size:16.5px;margin:0}
+.campbar{padding:5px 20px;row-gap:4px}
+.campbar .clockface small,.campbar .advgroup .lbl{display:none}
+.campbar .btn.small{padding:2px 8px;font-size:12px}
+.tabs{padding-top:7px}
+.tabs .tab{padding:3px 8px;font-size:12px}
+.featcheck.rh-head{padding-bottom:6px;margin-bottom:8px}
+.rh-head .rh-seg button{padding:6px 12px}
+.rh-head .btn,.rh-log>summary{padding-top:5px;padding-bottom:5px}
+}
+@media (max-height:800px) and (min-width:1051px){
+.rh-steps .rh-body .rh-fld select,.rh-steps .rh-body .rh-fld input[type=number]{height:31px}
+.rh-steps .rh-body{padding:8px 12px 6px}
+.rh-steps .rh-body>h3{margin-bottom:6px}
+.rh-steps .rh-fields{gap:6px 10px;margin-bottom:4px}
+.rh-steps .rh-fld{gap:3px}
+.rh-steps{gap:8px}
+}
+.rh-final.rh-tight.v-work .rhf{margin-top:0}
+@media (min-height:950px) and (min-width:1051px){
+.rh-steps .rh-body{padding:14px 18px 12px}
+.rh-steps .rh-body>h3{font-size:17px;margin-bottom:12px}
+.rh-steps .rh-num{width:27px;height:27px;font-size:14px}
+.rh-steps .rh-fld .fl,.rh-steps .rh-sub{font-size:13.5px}
+.rh-steps .rh-body .rh-fld select,.rh-steps .rh-body .rh-fld input[type=number]{height:42px;font-size:15.5px}
+.rh-steps .rh-body .rh-fld input[type=number]{font-size:19px}
+.rh-steps .rh-fields{gap:12px 14px;margin-bottom:10px}
+.rh-steps .rh-tiles{gap:9px}
+.rh-steps .rh-chips{gap:8px;margin-top:8px}
+.rh-steps .rh-chip label.small{font-size:13.5px;padding:5px 11px 5px 7px}
+.rh-steps .rh-meta{font-size:14px;margin-top:8px}
+.rh-final .rhl{font-size:13.5px;padding:7px 0}
+.rh-final .promptbox{font-size:14px}
+}
 .rh-top{position:relative}
 .rh-log{margin-left:auto;position:relative;font-size:13px}
 .rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
@@ -21284,6 +21429,8 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     return '<section class="rh-step' + (fin ? " rh-final" : "") + '"><div class="rh-num" aria-hidden="true">' + n + '</div><div class="rh-body"><h3>' + title + "</h3>" + (fin ? "<!--RHHERO-->" : "") + body + "</div></section>";
   }
   var RH_FRESH = 0;
+  function rhF(label, key, control, cls) { return '<label class="rh-fld' + (cls ? " " + cls : "") + '"><span class="fl">' + label + (key ? rhI(key) : "") + "</span>" + control + "</label>"; }
+  function rhChip(chk, key) { return '<span class="rh-chip">' + chk + (key ? rhI(key) : "") + "</span>"; }
   function rhHero(mode) {
     var S = mode === "defence" ? RH_LAST._defenceSetup : RH_LAST._attackSetup; if (!S) return "";
     var n = S.pool || 0, ghosts = "";
@@ -21688,20 +21835,20 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     return out;
   }
   function rhWhoStep(prefix, ch, extra) {
-    var b = '<div class="row"><span class="lbl">who</span>' + rhI("who") + rhSel(prefix + "-who", rhSources(), "manual") + "</div>";
+    var b = '<div class="rh-fields hd">' + rhF("Who is rolling", "who", rhSel(prefix + "-who", rhSources(), "manual"), "wide") + "</div>";
     if (!ch.fromSheet) {
-      b += '<div class="row"><span class="lbl">Baseline Grades</span>' + rhI("grade") + RH_BASE.map(function (k) { return '<span class="lbl" style="min-width:auto">' + k + "</span>" + rhInp(prefix + "-g-" + k, 3, ' min="0" max="8"'); }).join("") +
-        '<span class="lbl" style="min-width:auto">Level</span>' + rhInp(prefix + "-level", 1, ' min="1" max="20"') + "</div>";
+      b += '<div class="rh-grp g"><div class="rh-sub">Baseline Grades' + rhI("grade") + '</div><div class="rh-tiles">' + RH_BASE.map(function (k) {
+        return rhF('<abbr title="' + ({ VSC: "Viscosity", DFF: "Diffusion", RTC: "Reactivity", OSM: "Osmosis", AFF: "Affinity" })[k] + '">' + k + "</abbr>", "", rhInp(prefix + "-g-" + k, 3, ' min="0" max="8"'), "tile");
+      }).join("") + rhF("Level", "", rhInp(prefix + "-level", 1, ' min="1" max="20"'), "tile") + "</div></div>";
     } else {
-      b += '<div class="small">' + RH_BASE.map(function (k) { return k + " <b>" + ch.grades[k] + "</b>"; }).join(" · ") + " · Level " + ch.level + " (tier " + ch.tier + ") · PP " + ch.pp +
+      b += '<div class="rh-meta">' + RH_BASE.map(function (k) { return k + " <b>" + ch.grades[k] + "</b>"; }).join(" · ") + " · Level " + ch.level + " (tier " + ch.tier + ") · PP " + ch.pp +
         " · ATP max " + ch.atpMax + " · MI max " + ch.miMax + " · MT " + ch.mt + " · soak " + ch.soak + "</div>";
     }
-    b += '<div class="row"><span class="lbl">right now</span><span class="lbl" style="min-width:auto">Stress</span>' + rhI("stress") + rhInp(prefix + "-stress", 0, ' min="0" max="8"') +
-      '<span class="lbl" style="min-width:auto">ATP</span>' + rhI("atp") + rhInp(prefix + "-atp", ch.atpMax, ' min="0"') +
-      '<span class="lbl" style="min-width:auto">MI</span>' + rhI("mi") + rhInp(prefix + "-mi", ch.curMI, ' min="0"') +
-      '<span class="lbl" style="min-width:auto">PP left this Cycle</span>' + rhI("pp") + rhInp(prefix + "-pp", ch.pp, ' min="0"') + (extra || "") + "</div>";
+    b += '<div class="rh-grp n"><div class="rh-sub">Right now</div><div class="rh-tiles">' + rhF("Stress", "stress", rhInp(prefix + "-stress", 0, ' min="0" max="8"'), "tile") +
+      rhF("ATP", "atp", rhInp(prefix + "-atp", ch.atpMax, ' min="0"'), "tile") + rhF("MI", "mi", rhInp(prefix + "-mi", ch.curMI, ' min="0"'), "tile") +
+      rhF("PP left", "pp", rhInp(prefix + "-pp", ch.pp, ' min="0"'), "tile") + (extra || "") + "</div></div>";
     var st = rhNum(prefix + "-stress", 0);
-    if (rhStressDice(st)) b += '<div class="small" style="color:var(--warn-c,#e0b060)">Stress ' + st + ": " + rhStressDice(st) + " Reagent(s) to every pool" + (st >= 6 ? "; ATP costs +1" : "") + " (CORE §5.8).</div>";
+    if (rhStressDice(st)) b += '<div class="rh-meta warn">Stress ' + st + ": " + rhStressDice(st) + " dice to every pool" + (st >= 6 ? "; ATP costs +1" : "") + " (CORE §5.8).</div>";
     return b;
   }
 
@@ -21718,14 +21865,13 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var grade = ch.grades[baseKey] || 0, rank = ch.fromSheet ? (ch.ranks[pathName] || 0) : rhNum("ra-rank", 0);
     var bonus = rhBonus(a.x), bd = rhBD(a, ch.tier), props = String(a.pr || "");
     var heavy = /Heavy/.test(props), braced = /Braced/.test(props), twoH = /Two-handed/.test(props);
-    var wb = '<div class="row"><span class="lbl">weapon</span>' + rhI("weapon") + rhSel("ra-weapon", ws.map(function (x) { return { v: x.id, l: x.l }; }), ws[0] ? ws[0].id : "") + "</div>" +
-      '<div class="small"><b>' + esc(a.n) + "</b> · " + esc(cls) + " · band " + esc(a.b || "Contact") + " · bonus " + (bonus >= 0 ? "+" : "") + bonus + " dice · BD " + bd + " at tier " + ch.tier +
-      " · " + esc(a.ty) + (props ? " · " + esc(props) : "") + "</div>";
-    if (cls === "Projector") wb += '<div class="row"><span class="lbl">Projector uses</span>' + rhSel("ra-pbase", [{ v: "DFF", l: "DFF (" + ch.grades.DFF + ")" }, { v: "RTC", l: "RTC (" + ch.grades.RTC + ")" }], baseKey) +
-      rhSel("ra-ppath", [{ v: "Membrane Penetration", l: "Membrane Penetration" }, { v: "Signal Discourse", l: "Signal Discourse" }], pathName) + "</div>";
-    if (!ch.fromSheet) wb += '<div class="row"><span class="lbl">' + esc(pathName) + " rank</span>" + rhInp("ra-rank", 0, ' min="0" max="4"') + "</div>";
+    var wb = '<div class="rh-fields">' + rhF("Weapon", "weapon", rhSel("ra-weapon", ws.map(function (x) { return { v: x.id, l: x.l }; }), ws[0] ? ws[0].id : ""), "wide") +
+      (cls === "Projector" ? rhF("Grade used", "", rhSel("ra-pbase", [{ v: "DFF", l: "DFF (" + ch.grades.DFF + ")" }, { v: "RTC", l: "RTC (" + ch.grades.RTC + ")" }], baseKey)) +
+        rhF("Pathway", "", rhSel("ra-ppath", [{ v: "Membrane Penetration", l: "Membrane Penetration" }, { v: "Signal Discourse", l: "Signal Discourse" }], pathName)) : "") + "</div>" +
+      '<div class="rh-tiles">' + (!ch.fromSheet ? rhF('<abbr title="' + esc(pathName) + ' rank">Pathway rank</abbr>', "rank", rhInp("ra-rank", 0, ' min="0" max="4"'), "tile wide2") : "") +
+      rhF("Effect Value", "ev", rhInp("ra-ev", 0, ' min="0"'), "tile wide2") + "</div>" +
+      '<div class="rh-meta"><b>' + esc(a.n) + "</b> · " + esc(cls) + " · " + esc(a.b || "Contact") + " · " + (bonus >= 0 ? "+" : "") + bonus + " dice · BD " + bd + " · " + esc(a.ty) + (props ? " · " + esc(props) : "") + "</div>";
     if (heavy && ch.grades.VSC < (twoH ? 4 : 3)) wb += '<div class="warnbox small">' + esc(a.n) + " is Heavy" + (twoH ? " and two-handed" : "") + ": it needs VSC " + (twoH ? 4 : 3) + "+, and this organism has VSC " + ch.grades.VSC + " (CORE §9.3).</div>";
-    wb += '<div class="small dim">Pool so far: ' + baseKey + " " + grade + " + " + esc(pathName) + " " + rank + " + weapon bonus " + bonus + " = <b>" + (grade + rank + bonus) + "d</b> (CORE §4.8)</div>";
     out += rhStep(2, "What are you striking with?", wb);
     // 3 situation
     var mom = rhStr("ra-mom", "0");
@@ -21742,43 +21888,37 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     if (mom !== "0") { sit.push(["Momentum", +mom]); if (/Momentum/.test(props)) sit.push(["weapon's Momentum property", /\+2 dice/.test(props) ? 2 : 1]); }
     var stD = rhStressDice(rhNum("ra-stress", 0)); if (stD) sit.push(["Stress " + rhNum("ra-stress", 0), stD]);
     var sitRaw = sit.reduce(function (s, x) { return s + x[1]; }, 0), sitCap = Math.max(-5, Math.min(5, sitRaw));
-    var sb = '<div class="row">' + '<span class="lbl" style="min-width:auto">allies helping</span>' + rhI("allies") + rhSel("ra-allies", [{ v: 0, l: "0" }, { v: 1, l: "1 (+1)" }, { v: 2, l: "2 (+2)" }], 0) +
-      rhChk("ra-pos", "good position / prepared (+1)") + rhI("pos") + rhChk("ra-cat", "Catalysed (+1)") + rhI("cat") + rhChk("ra-marked", "target is Marked (+2)") + rhI("marked") +
-      (braced ? rhChk("ra-still", "did not Drift this Cycle (Braced, +1)") + rhI("still") : "") + "</div>" +
-      '<div class="row"><span class="lbl" style="min-width:auto">tonic</span>' + rhI("tonic") + rhSel("ra-tonic", [{ v: 0, l: "right tonic" }, { v: -1, l: "wrong tonic (−1)" }, { v: -2, l: "badly wrong tonic (−2)" }], 0) +
-      '<span class="lbl" style="min-width:auto">target cover</span>' + rhI("cover") + rhSel("ra-cover", [{ v: "0", l: "none" }, { v: "-2", l: "partial (−2)" }, { v: "-4", l: "heavy (−4)" }, { v: "x", l: "total concealment in turbid fluid (automatic miss)" }], "0") +
-      rhChk("ra-squeeze", "squeezed / pinned (−2)") + rhI("squeeze") + "</div>" +
-      '<div class="row"><span class="lbl" style="min-width:auto">Momentum</span>' + rhI("mom") + (braced ? '<span class="small dim">not with a Braced weapon (CORE §9.3)</span>'
-        : rhSel("ra-mom", [{ v: "0", l: "no run-up" }, { v: "2", l: "Drifted 3+ Drifts straight first (+2, costs 1 PP, hit becomes Kinetic)" }, { v: "3", l: "the run began in a Nutrient Current (+3)" }], "0")) + "</div>" +
-      '<div class="small">' + rhI("cap") + 'Situational dice: ' + (sit.length ? sit.map(function (x) { return esc(x[0]) + " " + (x[1] > 0 ? "+" : "") + x[1]; }).join(", ") : "none") +
-      " → <b>" + (sitCap >= 0 ? "+" : "") + sitCap + "</b>" + (sitRaw !== sitCap ? " (capped from " + sitRaw + ": situational dice stop at ±5, CORE §1.3)" : "") + "</div>";
+    var sb = '<div class="rh-fields four">' + rhF("Allies helping", "allies", rhSel("ra-allies", [{ v: 0, l: "none" }, { v: 1, l: "1 (+1)" }, { v: 2, l: "2 (+2)" }], 0)) +
+      rhF("Tonic", "tonic", rhSel("ra-tonic", [{ v: 0, l: "right tonic" }, { v: -1, l: "wrong (−1)" }, { v: -2, l: "badly wrong (−2)" }], 0)) +
+      rhF("Target cover", "cover", rhSel("ra-cover", [{ v: "0", l: "none" }, { v: "-2", l: "partial (−2)" }, { v: "-4", l: "heavy (−4)" }, { v: "x", l: "total, in turbid fluid (auto miss)" }], "0")) +
+      rhF("Momentum", "mom", braced ? '<span class="rh-na">not with a Braced weapon</span>'
+        : rhSel("ra-mom", [{ v: "0", l: "no run-up" }, { v: "2", l: "3+ Drifts straight (+2, 1 PP, Kinetic)" }, { v: "3", l: "run began in a Current (+3)" }], "0")) + "</div>" +
+      '<div class="rh-chips">' + rhChip(rhChk("ra-pos", "good position (+1)"), "pos") + rhChip(rhChk("ra-cat", "Catalysed (+1)"), "cat") + rhChip(rhChk("ra-marked", "target Marked (+2)"), "marked") +
+      (braced ? rhChip(rhChk("ra-still", "did not Drift (Braced, +1)"), "still") : "") + rhChip(rhChk("ra-squeeze", "squeezed / pinned (−2)"), "squeeze") + "</div>" +
+      '<div class="rh-meta rh-sit">' + rhI("cap") + "Situational dice: " + (sit.length ? sit.map(function (x) { return esc(x[0]) + " " + (x[1] > 0 ? "+" : "") + x[1]; }).join(", ") : "none") +
+      " → <b>" + (sitCap >= 0 ? "+" : "") + sitCap + "</b>" + (sitRaw !== sitCap ? " (capped from " + sitRaw + ", CORE §1.3)" : "") + "</div>";
     out += rhStep(3, "What is the situation?", sb);
     // 4 overdrive — CORE §1.8. A Reagent IS one d6 in the pool (CORE §1.1: "roll a Reagent Pool of d6").
     var st = rhNum("ra-stress", 0), atpNow = rhNum("ra-atp", ch.atpMax), miNow = rhNum("ra-mi", ch.curMI);
     var odTrain = (ch.adaptations || []).indexOf("Overdrive Training") >= 0 || (!ch.fromSheet && rhOn("ra-odtrain"));
     var odCost = (odTrain ? 3 : 4) + (st >= 6 ? 1 : 0), miCost = odTrain ? 3 : 4, od = rhStr("ra-od", "none");
-    var odb = '<div class="small" style="margin-bottom:6px"><b>A Reagent is one d6 in your pool</b> — the book calls the dice you roll your <i>Reagent Pool</i> (CORE §1.1), so ' +
-      '<b>+2 Reagents = +2 dice</b>. Overdrive is the one way to <i>buy</i> them: you pay energy (ATP) or your own body (MI) before you roll (CORE §1.8 “Buying dice”).</div>' +
-      '<div class="row">' + rhSel("ra-od", [{ v: "none", l: "no Overdrive" },
-        { v: "atp", l: "spend " + odCost + " ATP → +2 Reagents (+2 dice)" + (atpNow < odCost ? " (you only have " + atpNow + ")" : "") },
-        { v: "mi", l: "spend " + miCost + " MI → +4 Reagents (+4 dice), and mark 1 Stress" + (miNow <= miCost ? " (you only have " + miNow + " MI)" : "") }], "none") + "</div>" +
-      (ch.fromSheet ? "" : '<div class="row">' + rhChk("ra-odtrain", "has Overdrive Training (costs 3)") + "</div>") +
-      '<div class="small dim">Once per roll' + (odTrain ? " (Overdrive Training: you may Overdrive on two different rolls in the same Cycle)" : "") +
-      ". Overdrive dice are not situational dice, so the ±5 cap of CORE §1.3 does not limit them." +
-      (st >= 6 ? " At Stress 6, ATP costs +1 (CORE §5.8)." : "") +
-      " ATP is your energy (you have " + atpNow + "); MI is your body (you have " + miNow + "). Overdriving with MI marks 1 Stress whatever the result — the body knows what it burned.</div>";
+    var odb = '<div class="rh-fields">' + rhF("Overdrive: buy dice with ATP or MI", "od", rhSel("ra-od", [{ v: "none", l: "no Overdrive" },
+        { v: "atp", l: "spend " + odCost + " ATP → +2 dice" + (atpNow < odCost ? " (you have " + atpNow + ")" : "") },
+        { v: "mi", l: "spend " + miCost + " MI → +4 dice, +1 Stress" + (miNow <= miCost ? " (you have " + miNow + " MI)" : "") }], "none"), "wide") + "</div>" +
+      (ch.fromSheet ? "" : '<div class="rh-chips">' + rhChip(rhChk("ra-odtrain", "has Overdrive Training (costs 3)"), "") + "</div>") +
+      '<div class="rh-meta">You have <b>' + atpNow + "</b> ATP and <b>" + miNow + "</b> MI. Once per roll" + (st >= 6 ? "; at Stress 6 ATP costs +1" : "") + ".</div>";
     var odDice = od === "atp" ? 2 : od === "mi" ? 4 : 0;
     if (od === "atp" && atpNow < odCost) odb += '<div class="warnbox small">Not enough ATP for this Overdrive.</div>';
     if (od === "mi" && miNow <= miCost) odb += '<div class="warnbox small">Spending ' + miCost + " MI would take you to 0 or below — Dormancy (CORE §5.4).</div>";
-    out += rhStep(4, "Buy extra dice? (Overdrive) " + rhI("od"), odb);
+    out += rhStep(4, "Extra dice?", odb);
     // 5 target
     var tc = rhCreature("ra-target");
     var tmt = tc ? tc.mt : rhNum("ra-tmt", 12), tsoak = tc ? tc.soak : rhNum("ra-tsoak", 0);
     var deflect = rhOn("ra-deflect"), tinhib = rhOn("ra-tinhib");
-    var tb = '<div class="row"><span class="lbl">target</span>' + rhI("mt") + rhSel("ra-target", rhCreatureOpts(), "manual") + "</div>" +
-      (tc ? '<div class="small">' + esc(tc.name) + " · Membrane Threshold <b>" + tc.mt + "</b> · soak <b>" + tc.soak + "</b></div>"
-        : '<div class="row"><span class="lbl" style="min-width:auto">its MT</span>' + rhI("mt") + rhInp("ra-tmt", 12, ' min="0"') + '<span class="lbl" style="min-width:auto">its soak</span>' + rhI("soak") + rhInp("ra-tsoak", 0, ' min="0"') + "</div>") +
-      '<div class="row">' + rhChk("ra-deflect", "it Deflects (MT +4)") + rhI("deflect") + rhChk("ra-tinhib", "it Inhibits you (−2 dice)") + rhI("tinhib") + "</div>";
+    var tb = '<div class="rh-fields hd">' + rhF("Target", "mt", rhSel("ra-target", rhCreatureOpts(), "manual"), "wide") + "</div>" +
+      (tc ? '<div class="rh-meta">' + esc(tc.name) + " · MT <b>" + tc.mt + "</b> · soak <b>" + tc.soak + "</b></div>"
+        : '<div class="rh-tiles">' + rhF("Its MT", "mt", rhInp("ra-tmt", 12, ' min="0"'), "tile wide2") + rhF("Its soak", "soak", rhInp("ra-tsoak", 0, ' min="0"'), "tile wide2") + "</div>") +
+      '<div class="rh-chips">' + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect") + rhChip(rhChk("ra-tinhib", "it Inhibits you (−2 dice)"), "tinhib") + "</div>";
     out += rhStep(5, "Who are you hitting?", tb);
     // 6 summary + roll
     var autoMiss = rhStr("ra-cover", "0") === "x";
@@ -21803,7 +21943,6 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
         rhT("Base Damage", "BD", bd, "bd"), rhT("Effect Value", "EV", rhNum("ra-ev", 0), "ev"), rhT("target's Soak", "", tsoak, "soak", false, true)], "at least 1 " + esc(mom !== "0" ? "Kinetic" : a.ty)) +
       rhLine("5 · This attack costs", ppTerms, ppCost + " PP" + (atpCost ? " + " + atpCost + " ATP" : "") + (od === "mi" ? " + " + miCost + " MI + 1 Stress" : "")) +
       (ppCost > ppLeft ? '<div class="warnbox small">You have only ' + ppLeft + " Pulse Points (PP) left this Cycle.</div>" : "") + "</div>" +
-      '<div class="row"><span class="lbl">Effect Value (from a Burst, else 0)</span>' + rhI("ev") + rhInp("ra-ev", 0, ' min="0"') + "</div>" +
       '<div class="row">' + (autoMiss ? '<span class="warnbox small">Total concealment in turbid fluid: an automatic miss unless the target is searched out first (CORE §1.3).</span>'
         : '<button class="btn primary" type="button" data-rhroll="attack">🎲 Roll ' + pool + "d6</button>") + "</div>";
     var L = RH_LAST.attack;
@@ -21833,29 +21972,30 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     // 2 your defences
     var mtBase = ch.fromSheet ? ch.mt : rhNum("rd-mt", 10 + ch.grades.DFF), soak = ch.fromSheet ? ch.soak : rhNum("rd-soak", 0);
     var condMT = (rhOn("rd-jostled") ? -2 : 0) + (rhOn("rd-turgid") ? -2 : 0);
-    var db = (ch.fromSheet ? '<div class="small">Membrane Threshold <b>' + mtBase + "</b> · soak <b>" + soak + "</b> (from the sheet)</div>"
-      : '<div class="row"><span class="lbl" style="min-width:auto">your MT</span>' + rhI("mt") + rhInp("rd-mt", 10 + ch.grades.DFF, ' min="0"') + '<span class="lbl" style="min-width:auto">your soak</span>' + rhI("soak") + rhInp("rd-soak", 0, ' min="0"') + "</div>") +
-      '<div class="row">' + rhChk("rd-jostled", "I am Jostled (MT −2)") + rhI("jostled") + rhChk("rd-turgid", "I am Turgid (MT −2)") + rhI("turgid") + "</div>";
+    var db = (ch.fromSheet ? '<div class="rh-meta">Membrane Threshold <b>' + mtBase + "</b> · soak <b>" + soak + "</b> (from the sheet)</div>"
+      : '<div class="rh-tiles">' + rhF("Your MT", "mt", rhInp("rd-mt", 10 + ch.grades.DFF, ' min="0"'), "tile wide2") + rhF("Your soak", "soak", rhInp("rd-soak", 0, ' min="0"'), "tile wide2") + "</div>") +
+      '<div class="rh-chips">' + rhChip(rhChk("rd-jostled", "I am Jostled (MT −2)"), "jostled") + rhChip(rhChk("rd-turgid", "I am Turgid (MT −2)"), "turgid") + "</div>";
     out += rhStep(2, "Your defences right now", db);
     // 3 incoming
     var how = rhStr("rd-how", "roll");
     var cr = rhCreature("rd-attacker");
-    var ib = '<div class="row"><span class="lbl">the attacker</span>' + rhSel("rd-attacker", rhCreatureOpts(), "manual") + "</div>" +
-      '<div class="row"><span class="lbl">its attack</span>' + rhSel("rd-how", [{ v: "roll", l: "roll its pool for me" }, { v: "typed", l: "the Director tells me its total" }], "roll") + "</div>";
+    var ib = '<div class="rh-fields">' + rhF("The attacker", "", rhSel("rd-attacker", rhCreatureOpts(), "manual")) +
+      rhF("Its attack", "", rhSel("rd-how", [{ v: "roll", l: "roll its pool for me" }, { v: "typed", l: "the Director tells me its total" }], "roll")) + "</div>";
     var aPool = cr ? cr.pool : rhNum("rd-apool", 3), aBD = cr ? cr.bd : rhNum("rd-abd", 2), aTy = cr ? cr.ty : rhStr("rd-aty", "Kinetic");
-    if (how === "typed") ib += '<div class="row"><span class="lbl" style="min-width:auto">its total</span>' + rhInp("rd-atotal", 14, ' min="0"') + "</div>";
-    else if (!cr) ib += '<div class="row"><span class="lbl" style="min-width:auto">its pool (dice)</span>' + rhI("apool") + rhInp("rd-apool", 3, ' min="0"') + "</div>";
-    if (!cr) ib += '<div class="row"><span class="lbl" style="min-width:auto">its Base Damage</span>' + rhI("bd") + rhInp("rd-abd", 2, ' min="0"') +
-      '<span class="lbl" style="min-width:auto">type</span>' + rhSel("rd-aty", Object.keys(RH_CONSEQ), "Kinetic") + "</div>";
-    else ib += '<div class="small">' + esc(cr.name) + ": pool <b>" + aPool + "d</b> · BD <b>" + aBD + "</b> " + esc(aTy) + (cr.block && cr.block.printed ? '<div class="dim">' + esc(cr.block.printed) + "</div>" : "") + "</div>";
+    var tiles = "";
+    if (how === "typed") tiles += rhF("Its total", "", rhInp("rd-atotal", 14, ' min="0"'), "tile");
+    else if (!cr) tiles += rhF("Its pool", "apool", rhInp("rd-apool", 3, ' min="0"'), "tile");
+    if (!cr) tiles += rhF("BD", "bd", rhInp("rd-abd", 2, ' min="0"'), "tile") + rhF("Type", "", rhSel("rd-aty", Object.keys(RH_CONSEQ), "Kinetic"), "tile");
+    if (tiles) ib += '<div class="rh-tiles">' + tiles + "</div>";
+    if (cr) ib += '<div class="rh-meta">' + esc(cr.name) + ": pool <b>" + aPool + "d</b> · BD <b>" + aBD + "</b> " + esc(aTy) + (cr.block && cr.block.printed ? '<div class="dim">' + esc(cr.block.printed) + "</div>" : "") + "</div>";
     out += rhStep(3, "What is coming at you?", ib);
     // 4 reactions
     var st = rhNum("rd-stress", 0), atpNow = rhNum("rd-atp", ch.atpMax), ppNow = rhNum("rd-pp", ch.pp);
     var react = rhStr("rd-react", "none"), inhibOn = rhOn("rd-inhib"), inhibCost = 3 + (st >= 6 ? 1 : 0);
-    var rb = '<div class="small dim">Reactions need a Pulse Point you held back on your turn (Reserve, 1 PP). One Reactive Osmosis per Cycle (CORE §4.10).</div>' +
-      '<div class="row"><span class="lbl">Reactive Osmosis</span>' + rhI("react") + rhSel("rd-react", [{ v: "none", l: "none" }, { v: "deflect", l: "Deflect — your MT +4 against this attack (1 held PP)" },
-        { v: "brace", l: "Brace — halve Osmotic and Kinetic damage, ignore push (1 held PP)" }, { v: "reroll", l: "Inhibit — make the attacker re-roll one die (1 held PP; you pick it after the roll)" }], "none") + "</div>" +
-      '<div class="row">' + rhChk("rd-inhib", "Inhibition — spend " + inhibCost + " ATP + 1 held PP: the attacker loses 2 dice (CORE §1.8)") + rhI("inhib") + "</div>";
+    var rb = '<div class="rh-fields">' + rhF("Reactive Osmosis", "react", rhSel("rd-react", [{ v: "none", l: "none" }, { v: "deflect", l: "Deflect: your MT +4 (1 held PP)" },
+        { v: "brace", l: "Brace: halve Osmotic and Kinetic, ignore push (1 held PP)" }, { v: "reroll", l: "Inhibit: attacker re-rolls one die (1 held PP)" }], "none"), "wide") + "</div>" +
+      '<div class="rh-chips">' + rhChip(rhChk("rd-inhib", "Inhibition: " + inhibCost + " ATP + 1 held PP, attacker −2 dice"), "inhib") + "</div>" +
+      '<div class="rh-meta">Reactions use a Pulse Point you held back (Reserve). One Reactive Osmosis per Cycle (CORE §4.10, §1.8).</div>';
     var ppNeed = (react !== "none" ? 1 : 0) + (inhibOn ? 1 : 0), atpNeed = inhibOn ? inhibCost : 0;
     if (ppNeed > ppNow) rb += '<div class="warnbox small">That needs ' + ppNeed + " held PP and you have " + ppNow + ".</div>";
     if (atpNeed > atpNow) rb += '<div class="warnbox small">Inhibition needs ' + atpNeed + " ATP and you have " + atpNow + ".</div>";
@@ -23614,25 +23754,36 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var over = document.documentElement.scrollHeight - window.innerHeight;
     if (over > 0 && h - over >= MIN) el.style.height = (h - over) + "px";
   }
+  function rhToggle(f) {
+    if (f && f.classList.contains("rh-tight")) window.__rhView = window.__rhView === "work" ? "result" : "work";
+    else window.__rhEq = window.__rhEq === false;
+    fit();
+  }
   function fit() {
     [].forEach.call(document.querySelectorAll(".ox-fit"), size);
     var bs = document.getElementById("bitsight-frame"); if (bs && bs.offsetParent) size(bs);
     [].forEach.call(document.querySelectorAll("[data-oxkeep]"), function (el) { var k = el.getAttribute("data-oxkeep"); if (keep[k] != null && el.scrollTop !== keep[k]) el.scrollTop = keep[k]; });
     if (document.querySelector(".mtx")) mtShow(window.__mtSel || "units");
     [].forEach.call(document.querySelectorAll(".rh-final"), function (f) {
-      f.classList.toggle("eq-open", !!window.__rhEq);
+      f.classList.toggle("eq-open", window.__rhEq !== false);
       var h4 = f.querySelector(".rhf h4"); if (h4 && !h4.hasAttribute("tabindex")) { h4.setAttribute("tabindex", "0"); h4.setAttribute("role", "button"); }
-      if (h4) h4.setAttribute("aria-expanded", window.__rhEq ? "true" : "false");
+      if (h4) h4.setAttribute("aria-expanded", window.__rhEq !== false ? "true" : "false");
+      var body = f.querySelector(".rh-body"); f.classList.remove("rh-tight", "v-work");
+      if (body && body.scrollHeight > body.clientHeight + 2) {
+        f.classList.add("rh-tight"); f.classList.add("eq-open"); if (window.__rhView === "work") f.classList.add("v-work");
+        if (h4) h4.setAttribute("aria-expanded", window.__rhView === "work" ? "true" : "false");
+      }
     });
   }
   document.addEventListener("scroll", function (e) { var el = e.target; if (el && el.getAttribute && el.getAttribute("data-oxkeep")) keep[el.getAttribute("data-oxkeep")] = el.scrollTop; }, true);
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-mtsel]");
     if (b) { window.__mtSel = b.getAttribute("data-mtsel"); keep["mtx-pane"] = 0; mtShow(window.__mtSel); var p = document.querySelector(".mtx-pane"); if (p) p.scrollTop = 0; return; }
-    if (e.target.closest && e.target.closest(".rh-final .rhf h4")) { window.__rhEq = !window.__rhEq; fit(); return; }
+    if (e.target.closest && e.target.closest("[data-rhroll]")) window.__rhView = "result";
+    if (e.target.closest && e.target.closest(".rh-final .rhf h4")) { rhToggle(e.target.closest(".rh-final")); return; }
     if (e.target.closest && e.target.closest('[data-act="tab"]')) { setTimeout(fit, 30); setTimeout(fit, 250); }
   });
-  document.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest(".rh-final .rhf h4")) { e.preventDefault(); window.__rhEq = !window.__rhEq; fit(); } });
+  document.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest(".rh-final .rhf h4")) { e.preventDefault(); rhToggle(e.target.closest(".rh-final")); } });
   window.addEventListener("resize", function () { requestAnimationFrame(fit); });
   try { new MutationObserver(function (ms) {
     for (var i = 0; i < ms.length; i++) if (ms[i].addedNodes.length) { fit(); return; }

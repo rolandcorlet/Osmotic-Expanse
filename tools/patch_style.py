@@ -227,6 +227,151 @@ CSS = r"""
 .rh-steps .rh-body>h3{margin-bottom:4px}
 .rh-steps{gap:8px}
 }
+/* ---- Roll Helper v3: labelled fields, grouped; a wide result panel */
+.rh-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 10px;margin:2px 0 6px}
+.rh-fields.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.rh-fields .wide{grid-column:1 / -1}
+.rh-fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.rh-fld .fl{font:600 12.5px/1.2 system-ui,sans-serif;color:var(--dim);display:flex;align-items:center;gap:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-fld .fl abbr{text-decoration:none;cursor:help}
+.rh-body .rh-fld select,.rh-body .rh-fld input[type=number]{width:100%;height:36px;font-size:14.5px}
+.rh-body .rh-fld input[type=number]{text-align:center;font:700 17px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.rh-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(54px,1fr));gap:8px;margin:2px 0 6px}
+.rh-tiles .tile.wide2{grid-column:span 2}
+.rh-tiles .tile .fl{justify-content:center}
+.rh-sub{font:700 12.5px/1 system-ui,sans-serif;color:var(--ink);margin:8px 0 5px;display:flex;align-items:center;gap:3px;opacity:.85}
+.rh-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0}
+.rh-chip{display:inline-flex;align-items:center;gap:1px}
+.rh-meta{color:var(--dim);font-size:13px;line-height:1.45;margin-top:4px}
+.rh-meta b{color:var(--ink)}
+.rh-meta.warn{color:var(--warn-c)}
+.rh-na{display:flex;align-items:center;height:36px;color:var(--faint);font-size:13px}
+@media (min-width:1051px){
+.rh-flow{grid-template-columns:minmax(0,1.45fr) minmax(400px,1fr)}
+.rh-steps{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)}
+.rh-steps.attack>.rh-step:nth-child(1){grid-column:1 / 3;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(2){grid-column:3 / 5;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(3){grid-column:1 / 5;grid-row:2}
+.rh-steps.attack>.rh-step:nth-child(4){grid-column:1 / 3;grid-row:3}
+.rh-steps.attack>.rh-step:nth-child(5){grid-column:3 / 5;grid-row:3}
+.rh-steps.defence{grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
+.rh-steps .rh-body>h3{font-size:15.5px}
+.rh-steps .rh-body{padding:10px 13px 8px}
+.rh-steps .rh-num{width:24px;height:24px;font-size:13px}
+.rh-steps .rh-body>h3{padding-left:30px}
+.rh-steps .rh-body .rh-fld select,.rh-steps .rh-body .rh-fld input[type=number]{width:100%;height:34px}
+}
+.rh-final .rhl{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:6px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);font-size:13px}
+.rh-final .rhl .lead{flex:1 0 100%;font-weight:650;color:var(--ink)}
+.rh-final .rhl .rht{border:0;background:transparent;padding:0;color:var(--dim)}
+.rh-final .rhl .rht .tv{color:var(--ink);font-weight:700}
+.rh-final .rhl .rhres{margin-left:auto;background:var(--accent);color:var(--bg);font-weight:800;padding:2px 9px;border-radius:999px}
+.rh-final .rhsub{font-size:12px;color:var(--faint);padding:3px 0}
+/* ---- v3b: the question's answer sits in the card header; compact working */
+@media (min-width:1051px){
+.rh-steps .rh-body{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-content:start}
+.rh-steps .rh-body>*{grid-column:1 / -1}
+.rh-steps .rh-body>h3{grid-column:1;align-self:center;margin:0 0 8px}
+.rh-steps .rh-body>h3+.rh-fields.hd{grid-column:2;margin:0 0 8px;align-self:center}
+.rh-steps .rh-body>h3+.rh-fields.hd .fl{display:none}
+.rh-steps .rh-tiles{grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:6px}
+.rh-steps .rh-sub{margin:4px 0 4px}
+.rh-steps .rh-sit{display:none}
+.rh-steps .rh-meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-steps .rh-chips{gap:5px}
+.rh-steps .rh-chip label.small{padding:3px 9px 3px 6px}
+}
+.rh-final .rhl .lead{flex:0 0 auto}
+.rh-final .rhl .tn i{display:none}
+.rh-final .rhl .rht{display:inline-flex;align-items:center;gap:3px}
+.rh-final .rhl .rht .rhi,.rh-final .rhl .rht button{transform:scale(.85)}
+.rh-final .rhl{padding:4px 0;font-size:12.5px}
+.rh-final .promptbox{font-size:13px;line-height:1.4}
+.rh-final .promptbox>div{margin:3px 0}
+/* ---- v3c: step 1 is a strip across the top; 2|5 then 3|4 */
+@media (min-width:1051px){
+.rh-steps.attack,.rh-steps.defence{grid-template-rows:auto minmax(0,1fr) minmax(0,1fr)}
+.rh-steps>.rh-step:nth-child(1){grid-column:1 / 5 !important;grid-row:1 !important}
+.rh-steps>.rh-step:nth-child(1) .rh-body{grid-template-columns:minmax(0,6fr) minmax(0,4fr)}
+.rh-steps>.rh-step:nth-child(1) .rh-body>h3{justify-self:start}
+.rh-steps>.rh-step:nth-child(1) .rh-body>h3+.rh-fields.hd{justify-self:end;width:min(100%,300px)}
+.rh-steps .rh-body>.rh-grp{grid-column:auto}
+.rh-steps .rh-body>.rh-grp.n:first-of-type{grid-column:1 / -1}
+.rh-steps.attack>.rh-step:nth-child(2){grid-column:1 / 3 !important;grid-row:2 !important}
+.rh-steps.attack>.rh-step:nth-child(5){grid-column:3 / 5 !important;grid-row:2 !important}
+.rh-steps.attack>.rh-step:nth-child(3){grid-column:1 / 4 !important;grid-row:3 !important}
+.rh-steps.attack>.rh-step:nth-child(4){grid-column:4 / 5 !important;grid-row:3 !important}
+.rh-steps.defence>.rh-step:nth-child(2){grid-column:1 / 3 !important;grid-row:2 !important}
+.rh-steps.defence>.rh-step:nth-child(3){grid-column:3 / 5 !important;grid-row:2 !important}
+.rh-steps.defence>.rh-step:nth-child(4){grid-column:1 / 5 !important;grid-row:3 !important}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-body>h3{font-size:14.5px}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-fld .fl{display:none}
+}
+.rh-final.rh-tight:not(.v-work) .rhf>:not(h4){display:none}
+.rh-final.rh-tight.v-work .promptbox,.rh-final.rh-tight.v-work .rhf~.row{display:none}
+.rh-final.rh-tight .rhf h4::after{content:"  · show the working";font-weight:500;color:var(--accent)}
+.rh-final.rh-tight.v-work .rhf h4::after{content:"  · back to the result"}
+.rh-final.rh-tight.v-work .rhf h4::before{transform:rotate(90deg)}
+/* ---- v3d */
+.rh-steps .rh-grp .rh-tiles{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+.rh-steps .rh-grp .rh-tiles .fl{justify-content:center;overflow:visible}
+.rh-steps .rh-tiles .tile .fl{font-size:12px}
+@media (min-width:1051px){
+.rh-steps.attack>.rh-step:nth-child(4) .rh-fld .fl{display:flex;white-space:normal}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-meta{white-space:normal}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-tiles{grid-column:1;grid-template-columns:repeat(2,minmax(58px,76px))}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-tiles .tile{grid-column:auto}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-chips{grid-column:2;flex-direction:column;align-items:flex-start;align-self:end;margin:0 0 6px}
+.rh-steps.defence>.rh-step:nth-child(3) .rh-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>h3{grid-column:1 / -1}
+.rh-steps .rh-chip label.small{white-space:nowrap}
+.rh-steps .rh-chip{max-width:100%;min-width:0}
+.rh-steps.attack>.rh-step:nth-child(4) .rh-chip label.small,.rh-steps.attack>.rh-step:nth-child(5) .rh-chip label.small{white-space:normal;border-radius:12px}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>.rh-tiles{grid-column:1;grid-template-columns:repeat(2,minmax(58px,76px))}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>.rh-tiles .tile{grid-column:auto}
+.rh-steps.defence>.rh-step:nth-child(2) .rh-body>.rh-chips{grid-column:2;flex-direction:column;align-items:flex-start;align-self:end;margin:0 0 6px}
+}
+.rh-final.rh-tight .rh-body{display:flex;flex-direction:column}
+.rh-final.rh-tight .rhf{order:9;margin-top:auto}
+.rh-final.rh-tight:not(.v-work) .rhf h4{border:1px solid var(--line);border-radius:10px;padding:9px 12px;background:var(--panel2)}
+.rh-final.rh-tight:not(.v-work) .rhf{border-top:0}
+/* ---- short screens: a slimmer page header, so the working tabs get the height */
+@media (max-height:900px) and (min-width:1051px){
+body>header{padding:7px 20px 5px}
+body>header h1{font-size:16.5px;margin:0}
+.campbar{padding:5px 20px;row-gap:4px}
+.campbar .clockface small,.campbar .advgroup .lbl{display:none}
+.campbar .btn.small{padding:2px 8px;font-size:12px}
+.tabs{padding-top:7px}
+.tabs .tab{padding:3px 8px;font-size:12px}
+.featcheck.rh-head{padding-bottom:6px;margin-bottom:8px}
+.rh-head .rh-seg button{padding:6px 12px}
+.rh-head .btn,.rh-log>summary{padding-top:5px;padding-bottom:5px}
+}
+@media (max-height:800px) and (min-width:1051px){
+.rh-steps .rh-body .rh-fld select,.rh-steps .rh-body .rh-fld input[type=number]{height:31px}
+.rh-steps .rh-body{padding:8px 12px 6px}
+.rh-steps .rh-body>h3{margin-bottom:6px}
+.rh-steps .rh-fields{gap:6px 10px;margin-bottom:4px}
+.rh-steps .rh-fld{gap:3px}
+.rh-steps{gap:8px}
+}
+.rh-final.rh-tight.v-work .rhf{margin-top:0}
+@media (min-height:950px) and (min-width:1051px){
+.rh-steps .rh-body{padding:14px 18px 12px}
+.rh-steps .rh-body>h3{font-size:17px;margin-bottom:12px}
+.rh-steps .rh-num{width:27px;height:27px;font-size:14px}
+.rh-steps .rh-fld .fl,.rh-steps .rh-sub{font-size:13.5px}
+.rh-steps .rh-body .rh-fld select,.rh-steps .rh-body .rh-fld input[type=number]{height:42px;font-size:15.5px}
+.rh-steps .rh-body .rh-fld input[type=number]{font-size:19px}
+.rh-steps .rh-fields{gap:12px 14px;margin-bottom:10px}
+.rh-steps .rh-tiles{gap:9px}
+.rh-steps .rh-chips{gap:8px;margin-top:8px}
+.rh-steps .rh-chip label.small{font-size:13.5px;padding:5px 11px 5px 7px}
+.rh-steps .rh-meta{font-size:14px;margin-top:8px}
+.rh-final .rhl{font-size:13.5px;padding:7px 0}
+.rh-final .promptbox{font-size:14px}
+}
 .rh-top{position:relative}
 .rh-log{margin-left:auto;position:relative;font-size:13px}
 .rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
@@ -303,7 +448,92 @@ rep('''      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total =
 
 rep("""    if (log.length) out += '<details class="subgroup"><summary>Recent rolls (' + log.length + ")</summary><div class=\\"log\\">" + log.slice().reverse().map(function (l) { return "<div>" + esc(l) + "</div>"; }).join("") + "</div></details>";""",
     """    out = out.replace("<!--RHLOG-->", log.length ? '<details class="rh-log"><summary>Recent rolls (' + log.length + ")</summary><div class=\\"log\\">" + log.slice().reverse().map(function (l) { return "<div>" + esc(l) + "</div>"; }).join("") + "</div></details>" : "");""")
-rep('out += rhStep(4, "Buy Reagents? (Overdrive — extra dice for ATP or MI) " + rhI("od"), odb);', 'out += rhStep(4, "Buy extra dice? (Overdrive) " + rhI("od"), odb);')
+rep('out += rhStep(4, "Buy Reagents? (Overdrive — extra dice for ATP or MI) " + rhI("od"), odb);', 'out += rhStep(4, "Extra dice?", odb);')
+
+# ------------------------------------------------------------------ Roll Helper fields: labels above boxes, grouped, consistent
+def splice(start, end, new):
+    global h
+    if new.strip() in h: return
+    i = h.find(start); assert i >= 0 and h.find(start, i + 1) < 0, ("start", start[:60])
+    j = h.find(end, i); assert j > i, ("end", end[:60])
+    h = h[:i] + new + h[j:]
+
+rep('''  var RH_FRESH = 0;''', '''  var RH_FRESH = 0;
+  function rhF(label, key, control, cls) { return '<label class="rh-fld' + (cls ? " " + cls : "") + '"><span class="fl">' + label + (key ? rhI(key) : "") + "</span>" + control + "</label>"; }
+  function rhChip(chk, key) { return '<span class="rh-chip">' + chk + (key ? rhI(key) : "") + "</span>"; }''')
+
+i = h.find("  function rhWhoStep(prefix, ch, extra) {"); j = h.find("    return b;\n  }\n", i) + len("    return b;\n  }\n")
+assert i > 0 and j > i
+NEWWHO = '''  function rhWhoStep(prefix, ch, extra) {
+    var b = '<div class="rh-fields hd">' + rhF("Who is rolling", "who", rhSel(prefix + "-who", rhSources(), "manual"), "wide") + "</div>";
+    if (!ch.fromSheet) {
+      b += '<div class="rh-grp g"><div class="rh-sub">Baseline Grades' + rhI("grade") + '</div><div class="rh-tiles">' + RH_BASE.map(function (k) {
+        return rhF('<abbr title="' + ({ VSC: "Viscosity", DFF: "Diffusion", RTC: "Reactivity", OSM: "Osmosis", AFF: "Affinity" })[k] + '">' + k + "</abbr>", "", rhInp(prefix + "-g-" + k, 3, ' min="0" max="8"'), "tile");
+      }).join("") + rhF("Level", "", rhInp(prefix + "-level", 1, ' min="1" max="20"'), "tile") + "</div></div>";
+    } else {
+      b += '<div class="rh-meta">' + RH_BASE.map(function (k) { return k + " <b>" + ch.grades[k] + "</b>"; }).join(" · ") + " · Level " + ch.level + " (tier " + ch.tier + ") · PP " + ch.pp +
+        " · ATP max " + ch.atpMax + " · MI max " + ch.miMax + " · MT " + ch.mt + " · soak " + ch.soak + "</div>";
+    }
+    b += '<div class="rh-grp n"><div class="rh-sub">Right now</div><div class="rh-tiles">' + rhF("Stress", "stress", rhInp(prefix + "-stress", 0, ' min="0" max="8"'), "tile") +
+      rhF("ATP", "atp", rhInp(prefix + "-atp", ch.atpMax, ' min="0"'), "tile") + rhF("MI", "mi", rhInp(prefix + "-mi", ch.curMI, ' min="0"'), "tile") +
+      rhF("PP left", "pp", rhInp(prefix + "-pp", ch.pp, ' min="0"'), "tile") + (extra || "") + "</div></div>";
+    var st = rhNum(prefix + "-stress", 0);
+    if (rhStressDice(st)) b += '<div class="rh-meta warn">Stress ' + st + ": " + rhStressDice(st) + " dice to every pool" + (st >= 6 ? "; ATP costs +1" : "") + " (CORE §5.8).</div>";
+    return b;
+  }
+'''
+if NEWWHO not in h: h = h[:i] + NEWWHO + h[j:]
+
+splice('''    var wb = '<div class="row"><span class="lbl">weapon</span>' ''', "    out += rhStep(2, ", '''    var wb = '<div class="rh-fields">' + rhF("Weapon", "weapon", rhSel("ra-weapon", ws.map(function (x) { return { v: x.id, l: x.l }; }), ws[0] ? ws[0].id : ""), "wide") +
+      (cls === "Projector" ? rhF("Grade used", "", rhSel("ra-pbase", [{ v: "DFF", l: "DFF (" + ch.grades.DFF + ")" }, { v: "RTC", l: "RTC (" + ch.grades.RTC + ")" }], baseKey)) +
+        rhF("Pathway", "", rhSel("ra-ppath", [{ v: "Membrane Penetration", l: "Membrane Penetration" }, { v: "Signal Discourse", l: "Signal Discourse" }], pathName)) : "") + "</div>" +
+      '<div class="rh-tiles">' + (!ch.fromSheet ? rhF('<abbr title="' + esc(pathName) + ' rank">Pathway rank</abbr>', "rank", rhInp("ra-rank", 0, ' min="0" max="4"'), "tile wide2") : "") +
+      rhF("Effect Value", "ev", rhInp("ra-ev", 0, ' min="0"'), "tile wide2") + "</div>" +
+      '<div class="rh-meta"><b>' + esc(a.n) + "</b> · " + esc(cls) + " · " + esc(a.b || "Contact") + " · " + (bonus >= 0 ? "+" : "") + bonus + " dice · BD " + bd + " · " + esc(a.ty) + (props ? " · " + esc(props) : "") + "</div>";
+    if (heavy && ch.grades.VSC < (twoH ? 4 : 3)) wb += '<div class="warnbox small">' + esc(a.n) + " is Heavy" + (twoH ? " and two-handed" : "") + ": it needs VSC " + (twoH ? 4 : 3) + "+, and this organism has VSC " + ch.grades.VSC + " (CORE §9.3).</div>";
+''')
+splice('''    var sb = '<div class="row">' ''', "    out += rhStep(3, ", '''    var sb = '<div class="rh-fields four">' + rhF("Allies helping", "allies", rhSel("ra-allies", [{ v: 0, l: "none" }, { v: 1, l: "1 (+1)" }, { v: 2, l: "2 (+2)" }], 0)) +
+      rhF("Tonic", "tonic", rhSel("ra-tonic", [{ v: 0, l: "right tonic" }, { v: -1, l: "wrong (−1)" }, { v: -2, l: "badly wrong (−2)" }], 0)) +
+      rhF("Target cover", "cover", rhSel("ra-cover", [{ v: "0", l: "none" }, { v: "-2", l: "partial (−2)" }, { v: "-4", l: "heavy (−4)" }, { v: "x", l: "total, in turbid fluid (auto miss)" }], "0")) +
+      rhF("Momentum", "mom", braced ? '<span class="rh-na">not with a Braced weapon</span>'
+        : rhSel("ra-mom", [{ v: "0", l: "no run-up" }, { v: "2", l: "3+ Drifts straight (+2, 1 PP, Kinetic)" }, { v: "3", l: "run began in a Current (+3)" }], "0")) + "</div>" +
+      '<div class="rh-chips">' + rhChip(rhChk("ra-pos", "good position (+1)"), "pos") + rhChip(rhChk("ra-cat", "Catalysed (+1)"), "cat") + rhChip(rhChk("ra-marked", "target Marked (+2)"), "marked") +
+      (braced ? rhChip(rhChk("ra-still", "did not Drift (Braced, +1)"), "still") : "") + rhChip(rhChk("ra-squeeze", "squeezed / pinned (−2)"), "squeeze") + "</div>" +
+      '<div class="rh-meta rh-sit">' + rhI("cap") + "Situational dice: " + (sit.length ? sit.map(function (x) { return esc(x[0]) + " " + (x[1] > 0 ? "+" : "") + x[1]; }).join(", ") : "none") +
+      " → <b>" + (sitCap >= 0 ? "+" : "") + sitCap + "</b>" + (sitRaw !== sitCap ? " (capped from " + sitRaw + ", CORE §1.3)" : "") + "</div>";
+''')
+splice('''    var odb = '<div class="small" style="margin-bottom:6px">''', "    var odDice = ", '''    var odb = '<div class="rh-fields">' + rhF("Overdrive: buy dice with ATP or MI", "od", rhSel("ra-od", [{ v: "none", l: "no Overdrive" },
+        { v: "atp", l: "spend " + odCost + " ATP → +2 dice" + (atpNow < odCost ? " (you have " + atpNow + ")" : "") },
+        { v: "mi", l: "spend " + miCost + " MI → +4 dice, +1 Stress" + (miNow <= miCost ? " (you have " + miNow + " MI)" : "") }], "none"), "wide") + "</div>" +
+      (ch.fromSheet ? "" : '<div class="rh-chips">' + rhChip(rhChk("ra-odtrain", "has Overdrive Training (costs 3)"), "") + "</div>") +
+      '<div class="rh-meta">You have <b>' + atpNow + "</b> ATP and <b>" + miNow + "</b> MI. Once per roll" + (st >= 6 ? "; at Stress 6 ATP costs +1" : "") + ".</div>";
+''')
+splice('''    var tb = '<div class="row"><span class="lbl">target</span>' ''', "    out += rhStep(5, ", '''    var tb = '<div class="rh-fields hd">' + rhF("Target", "mt", rhSel("ra-target", rhCreatureOpts(), "manual"), "wide") + "</div>" +
+      (tc ? '<div class="rh-meta">' + esc(tc.name) + " · MT <b>" + tc.mt + "</b> · soak <b>" + tc.soak + "</b></div>"
+        : '<div class="rh-tiles">' + rhF("Its MT", "mt", rhInp("ra-tmt", 12, ' min="0"'), "tile wide2") + rhF("Its soak", "soak", rhInp("ra-tsoak", 0, ' min="0"'), "tile wide2") + "</div>") +
+      '<div class="rh-chips">' + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect") + rhChip(rhChk("ra-tinhib", "it Inhibits you (−2 dice)"), "tinhib") + "</div>";
+''')
+h = h.replace('''      '<div class="row"><span class="lbl">Effect Value (from a Burst, else 0)</span>' + rhI("ev") + rhInp("ra-ev", 0, ' min="0"') + "</div>" +
+''', "")
+splice('''    var db = (ch.fromSheet''', '''    out += rhStep(2, "Your defences right now"''', '''    var db = (ch.fromSheet ? '<div class="rh-meta">Membrane Threshold <b>' + mtBase + "</b> · soak <b>" + soak + "</b> (from the sheet)</div>"
+      : '<div class="rh-tiles">' + rhF("Your MT", "mt", rhInp("rd-mt", 10 + ch.grades.DFF, ' min="0"'), "tile wide2") + rhF("Your soak", "soak", rhInp("rd-soak", 0, ' min="0"'), "tile wide2") + "</div>") +
+      '<div class="rh-chips">' + rhChip(rhChk("rd-jostled", "I am Jostled (MT −2)"), "jostled") + rhChip(rhChk("rd-turgid", "I am Turgid (MT −2)"), "turgid") + "</div>";
+''')
+splice('''    var ib = '<div class="row"><span class="lbl">the attacker</span>' ''', "    out += rhStep(3, ", '''    var ib = '<div class="rh-fields">' + rhF("The attacker", "", rhSel("rd-attacker", rhCreatureOpts(), "manual")) +
+      rhF("Its attack", "", rhSel("rd-how", [{ v: "roll", l: "roll its pool for me" }, { v: "typed", l: "the Director tells me its total" }], "roll")) + "</div>";
+    var aPool = cr ? cr.pool : rhNum("rd-apool", 3), aBD = cr ? cr.bd : rhNum("rd-abd", 2), aTy = cr ? cr.ty : rhStr("rd-aty", "Kinetic");
+    var tiles = "";
+    if (how === "typed") tiles += rhF("Its total", "", rhInp("rd-atotal", 14, ' min="0"'), "tile");
+    else if (!cr) tiles += rhF("Its pool", "apool", rhInp("rd-apool", 3, ' min="0"'), "tile");
+    if (!cr) tiles += rhF("BD", "bd", rhInp("rd-abd", 2, ' min="0"'), "tile") + rhF("Type", "", rhSel("rd-aty", Object.keys(RH_CONSEQ), "Kinetic"), "tile");
+    if (tiles) ib += '<div class="rh-tiles">' + tiles + "</div>";
+    if (cr) ib += '<div class="rh-meta">' + esc(cr.name) + ": pool <b>" + aPool + "d</b> · BD <b>" + aBD + "</b> " + esc(aTy) + (cr.block && cr.block.printed ? '<div class="dim">' + esc(cr.block.printed) + "</div>" : "") + "</div>";
+''')
+splice('''    var rb = '<div class="small dim">Reactions need''', "    var ppNeed = ", '''    var rb = '<div class="rh-fields">' + rhF("Reactive Osmosis", "react", rhSel("rd-react", [{ v: "none", l: "none" }, { v: "deflect", l: "Deflect: your MT +4 (1 held PP)" },
+        { v: "brace", l: "Brace: halve Osmotic and Kinetic, ignore push (1 held PP)" }, { v: "reroll", l: "Inhibit: attacker re-rolls one die (1 held PP)" }], "none"), "wide") + "</div>" +
+      '<div class="rh-chips">' + rhChip(rhChk("rd-inhib", "Inhibition: " + inhibCost + " ATP + 1 held PP, attacker −2 dice"), "inhib") + "</div>" +
+      '<div class="rh-meta">Reactions use a Pulse Point you held back (Reserve). One Reactive Osmosis per Cycle (CORE §4.10, §1.8).</div>';
+''')
 
 # ---- compact: the switch joins the title line; shorter labels and result text
 rep("""    var out = '<div class="featcheck"><h2>Roll Helper</h2><span class="badge">step by step</span>' +
@@ -342,25 +572,36 @@ FIT = r"""
     var over = document.documentElement.scrollHeight - window.innerHeight;
     if (over > 0 && h - over >= MIN) el.style.height = (h - over) + "px";
   }
+  function rhToggle(f) {
+    if (f && f.classList.contains("rh-tight")) window.__rhView = window.__rhView === "work" ? "result" : "work";
+    else window.__rhEq = window.__rhEq === false;
+    fit();
+  }
   function fit() {
     [].forEach.call(document.querySelectorAll(".ox-fit"), size);
     var bs = document.getElementById("bitsight-frame"); if (bs && bs.offsetParent) size(bs);
     [].forEach.call(document.querySelectorAll("[data-oxkeep]"), function (el) { var k = el.getAttribute("data-oxkeep"); if (keep[k] != null && el.scrollTop !== keep[k]) el.scrollTop = keep[k]; });
     if (document.querySelector(".mtx")) mtShow(window.__mtSel || "units");
     [].forEach.call(document.querySelectorAll(".rh-final"), function (f) {
-      f.classList.toggle("eq-open", !!window.__rhEq);
+      f.classList.toggle("eq-open", window.__rhEq !== false);
       var h4 = f.querySelector(".rhf h4"); if (h4 && !h4.hasAttribute("tabindex")) { h4.setAttribute("tabindex", "0"); h4.setAttribute("role", "button"); }
-      if (h4) h4.setAttribute("aria-expanded", window.__rhEq ? "true" : "false");
+      if (h4) h4.setAttribute("aria-expanded", window.__rhEq !== false ? "true" : "false");
+      var body = f.querySelector(".rh-body"); f.classList.remove("rh-tight", "v-work");
+      if (body && body.scrollHeight > body.clientHeight + 2) {
+        f.classList.add("rh-tight"); f.classList.add("eq-open"); if (window.__rhView === "work") f.classList.add("v-work");
+        if (h4) h4.setAttribute("aria-expanded", window.__rhView === "work" ? "true" : "false");
+      }
     });
   }
   document.addEventListener("scroll", function (e) { var el = e.target; if (el && el.getAttribute && el.getAttribute("data-oxkeep")) keep[el.getAttribute("data-oxkeep")] = el.scrollTop; }, true);
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-mtsel]");
     if (b) { window.__mtSel = b.getAttribute("data-mtsel"); keep["mtx-pane"] = 0; mtShow(window.__mtSel); var p = document.querySelector(".mtx-pane"); if (p) p.scrollTop = 0; return; }
-    if (e.target.closest && e.target.closest(".rh-final .rhf h4")) { window.__rhEq = !window.__rhEq; fit(); return; }
+    if (e.target.closest && e.target.closest("[data-rhroll]")) window.__rhView = "result";
+    if (e.target.closest && e.target.closest(".rh-final .rhf h4")) { rhToggle(e.target.closest(".rh-final")); return; }
     if (e.target.closest && e.target.closest('[data-act="tab"]')) { setTimeout(fit, 30); setTimeout(fit, 250); }
   });
-  document.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest(".rh-final .rhf h4")) { e.preventDefault(); window.__rhEq = !window.__rhEq; fit(); } });
+  document.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest(".rh-final .rhf h4")) { e.preventDefault(); rhToggle(e.target.closest(".rh-final")); } });
   window.addEventListener("resize", function () { requestAnimationFrame(fit); });
   try { new MutationObserver(function (ms) {
     for (var i = 0; i < ms.length; i++) if (ms[i].addedNodes.length) { fit(); return; }
