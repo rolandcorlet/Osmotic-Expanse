@@ -18,6 +18,14 @@ Turns any Osmotic Expanse document (a Markdown file) into a single web page for 
 
 The same page runs on its own and inside both apps' **Reader** tab. In the apps it gains a **⛶ Full window** button.
 
+## Adding a document inside the app (no tools needed)
+
+In either app's Reader tab, **+ Add a document** converts a Word (`.docx`), Markdown (`.md`) or text file in the browser. It uses the same rules and the same Lexicon as `build_reader.py`.
+
+- **Words without cards** lists the capitalised words the Lexicon doesn't know. Write a card for any of them, choosing its category and giving one sentence. Your cards apply to all your documents.
+- **The catch:** documents and cards added this way are kept **in that browser only**. To share one, use **⬇ Web page** inside the Reader, or have the document added to the apps for everyone (below).
+- **Word files:** headings, quotes, bold, italics, lists and tables come through. Pictures do not.
+
 ## Files
 
 | File | What it is |
@@ -27,7 +35,8 @@ The same page runs on its own and inside both apps' **Reader** tab. In the apps 
 | `build_reader.py` | The converter: turns Markdown into a Reader page, and writes a report of new words. |
 | `reader.html`, `reader.css`, `reader.js` | The page template, shared by every document. |
 | `fonts/` | The three reading fonts, embedded into each page (SIL Open Font License, see each LICENSE). |
-| `patch_reader.py` | Adds or refreshes the Reader tab in an app, with the converted documents embedded. |
+| `patch_reader.py` | Adds or refreshes the Reader tab in an app, with the converted documents and the Lexicon embedded. Use `--level=director` for the Director's Assistant. |
+| `app_reader.js` | The Reader tab's own code, including the in-browser converter behind **+ Add a document**. |
 | `what-the-water-owed.html` | The first converted document. |
 
 ## Converting a new document
@@ -43,7 +52,7 @@ The same page runs on its own and inside both apps' **Reader** tab. In the apps 
 
    Then repeat steps 1 and 2.
 4. **Put it in the apps:**
-   `python3 patch_reader.py ../DMAssistant_Osmotic_Expanse.html ../DMAssistant_Osmotic_Expanse.html what-the-water-owed=wtwo-director.html quorum=quorum-director.html`
+   `python3 patch_reader.py ../DMAssistant_Osmotic_Expanse.html ../DMAssistant_Osmotic_Expanse.html --level=director what-the-water-owed=wtwo-director.html society-rules=society-director.html`
    - Do the same for `../players/index.html`, using the player builds.
    - List every document each time; the tab shows them in that order. Re-running replaces the earlier set.
 

@@ -1089,7 +1089,9 @@
    "name": "Digestion Pact",
    "cat": "society",
    "def": "Selling your own future body to the Ash while you live: half its harvest value now, and they read and render you when you die.",
-   "aka": [],
+   "aka": [
+    "Digestion Pacts"
+   ],
    "rx": [],
    "see": [
     "reclaimers-ash",
@@ -2243,6 +2245,214 @@
    "id": "room-mood"
   },
   {
+   "name": "Standing",
+   "cat": "rule",
+   "def": "A faction's memory of you, 0–10: Hostile, Wary, Neutral, Obliging, Confided, Bound. One step up with a power means one step down with its rival.",
+   "aka": [
+    "Standings"
+   ],
+   "rx": [],
+   "see": [
+    "ledger"
+   ],
+   "src": "CORE §8.7; QUORUM §1.1",
+   "level": "player",
+   "scope": null,
+   "id": "standing"
+  },
+  {
+   "name": "Total Dissolution",
+   "cat": "rule",
+   "def": "Being dissolved completely, leaving no harvest, no legacy and no memory: the most feared sentence in the Expanse.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "assay"
+   ],
+   "src": "QUORUM §10.4; ATLAS §3",
+   "level": "player",
+   "scope": null,
+   "id": "total-dissolution"
+  },
+  {
+   "name": "Curators",
+   "cat": "faction",
+   "def": "Faceless guardians of the Nucleoid and the Sequence Forest, who act when the Code itself is rewritten.",
+   "aka": [
+    "Curator"
+   ],
+   "rx": [],
+   "see": [
+    "sacred-code"
+   ],
+   "src": "CODEX §8.1",
+   "level": "player",
+   "scope": null,
+   "id": "curators"
+  },
+  {
+   "name": "Homeostatists",
+   "cat": "faction",
+   "def": "Those who hold the world's good is stability: correct tonicity, honest registers, harvested dead. Most colonies, the Wardens, the Hegemony's public face.",
+   "aka": [
+    "Homeostatist"
+   ],
+   "rx": [],
+   "see": [
+    "entropists"
+   ],
+   "src": "CODEX §8.3",
+   "level": "player",
+   "scope": null,
+   "id": "homeostatists"
+  },
+  {
+   "name": "Entropists",
+   "cat": "faction",
+   "def": "Those who hold the world is already ending and the only dignity is choosing how: the Deep Choir and many Lysosan hermits.",
+   "aka": [
+    "Entropist"
+   ],
+   "rx": [],
+   "see": [
+    "homeostatists"
+   ],
+   "src": "CODEX §8.3",
+   "level": "player",
+   "scope": null,
+   "id": "entropists"
+  },
+  {
+   "name": "Sequence Forest",
+   "cat": "place",
+   "def": "The oldest library in the world. Precept 5 forbids cutting it, so nobody may edit the oldest record there is.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "sacred-code"
+   ],
+   "src": "CODEX §8.2; QUORUM §11.6",
+   "level": "player",
+   "scope": null,
+   "id": "sequence-forest"
+  },
+  {
+   "name": "Body Sovereignty",
+   "cat": "faction",
+   "def": "A heresy that runs underground railroads for the Unlisted.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "unlisted"
+   ],
+   "src": "CODEX §8.4",
+   "level": "player",
+   "scope": null,
+   "id": "body-sovereignty"
+  },
+  {
+   "name": "Hanging Market of Nine Tolls",
+   "cat": "place",
+   "def": "A market strung between cables in the Mid-Strata, where every stall prices in Substrate, specimens, Oath boxes or Cohesion.",
+   "aka": [
+    "Hanging Market"
+   ],
+   "rx": [],
+   "see": [
+    "tallow-market"
+   ],
+   "src": "QUORUM §9.7",
+   "level": "player",
+   "scope": null,
+   "id": "hanging-market-of-nine-tolls"
+  },
+  {
+   "name": "The Fade",
+   "cat": "society",
+   "def": "The Sequence Underground's message network: decaying molecules passed hand to hand; fast, deniable, and every relay knows the message.",
+   "aka": [
+    "Fade"
+   ],
+   "rx": [],
+   "see": [
+    "sequence-underground"
+   ],
+   "src": "QUORUM §11.1",
+   "level": "player",
+   "scope": null,
+   "id": "the-fade"
+  },
+  {
+   "name": "Mourning Rite",
+   "cat": "society",
+   "def": "A Beat spent at a place of the dead: it clears Stress and honours the dead. A public one for a beloved dead raises a colony's Cohesion.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "rite"
+   ],
+   "src": "CORE §11.6",
+   "level": "player",
+   "scope": null,
+   "id": "mourning-rite"
+  },
+  {
+   "name": "Induction",
+   "cat": "society",
+   "def": "The Rite of changing organs: a Fugue Interval, 30 S and a sponsor. You lose your old Hearth and its gossip.",
+   "aka": [
+    "Induction Rite",
+    "Induced"
+   ],
+   "rx": [],
+   "see": [
+    "organ"
+   ],
+   "src": "QUORUM §2.5",
+   "level": "player",
+   "scope": null,
+   "id": "induction"
+  },
+  {
+   "name": "Lineage quarter",
+   "cat": "place",
+   "def": "In a large colony, each lineage's district with its own Hearth, house rule and taboo: the Melt, the Terraces, the Wake, the Shelves, the Ranks, the Deep End.",
+   "aka": [
+    "Melt",
+    "Terraces",
+    "Wake",
+    "Shelves",
+    "Ranks",
+    "Deep End",
+    "quarter",
+    "quarters"
+   ],
+   "rx": [],
+   "see": [
+    "hearth"
+   ],
+   "src": "QUORUM §8.3",
+   "level": "player",
+   "scope": null,
+   "id": "lineage-quarter"
+  },
+  {
+   "name": "Bond",
+   "cat": "society",
+   "def": "A lasting chemical tie between two organisms, made by conjugation or by Rite.",
+   "aka": [
+    "Bonds"
+   ],
+   "rx": [],
+   "see": [
+    "conjugation"
+   ],
+   "src": "CORE §11.5",
+   "level": "player",
+   "scope": null,
+   "id": "bond"
+  },
+  {
    "name": "Lisk-of-the-Seven-Ladders",
    "cat": "person",
    "def": "The narrator: a young Flagellan messenger who tells this tale at the Rendering.",
@@ -2255,7 +2465,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "lisk-of-the-seven-ladders"
   },
   {
@@ -2272,7 +2485,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "oro"
   },
   {
@@ -2289,7 +2505,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "sefa"
   },
   {
@@ -2303,7 +2522,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "seven-ladders"
   },
   {
@@ -2320,7 +2542,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "mesk"
   },
   {
@@ -2335,7 +2560,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "quell"
   },
   {
@@ -2349,7 +2577,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "varrow"
   },
   {
@@ -2365,7 +2596,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "yarrow"
   },
   {
@@ -2382,7 +2616,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "corvane"
   },
   {
@@ -2396,7 +2633,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "henn"
   },
   {
@@ -2411,7 +2651,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "grue"
   },
   {
@@ -2425,7 +2668,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "dunmore"
   },
   {
@@ -2439,7 +2685,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "tannet"
   },
   {
@@ -2453,7 +2702,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "ket"
   },
   {
@@ -2467,7 +2719,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "wend"
   },
   {
@@ -2481,7 +2736,10 @@
    ],
    "src": "",
    "level": "player",
-   "scope": "what-the-water-owed",
+   "scope": [
+    "what-the-water-owed",
+    "society-rules"
+   ],
    "id": "lune"
   },
   {
@@ -2611,18 +2869,6 @@
    "id": "bands"
   },
   {
-   "name": "Bond",
-   "cat": "rule",
-   "def": "A two-way chemical agreement between organisms.",
-   "aka": [],
-   "rx": [],
-   "see": [],
-   "src": "CORE Appendix B",
-   "level": "player",
-   "scope": null,
-   "id": "bond"
-  },
-  {
    "name": "Breach",
    "cat": "rule",
    "def": "Damage exceeding MI by 8+; instant Dormancy.",
@@ -2729,18 +2975,6 @@
    "level": "player",
    "scope": null,
    "id": "sustained-reaction"
-  },
-  {
-   "name": "Curator",
-   "cat": "rule",
-   "def": "The Nucleoid's answer to overreach.",
-   "aka": [],
-   "rx": [],
-   "see": [],
-   "src": "CORE Appendix B",
-   "level": "player",
-   "scope": null,
-   "id": "curator"
   },
   {
    "name": "Denatured",

@@ -14,7 +14,7 @@ Markup the converter understands, besides ordinary Markdown:
 """
 import sys, re, json, html, base64, argparse, os
 HERE = os.path.dirname(os.path.abspath(__file__))
-IGNORE = set("""Ladders' Ladder Repeated Read Making Fresh Vast Codex Frequency Lysosomal Tide-strength Steward-claimant Motion's I A The An And But Or Of In On At To For By With From As If So Not No Yes It Its He She They We You
+IGNORE = set("""Parts Part Ch Director's Codex Water Owed Core Rulebook Rules Society Social Norms Kid- Breakdown Air Conflict Belonging Rights Interest Price Leverage Clock Code Forest Dissolution Underground Pact Tithe Relay Shelter Concentrate Unlist Lysosan-founded Osmotic Honesty Name Bound Clean Count Ladders' Ladder Repeated Read Making Fresh Vast Codex Frequency Lysosomal Tide-strength Steward-claimant Motion's I A The An And But Or Of In On At To For By With From As If So Not No Yes It Its He She They We You
 Here There This That These Those What Who When Where Why How Every Some One Two Three Four Five Six Seven Eight Nine Ten
 Twenty Forty Hold Sit Breathe Go Let Then Now Once Most Nobody Nothing Everyone Everybody Somebody Somewhere Anyone Picture
 Mark Take Ask Smell Tell Forgive Here Only Still Even Just Never Always Much More Less Under After Before Between Behind
@@ -22,7 +22,7 @@ Yes No Oh Not Sorry Friends Registrar""".split())
 
 def load_lexicon(path, doc_id, level):
     L = json.load(open(path, encoding="utf-8"))
-    keep = [t for t in L["terms"] if (t["scope"] in (None, doc_id)) and (level == "director" or t["level"] == "player")]
+    keep = [t for t in L["terms"] if (t["scope"] is None or doc_id in (t["scope"] if isinstance(t["scope"], list) else [t["scope"]])) and (level == "director" or t["level"] == "player")]
     return L["cats"], keep
 
 def build_matcher(terms):
@@ -104,8 +104,13 @@ def convert(md, terms, doc_id):
             else: blocks.append({"k": "q", "html": h, "terms": cur["terms"][:]})
             i += 1; continue
         if L.strip() == "---": flush(); blocks.append({"k": "hr", "html": "", "terms": []}); i += 1; continue
-        m = re.match(r"^(?:\*|\d+\.) (.*)", L)
-        if m: flush(); cur["terms"] = []; blocks.append({"k": "li", "html": inline(m.group(1), link), "terms": cur["terms"][:]}); i += 1; continue
+        m = re.match(r"^\s*(?:[-*+]|(\d+)\.) (.*)", L)
+        if m:
+            flush(); cur["terms"] = []; b = {"k": "li", "html": inline(m.group(2), link), "terms": []}
+            b["terms"] = cur["terms"][:]
+            if m.group(1): b["n"] = int(m.group(1))
+            if L[:1] == " ": b["sub"] = 1
+            blocks.append(b); i += 1; continue
         if L.startswith("|") and i + 1 < len(lines) and re.match(r"^\|\s*:?-", lines[i + 1]):
             flush(); rows = []; j = i
             while j < len(lines) and lines[j].startswith("|"):

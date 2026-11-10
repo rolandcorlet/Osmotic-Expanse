@@ -121,6 +121,8 @@ body.focus-para .blk.cur{opacity:1}
 [hidden]{display:none!important}
 @media (max-width:640px){.legend,#legend{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:none}.legend .lg,#legend .lg{flex:0 0 auto;white-space:nowrap}}
 
+.doc p.li{margin:.25em 0 .25em 1.2em;text-indent:-1.1em;padding-left:.1em}.doc p.li.sub{margin-left:2.6em}
+
 </style></head>
 <body>
 <header class="bar" id="bar">
@@ -187,7 +189,7 @@ body.focus-para .blk.cur{opacity:1}
     var tag = { p: "p", li: "p", q: "blockquote", h1: "h1", h2: "h2", h3: "h3", hr: "hr", table: "div", pre: "pre" }[b.k] || "p";
     var el = document.createElement(tag); el.className = "txt";
     if (b.k !== "hr") el.innerHTML = b.html;
-    if (b.k === "li") el.innerHTML = "• " + b.html;
+    if (b.k === "li") { el.innerHTML = (b.n ? b.n + ". " : "• ") + b.html; el.className += " li" + (b.sub ? " sub" : ""); }
     w.appendChild(el);
     if (b.k === "h2") { chap = CHAPS.length; CHAPS.push({ i: i, title: el.textContent, el: w, terms: [] }); }
     if (chap < 0 && b.k !== "h1") { chap = 0; CHAPS.push({ i: i, title: "Opening", el: w, terms: [] }); }

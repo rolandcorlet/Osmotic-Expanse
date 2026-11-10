@@ -39,7 +39,7 @@
     var tag = { p: "p", li: "p", q: "blockquote", h1: "h1", h2: "h2", h3: "h3", hr: "hr", table: "div", pre: "pre" }[b.k] || "p";
     var el = document.createElement(tag); el.className = "txt";
     if (b.k !== "hr") el.innerHTML = b.html;
-    if (b.k === "li") el.innerHTML = "• " + b.html;
+    if (b.k === "li") { el.innerHTML = (b.n ? b.n + ". " : "• ") + b.html; el.className += " li" + (b.sub ? " sub" : ""); }
     w.appendChild(el);
     if (b.k === "h2") { chap = CHAPS.length; CHAPS.push({ i: i, title: el.textContent, el: w, terms: [] }); }
     if (chap < 0 && b.k !== "h1") { chap = 0; CHAPS.push({ i: i, title: "Opening", el: w, terms: [] }); }

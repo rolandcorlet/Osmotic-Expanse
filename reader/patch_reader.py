@@ -1,9 +1,13 @@
 """Add the Reader tab to a DM or Players app.
-usage: python3 patch_reader.py IN.html OUT.html id1=reader1.html [id2=reader2.html ...]
+usage: python3 patch_reader.py IN.html OUT.html [--level=director] id1=reader1.html [id2=reader2.html ...]
 Each reader page is embedded (base64) and listed in the tab's document picker in the order given.
 Re-running on an already-patched app replaces the embedded documents."""
 import sys, re, json, base64
-src, dst, docs = sys.argv[1], sys.argv[2], sys.argv[3:]
+import os
+HERE = os.path.dirname(os.path.abspath(__file__))
+args = [x for x in sys.argv[1:] if not x.startswith("--level=")]
+LEVEL = next((x.split("=", 1)[1] for x in sys.argv[1:] if x.startswith("--level=")), "player")
+src, dst, docs = args[0], args[1], args[2:]
 h = open(src, encoding="utf-8").read()
 
 def rep(a, b, n=1):
@@ -30,43 +34,16 @@ a = 'if (!seenTab.learn) { TABS.splice(0, 0, ["learn", "Learn to Play"]); seenTa
 rep(a, a + ' if (!seenTab.reader) { TABS.splice(1, 0, ["reader", "Reader"]); seenTab.reader = 1; }')
 rep('case "learn": body = screenLearn(); break;', 'case "learn": body = screenLearn(); break; case "reader": body = screenReader(); break;')
 
-fn = r'''
-  /* OSMOTIC READER: begin */
-  var READER_DOCS = __DOCS__, READER_URLS = {}, READER_CUR = null;
-  try { READER_CUR = localStorage.getItem("oxreader.doc"); } catch (e) {}
-  var READER_NORMAL = "width:100%;height:calc(100vh - 150px);min-height:640px;border:0;border-radius:12px;background:#0b1118";
-  var READER_FULL = "position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;border:0;border-radius:0;background:#0b1118";
-  window.addEventListener("message", function (ev) {
-    if (!ev.data || typeof ev.data.oxReaderFull !== "boolean") return;
-    var f = document.getElementById("readerFrame"); if (!f || ev.source !== f.contentWindow) return;
-    f.style.cssText = ev.data.oxReaderFull ? READER_FULL : READER_NORMAL;
-    document.documentElement.style.overflow = ev.data.oxReaderFull ? "hidden" : "";
-  });
-  function readerUrl(id) {
-    if (!READER_URLS[id]) {
-      var b = atob(document.getElementById("reader-src-" + id).textContent.trim()), u = new Uint8Array(b.length);
-      for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
-      READER_URLS[id] = URL.createObjectURL(new Blob([u], { type: "text/html" }));
-    }
-    return READER_URLS[id];
-  }
-  window.oxReaderOpen = function (id) {
-    READER_CUR = id; try { localStorage.setItem("oxreader.doc", id); } catch (e) {}
-    var f = document.getElementById("readerFrame"); if (f) f.src = readerUrl(id);
-  };
-  function screenReader() {
-    if (!READER_DOCS.length) return '<div class="boot-err">No documents have been converted for the Reader yet.</div>';
-    if (!READER_DOCS.some(function (d) { return d.id === READER_CUR; })) READER_CUR = READER_DOCS[0].id;
-    var url; try { url = readerUrl(READER_CUR); } catch (e) { return '<div class="boot-err">The Reader could not be opened: ' + String(e) + "</div>"; }
-    var pick = READER_DOCS.length > 1
-      ? '<select onchange="oxReaderOpen(this.value)" style="margin-left:auto">' + READER_DOCS.map(function (d) { return "<option value=\"" + d.id + "\"" + (d.id === READER_CUR ? " selected" : "") + ">" + d.title + "</option>"; }).join("") + "</select>"
-      : "";
-    return '<div class="featcheck"><h2>Reader</h2><span class="badge">term cards · listen · speed-read</span>' +
-      '<span class="cite">tap or hover any coloured word for its card · ⛶ in the Reader goes full window · ⬇ saves a web page you can post</span>' + pick + "</div>" +
-      '<iframe id="readerFrame" title="Reader" src="' + url + '" style="' + READER_NORMAL + '" allow="fullscreen"></iframe>';
-  }
-  /* OSMOTIC READER: end */
-'''.replace("__DOCS__", json.dumps(meta, ensure_ascii=False))
+import importlib.util
+_spec = importlib.util.spec_from_file_location("br", os.path.join(HERE, "build_reader.py")); _br = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(_br)
+L = json.load(open(os.path.join(HERE, "lexicon.json"), encoding="utf-8"))
+lex = {"cats": L["cats"], "terms": [{k: t[k] for k in ("id", "name", "cat", "def", "aka", "see", "src", "rx")}
+        for t in L["terms"] if t["scope"] is None and (LEVEL == "director" or t["level"] == "player")]}
+fn = (open(os.path.join(HERE, "app_reader.js"), encoding="utf-8").read()
+      .replace("__DOCS__", json.dumps(meta, ensure_ascii=False))
+      .replace("__LEX__", json.dumps(lex, ensure_ascii=False).replace("</", "<\\/"))
+      .replace("__LEVEL__", LEVEL)
+      .replace("__IGNORE__", " ".join(sorted(_br.IGNORE)).replace('"', "")))
 rep("  function screenLearn() {", fn + "  function screenLearn() {")
 
 # Players edition: allow the tab

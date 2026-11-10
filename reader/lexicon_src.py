@@ -86,7 +86,7 @@ t("Conjugation", "society", "Two organisms linking membranes and exchanging sequ
 t("Incubation", "society", "Keeping watch while another organism takes its Dormant Cycle in the open — an intimate favour, because a sleeping body cannot mask what it is.", ["incubation"], ["Dormant Cycle"], "QUORUM §7.6")
 t("Cleaner Pact", "society", "A paid arrangement with a grooming guild that keeps parasites out of your membranes.", [], [], "QUORUM §7.6")
 t("Brooding", "society", "Carrying a child, sequence or seed inside your own body across water it could not cross alone.", ["brooded", "brooder", "brooder's"], ["Bud"], "QUORUM §7.6")
-t("Digestion Pact", "society", "Selling your own future body to the Ash while you live: half its harvest value now, and they read and render you when you die.", [], ["Reclaimers' Ash", "Rendering"], "QUORUM §7.6")
+t("Digestion Pact", "society", "Selling your own future body to the Ash while you live: half its harvest value now, and they read and render you when you die.", ["Digestion Pacts"], ["Reclaimers' Ash", "Rendering"], "QUORUM §7.6")
 t("Memory strand", "society", "A sealed crystal of an organism's recorded memories, kept as an heirloom or a last message. Some open only once.", ["memory strand", "strand", "strands"], ["Reader"], "CORE §11.7; QUORUM §14.3")
 t("Trail-script", "society", "Writing: scent laid down in sequence along a surface, read by following it.", ["trail-script"], [], "QUORUM §11.5")
 t("Condition", "society", "Class, measured as concentration: the Dry (dense and rich), the Settled (the middle) and the Swollen (watery and poor).", [], ["Dry", "Settled", "Swollen"], "QUORUM Ch. 5")
@@ -171,8 +171,22 @@ t("Pressure", "rule", "A Convocation move: lean on someone with threat or status
 t("Interior", "society", "A colony's unrest, 0–8: its Stress. It climbs when organs die, when a Quorum is stolen, when strikes begin.", [], ["Cohesion"], "QUORUM §2.6")
 t("Room mood", "rule", "A Convocation room has a mood — Hungry, Grieving, Hostile and so on — that helps moves which suit it and hinders moves which don't.", ["Hungry", "Hostile", "Grieving"], ["Convocation"], "QUORUM §4.9; CORE §11.3")
 
+t("Standing", "rule", "A faction's memory of you, 0\u201310: Hostile, Wary, Neutral, Obliging, Confided, Bound. One step up with a power means one step down with its rival.", ["Standings"], ["Ledger"], "CORE \u00a78.7; QUORUM \u00a71.1")
+t("Total Dissolution", "rule", "Being dissolved completely, leaving no harvest, no legacy and no memory: the most feared sentence in the Expanse.", [], ["Assay"], "QUORUM \u00a710.4; ATLAS \u00a73")
+t("Curators", "faction", "Faceless guardians of the Nucleoid and the Sequence Forest, who act when the Code itself is rewritten.", ["Curator"], ["Sacred Code"], "CODEX \u00a78.1")
+t("Homeostatists", "faction", "Those who hold the world's good is stability: correct tonicity, honest registers, harvested dead. Most colonies, the Wardens, the Hegemony's public face.", ["Homeostatist"], ["Entropists"], "CODEX \u00a78.3")
+t("Entropists", "faction", "Those who hold the world is already ending and the only dignity is choosing how: the Deep Choir and many Lysosan hermits.", ["Entropist"], ["Homeostatists"], "CODEX \u00a78.3")
+t("Sequence Forest", "place", "The oldest library in the world. Precept 5 forbids cutting it, so nobody may edit the oldest record there is.", [], ["Sacred Code"], "CODEX \u00a78.2; QUORUM \u00a711.6")
+t("Body Sovereignty", "faction", "A heresy that runs underground railroads for the Unlisted.", [], ["Unlisted"], "CODEX \u00a78.4")
+t("Hanging Market of Nine Tolls", "place", "A market strung between cables in the Mid-Strata, where every stall prices in Substrate, specimens, Oath boxes or Cohesion.", ["Hanging Market"], ["Tallow Market"], "QUORUM \u00a79.7")
+t("The Fade", "society", "The Sequence Underground's message network: decaying molecules passed hand to hand; fast, deniable, and every relay knows the message.", ["Fade"], ["Sequence Underground"], "QUORUM \u00a711.1")
+t("Mourning Rite", "society", "A Beat spent at a place of the dead: it clears Stress and honours the dead. A public one for a beloved dead raises a colony's Cohesion.", [], ["Rite"], "CORE \u00a711.6")
+t("Induction", "society", "The Rite of changing organs: a Fugue Interval, 30 S and a sponsor. You lose your old Hearth and its gossip.", ["Induction Rite", "Induced"], ["Organ"], "QUORUM \u00a72.5")
+t("Lineage quarter", "place", "In a large colony, each lineage's district with its own Hearth, house rule and taboo: the Melt, the Terraces, the Wake, the Shelves, the Ranks, the Deep End.", ["Melt", "Terraces", "Wake", "Shelves", "Ranks", "Deep End", "quarter", "quarters"], ["Hearth"], "QUORUM \u00a78.3")
+t("Bond", "society", "A lasting chemical tie between two organisms, made by conjugation or by Rite.", ["Bonds"], ["Conjugation"], "CORE \u00a711.5")
+
 # ---------------- PEOPLE of What the Water Owed ----------------
-S = "what-the-water-owed"
+S = ["what-the-water-owed", "society-rules"]  # story people also appear in the society reference
 t("Lisk-of-the-Seven-Ladders", "person", "The narrator: a young Flagellan messenger who tells this tale at the Rendering.", ["Lisk"], ["Oro"], scope=S)
 t("Oro", "person", "Oro-of-the-Seven-Ladders: a Swollen Flagellan hauler of Sump Nine's Pump, ward of Sefa.", ["Oro-of-the-Seven-Ladders"], ["Sefa", "Mesk"], scope=S)
 t("Sefa", "person", "Old Sefa: root-elder of the Seven Ladders budline, who leads the haulers' Hearth Rite.", ["Sefa-of-the-Seven-Ladders", "Old Sefa"], ["Oro"], scope=S)
