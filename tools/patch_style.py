@@ -132,6 +132,36 @@ CSS = r"""
 @media (max-width:860px){.mtx-notes{grid-template-columns:1fr}}
 .mtx-note{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.55;color:var(--dim)}
 .mtx-note b{color:var(--ink);display:block;margin-bottom:2px}
+
+/* fit to the window: the page never scrolls on these tabs; long parts scroll inside their own panel */
+.rh-flow.ox-fit{grid-template-rows:minmax(0,1fr);overflow:hidden}
+.rh-steps{grid-column:1;overflow:auto;height:100%;padding-right:8px;scrollbar-gutter:stable;min-height:0}
+.rh-steps>.rh-step:last-child::before{display:none}
+.rh-flow>.rh-final{grid-column:2;grid-row:1;position:static;height:100%;overflow:auto;padding-bottom:0}
+.rh-flow>.rh-final .rh-body{min-height:0}
+@media (max-width:1050px){.rh-steps,.rh-flow>.rh-final{height:auto;overflow:visible}.rh-flow.ox-fit{height:auto!important;overflow:visible}}
+.rh-step{padding-bottom:12px}
+.rh-body{padding:11px 14px 9px}
+.rh-body>h3{margin-bottom:6px;font-size:15.5px}
+.rh-body .row{margin:5px 0}
+.rh-top{margin:0 0 10px}
+.rh-hero .n{font-size:44px}
+.rh-final [data-rhroll]{height:44px}
+.mtx.ox-fit{display:flex;flex-direction:column;gap:10px;max-width:none;min-height:0}
+.mtx .mtx-hero{flex:0 0 auto;margin:0;padding:12px 18px 4px}
+.mtx .mtx-hero h3{font-size:18px}
+.mtx .mtx-hero p{font-size:13.5px;margin-top:3px;max-width:none}
+.mtx .mtx-scale{max-height:150px}
+.mtx-tabs{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px}
+.mtx-tabs button{appearance:none;border:1px solid var(--line);background:var(--panel);color:var(--dim);font:600 13.5px/1 system-ui,sans-serif;padding:9px 14px;border-radius:999px;cursor:pointer}
+.mtx-tabs button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.mtx-tabs button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.mtx-pane{flex:1 1 auto;min-height:0;overflow:auto;padding-right:6px;scrollbar-gutter:stable}
+.mtx-pane>.mtx-sec{margin:0}
+.mtx-pane>.mtx-sec[hidden]{display:none}
+.mtx-units{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:1100px){.mtx-units{grid-template-columns:1fr}}
+.mtx-unit{grid-template-columns:150px minmax(0,1fr);padding:10px 14px;gap:12px}
 """
 h = re.sub(r'<style id="ox-style-rm">.*?</style>\n?', "", h, flags=re.S)
 i = h.find("</head>"); assert i > 0
@@ -170,6 +200,11 @@ rep('''  function rhDiceHtml(dice) {
       return '<span class="rh-die' + (v === 1 ? " one" : v === 6 ? " six" : "") + '" aria-hidden="true">' + v + "</span>";
     }).join("") + "</span>";
   }''')
+OLD_FLOW = '''    out += '<div class="rh-flow">' + flow.replace("<!--RHHERO-->", rhHero(mode)) + "</div>";'''
+NEW_FLOW = '''    flow = flow.replace("<!--RHHERO-->", rhHero(mode));
+    var cut = flow.indexOf('<section class="rh-step rh-final"');
+    out += '<div class="rh-flow ox-fit"><div class="rh-steps" data-oxkeep="rh-steps-' + mode + '">' + flow.slice(0, cut) + "</div>" + flow.slice(cut).replace('<section class="rh-step rh-final"', '<section data-oxkeep="rh-final-' + mode + '" class="rh-step rh-final"') + "</div>";'''
+if OLD_FLOW in h: h = h.replace(OLD_FLOW, NEW_FLOW)
 rep('''    out += '<div class="row">' + '<button class="btn ' + (mode === "attack" ? "primary" : "small") + '" type="button" data-rhmode="attack">⚔ I am attacking</button>' +
       '<button class="btn ' + (mode === "defence" ? "primary" : "small") + '" type="button" data-rhmode="defence">🛡 I am being attacked</button>' +
       '<span class="small dim">A roll is a pool of d6: 1s score nothing and mark 1 Stress each; the rest add up; reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';
@@ -179,9 +214,60 @@ rep('''    out += '<div class="row">' + '<button class="btn ' + (mode === "attac
       '<button type="button" data-rhmode="defence" aria-pressed="' + (mode === "defence") + '">🛡 I am being attacked</button></div>' +
       '<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';
     var flow = mode === "defence" ? rhDefence() : rhAttack();
-    out += '<div class="rh-flow">' + flow.replace("<!--RHHERO-->", rhHero(mode)) + "</div>";''')
+    flow = flow.replace("<!--RHHERO-->", rhHero(mode));
+    var cut = flow.indexOf('<section class="rh-step rh-final"');
+    out += '<div class="rh-flow ox-fit"><div class="rh-steps" data-oxkeep="rh-steps-' + mode + '">' + flow.slice(0, cut) + "</div>" + flow.slice(cut).replace('<section class="rh-step rh-final"', '<section data-oxkeep="rh-final-' + mode + '" class="rh-step rh-final"') + "</div>";''')
+
 rep('''      var dice = rhDice(S0.pool), r = rhRead(dice);''', '''      var dice = rhDice(S0.pool), r = rhRead(dice); RH_FRESH = Date.now();''')
 rep('''      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total = rr.total; }''', '''      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total = rr.total; RH_FRESH = Date.now(); }''')
+
+# ------------------------------------------------------------------ BitSight: one-line intro; the reader fills the window
+h = re.sub(r"(function screenBitSight\(\) \{\n    return '<div class=\"featcheck\"><h2>BitSight RSVP</h2><span class=\"badge\">speed reader</span>' \+\n)      '<span class=\"cite\">.*?\n  \}",
+           lambda m: m.group(1) + "      '<span class=\"cite\">the books are in its library (\\u2630); your places and bookmarks are kept in this browser</span>' + dmflag() + \"</div>\";\n  }", h, count=1, flags=re.S)
+assert "your places and bookmarks are kept in this browser" in h, "bitsight intro"
+rep('''fr.style.cssText = "width:100%;height:calc(100vh - 120px);min-height:560px;border:1px solid var(--line);border-radius:8px;background:#111";''',
+    '''fr.style.cssText = "width:100%;height:calc(100vh - 150px);min-height:380px;border:1px solid var(--line);border-radius:8px;background:#111;display:block";''')
+
+FIT = r"""
+/* OSMOTIC FIT: Roll Helper, Metabolic Time and BitSight fill the window exactly, so nothing on them is ever below the fold.
+   Long parts scroll inside their own panel, and keep their place when the screen is redrawn. */
+(function () {
+  var keep = {}, MIN = 260;
+  function mtShow(sel) {
+    var root = document.querySelector(".mtx"); if (!root) return;
+    [].forEach.call(root.querySelectorAll("[data-mt]"), function (s) { s.hidden = s.getAttribute("data-mt") !== sel; });
+    [].forEach.call(root.querySelectorAll("[data-mtsel]"), function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-mtsel") === sel ? "true" : "false"); });
+  }
+  function size(el) {
+    if (!el || !el.getClientRects().length) return;
+    if (el.classList.contains("rh-flow") && window.innerWidth <= 1050) { el.style.height = ""; return; }
+    var top = el.getBoundingClientRect().top + (window.scrollY || 0), h = Math.max(MIN, Math.floor(window.innerHeight - top - 14));
+    el.style.height = h + "px"; el.style.minHeight = "0";
+    var over = document.documentElement.scrollHeight - window.innerHeight;
+    if (over > 0 && h - over >= MIN) el.style.height = (h - over) + "px";
+  }
+  function fit() {
+    [].forEach.call(document.querySelectorAll(".ox-fit"), size);
+    var bs = document.getElementById("bitsight-frame"); if (bs && bs.offsetParent) size(bs);
+    [].forEach.call(document.querySelectorAll("[data-oxkeep]"), function (el) { var k = el.getAttribute("data-oxkeep"); if (keep[k] != null && el.scrollTop !== keep[k]) el.scrollTop = keep[k]; });
+    if (document.querySelector(".mtx")) mtShow(window.__mtSel || "units");
+  }
+  document.addEventListener("scroll", function (e) { var el = e.target; if (el && el.getAttribute && el.getAttribute("data-oxkeep")) keep[el.getAttribute("data-oxkeep")] = el.scrollTop; }, true);
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-mtsel]");
+    if (b) { window.__mtSel = b.getAttribute("data-mtsel"); keep["mtx-pane"] = 0; mtShow(window.__mtSel); var p = document.querySelector(".mtx-pane"); if (p) p.scrollTop = 0; return; }
+    if (e.target.closest && e.target.closest('[data-act="tab"]')) { setTimeout(fit, 30); setTimeout(fit, 250); }
+  });
+  window.addEventListener("resize", function () { requestAnimationFrame(fit); });
+  try { new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) if (ms[i].addedNodes.length) { fit(); return; }
+  }).observe(document.body, { childList: true, subtree: true }); } catch (e) {}
+  setTimeout(fit, 300);
+})();
+"""
+h = re.sub(r'<script id="ox-fit-js">.*?</script>\n?', "", h, flags=re.S)
+j = h.rfind("</body>"); assert j > 0
+h = h[:j] + '<script id="ox-fit-js">' + FIT + "</script>\n" + h[j:]
 
 # ------------------------------------------------------------------ Metabolic Time
 def mdi(s): return re.sub(r"\*([^*]+)\*", r"<i>\1</i>", re.sub(r"\*\*([^*]+)\*\*", r"<b>\1</b>", s))
@@ -238,13 +324,18 @@ notes = ('<div class="mtx-notes">'
          '<div class="mtx-note"><b>App conventions, not rules</b>The Pulse Ten week, and the Director\'s “+10 min” button (100 Cycles), are the app\'s own; the books name neither.</div>'
          '<div class="mtx-note"><b>Saying the time</b>Organisms say “by the Rhythm, it is the third Beat of the Rise”: the Beat, then the Tide phase.</div>'
          "</div>")
+SHORT = ("Every unit of time is named for something a body does: it pulses, it beats, it drifts into fugue, it goes dormant. "
+         "Organisms call it <b>the Rhythm</b>: “by the Rhythm, it is the third Beat of the Rise”.")
+TABS = [("units", "Every unit"), ("phases", "Tide phases"), ("conv", "Conversions"), ("rec", "Recovery"), ("notes", "Worth knowing")]
 MT = ('<div class="featcheck"><h2>Metabolic Time</h2><span class="badge">the Rhythm</span><span class="cite">CORE §8.1 · CODEX §5.1, §5.3</span></div>'
-      '<div class="mtx"><div class="mtx-hero"><h3>The Expanse does not count hours. It counts the Rhythm of bodies.</h3><p>' + mdi(INTRO2) + "</p>" + '<div class="mtx-scalewrap">' + "".join(svg) + "</div></div>"
-      '<div class="mtx-sec"><h3>Every unit, shortest to longest</h3><div class="mtx-units">' + units + "</div></div>"
-      '<div class="mtx-sec"><h3>The four phases of an Osmotic Tide</h3><div class="sub">Each phase lasts one Drift Season (~30 Beats); together they make one Tide (CODEX §5.3). The salty season favours the Dry, the watery season the Swollen.</div>' + phases + "</div>"
-      '<div class="mtx-sec"><h3>Conversions</h3>' + conv + "</div>"
-      '<div class="mtx-sec"><h3>Recovery, by time</h3><div class="sub">From the quickest relief to the full night\'s rest.</div>' + ladder + "</div>"
-      '<div class="mtx-sec"><h3>Worth knowing</h3>' + notes + "</div></div>")
+      '<div class="mtx ox-fit"><div class="mtx-hero"><h3>The Expanse does not count hours. It counts the Rhythm of bodies.</h3><p>' + SHORT + "</p>" + '<div class="mtx-scalewrap">' + "".join(svg) + "</div></div>"
+      '<div class="mtx-tabs" role="group" aria-label="Show">' + "".join('<button type="button" data-mtsel="%s" aria-pressed="%s">%s</button>' % (k, "true" if k == "units" else "false", t) for k, t in TABS) + "</div>"
+      '<div class="mtx-pane" data-oxkeep="mtx-pane">'
+      '<section class="mtx-sec" data-mt="units"><div class="mtx-units">' + units + "</div></section>"
+      '<section class="mtx-sec" data-mt="phases" hidden><div class="sub">Each phase lasts one Drift Season (~30 Beats); together they make one Tide (CODEX §5.3). The salty season favours the Dry, the watery season the Swollen.</div>' + phases + "</section>"
+      '<section class="mtx-sec" data-mt="conv" hidden>' + conv + "</section>"
+      '<section class="mtx-sec" data-mt="rec" hidden><div class="sub">From the quickest relief to the full night\'s rest.</div>' + ladder + "</section>"
+      '<section class="mtx-sec" data-mt="notes" hidden>' + notes + "</section></div></div>")
 m = re.search(r"  function screenMetabolicTime\(\) \{ return .*?; \}\n", h)
 assert m, "screenMetabolicTime"
 h = h[:m.start()] + "  function screenMetabolicTime() { return " + json.dumps(MT, ensure_ascii=False).replace("</", "<\\/") + "; }\n" + h[m.end():]
