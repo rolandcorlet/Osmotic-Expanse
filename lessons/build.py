@@ -10,15 +10,16 @@ css=open('engine.css').read(); js=open('engine.js').read(); pl=open('player.js')
 html=f'''<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Osmotic Expanse — How to Play</title><style>{css}
 body.film .top,body.film .lessons,body.film .controls,body.film .try{{display:none}}body.film .shell{{padding:0;max-width:none}}body.film .viewer{{border:0;border-radius:0;width:1280px;height:720px}}
+body.embed .top{{display:none}}body.embed .shell{{padding-top:6px}}.viewer{{max-width:100%}}
 .stagewrap.full{{position:fixed;inset:0;z-index:50;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 14px}}
 .stagewrap.full .viewer{{width:min(100%,calc((100vh - 84px) * 16 / 9));flex:0 0 auto}}
 .stagewrap.full .controls{{width:min(100%,calc((100vh - 84px) * 16 / 9));margin:10px 0 0}}
 </style></head><body><div class="shell">
-<div class="top"><div><h1>The Osmotic Expanse — How to Play</h1><p>Seven short animated lessons on the core loop. Use ← → or the buttons; Space pauses; F or double-click for full screen.</p></div></div>
+<div class="top"><div><h1>The Osmotic Expanse — How to Play</h1><p>Seven short animated lessons on the core loop. Use ← → or the buttons; Space plays and pauses; S stops; F or double-click for full screen.</p></div></div>
 <div class="lessons" id="lessons"></div>
 <div class="stagewrap" id="stagewrap"><div class="viewer" id="viewer"><div class="scaler" id="scaler"><div class="stage" id="stage"></div></div></div>
 <div class="controls"><button class="cbtn" id="bPrev">◀ Back</button><button class="cbtn" id="bReplay">↺ Replay</button><button class="cbtn" id="bNext">Next ▶</button>
-<button class="cbtn" id="bAuto">▶ Auto-play</button><button class="cbtn" id="bSpeak">🔈 Read aloud</button><div class="dots" id="dots"></div><span class="small" id="count" style="color:var(--dim)"></span><div class="prog"><i id="bar"></i></div><button class="cbtn" id="bFull" title="Full screen (F)">⛶ Full screen</button></div></div>
+<button class="cbtn" id="bAuto">▶ Play</button><button class="cbtn" id="bStop" title="Stop and go back to the start of the lesson (S)">■ Stop</button><button class="cbtn" id="bSpeak">🔈 Read aloud</button><div class="dots" id="dots"></div><span class="small" id="count" style="color:var(--dim)"></span><div class="prog"><i id="bar"></i></div><button class="cbtn" id="bFull" title="Full screen (F)">⛶ Full screen</button></div></div>
 <div class="try" id="try"></div></div>
 <script>window.LESSON_IMG={json.dumps(IMG)};</script><script>{js}</script><script>{pl}</script></body></html>'''
 open('lessons.html','w').write(html); print(len(html))

@@ -536,6 +536,10 @@ body.focus-para .blk.cur{opacity:1}
     setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   };
 
+  /* leaving the page (another tab in the app, or closing it) stops reading aloud */
+  function hush() { try { speaking = false; if (synth) synth.cancel(); } catch (e) {} }
+  addEventListener("pagehide", hush); addEventListener("unload", hush);
+
   /* ---------- inside the apps: full-window toggle ---------- */
   if (window.parent !== window) {
     var full = false, fb = document.createElement("button");

@@ -3,7 +3,8 @@
 (function () {
   var L = window.LESSONS, IMGS = window.LESSON_IMG || {};
   var FILM = /[?&]film=1/.test(location.search);
-  var cur = 0, step = 0, auto = !FILM, speak = false, timer = null, t0 = 0, raf = 0, seen = {};
+  var cur = 0, step = 0, auto = !FILM, speak = false, timer = null, t0 = 0, raf = 0, el = 0, seen = {};
+  var EMBED = window.parent !== window;
   var $ = function (id) { return document.getElementById(id); };
   var stage = $("stage"), scaler = $("scaler");
 
@@ -15,7 +16,18 @@
         E(0, 320, '<div class="big ctr" style="font-size:76px">' + l.title + "</div>", { w: 1280, an: [A("in", .7, .8)] }) });
   });
 
-  function fit() { var v = $("viewer"); scaler.style.transform = "scale(" + v.clientWidth / 1280 + ")"; }
+  /* Fit the 16:9 stage to the space we have, by width AND height, so the controls are always on screen. */
+  function fit() {
+    var v = $("viewer"), w = $("stagewrap"), c = document.querySelector(".controls");
+    if (w.classList.contains("full")) v.style.width = "";
+    else {
+      var top = v.getBoundingClientRect().top + (window.scrollY || 0);
+      var avail = window.innerHeight - top - c.offsetHeight - 30;
+      var width = Math.max(320, Math.min(w.clientWidth, avail * 16 / 9));
+      v.style.width = width + "px"; v.style.marginLeft = v.style.marginRight = "auto";
+    }
+    scaler.style.transform = "scale(" + v.clientWidth / 1280 + ")";
+  }
   window.addEventListener("resize", fit);
 
   function buildList() {
@@ -39,29 +51,53 @@
     stage.innerHTML = inner;
   }
   function go(i) {
-    var l = L[cur]; step = Math.max(0, Math.min(l.steps.length - 1, i)); seen[cur + ":" + step] = 1;
+    var l = L[cur]; step = Math.max(0, Math.min(l.steps.length - 1, i)); seen[cur + ":" + step] = 1; el = 0;
     draw(); dots(); if (!FILM) arm(); say();
   }
+  function stamp() { var b = $("bAuto"); b.classList.toggle("on", auto); b.textContent = auto ? "❚❚ Pause" : "▶ Play"; }
+  /* The step timer and its progress bar. Pausing keeps the time already shown (el), so Play carries on from there. */
   function arm() {
-    clearTimeout(timer); cancelAnimationFrame(raf); t0 = performance.now();
-    var dur = L[cur].steps[step].dur * 1000;
-    (function tick() { var p = Math.min(1, (performance.now() - t0) / dur); $("bar").style.width = (p * 100) + "%"; if (p < 1) raf = requestAnimationFrame(tick); })();
+    clearTimeout(timer); cancelAnimationFrame(raf); t0 = performance.now() - el;
+    var dur = L[cur].steps[step].dur * 1000, waited = 0;
+    (function tick() { var p = Math.min(1, (performance.now() - t0) / dur); $("bar").style.width = (p * 100) + "%"; if (p < 1 && auto) raf = requestAnimationFrame(tick); })();
     if (auto) timer = setTimeout(function adv() {
-      if (window.speechSynthesis && speechSynthesis.speaking && speak) { timer = setTimeout(adv, 400); return; }
-      if (step < L[cur].steps.length - 1) go(step + 1); else { auto = false; $("bAuto").classList.remove("on"); $("bAuto").textContent = "▶ Auto-play"; }
-    }, dur);
+      /* while reading aloud, wait for the sentence to finish, but never more than 8 s (a stuck speech engine must not stall the lesson) */
+      if (speak && window.speechSynthesis && speechSynthesis.speaking && waited < 8000) { waited += 400; timer = setTimeout(adv, 400); return; }
+      if (step < L[cur].steps.length - 1) go(step + 1); else { auto = false; stamp(); }
+    }, Math.max(0, dur - el));
+  }
+  function anims(on) { try { stage.getAnimations({ subtree: true }).forEach(function (a) { on ? a.play() : a.pause(); }); } catch (e) {} }
+  function pause() {
+    if (!auto) return; auto = false; el = performance.now() - t0; clearTimeout(timer); cancelAnimationFrame(raf); anims(false);
+    try { if (window.speechSynthesis) speechSynthesis.pause(); } catch (e) {} stamp();
+  }
+  function play() {
+    if (auto) return; auto = true; anims(true); try { if (window.speechSynthesis) speechSynthesis.resume(); } catch (e) {} stamp();
+    if (el >= L[cur].steps[step].dur * 1000) { el = 0; if (step < L[cur].steps.length - 1) { go(step + 1); return; } }
+    arm();
+  }
+  function stop() {
+    auto = false; clearTimeout(timer); cancelAnimationFrame(raf); try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {}
+    step = 0; el = 0; draw(); dots(); $("bar").style.width = "0%"; stamp();
   }
   function say() {
-    if (!window.speechSynthesis) return; speechSynthesis.cancel(); if (!speak) return;
+    if (!window.speechSynthesis) return; speechSynthesis.cancel(); if (!speak || !auto && el) return;
     var u = new SpeechSynthesisUtterance(plain(L[cur].steps[step].say)); u.rate = 1; speechSynthesis.speak(u);
   }
-  function openLesson(i) { cur = i; step = 0; buildList(); go(0); buildTry(); }
+  function openLesson(i) { cur = i; step = 0; buildList(); go(0); buildTry(); fit(); }
 
   /* ---------------- controls ---------------- */
-  $("bPrev").onclick = function () { go(step - 1); };
+  $("bPrev").onclick = function () { if (step > 0) go(step - 1); else if (cur > 0) { cur--; buildList(); buildTry(); go(L[cur].steps.length - 1); } };
   $("bNext").onclick = function () { if (step < L[cur].steps.length - 1) go(step + 1); else if (cur < L.length - 1) openLesson(cur + 1); };
   $("bReplay").onclick = function () { go(step); };
-  $("bAuto").onclick = function () { auto = !auto; this.classList.toggle("on", auto); this.textContent = auto ? "❚❚ Pause" : "▶ Auto-play"; if (auto) arm(); else clearTimeout(timer); };
+  $("bAuto").onclick = function () { auto ? pause() : play(); };
+  $("bStop").onclick = stop;
+  /* a clicked control gives up focus, so Space and the arrow keys never fire it a second time */
+  document.addEventListener("click", function (e) { var b = e.target.closest && e.target.closest(".controls button, .lessons button, .dots i"); if (b && b.blur) b.blur(); });
+  /* leaving the page (another tab in the app, or closing it) stops any speech */
+  function hush() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} }
+  window.addEventListener("pagehide", hush); window.addEventListener("unload", hush);
+  if (EMBED) document.body.classList.add("embed");
   $("bSpeak").onclick = function () { speak = !speak; this.classList.toggle("on", speak); this.textContent = speak ? "🔊 Reading aloud" : "🔈 Read aloud"; say(); };
   if (!window.speechSynthesis) $("bSpeak").style.display = "none";
   /* Full screen: the Fullscreen API where allowed, otherwise fill the window. Esc or the button returns. */
@@ -81,7 +117,7 @@
   $("viewer").addEventListener("dblclick", function () { setFull(!isFull()); });
   document.addEventListener("keydown", function (e) {
     if (/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
-    if (e.key === "f" || e.key === "F") { setFull(!isFull()); return; } if (e.key === "Escape" && isFull()) { setFull(false); return; } if (e.key === "ArrowRight") $("bNext").onclick(); else if (e.key === "ArrowLeft") go(step - 1); else if (e.key === " ") { e.preventDefault(); $("bAuto").onclick.call($("bAuto")); }
+    if (e.key === "f" || e.key === "F") { setFull(!isFull()); return; } if (e.key === "Escape" && isFull()) { setFull(false); return; } if (e.key === "ArrowRight") $("bNext").onclick(); else if (e.key === "ArrowLeft") $("bPrev").onclick(); else if (e.key === " ") { e.preventDefault(); $("bAuto").onclick(); } else if (e.key === "s" || e.key === "S") stop();
   });
 
   /* ---------------- Try it yourself ---------------- */
@@ -160,5 +196,5 @@
   };
   if (FILM) document.body.classList.add("film");
   var h = /lesson=(\d)/.exec(location.hash); buildList(); fit(); openLesson(h ? Math.min(L.length - 1, +h[1] - 1) : 0);
-  if (!FILM) { $("bAuto").classList.add("on"); $("bAuto").textContent = "❚❚ Pause"; }
+  if (!FILM) stamp(); setTimeout(fit, 50); setTimeout(fit, 400);
 })();

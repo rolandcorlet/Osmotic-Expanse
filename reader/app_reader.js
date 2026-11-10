@@ -5,7 +5,7 @@
   var READER_DOCS = __DOCS__, READER_LEX = __LEX__, READER_LEVEL = "__LEVEL__";
   var READER_URLS = {}, READER_CUR = null, READER_TPL = null, READER_PANEL = "";
   try { READER_CUR = localStorage.getItem("oxreader.doc"); } catch (e) {}
-  var READER_NORMAL = "width:100%;height:calc(100vh - 150px);min-height:640px;border:0;border-radius:12px;background:#0b1118";
+  var READER_NORMAL = "width:100%;height:calc(100vh - 140px);min-height:420px;border:0;border-radius:12px;background:#0b1118";
   var READER_FULL = "position:fixed;inset:0;width:100vw;height:100vh;z-index:99999;border:0;border-radius:0;background:#0b1118";
   window.addEventListener("message", function (ev) {
     if (!ev.data || typeof ev.data.oxReaderFull !== "boolean") return;
@@ -13,6 +13,36 @@
     f.style.cssText = ev.data.oxReaderFull ? READER_FULL : READER_NORMAL;
     document.documentElement.style.overflow = ev.data.oxReaderFull ? "hidden" : "";
   });
+  /* Both embedded pages (Learn to Play and the Reader) are sized to the screen, so their controls are never below the fold,
+     and switching tabs silences them: the browser's speech engine is shared, and a page being closed does not always stop it. */
+  function oxFitFrames() {
+    ["learnFrame", "readerFrame"].forEach(function (id) {
+      var f = document.getElementById(id); if (!f || f.style.position === "fixed") return;
+      var top = f.getBoundingClientRect().top + (window.scrollY || 0), room = window.innerHeight - top - 12;
+      if (room >= 520) { f.style.height = room + "px"; }
+      else {   /* a tall header (many tabs, a small screen): give the frame the whole screen and bring it into view */
+        f.style.height = Math.max(360, window.innerHeight - 16) + "px";
+        if (!f.dataset.oxScrolled) { f.dataset.oxScrolled = "1"; window.scrollTo({ top: Math.max(0, top - 8), behavior: "smooth" }); }
+      }
+      f.style.minHeight = "0";
+    });
+  }
+  var oxFitQueued = 0;
+  function oxFitSoon() { if (!oxFitQueued) oxFitQueued = requestAnimationFrame(function () { oxFitQueued = 0; oxFitFrames(); }); }
+  window.addEventListener("resize", oxFitSoon);
+  window.addEventListener("message", function () { setTimeout(oxFitFrames, 30); });
+  try { new MutationObserver(function (ms) {
+    for (var i = 0; i < ms.length; i++) for (var j = 0; j < ms[i].addedNodes.length; j++) { var n = ms[i].addedNodes[j];
+      if (n.nodeType === 1 && (n.id === "learnFrame" || n.id === "readerFrame" || (n.querySelector && n.querySelector("#learnFrame,#readerFrame")))) { oxFitSoon(); return; } }
+  }).observe(document.documentElement, { childList: true, subtree: true }); } catch (e) {}
+  function oxHushFrames() {
+    ["learnFrame", "readerFrame"].forEach(function (id) {
+      var f = document.getElementById(id);
+      try { if (f && f.contentWindow && f.contentWindow.speechSynthesis) f.contentWindow.speechSynthesis.cancel(); } catch (e) {}
+    });
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+  }
+  document.addEventListener("click", function (e) { if (e.target.closest && e.target.closest('[data-act="tab"]')) oxHushFrames(); }, true);
   function rdEsc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" }[c]; }); }
   function rdB64(id) {
     var b = atob(document.getElementById("reader-src-" + id).textContent.trim()), u = new Uint8Array(b.length);
