@@ -47,7 +47,8 @@
   function rdB64(id) {
     var b = atob(document.getElementById("reader-src-" + id).textContent.trim()), u = new Uint8Array(b.length);
     for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
-    return new TextDecoder("utf-8").decode(u);
+    var fonts = document.getElementById("reader-fonts");
+    return new TextDecoder("utf-8").decode(u).replace("/*OXFONTS*/", function () { return fonts ? fonts.textContent : ""; });
   }
   /* ---- the user's own documents and cards (this browser only) ---- */
   function rdLoad(k, d) { try { return JSON.parse(localStorage.getItem(k) || "null") || d; } catch (e) { return d; } }

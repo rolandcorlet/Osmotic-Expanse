@@ -35,9 +35,9 @@ In either app's Reader tab, **+ Add a document** converts a Word (`.docx`), Mark
 | `build_reader.py` | The converter: turns Markdown into a Reader page, and writes a report of new words. |
 | `reader.html`, `reader.css`, `reader.js` | The page template, shared by every document. |
 | `fonts/` | The three reading fonts, embedded into each page (SIL Open Font License, see each LICENSE). |
-| `patch_reader.py` | Adds or refreshes the Reader tab in an app, with the converted documents and the Lexicon embedded. Use `--level=director` for the Director's Assistant. |
+| `patch_reader.py` | Adds or refreshes the Reader tab in an app, with the converted documents and the Lexicon embedded. Use `--level=director` for the Director's Assistant. The reading fonts are stored once per app and put back into each page when it opens. |
 | `app_reader.js` | The Reader tab's own code, including the in-browser converter behind **+ Add a document**. |
-| `what-the-water-owed.html` | The first converted document. |
+| `what-the-water-owed.html`, `society-rules.html`, `quorum.html` | The converted documents, each a complete web page. |
 
 ## Converting a new document
 
@@ -52,7 +52,7 @@ In either app's Reader tab, **+ Add a document** converts a Word (`.docx`), Mark
 
    Then repeat steps 1 and 2.
 4. **Put it in the apps:**
-   `python3 patch_reader.py ../DMAssistant_Osmotic_Expanse.html ../DMAssistant_Osmotic_Expanse.html --level=director what-the-water-owed=wtwo-director.html society-rules=society-director.html`
+   `python3 patch_reader.py ../DMAssistant_Osmotic_Expanse.html ../DMAssistant_Osmotic_Expanse.html --level=director what-the-water-owed=wtwo-director.html society-rules=society-director.html quorum=quorum-director.html`
    - Do the same for `../players/index.html`, using the player builds.
    - List every document each time; the tab shows them in that order. Re-running replaces the earlier set.
 

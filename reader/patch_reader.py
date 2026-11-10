@@ -15,18 +15,24 @@ def rep(a, b, n=1):
     assert h.count(a) == n, (a[:80], h.count(a)); h = h.replace(a, b)
 
 # strip a previous Reader patch
-h = re.sub(r'<script id="reader-src-[^"]+" type="text/plain">[^<]*</script>\n?', "", h)
+h = re.sub(r'<script id="reader-(?:src-[^"]+|fonts)" type="text/plain">[^<]*</script>\n?', "", h)
 h = re.sub(r"\n  /\* OSMOTIC READER: begin \*/.*?/\* OSMOTIC READER: end \*/\n", "", h, flags=re.S)
 h = h.replace(' case "reader": body = screenReader(); break;', "")
 h = re.sub(r' if \(!seenTab\.reader\) \{.*?seenTab\.reader = 1; \}', "", h)
 
-meta, tags = [], []
+import importlib.util
+_spec = importlib.util.spec_from_file_location("br", os.path.join(HERE, "build_reader.py")); _br = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(_br)
+FONTS = _br.fonts_css()   # the three reading fonts: stored once in the app, put back into each page when it opens
+
+meta, tags = [], ['<script id="reader-fonts" type="text/plain">%s</script>\n' % FONTS]
 for d in docs:
     did, path = d.split("=", 1)
     page = open(path, encoding="utf-8").read()
     m = re.search(r'<script id="docdata" type="application/json">(.*?)</script>', page, re.S)
     title = json.loads(m.group(1))["title"]
     meta.append({"id": did, "title": title})
+    assert page.count(FONTS) == 1, "page %s was not built with the current fonts" % did
+    page = page.replace(FONTS, "/*OXFONTS*/")
     tags.append('<script id="reader-src-%s" type="text/plain">%s</script>\n' % (did, base64.b64encode(page.encode("utf-8")).decode()))
 
 # the tab: right after Learn to Play
@@ -34,8 +40,6 @@ a = 'if (!seenTab.learn) { TABS.splice(0, 0, ["learn", "Learn to Play"]); seenTa
 rep(a, a + ' if (!seenTab.reader) { TABS.splice(1, 0, ["reader", "Reader"]); seenTab.reader = 1; }')
 rep('case "learn": body = screenLearn(); break;', 'case "learn": body = screenLearn(); break; case "reader": body = screenReader(); break;')
 
-import importlib.util
-_spec = importlib.util.spec_from_file_location("br", os.path.join(HERE, "build_reader.py")); _br = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(_br)
 L = json.load(open(os.path.join(HERE, "lexicon.json"), encoding="utf-8"))
 lex = {"cats": L["cats"], "terms": [{k: t[k] for k in ("id", "name", "cat", "def", "aka", "see", "src", "rx")}
         for t in L["terms"] if t["scope"] is None and (LEVEL == "director" or t["level"] == "player")]}

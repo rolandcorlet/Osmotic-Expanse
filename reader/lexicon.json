@@ -2249,7 +2249,11 @@
    "cat": "rule",
    "def": "A faction's memory of you, 0–10: Hostile, Wary, Neutral, Obliging, Confided, Bound. One step up with a power means one step down with its rival.",
    "aka": [
-    "Standings"
+    "Standings",
+    "Wary",
+    "Obliging",
+    "Confided",
+    "Obliging Standing"
    ],
    "rx": [],
    "see": [
@@ -2451,6 +2455,496 @@
    "level": "player",
    "scope": null,
    "id": "bond"
+  },
+  {
+   "name": "Cohort",
+   "cat": "rule",
+   "def": "The players' group: the organisms the players run, travelling and working together. A Cohort shares one Cohesion track.",
+   "aka": [
+    "Cohorts",
+    "Cohort's"
+   ],
+   "rx": [],
+   "see": [
+    "cohesion"
+   ],
+   "src": "CORE §2.5",
+   "level": "player",
+   "scope": null,
+   "id": "cohort"
+  },
+  {
+   "name": "Director",
+   "cat": "rule",
+   "def": "The game's referee and world-builder: the person who runs the Expanse for the players.",
+   "aka": [
+    "Directors",
+    "Director's"
+   ],
+   "rx": [],
+   "see": [
+    "cohort"
+   ],
+   "src": "CORE",
+   "level": "player",
+   "scope": null,
+   "id": "director"
+  },
+  {
+   "name": "Clock",
+   "cat": "rule",
+   "def": "A countdown of segments that fills as something comes closer: a colony's trouble, an office's patience, a Host-City's temper. When it fills, it happens.",
+   "aka": [
+    "Clocks",
+    "Colony Clock",
+    "Response Clock",
+    "Response Clocks",
+    "Table Clock",
+    "Temper Clock",
+    "Order Clock",
+    "Core Clock"
+   ],
+   "rx": [],
+   "see": [
+    "vector"
+   ],
+   "src": "CODEX §5.2; QUORUM §1.2",
+   "level": "player",
+   "scope": null,
+   "id": "clock"
+  },
+  {
+   "name": "Organ health",
+   "cat": "rule",
+   "def": "Each colony organ has four boxes: Sound, Strained, Failing, Necrotic, then Excised. A failing organ charges more, cannot back a side in a Quorum, and drags the colony down.",
+   "aka": [
+    "Sound",
+    "Strained",
+    "Failing",
+    "Necrotic",
+    "Excised"
+   ],
+   "rx": [],
+   "see": [
+    "organ"
+   ],
+   "src": "QUORUM §2.3",
+   "level": "player",
+   "scope": null,
+   "id": "organ-health"
+  },
+  {
+   "name": "Colony size",
+   "cat": "society",
+   "def": "Colonies come in four sizes: Hamlet (20–200), Settlement (200–2,000), Colony (2,000–50,000) and Metropolis (50,000+). Bigger colonies need thicker air to reach Quorum.",
+   "aka": [
+    "Hamlet",
+    "Hamlets",
+    "Settlement",
+    "Settlements",
+    "Metropolis"
+   ],
+   "rx": [],
+   "see": [
+    "quorum"
+   ],
+   "src": "QUORUM §2.2",
+   "level": "player",
+   "scope": null,
+   "id": "colony-size"
+  },
+  {
+   "name": "Speech registers",
+   "cat": "rule",
+   "def": "The three ways to talk someone round: Semantic (facts, trade), Affective (status, threat, comfort) and Deceptive (masking, forgery). Each is resisted differently.",
+   "aka": [
+    "Semantic",
+    "Affective",
+    "Deceptive"
+   ],
+   "rx": [],
+   "see": [
+    "stakes-ladder"
+   ],
+   "src": "CORE §11.1",
+   "level": "player",
+   "scope": null,
+   "id": "speech-registers"
+  },
+  {
+   "name": "Stakes Ladder",
+   "cat": "rule",
+   "def": "How far a conversation moves someone, a rung at a time: from Refusal toward Concession and Compliance. Strong arguments buy rungs; nobody skips a rung they would not cross.",
+   "aka": [
+    "Refusal",
+    "Concession",
+    "Compliance"
+   ],
+   "rx": [],
+   "see": [
+    "speech-registers"
+   ],
+   "src": "CORE §11.2",
+   "level": "player",
+   "scope": null,
+   "id": "stakes-ladder"
+  },
+  {
+   "name": "Pathway skill",
+   "cat": "rule",
+   "def": "One of the trained skills a body rolls with, such as Signal Discourse (speech), Chemoreception (reading scent), Pressure Tolerance, Concealment or Sequence Reading.",
+   "aka": [
+    "Signal Discourse",
+    "Chemoreception",
+    "Pressure Tolerance",
+    "Concealment",
+    "Sequence Reading",
+    "Fluid Navigation",
+    "Synthesis"
+   ],
+   "rx": [],
+   "see": [
+    "pathway"
+   ],
+   "src": "CORE Ch. 3",
+   "level": "player",
+   "scope": null,
+   "id": "pathway-skill"
+  },
+  {
+   "name": "Memory Vial",
+   "cat": "rule",
+   "def": "A crystal of memory drawn from a body, living or dead. Pulling one is hard and hurts everyone involved, and Oaths limit what can be taken.",
+   "aka": [
+    "Memory Vials",
+    "Vials"
+   ],
+   "rx": [],
+   "see": [
+    "memory-strand"
+   ],
+   "src": "CORE §11.7",
+   "level": "player",
+   "scope": null,
+   "id": "memory-vial"
+  },
+  {
+   "name": "Argument",
+   "cat": "rule",
+   "def": "Precept 6 as a legal weapon: an organism whose body was altered without consent may contest any claim the violator makes, anywhere, once.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "sacred-code"
+   ],
+   "src": "CODEX §8.2",
+   "level": "player",
+   "scope": null,
+   "id": "argument"
+  },
+  {
+   "name": "Antigen Rite",
+   "cat": "society",
+   "def": "25 S and a witness: for one Tide, one faction's wards read you as 'self'.",
+   "aka": [
+    "Antigen Rites"
+   ],
+   "rx": [],
+   "see": [
+    "register"
+   ],
+   "src": "CORE §11.6",
+   "level": "player",
+   "scope": null,
+   "id": "antigen-rite"
+  },
+  {
+   "name": "Naming Rite",
+   "cat": "society",
+   "def": "100 S: your chemical name becomes known across a region. Friends can find you; so can enemies.",
+   "aka": [
+    "Naming Rites"
+   ],
+   "rx": [],
+   "see": [
+    "rite"
+   ],
+   "src": "CORE §11.6",
+   "level": "player",
+   "scope": null,
+   "id": "naming-rite"
+  },
+  {
+   "name": "Niche",
+   "cat": "society",
+   "def": "A Cohort's home base in a colony: a place to sleep and store, which halves living costs. Its upkeep includes the tally.",
+   "aka": [
+    "Niches"
+   ],
+   "rx": [],
+   "see": [
+    "cohort"
+   ],
+   "src": "CORE §8.4",
+   "level": "player",
+   "scope": null,
+   "id": "niche"
+  },
+  {
+   "name": "Mass Conflict",
+   "cat": "rule",
+   "def": "War: battle lines of hundreds, fought in Battle Points (about 10 organisms each). A duel exists to avoid one.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "oath-duel"
+   ],
+   "src": "CODEX §3.6",
+   "level": "player",
+   "scope": null,
+   "id": "mass-conflict"
+  },
+  {
+   "name": "Recession",
+   "cat": "rule",
+   "def": "The opposite of a Bloom: nothing grows, nothing heals, the dead stay dead, and refugees come to the gates.",
+   "aka": [
+    "Recessions",
+    "Bloom",
+    "Blooms"
+   ],
+   "rx": [],
+   "see": [
+    "osmotic-tide"
+   ],
+   "src": "CODEX §5.4",
+   "level": "player",
+   "scope": null,
+   "id": "recession"
+  },
+  {
+   "name": "Foundry Belt",
+   "cat": "place",
+   "def": "The Ribosome Hegemony's industrial heartland, where licensed grafts are printed.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "ribosome-hegemony"
+   ],
+   "src": "CODEX §6.6",
+   "level": "player",
+   "scope": null,
+   "id": "foundry-belt"
+  },
+  {
+   "name": "Vacuolar Abyss",
+   "cat": "place",
+   "def": "The deep, pressured region of salt and minerals where the Deep Choir and the Barophils are at home.",
+   "aka": [
+    "Abyss",
+    "the Abyss"
+   ],
+   "rx": [],
+   "see": [
+    "deep-choir"
+   ],
+   "src": "CODEX §6.8",
+   "level": "player",
+   "scope": null,
+   "id": "vacuolar-abyss"
+  },
+  {
+   "name": "Lodge",
+   "cat": "society",
+   "def": "The house of a trade: every Phenotype keeps one in each colony, with a bunk, a meal and gossip for members. Its master, the Source, teaches for a Ledger line.",
+   "aka": [
+    "Lodges"
+   ],
+   "rx": [],
+   "see": [
+    "phenotype"
+   ],
+   "src": "QUORUM §14.2",
+   "level": "player",
+   "scope": null,
+   "id": "lodge"
+  },
+  {
+   "name": "Encystment",
+   "cat": "rule",
+   "def": "A sentence: sealed in a cyst under the Lysosome for a set time.",
+   "aka": [
+    "Encysted"
+   ],
+   "rx": [],
+   "see": [
+    "assay"
+   ],
+   "src": "QUORUM §10.4",
+   "level": "player",
+   "scope": null,
+   "id": "encystment"
+  },
+  {
+   "name": "Dilution",
+   "cat": "rule",
+   "def": "A sentence: exile into open water for a Tide, falling one condition, arrested on sight if you come back early. To be ruined is to be 'diluted'.",
+   "aka": [
+    "Diluted",
+    "diluted"
+   ],
+   "rx": [],
+   "see": [
+    "assay"
+   ],
+   "src": "QUORUM §10.4",
+   "level": "player",
+   "scope": null,
+   "id": "dilution"
+  },
+  {
+   "name": "Indenture",
+   "cat": "rule",
+   "def": "A sentence: your labour is owed to an organ or a creditor for a set time.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "assay"
+   ],
+   "src": "QUORUM §10.4",
+   "level": "player",
+   "scope": null,
+   "id": "indenture"
+  },
+  {
+   "name": "Line Purists",
+   "cat": "faction",
+   "def": "Those who oppose conjugation across lineages.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "conjugation"
+   ],
+   "src": "QUORUM §4.7",
+   "level": "player",
+   "scope": null,
+   "id": "line-purists"
+  },
+  {
+   "name": "Mood",
+   "cat": "rule",
+   "def": "How a creature, or a room, smells tonight: one of twelve moods (Wary, Hungry, Grieving, Hostile, Terrified and so on). It changes every exchange, unlike Standing, which is history.",
+   "aka": [
+    "mood",
+    "moods",
+    "Terrified"
+   ],
+   "rx": [],
+   "see": [
+    "standing"
+   ],
+   "src": "CORE §11.3",
+   "level": "player",
+   "scope": null,
+   "id": "mood"
+  },
+  {
+   "name": "Apoptotic Oath",
+   "cat": "society",
+   "def": "A condemned organism's own choice to dissolve and be harvested, which clears its budline's debts and shame.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "total-dissolution"
+   ],
+   "src": "QUORUM §10.4",
+   "level": "player",
+   "scope": null,
+   "id": "apoptotic-oath"
+  },
+  {
+   "name": "The Tessellate",
+   "cat": "place",
+   "def": "A cold, lattice-bodied Host-City between the Lipid Plateaus and the Foundry Belt: Hegemony licence courts and the cleanest registers in the Expanse.",
+   "aka": [
+    "Tessellate"
+   ],
+   "rx": [],
+   "see": [
+    "host-city"
+   ],
+   "src": "QUORUM §13.5",
+   "level": "player",
+   "scope": null,
+   "id": "the-tessellate"
+  },
+  {
+   "name": "Kettle",
+   "cat": "place",
+   "def": "A boiling Barophil Host-City between the Vacuolar Abyss and the Lysosomal Wastes: Deep Choir pilgrims and hard, honest tenants.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "host-city"
+   ],
+   "src": "QUORUM §13.5",
+   "level": "player",
+   "scope": null,
+   "id": "kettle"
+  },
+  {
+   "name": "Ossune",
+   "cat": "person",
+   "def": "Second Flow's Tally-Keeper, whose secret is that the outer rings' biomass rights were sold three Tides ago.",
+   "aka": [
+    "Tally-Keeper Ossune"
+   ],
+   "rx": [],
+   "see": [
+    "second-flow"
+   ],
+   "src": "CODEX §12.2",
+   "level": "player",
+   "scope": [
+    "quorum"
+   ],
+   "id": "ossune"
+  },
+  {
+   "name": "Foreman Ock",
+   "cat": "person",
+   "def": "Union boss of the Ash's Vat Crew, who wants legal recognition for his crew.",
+   "aka": [
+    "Ock"
+   ],
+   "rx": [],
+   "see": [
+    "vat-crew"
+   ],
+   "src": "CODEX §7",
+   "level": "player",
+   "scope": [
+    "quorum"
+   ],
+   "id": "foreman-ock"
+  },
+  {
+   "name": "Siss-of-the-Nine-Smells",
+   "cat": "person",
+   "def": "The Atlas's example character: the ninth smell of the Siss root, a Flagellan.",
+   "aka": [
+    "Siss"
+   ],
+   "rx": [],
+   "see": [
+    "budline"
+   ],
+   "src": "ATLAS §1",
+   "level": "player",
+   "scope": [
+    "quorum"
+   ],
+   "id": "siss-of-the-nine-smells"
   },
   {
    "name": "Lisk-of-the-Seven-Ladders",
