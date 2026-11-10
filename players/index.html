@@ -263,6 +263,125 @@
   .throw label { flex:1 }
   #campbar { display:none !important }
 </style>
+<style id="ox-style-rm">
+/* OSMOTIC STYLE: Roll Helper + Metabolic Time */
+.rh-top{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:4px 0 16px}
+.rh-seg{display:inline-flex;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.rh-seg button{appearance:none;border:0;background:transparent;color:var(--dim);font:600 14px/1 system-ui,sans-serif;padding:10px 16px;border-radius:9px;cursor:pointer}
+.rh-seg button[aria-pressed="true"]{background:var(--panel2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
+.rh-seg button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rh-rule{color:var(--dim);font-size:13.5px;max-width:62ch;line-height:1.45}
+.rh-flow{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,420px);gap:22px;align-items:start}
+.rh-flow>.rh-step{grid-column:1}
+.rh-flow>.rh-final{grid-column:2;grid-row:1 / span 20;position:sticky;top:12px}
+@media (max-width:1050px){.rh-flow{grid-template-columns:1fr}.rh-flow>.rh-final{grid-column:1;grid-row:auto;position:static}}
+.rh-step{position:relative;display:grid;grid-template-columns:34px minmax(0,1fr);gap:14px;padding:0 0 18px}
+.rh-step:not(.rh-final)::before{content:"";position:absolute;left:16px;top:36px;bottom:0;width:2px;background:var(--line)}
+.rh-flow>.rh-step:nth-last-child(2)::before{display:none}
+.rh-num{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font:700 15px/1 system-ui,sans-serif;color:var(--accent);background:var(--panel);border:2px solid var(--accent);position:relative;z-index:1}
+.rh-body{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px 12px;min-width:0}
+.rh-body>h3{margin:0 0 10px;font:650 16.5px/1.3 system-ui,sans-serif;color:var(--ink);display:flex;align-items:center;gap:6px}
+.rh-body .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:8px 0}
+.rh-body .lbl{color:var(--dim);font-size:13px;min-width:0!important;margin-right:-2px}
+.rh-body input[type=number]{width:62px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--input);color:var(--ink);font:600 15px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;padding:0 8px}
+.rh-body select{height:36px;border-radius:8px;border:1px solid var(--line);background:var(--input);color:var(--ink);padding:0 10px;font:14px system-ui,sans-serif;max-width:100%}
+.rh-body input:focus-visible,.rh-body select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.rh-body label.small:has(input[type=checkbox]){display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:var(--input);cursor:pointer;margin:0!important;font-size:13.5px;color:var(--ink)}
+.rh-body label.small:has(input[type=checkbox]:checked){border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--input))}
+.rh-body label.small input[type=checkbox]{accent-color:var(--accent);margin:0}
+.rh-body .small{line-height:1.5}
+.rh-body .rhi{background:transparent;border:0;color:var(--faint);cursor:pointer;font-size:14px;padding:2px}
+.rh-body .rhi:hover{color:var(--accent)}
+/* the pool panel */
+.rh-final .rh-num{background:var(--accent);color:var(--bg)}
+.rh-final .rh-body{display:flex;flex-direction:column;gap:10px;border-color:color-mix(in srgb,var(--accent) 45%,var(--line));box-shadow:0 18px 50px rgba(0,0,0,.35)}
+.rh-final .rh-body>h3{order:0;margin-bottom:0}
+.rh-hero{order:1}
+.rh-final .rh-body>.row:has(input){order:2;margin:0}
+.rh-final .rh-body>.row:has([data-rhroll]),.rh-final .rh-body>.row:has(.warnbox){order:3;margin:0}
+.rh-final .rh-body>.promptbox{order:4}
+.rh-final .rh-body>.rhf{order:5}
+.rh-final .rh-body>.warnbox{order:3}
+.rh-hero{display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:center;padding:14px;border-radius:12px;background:var(--input);border:1px solid var(--line)}
+.rh-hero .n{font:800 52px/0.9 system-ui,sans-serif;font-variant-numeric:tabular-nums;color:var(--ink);letter-spacing:-1px}
+.rh-hero .n small{font-size:20px;font-weight:700;color:var(--dim);letter-spacing:0;margin-left:2px}
+.rh-hero .facts{display:grid;gap:3px;font-size:13.5px;color:var(--dim)}
+.rh-hero .facts b{color:var(--ink);font-variant-numeric:tabular-nums}
+.rh-hero .pips{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.rh-ghost{width:26px;height:26px;border-radius:7px;border:2px dashed color-mix(in srgb,var(--accent) 60%,var(--line))}
+.rh-final [data-rhroll]{width:100%;height:50px;font:700 17px/1 system-ui,sans-serif;border-radius:12px;background:var(--accent);color:var(--bg);border:0;cursor:pointer;letter-spacing:.2px}
+.rh-final [data-rhroll]:hover{filter:brightness(1.08)}
+.rh-final [data-rhroll]:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.rh-final .promptbox{border-radius:12px;border:1px solid var(--line);background:var(--panel2);padding:12px 14px;display:grid;gap:8px;font-size:14px}
+.rh-final .promptbox .pill{font:700 14px/1.2 system-ui,sans-serif;padding:5px 11px;border-radius:999px;display:inline-block;margin:2px 4px 2px 0}
+.rh-final .promptbox .pill.ok,.rh-final .promptbox .pill.no{font-size:16px;padding:7px 14px}
+.rh-final .promptbox .btn.small{font:13px system-ui,sans-serif}
+.rh-final .rhf{background:transparent;border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0 0;margin:0}
+.rh-final .rhf h4{margin:0 0 6px;font:650 13.5px system-ui,sans-serif;color:var(--dim);text-transform:none;letter-spacing:0}
+.rh-dice{display:flex;flex-wrap:wrap;gap:8px}
+.rh-die{width:40px;height:40px;border-radius:9px;display:grid;place-items:center;font:800 20px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;background:var(--ink);color:var(--bg);box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+.rh-die.one{background:color-mix(in srgb,var(--no) 30%,var(--panel2));color:var(--no);text-decoration:line-through;box-shadow:inset 0 0 0 2px var(--no)}
+.rh-die.six{background:var(--ok);color:var(--bg)}
+.rh-dice.fresh .rh-die{animation:rhTumble .5s cubic-bezier(.2,.9,.3,1.2) both}
+.rh-dice.fresh .rh-die:nth-child(2){animation-delay:.04s}.rh-dice.fresh .rh-die:nth-child(3){animation-delay:.08s}.rh-dice.fresh .rh-die:nth-child(4){animation-delay:.12s}
+.rh-dice.fresh .rh-die:nth-child(5){animation-delay:.16s}.rh-dice.fresh .rh-die:nth-child(6){animation-delay:.2s}.rh-dice.fresh .rh-die:nth-child(n+7){animation-delay:.24s}
+@keyframes rhTumble{from{transform:translateY(-14px) rotate(-90deg) scale(.6);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.rh-dice.fresh .rh-die{animation:none}}
+
+/* Metabolic Time */
+.mtx{--salt:var(--warn-c);--water:var(--accent);max-width:1180px}
+.mtx-hero{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px 10px;margin:0 0 18px}
+.mtx-hero h3{margin:0;font:700 22px/1.25 system-ui,sans-serif;color:var(--ink)}
+.mtx-hero p{margin:6px 0 0;color:var(--dim);max-width:72ch;line-height:1.55;font-size:14.5px}
+.mtx-hero p b{color:var(--ink)}
+.mtx-scalewrap{overflow-x:auto;margin-top:8px}
+.mtx-scale{width:100%;min-width:760px;height:auto;display:block}
+.mtx-scale text{font-family:system-ui,sans-serif}
+.mtx-sec{margin:0 0 18px}
+.mtx-sec>h3{font:700 17px/1.3 system-ui,sans-serif;margin:0 0 4px;color:var(--ink)}
+.mtx-sec>.sub{color:var(--dim);font-size:13.5px;margin:0 0 10px}
+.mtx-units{display:grid;gap:8px}
+.mtx-unit{display:grid;grid-template-columns:200px minmax(0,1fr);gap:18px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px}
+.mtx-unit .nm{font:700 15.5px/1.25 system-ui,sans-serif;color:var(--ink)}
+.mtx-unit .len{color:var(--accent);font:600 13.5px/1.4 system-ui,sans-serif;font-variant-numeric:tabular-nums;margin-top:3px}
+.mtx-unit .felt{color:var(--dim);font-size:13px;margin-top:2px}
+.mtx-unit .made{color:var(--dim);font-size:13px;margin-bottom:4px}
+.mtx-unit .gov{color:var(--ink);font-size:14px;line-height:1.5}
+.mtx-unit.app{border-style:dashed}
+.mtx-unit.app .nm::after{content:" app calendar";font:600 11px system-ui,sans-serif;color:var(--faint);margin-left:6px}
+@media (max-width:760px){.mtx-unit{grid-template-columns:1fr;gap:6px}}
+.mtx-tbl{width:100%;border-collapse:separate;border-spacing:0;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:14px}
+.mtx-tbl th{font:600 12.5px system-ui,sans-serif;color:var(--dim);text-align:right;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel2)}
+.mtx-tbl th:first-child,.mtx-tbl td:first-child{text-align:left}
+.mtx-tbl td{padding:9px 14px;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+.mtx-tbl tr:last-child td{border-bottom:0}
+.mtx-tbl td:first-child{font-weight:650}
+.mtx-tbl td.note{color:var(--dim);font-size:12.5px}
+.mtx-phases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:980px){.mtx-phases{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mtx-ph{position:relative;border-radius:14px;padding:14px 16px 16px;border:1px solid var(--line);background:var(--panel)}
+.mtx-ph .ord{font:700 12.5px system-ui,sans-serif;color:var(--dim)}
+.mtx-ph h4{margin:4px 0 2px;font:700 16px/1.25 system-ui,sans-serif;color:var(--ink)}
+.mtx-ph .plain{font-size:13px;color:var(--dim);margin-bottom:10px}
+.mtx-ph .tr{font-size:13px;color:var(--dim)}
+.mtx-ph .tbl-eff{font-size:14px;color:var(--ink);line-height:1.5;margin-top:4px}
+.mtx-ph.salt{border-color:color-mix(in srgb,var(--salt) 55%,var(--line));background:color-mix(in srgb,var(--salt) 9%,var(--panel))}
+.mtx-ph.salt .plain{color:var(--salt)}
+.mtx-ph.water{border-color:color-mix(in srgb,var(--water) 55%,var(--line));background:color-mix(in srgb,var(--water) 9%,var(--panel))}
+.mtx-ph.water .plain{color:var(--water)}
+.mtx-ph:not(:last-child)::after{content:"";position:absolute;right:-11px;top:50%;width:10px;height:10px;border-top:2px solid var(--faint);border-right:2px solid var(--faint);transform:translateY(-50%) rotate(45deg)}
+@media (max-width:980px){.mtx-ph::after{display:none}}
+.mtx-ladder{display:grid;gap:6px}
+.mtx-rung{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.6fr);gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:10px;padding:10px 14px;font-size:14px}
+.mtx-rung b{color:var(--ink)}
+.mtx-rung .t{color:var(--accent);font-variant-numeric:tabular-nums}
+.mtx-rung .c{color:var(--dim)}
+@media (max-width:760px){.mtx-rung{grid-template-columns:1fr;gap:2px}}
+.mtx-notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.mtx-notes{grid-template-columns:1fr}}
+.mtx-note{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:14px;line-height:1.55;color:var(--dim)}
+.mtx-note b{color:var(--ink);display:block;margin-bottom:2px}
+</style>
 </head>
 <body>
 <header>
@@ -21056,7 +21175,21 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
   }, true);
   document.addEventListener("keydown", function (e) { if (e.key === "Escape") { var p = document.getElementById("rh-pop"); if (p) p.style.display = "none"; } });
   function rhStep(n, title, body) {
-    return '<div class="subgroup" style="margin:8px 0"><div class="row"><span class="pill info" style="min-width:26px;text-align:center">' + n + "</span><b>" + title + "</b></div>" + body + "</div>";
+    var fin = title === "Your pool, and the roll" || title === "Resolve it";
+    return '<section class="rh-step' + (fin ? " rh-final" : "") + '"><div class="rh-num" aria-hidden="true">' + n + '</div><div class="rh-body"><h3>' + title + "</h3>" + (fin ? "<!--RHHERO-->" : "") + body + "</div></section>";
+  }
+  var RH_FRESH = 0;
+  function rhHero(mode) {
+    var S = mode === "defence" ? RH_LAST._defenceSetup : RH_LAST._attackSetup; if (!S) return "";
+    var n = S.pool || 0, ghosts = "";
+    for (var i = 0; i < Math.min(n, 16); i++) ghosts += '<span class="rh-ghost"></span>';
+    if (mode === "defence") {
+      return '<div class="rh-hero"><div class="n">' + (S.how === "typed" ? "—" : n + "<small>d6</small>") + '</div><div class="facts"><span>' + (S.how === "typed" ? "the Director gives its Total" : "the attacker rolls") +
+        "</span><span>it must reach your MT <b>" + S.mt + "</b></span><span>reacting costs <b>" + (S.pp ? S.pp + " held PP" : "nothing") + (S.atp ? " + " + S.atp + " ATP" : "") + "</b></span></div>" +
+        (S.how === "typed" ? "" : '<div class="pips" aria-hidden="true">' + ghosts + "</div>") + "</div>";
+    }
+    return '<div class="rh-hero"><div class="n">' + n + '<small>d6</small></div><div class="facts"><span>your Reagent Pool</span><span>hit on a Total of <b>' + S.mt + "</b> or more</span><span>costs <b>" + S.pp + " PP" +
+      (S.atp ? " + " + S.atp + " ATP" : "") + (S.miCost ? " + MI" : "") + "</b></span></div>" + '<div class="pips" aria-hidden="true">' + ghosts + "</div></div>";
   }
   function rhDice(n) { var d = []; for (var i = 0; i < Math.max(0, n); i++) d.push(1 + Math.floor(Math.random() * 6)); return d; }
   function rhRead(dice) {
@@ -21065,10 +21198,10 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     return { inhib: inhib, total: total, runaway: inhib === 0 && sixes >= 2 };
   }
   function rhDiceHtml(dice) {
-    return dice.map(function (v) {
-      return '<span style="display:inline-block;min-width:26px;padding:3px 6px;margin:2px;border-radius:5px;text-align:center;font-weight:700;' +
-        (v === 1 ? "background:#4a1f22;color:#ffb3b3;text-decoration:line-through" : v === 6 ? "background:#1e3a2a;color:#9ff0c0" : "background:#22303d;color:#dfe8f0") + '">' + v + "</span>";
-    }).join("");
+    var fresh = Date.now() - RH_FRESH < 900;
+    return '<span class="rh-dice' + (fresh ? " fresh" : "") + '" role="img" aria-label="Rolled ' + dice.join(", ") + '">' + dice.map(function (v) {
+      return '<span class="rh-die' + (v === 1 ? " one" : v === 6 ? " six" : "") + '" aria-hidden="true">' + v + "</span>";
+    }).join("") + "</span>";
   }
   function rhCreatureOpts() {
     var o = [{ v: "manual", l: "type its numbers" }];
@@ -21432,16 +21565,18 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
   }
 
   /* OSMOTIC: Metabolic Time — every unit of time, one tab (CORE §8.1, CODEX §5.1, §5.3). */
-  function screenMetabolicTime() { return "<div class=\"featcheck\"><h2>Metabolic Time<\/h2><span class=\"badge\">the Rhythm<\/span><span class=\"cite\">CORE §8.1 · CODEX §5.1, §5.3<\/span><\/div><div class=\"subgroup\"><p style=\"margin:0 0 6px\"><i>The Expanse does not count hours; it counts the Rhythm of bodies — the Pulse, the Beat, the Tide.<\/i><\/p><p style=\"margin:0\">Every unit of time in the Expanse is named for something a body does: it pulses, it beats, it drifts into fugue, it goes dormant. The rules call this <b>Metabolic Time<\/b>; organisms simply call it <b>the Rhythm<\/b> (<i>“by the Rhythm, it is the third Beat of the Rise”<\/i>).<\/p><\/div><div class=\"subgroup\"><h3 style=\"margin:0 0 4px\">Every unit, shortest to longest<\/h3><table class=\"tbl\"><tr><th>Unit<\/th><th>Length<\/th><th>Made of<\/th><th>Felt as<\/th><th>What it governs<\/th><\/tr><tr><td><b>Turn<\/b><\/td><td>your share of a Cycle<\/td><td>—<\/td><td>your moment to act<\/td><td>You receive Pulse Points (2 + DFF) and spend them; Split Frequency holds some to act later in the same Cycle (§4.2)<\/td><\/tr><tr><td><b>Pulse Cycle<\/b><\/td><td>6 seconds<\/td><td>one turn for every organism, in Frequency order<\/td><td>a combat round<\/td><td>Combat; durations of “N Cycles”; one Reactive Osmosis per Cycle; −1 Stress after a quiet Cycle (§4.2, §5.8)<\/td><\/tr><tr><td><b>Pulse War<\/b><\/td><td>usually 3–6 Cycles (~18–36 s)<\/td><td>a Detection Phase, then Cycles<\/td><td>a fight<\/td><td>“Once per Pulse War” abilities; a fight is one scene (§4.1, §4.14)<\/td><\/tr><tr><td><b>Scene<\/b><\/td><td>up to ~1 Fugue Interval<\/td><td>as many Cycles or exchanges as it needs<\/td><td>one situation, one purpose, one place<\/td><td>“Once per scene” abilities (see What a scene is, below)<\/td><\/tr><tr><td><b>Fugue Interval<\/b><\/td><td>~1 hour<\/td><td>600 Cycles<\/td><td>an hour<\/td><td>A Reconstitution; one travel segment; foraging; a Chemotactic Rite; hazards that tick every hour (§5.10, §8.2)<\/td><\/tr><tr><td><b>Dormant Cycle<\/b><\/td><td>6 hours<\/td><td>6 Fugue Intervals<\/td><td>a night's sleep<\/td><td>Long rest: full MI, Lysis Countdown cleared, once-per-encounter features refreshed (§5.10)<\/td><\/tr><tr><td><b>Metabolic Beat<\/b><\/td><td>~1 day<\/td><td>24 Fugue Intervals: 20 lit, 4 dim<\/td><td>a day<\/td><td>Downtime, rituals, Re-Synthesis (1d6 Beats); meals are chemical, not culinary<\/td><\/tr><tr><td><b>Pulse Ten<\/b><\/td><td>10 Beats<\/td><td>10 Beats, labelled Beat 1–10<\/td><td>a week<\/td><td>The app's calendar only: the books name no week. Three Pulse Tens fill a Drift Season. (app convention)<\/td><\/tr><tr><td><b>Drift Season<\/b><\/td><td>~30 Beats<\/td><td>30 Beats<\/td><td>a season<\/td><td>Current routing changes; trade contracts rewrite; one phase of the Tide (Codex §5.3)<\/td><\/tr><tr><td><b>Osmotic Tide<\/b><\/td><td>~4 Drift Seasons (~120 Beats)<\/td><td>Isotonic Rise → Hypertonic Zenith → Isotonic Fall → Hypotonic Zenith<\/td><td>a year<\/td><td>The world's grand tonicity swing: every region's numbers move; “once per Tide” abilities (Codex Ch. V)<\/td><\/tr><tr><td><b>Great Cycle<\/b><\/td><td>16 Tides (~1,900 Beats)<\/td><td>64 Drift Seasons<\/td><td>a generation<\/td><td>Registers are purged; old debts are re-read (Codex §5.1)<\/td><\/tr><\/table><\/div><div class=\"subgroup\"><h3 style=\"margin:0 0 4px\">Conversions<\/h3><table class=\"tbl\"><tr><th><\/th><th>Pulse Cycles<\/th><th>Fugue Intervals<\/th><th>Metabolic Beats<\/th><\/tr><tr><td><b>1 minute<\/b><\/td><td>10<\/td><td><\/td><td><\/td><\/tr><tr><td><b>1 Fugue Interval<\/b><\/td><td>600<\/td><td>1<\/td><td>1⁄24<\/td><\/tr><tr><td><b>1 Dormant Cycle<\/b><\/td><td>3,600<\/td><td>6<\/td><td>¼<\/td><\/tr><tr><td><b>1 Metabolic Beat<\/b><\/td><td>14,400<\/td><td>24<\/td><td>1<\/td><\/tr><tr><td><b>1 Pulse Ten (app)<\/b><\/td><td>144,000<\/td><td>240<\/td><td>10<\/td><\/tr><tr><td><b>1 Drift Season<\/b><\/td><td>432,000<\/td><td>720<\/td><td>30<\/td><\/tr><tr><td><b>1 Osmotic Tide<\/b><\/td><td>1,728,000<\/td><td>2,880<\/td><td>120<\/td><\/tr><tr><td><b>1 Great Cycle<\/b><\/td><td><\/td><td>46,080<\/td><td>1,920 (the Codex prints ~1,900)<\/td><\/tr><\/table><\/div><div class=\"subgroup\"><h3 style=\"margin:0 0 4px\">The four phases of an Osmotic Tide<\/h3><div class=\"small dim\">Each phase lasts one Drift Season (~30 Beats); the four together are one Tide (CODEX §5.3).<\/div><table class=\"tbl\"><tr><th>Phase<\/th><th>Regions trend<\/th><th>At the table<\/th><\/tr><tr><td><b>Isotonic Rise<\/b><\/td><td>neutral → slightly hypertonic<\/td><td>travel is cheap; healing normal; PP full<\/td><\/tr><tr><td><b>Hypertonic Zenith<\/b><\/td><td>all regions hypertonic<\/td><td>DFF pools −2, PP −1, Drift +1 PP, healing halved, VSC +2<\/td><\/tr><tr><td><b>Isotonic Fall<\/b><\/td><td>neutral → slightly hypotonic<\/td><td>regeneration strengthens; Harvest yields +1 grade<\/td><\/tr><tr><td><b>Hypotonic Zenith<\/b><\/td><td>all regions hypotonic<\/td><td>DFF +2, PP +1, MT −2, Turgid on heavy hits<\/td><\/tr><\/table><\/div><div class=\"subgroup\"><h3 style=\"margin:0 0 4px\">Recovery, by time<\/h3><table class=\"tbl\"><tr><th>Recovery<\/th><th>Takes<\/th><th>Clears<\/th><\/tr><tr><td><b>A quiet Cycle (no ATP spent, no damage taken)<\/b><\/td><td>1 Cycle<\/td><td>−1 Stress<\/td><\/tr><tr><td><b>Vent<\/b><\/td><td>1 PP in combat (2 ATP)<\/td><td>−2 Stress<\/td><\/tr><tr><td><b>Chemotactic Rite<\/b><\/td><td>1 Fugue Interval (3 Substrate each)<\/td><td>all Stress and +2 Cohesion (CORE §5.8, §11.6)<\/td><\/tr><tr><td><b>Reconstitution (short rest)<\/b><\/td><td>1 Fugue Interval<\/td><td>all Stress, full ATP, heal VSC + Hull MI<\/td><\/tr><tr><td><b>Dormant Cycle (long rest)<\/b><\/td><td>6 hours<\/td><td>full MI, Lysis Countdown cleared, once-per-encounter features refreshed<\/td><\/tr><\/table><\/div><div class=\"subgroup\"><h3 style=\"margin:0 0 4px\">Worth knowing<\/h3><ul style=\"margin:4px 0 0 18px;padding:0\"><li><b>What a scene is.<\/b> One continuous situation with one purpose in one place. It ends when the place, the purpose or the people change, or after about one Fugue Interval — and every <i>once per scene<\/i> ability resets. A Beat holds many scenes (CORE §8.1).<\/li><li><b>Two “Tides”.<\/b> “Once per Tide” always means the Osmotic Tide (a year). The Codex's mass-battle rules (Codex §3.6) also count a <i>battle<\/i> Tide of one Fugue Interval; that use stays inside mass conflict.<\/li><li><b>Great Cycle arithmetic.<\/b> 16 × 4 × 30 = 1,920 Beats; the Codex prints “~1,900”.<\/li><li><b>App conventions, not rules:<\/b> the Pulse Ten week, and the Director's “+10 min” button (100 Cycles).<\/li><\/ul><\/div>"; }
+  function screenMetabolicTime() { return "<div class=\"featcheck\"><h2>Metabolic Time<\/h2><span class=\"badge\">the Rhythm<\/span><span class=\"cite\">CORE §8.1 · CODEX §5.1, §5.3<\/span><\/div><div class=\"mtx\"><div class=\"mtx-hero\"><h3>The Expanse does not count hours. It counts the Rhythm of bodies.<\/h3><p>Every unit of time in the Expanse is named for something a body does: it pulses, it beats, it drifts into fugue, it goes dormant. The rules call this <b>Metabolic Time<\/b>; organisms simply call it <b>the Rhythm<\/b> (<i>“by the Rhythm, it is the third Beat of the Rise”<\/i>).<\/p><div class=\"mtx-scalewrap\"><svg class=\"mtx-scale\" viewBox=\"0 0 1100 150\" role=\"img\" aria-label=\"Every unit of Metabolic Time on one scale, from the 6-second Pulse Cycle to the Great Cycle of 16 Tides\"><line x1=\"60\" y1=\"74\" x2=\"1040\" y2=\"74\" stroke=\"var(--line)\" stroke-width=\"3\" stroke-linecap=\"round\"/><circle cx=\"60.0\" cy=\"74\" r=\"8\" fill=\"var(--accent)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"60.0\" y1=\"66\" x2=\"60.0\" y2=\"48\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"60.0\" y=\"26\" text-anchor=\"start\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Pulse Cycle<\/text><text x=\"60.0\" y=\"42\" text-anchor=\"start\" font-size=\"12.5\" fill=\"var(--dim)\">6 s<\/text><circle cx=\"425.9\" cy=\"74\" r=\"6\" fill=\"var(--panel)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"425.9\" y1=\"82\" x2=\"425.9\" y2=\"100\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"425.9\" y=\"116\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Fugue Interval<\/text><text x=\"425.9\" y=\"134\" text-anchor=\"middle\" font-size=\"12.5\" fill=\"var(--dim)\">~1 hour<\/text><circle cx=\"528.3\" cy=\"74\" r=\"6\" fill=\"var(--panel)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"528.3\" y1=\"66\" x2=\"528.3\" y2=\"48\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"528.3\" y=\"26\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Dormant Cycle<\/text><text x=\"528.3\" y=\"42\" text-anchor=\"middle\" font-size=\"12.5\" fill=\"var(--dim)\">6 hours<\/text><circle cx=\"607.6\" cy=\"74\" r=\"8\" fill=\"var(--accent)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"607.6\" y1=\"82\" x2=\"607.6\" y2=\"100\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"607.6\" y=\"116\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Beat<\/text><text x=\"607.6\" y=\"134\" text-anchor=\"middle\" font-size=\"12.5\" fill=\"var(--dim)\">~1 day<\/text><circle cx=\"739.3\" cy=\"74\" r=\"6\" fill=\"var(--panel)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"739.3\" y1=\"66\" x2=\"739.3\" y2=\"48\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"739.3\" y=\"26\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Pulse Ten<\/text><text x=\"739.3\" y=\"42\" text-anchor=\"middle\" font-size=\"12.5\" fill=\"var(--dim)\">10 days<\/text><circle cx=\"802.1\" cy=\"74\" r=\"6\" fill=\"var(--panel)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"802.1\" y1=\"82\" x2=\"802.1\" y2=\"100\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"802.1\" y=\"116\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Drift Season<\/text><text x=\"802.1\" y=\"134\" text-anchor=\"middle\" font-size=\"12.5\" fill=\"var(--dim)\">~30 days<\/text><circle cx=\"881.4\" cy=\"74\" r=\"8\" fill=\"var(--accent)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"881.4\" y1=\"66\" x2=\"881.4\" y2=\"48\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"881.4\" y=\"26\" text-anchor=\"middle\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Osmotic Tide<\/text><text x=\"881.4\" y=\"42\" text-anchor=\"middle\" font-size=\"12.5\" fill=\"var(--dim)\">~120 days<\/text><circle cx=\"1040.0\" cy=\"74\" r=\"8\" fill=\"var(--accent)\" stroke=\"var(--accent)\" stroke-width=\"2.5\"/><line x1=\"1040.0\" y1=\"82\" x2=\"1040.0\" y2=\"100\" stroke=\"var(--line)\" stroke-width=\"1.5\"/><text x=\"1040.0\" y=\"116\" text-anchor=\"end\" font-size=\"15\" font-weight=\"700\" fill=\"var(--ink)\">Great Cycle<\/text><text x=\"1040.0\" y=\"134\" text-anchor=\"end\" font-size=\"12.5\" fill=\"var(--dim)\">16 Tides<\/text><text x=\"242.9\" y=\"90\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×600<\/text><text x=\"477.1\" y=\"70\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×6<\/text><text x=\"568.0\" y=\"90\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×4<\/text><text x=\"673.5\" y=\"70\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×10<\/text><text x=\"770.7\" y=\"90\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×3<\/text><text x=\"841.8\" y=\"70\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×4<\/text><text x=\"960.7\" y=\"90\" text-anchor=\"middle\" font-size=\"11.5\" font-weight=\"600\" fill=\"var(--accent)\">×16<\/text><text x=\"60\" y=\"146\" font-size=\"11.5\" fill=\"var(--faint)\">Each step to the right is a longer unit; the gaps show how many of one fit into the next (log scale).<\/text><\/svg><\/div><\/div><div class=\"mtx-sec\"><h3>Every unit, shortest to longest<\/h3><div class=\"mtx-units\"><div class=\"mtx-unit\"><div><div class=\"nm\">Turn<\/div><div class=\"len\">your share of a Cycle<\/div><div class=\"felt\">felt as your moment to act<\/div><\/div><div><div class=\"made\">the smallest unit<\/div><div class=\"gov\">You receive Pulse Points (2 + DFF) and spend them; Split Frequency holds some to act later in the same Cycle (§4.2)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Pulse Cycle<\/div><div class=\"len\">6 seconds<\/div><div class=\"felt\">felt as a combat round<\/div><\/div><div><div class=\"made\">made of one turn for every organism, in Frequency order<\/div><div class=\"gov\">Combat; durations of “N Cycles”; one Reactive Osmosis per Cycle; −1 Stress after a quiet Cycle (§4.2, §5.8)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Pulse War<\/div><div class=\"len\">usually 3–6 Cycles (~18–36 s)<\/div><div class=\"felt\">felt as a fight<\/div><\/div><div><div class=\"made\">made of a Detection Phase, then Cycles<\/div><div class=\"gov\">“Once per Pulse War” abilities; a fight is one scene (§4.1, §4.14)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Scene<\/div><div class=\"len\">up to ~1 Fugue Interval<\/div><div class=\"felt\">felt as one situation, one purpose, one place<\/div><\/div><div><div class=\"made\">made of as many Cycles or exchanges as it needs<\/div><div class=\"gov\">“Once per scene” abilities (see What a scene is, below)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Fugue Interval<\/div><div class=\"len\">~1 hour<\/div><div class=\"felt\">felt as an hour<\/div><\/div><div><div class=\"made\">made of 600 Cycles<\/div><div class=\"gov\">A Reconstitution; one travel segment; foraging; a Chemotactic Rite; hazards that tick every hour (§5.10, §8.2)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Dormant Cycle<\/div><div class=\"len\">6 hours<\/div><div class=\"felt\">felt as a night&#x27;s sleep<\/div><\/div><div><div class=\"made\">made of 6 Fugue Intervals<\/div><div class=\"gov\">Long rest: full MI, Lysis Countdown cleared, once-per-encounter features refreshed (§5.10)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Metabolic Beat<\/div><div class=\"len\">~1 day<\/div><div class=\"felt\">felt as a day<\/div><\/div><div><div class=\"made\">made of 24 Fugue Intervals: 20 lit, 4 dim<\/div><div class=\"gov\">Downtime, rituals, Re-Synthesis (1d6 Beats); meals are chemical, not culinary<\/div><\/div><\/div><div class=\"mtx-unit app\"><div><div class=\"nm\">Pulse Ten<\/div><div class=\"len\">10 Beats<\/div><div class=\"felt\">felt as a week<\/div><\/div><div><div class=\"made\">made of 10 Beats, labelled Beat 1–10<\/div><div class=\"gov\">The app's calendar only: the books name no week. Three Pulse Tens fill a Drift Season.<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Drift Season<\/div><div class=\"len\">~30 Beats<\/div><div class=\"felt\">felt as a season<\/div><\/div><div><div class=\"made\">made of 30 Beats<\/div><div class=\"gov\">Current routing changes; trade contracts rewrite; one phase of the Tide (Codex §5.3)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Osmotic Tide<\/div><div class=\"len\">~4 Drift Seasons (~120 Beats)<\/div><div class=\"felt\">felt as a year<\/div><\/div><div><div class=\"made\">made of Isotonic Rise → Hypertonic Zenith → Isotonic Fall → Hypotonic Zenith<\/div><div class=\"gov\">The world's grand tonicity swing: every region's numbers move; “once per Tide” abilities (Codex Ch. V)<\/div><\/div><\/div><div class=\"mtx-unit\"><div><div class=\"nm\">Great Cycle<\/div><div class=\"len\">16 Tides (~1,900 Beats)<\/div><div class=\"felt\">felt as a generation<\/div><\/div><div><div class=\"made\">made of 64 Drift Seasons<\/div><div class=\"gov\">Registers are purged; old debts are re-read (Codex §5.1)<\/div><\/div><\/div><\/div><\/div><div class=\"mtx-sec\"><h3>The four phases of an Osmotic Tide<\/h3><div class=\"sub\">Each phase lasts one Drift Season (~30 Beats); together they make one Tide (CODEX §5.3). The salty season favours the Dry, the watery season the Swollen.<\/div><div class=\"mtx-phases\"><div class=\"mtx-ph \"><div class=\"ord\">1 of 4<\/div><h4>Isotonic Rise<\/h4><div class=\"plain\">the gentle season<\/div><div class=\"tr\">regions: neutral → slightly hypertonic<\/div><div class=\"tbl-eff\">travel is cheap; healing normal; PP full<\/div><\/div><div class=\"mtx-ph salt\"><div class=\"ord\">2 of 4<\/div><h4>Hypertonic Zenith<\/h4><div class=\"plain\">the salty season<\/div><div class=\"tr\">regions: all regions hypertonic<\/div><div class=\"tbl-eff\">DFF pools −2, PP −1, Drift +1 PP, healing halved, VSC +2<\/div><\/div><div class=\"mtx-ph \"><div class=\"ord\">3 of 4<\/div><h4>Isotonic Fall<\/h4><div class=\"plain\">the funeral season<\/div><div class=\"tr\">regions: neutral → slightly hypotonic<\/div><div class=\"tbl-eff\">regeneration strengthens; Harvest yields +1 grade<\/div><\/div><div class=\"mtx-ph water\"><div class=\"ord\">4 of 4<\/div><h4>Hypotonic Zenith<\/h4><div class=\"plain\">the watery season<\/div><div class=\"tr\">regions: all regions hypotonic<\/div><div class=\"tbl-eff\">DFF +2, PP +1, MT −2, Turgid on heavy hits<\/div><\/div><\/div><\/div><div class=\"mtx-sec\"><h3>Conversions<\/h3><table class=\"mtx-tbl\"><tr><th>One…<\/th><th>Pulse Cycles<\/th><th>Fugue Intervals<\/th><th>Beats<\/th><\/tr><tr><td>1 minute<\/td><td>10<\/td><td><\/td><td><\/td><\/tr><tr><td>1 Fugue Interval<\/td><td>600<\/td><td>1<\/td><td>1⁄24<\/td><\/tr><tr><td>1 Dormant Cycle<\/td><td>3,600<\/td><td>6<\/td><td>¼<\/td><\/tr><tr><td>1 Metabolic Beat<\/td><td>14,400<\/td><td>24<\/td><td>1<\/td><\/tr><tr><td>1 Pulse Ten (app)<\/td><td>144,000<\/td><td>240<\/td><td>10<\/td><\/tr><tr><td>1 Drift Season<\/td><td>432,000<\/td><td>720<\/td><td>30<\/td><\/tr><tr><td>1 Osmotic Tide<\/td><td>1,728,000<\/td><td>2,880<\/td><td>120<\/td><\/tr><tr><td>1 Great Cycle<\/td><td>27,648,000<\/td><td>46,080<\/td><td>1,920<\/td><\/tr><tr><td class=\"note\" colspan=\"4\">The Codex prints “~1,900 Beats” for a Great Cycle; 16 × 4 × 30 makes it 1,920.<\/td><\/tr><\/table><\/div><div class=\"mtx-sec\"><h3>Recovery, by time<\/h3><div class=\"sub\">From the quickest relief to the full night's rest.<\/div><div class=\"mtx-ladder\"><div class=\"mtx-rung\"><div><b>A quiet Cycle<\/b> <span class=\"c\">(no ATP spent, no damage taken)<\/span><\/div><div class=\"t\">1 Cycle<\/div><div class=\"c\">−1 Stress<\/div><\/div><div class=\"mtx-rung\"><div><b>Vent<\/b><\/div><div class=\"t\">1 PP in combat (2 ATP)<\/div><div class=\"c\">−2 Stress<\/div><\/div><div class=\"mtx-rung\"><div><b>Chemotactic Rite<\/b> <span class=\"c\">(a shared meal)<\/span><\/div><div class=\"t\">1 Fugue Interval (3 Substrate each)<\/div><div class=\"c\">all Stress and +2 Cohesion (CORE §5.8, §11.6)<\/div><\/div><div class=\"mtx-rung\"><div><b>Reconstitution<\/b> <span class=\"c\">(short rest)<\/span><\/div><div class=\"t\">1 Fugue Interval<\/div><div class=\"c\">all Stress, full ATP, heal VSC + Hull MI<\/div><\/div><div class=\"mtx-rung\"><div><b>Dormant Cycle<\/b> <span class=\"c\">(long rest)<\/span><\/div><div class=\"t\">6 hours<\/div><div class=\"c\">full MI, Lysis Countdown cleared, once-per-encounter features refreshed<\/div><\/div><\/div><\/div><div class=\"mtx-sec\"><h3>Worth knowing<\/h3><div class=\"mtx-notes\"><div class=\"mtx-note\"><b>What a scene is<\/b>One continuous situation with one purpose in one place. It ends when the place, the purpose or the people change, or after about one Fugue Interval, and every <i>once per scene<\/i> ability resets. A Beat holds many scenes (CORE §8.1).<\/div><div class=\"mtx-note\"><b>Two kinds of “Tide”<\/b>“Once per Tide” always means the Osmotic Tide (a year). The Codex's mass-battle rules (Codex §3.6) also count a <i>battle<\/i> Tide of one Fugue Interval; that use stays inside mass conflict.<\/div><div class=\"mtx-note\"><b>App conventions, not rules<\/b>The Pulse Ten week, and the Director's “+10 min” button (100 Cycles), are the app's own; the books name neither.<\/div><div class=\"mtx-note\"><b>Saying the time<\/b>Organisms say “by the Rhythm, it is the third Beat of the Rise”: the Beat, then the Tide phase.<\/div><\/div><\/div><\/div>"; }
 
   function screenRollHelper() {
     var mode = rhStr("rh-mode", "attack");
     var out = '<div class="featcheck"><h2>Roll Helper</h2><span class="badge">step by step</span>' +
       '<span class="cite">build a Reagent Pool for an attack or a defence, see what every choice costs, then roll</span>' + dmflag() + "</div>";
-    out += '<div class="row">' + '<button class="btn ' + (mode === "attack" ? "primary" : "small") + '" type="button" data-rhmode="attack">⚔ I am attacking</button>' +
-      '<button class="btn ' + (mode === "defence" ? "primary" : "small") + '" type="button" data-rhmode="defence">🛡 I am being attacked</button>' +
-      '<span class="small dim">A roll is a pool of d6: 1s score nothing and mark 1 Stress each; the rest add up; reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';
-    out += mode === "defence" ? rhDefence() : rhAttack();
+    out += '<div class="rh-top"><div class="rh-seg" role="group" aria-label="Which roll">' +
+      '<button type="button" data-rhmode="attack" aria-pressed="' + (mode === "attack") + '">⚔ I am attacking</button>' +
+      '<button type="button" data-rhmode="defence" aria-pressed="' + (mode === "defence") + '">🛡 I am being attacked</button></div>' +
+      '<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';
+    var flow = mode === "defence" ? rhDefence() : rhAttack();
+    out += '<div class="rh-flow">' + flow.replace("<!--RHHERO-->", rhHero(mode)) + "</div>";
     var log = osmo().rollLog || [];
     if (log.length) out += '<details class="subgroup"><summary>Recent rolls (' + log.length + ")</summary><div class=\"log\">" + log.slice().reverse().map(function (l) { return "<div>" + esc(l) + "</div>"; }).join("") + "</div></details>";
     return out;
@@ -21672,7 +21807,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     if (t.getAttribute("data-rhmode")) { FORM_MEMORY["rh-mode"] = t.getAttribute("data-rhmode"); render(); return; }
     if (t.getAttribute("data-rhroll") === "attack") {
       var S0 = RH_LAST._attackSetup; if (!S0) return;
-      var dice = rhDice(S0.pool), r = rhRead(dice);
+      var dice = rhDice(S0.pool), r = rhRead(dice); RH_FRESH = Date.now();
       RH_LAST.attack = Object.assign({}, S0, { dice: dice, total: r.total, inhib: r.inhib, runaway: r.runaway });
       rhLog(S0.who + " strikes with " + S0.weapon + ": " + dice.join(" ") + " = " + r.total + " vs MT " + S0.mt + (r.total >= S0.mt ? " (hit)" : " (miss)"));
     }
@@ -21680,7 +21815,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
       var D0 = RH_LAST._defenceSetup; if (!D0) return;
       var L = Object.assign({}, D0);
       if (D0.how === "typed") { L.total = D0.typed; L.dice = null; }
-      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total = rr.total; }
+      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total = rr.total; RH_FRESH = Date.now(); }
       RH_LAST.defence = L;
       rhLog(D0.who + " is attacked: total " + L.total + " vs MT " + D0.mt + (L.total >= D0.mt ? " (hit)" : " (miss)"));
     }
