@@ -5,6 +5,7 @@ sys.path.insert(0, __import__("os").path.dirname(__import__("os").path.abspath(_
 from content import ROWS, INTRO2, TIDES
 src, dst = sys.argv[1:3]
 h = open(src, encoding="utf-8").read()
+assert '<style id="ox-style-rm">' not in h, "apply this to the app as it was before the restyle (git show c1246f4:<file>), not to its own output"
 
 def rep(a, b, n=1):
     global h
@@ -162,6 +163,81 @@ CSS = r"""
 .mtx-units{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (max-width:1100px){.mtx-units{grid-template-columns:1fr}}
 .mtx-unit{grid-template-columns:150px minmax(0,1fr);padding:10px 14px;gap:12px}
+
+/* Roll Helper, no scrolling: the steps sit side by side as compact cards, three across */
+@media (min-width:1051px){
+.rh-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:10px;overflow:hidden;padding-right:0;scrollbar-gutter:auto}
+.rh-steps>.rh-step{display:block;padding:0;min-height:0;overflow:hidden}
+.rh-steps>.rh-step::before{display:none}
+.rh-steps .rh-num{position:absolute;top:10px;left:11px;width:22px;height:22px;font-size:12px;border-width:1.5px}
+.rh-steps .rh-body{height:100%;overflow:auto;padding:8px 10px 5px;border-radius:12px;scrollbar-width:thin}
+.rh-steps .rh-body>h3{padding-left:28px;font-size:14.5px;margin:1px 0 6px;min-height:22px}
+.rh-steps .rh-body .row{gap:5px 7px;margin:4px 0}
+.rh-steps .rh-body .lbl{font-size:12px}
+.rh-steps .rh-body input[type=number]{width:46px;height:28px;font-size:13.5px;padding:0 5px;border-radius:6px}
+.rh-steps .rh-body select{height:30px;font-size:13px;padding:0 6px;max-width:100%}
+.rh-steps .rh-body label.small:has(input[type=checkbox]){padding:4px 9px;font-size:12.5px}
+.rh-steps .rh-body .small{font-size:12.5px;line-height:1.4}
+.rh-steps .rh-body .rhi{font-size:12px;padding:0 1px}
+.rh-steps .rh-step:has(#ra-od) .rh-body>.small:not(.warnbox){display:none}
+.rh-flow{grid-template-columns:minmax(0,1fr) minmax(300px,360px);gap:14px}
+.rh-flow>.rh-final{overflow:hidden;display:block}
+.rh-flow>.rh-final .rh-body{height:100%;overflow:auto;gap:8px;padding:10px 12px;scrollbar-width:thin}
+.rh-final .rh-num{display:none}
+.rh-final .rh-body>h3{font-size:15px}
+.rh-hero{padding:10px 12px}
+.rh-hero .n{font-size:40px}
+.rh-ghost{width:20px;height:20px;border-radius:5px}
+.rh-hero .pips{margin-top:4px;gap:5px}
+.rh-final [data-rhroll]{height:42px;font-size:16px}
+.rh-final .promptbox{padding:9px 11px;gap:5px;font-size:13px}
+.rh-die{width:34px;height:34px;font-size:17px;border-radius:8px}
+.rh-final .promptbox .pill.ok,.rh-final .promptbox .pill.no{font-size:15px;padding:5px 12px}
+}
+
+@media (min-width:1051px){
+.rh-steps{grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));grid-auto-rows:0}
+.rh-steps.attack>.rh-step:nth-child(1){grid-column:1 / 3;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(2){grid-column:3;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(5){grid-column:4;grid-row:1}
+.rh-steps.attack>.rh-step:nth-child(3){grid-column:1 / 4;grid-row:2}
+.rh-steps.attack>.rh-step:nth-child(4){grid-column:4;grid-row:2}
+.rh-steps.defence>.rh-step:nth-child(1){grid-column:1 / 3;grid-row:1}
+.rh-steps.defence>.rh-step:nth-child(2){grid-column:3 / 5;grid-row:1}
+.rh-steps.defence>.rh-step:nth-child(3){grid-column:1 / 3;grid-row:2}
+.rh-steps.defence>.rh-step:nth-child(4){grid-column:3 / 5;grid-row:2}
+.rh-final:has(.promptbox) .rh-hero .pips{display:none}
+.rh-final:has(.promptbox) .rh-hero{padding:6px 12px}
+.rh-final:has(.promptbox) .rh-hero .n{font-size:30px}
+.rh-final .promptbox .small{font-size:12px}
+.rh-final .rh-body>.row:has(input) .lbl{font-size:12px}
+.rh-final .rh-body>.row:has(input) input[type=number]{width:48px;height:28px}
+}
+.featcheck.rh-head{align-items:center;padding-bottom:8px;margin-bottom:10px}
+.rh-head .rh-top{flex:1 1 auto;margin:0 0 0 8px;gap:10px}
+.rh-head .rh-seg button{padding:8px 14px;font-size:13.5px}
+.rh-rule{cursor:help;font-size:13px;color:var(--dim);border-bottom:1px dotted var(--faint)}
+.rh-rule:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (min-width:1051px){
+.rh-flow{grid-template-columns:minmax(0,1fr) minmax(290px,330px)}
+.rh-steps .rh-step:has([id$="-who"]) .rh-body>.row>.lbl:first-child:not(:only-child){position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.rh-steps .rh-step:has([id$="-who"]) .rh-body>.row:first-of-type>.lbl:first-child{position:static;width:auto;height:auto;clip:auto}
+.rh-steps .rh-step:has(#ra-weapon) .rh-body>.small.dim{display:none}
+.rh-final:has(.promptbox) .rh-hero{display:none}
+.rh-steps .rh-body>h3{margin-bottom:4px}
+.rh-steps{gap:8px}
+}
+.rh-top{position:relative}
+.rh-log{margin-left:auto;position:relative;font-size:13px}
+.rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
+.rh-log>summary::-webkit-details-marker{display:none}
+.rh-log[open]>summary{color:var(--ink);border-color:var(--accent)}
+.rh-log>.log{position:absolute;right:0;top:calc(100% + 6px);z-index:20;width:min(560px,80vw);max-height:50vh;overflow:auto;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:0 18px 50px rgba(0,0,0,.45);font-size:13px;line-height:1.5}
+.rh-final .rhf h4{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;margin:0}
+.rh-final .rhf h4::before{content:"\25B8";color:var(--accent);transition:transform .15s}
+.rh-final.eq-open .rhf h4::before{transform:rotate(90deg)}
+.rh-final:not(.eq-open) .rhf>:not(h4){display:none}
+.rh-final .rhf h4:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 """
 h = re.sub(r'<style id="ox-style-rm">.*?</style>\n?', "", h, flags=re.S)
 i = h.find("</head>"); assert i > 0
@@ -203,8 +279,12 @@ rep('''  function rhDiceHtml(dice) {
 OLD_FLOW = '''    out += '<div class="rh-flow">' + flow.replace("<!--RHHERO-->", rhHero(mode)) + "</div>";'''
 NEW_FLOW = '''    flow = flow.replace("<!--RHHERO-->", rhHero(mode));
     var cut = flow.indexOf('<section class="rh-step rh-final"');
-    out += '<div class="rh-flow ox-fit"><div class="rh-steps" data-oxkeep="rh-steps-' + mode + '">' + flow.slice(0, cut) + "</div>" + flow.slice(cut).replace('<section class="rh-step rh-final"', '<section data-oxkeep="rh-final-' + mode + '" class="rh-step rh-final"') + "</div>";'''
+    out += '<div class="rh-flow ox-fit"><div class="rh-steps ' + mode + '" data-oxkeep="rh-steps-' + mode + '">' + flow.slice(0, cut) + "</div>" + flow.slice(cut).replace('<section class="rh-step rh-final"', '<section data-oxkeep="rh-final-' + mode + '" class="rh-step rh-final"') + "</div>";'''
 if OLD_FLOW in h: h = h.replace(OLD_FLOW, NEW_FLOW)
+# the roll log: from below the steps into the top bar
+h = h.replace("""<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';""",
+              """<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span><!--RHLOG--></div>';""")
+h = h.replace("""<div class="rh-flow ox-fit"><div class="rh-steps" data-oxkeep=""", """<div class="rh-flow ox-fit"><div class="rh-steps ' + mode + '" data-oxkeep=""")
 rep('''    out += '<div class="row">' + '<button class="btn ' + (mode === "attack" ? "primary" : "small") + '" type="button" data-rhmode="attack">⚔ I am attacking</button>' +
       '<button class="btn ' + (mode === "defence" ? "primary" : "small") + '" type="button" data-rhmode="defence">🛡 I am being attacked</button>' +
       '<span class="small dim">A roll is a pool of d6: 1s score nothing and mark 1 Stress each; the rest add up; reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';
@@ -212,14 +292,30 @@ rep('''    out += '<div class="row">' + '<button class="btn ' + (mode === "attac
 '''    out += '<div class="rh-top"><div class="rh-seg" role="group" aria-label="Which roll">' +
       '<button type="button" data-rhmode="attack" aria-pressed="' + (mode === "attack") + '">⚔ I am attacking</button>' +
       '<button type="button" data-rhmode="defence" aria-pressed="' + (mode === "defence") + '">🛡 I am being attacked</button></div>' +
-      '<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span></div>';
+      '<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span><!--RHLOG--></div>';
     var flow = mode === "defence" ? rhDefence() : rhAttack();
     flow = flow.replace("<!--RHHERO-->", rhHero(mode));
     var cut = flow.indexOf('<section class="rh-step rh-final"');
-    out += '<div class="rh-flow ox-fit"><div class="rh-steps" data-oxkeep="rh-steps-' + mode + '">' + flow.slice(0, cut) + "</div>" + flow.slice(cut).replace('<section class="rh-step rh-final"', '<section data-oxkeep="rh-final-' + mode + '" class="rh-step rh-final"') + "</div>";''')
+    out += '<div class="rh-flow ox-fit"><div class="rh-steps ' + mode + '" data-oxkeep="rh-steps-' + mode + '">' + flow.slice(0, cut) + "</div>" + flow.slice(cut).replace('<section class="rh-step rh-final"', '<section data-oxkeep="rh-final-' + mode + '" class="rh-step rh-final"') + "</div>";''')
 
 rep('''      var dice = rhDice(S0.pool), r = rhRead(dice);''', '''      var dice = rhDice(S0.pool), r = rhRead(dice); RH_FRESH = Date.now();''')
 rep('''      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total = rr.total; }''', '''      else { L.dice = rhDice(D0.pool); var rr = rhRead(L.dice); L.total = rr.total; RH_FRESH = Date.now(); }''')
+
+rep("""    if (log.length) out += '<details class="subgroup"><summary>Recent rolls (' + log.length + ")</summary><div class=\\"log\\">" + log.slice().reverse().map(function (l) { return "<div>" + esc(l) + "</div>"; }).join("") + "</div></details>";""",
+    """    out = out.replace("<!--RHLOG-->", log.length ? '<details class="rh-log"><summary>Recent rolls (' + log.length + ")</summary><div class=\\"log\\">" + log.slice().reverse().map(function (l) { return "<div>" + esc(l) + "</div>"; }).join("") + "</div></details>" : "");""")
+rep('out += rhStep(4, "Buy Reagents? (Overdrive — extra dice for ATP or MI) " + rhI("od"), odb);', 'out += rhStep(4, "Buy extra dice? (Overdrive) " + rhI("od"), odb);')
+
+# ---- compact: the switch joins the title line; shorter labels and result text
+rep("""    var out = '<div class="featcheck"><h2>Roll Helper</h2><span class="badge">step by step</span>' +
+      '<span class="cite">build a Reagent Pool for an attack or a defence, see what every choice costs, then roll</span>' + dmflag() + "</div>";""",
+    """    var out = '<div class="featcheck rh-head"><h2>Roll Helper</h2>' + dmflag() + "<!--RHTOP--></div>";""")
+h = h.replace("""    out += '<div class="rh-top"><div class="rh-seg\"""", """    out = out.replace("<!--RHTOP-->", '<div class="rh-top"><div class="rh-seg\"""")
+h = h.replace("""<span class="rh-rule">A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).</span><!--RHLOG--></div>';""",
+              """<span class="rh-rule" tabindex="0" title="A roll is a pool of d6. Every 1 scores nothing and marks 1 Stress; the rest add up to your Total. Reach the target number to succeed; the extra is Overflow (CORE §1.1).">ⓘ how a roll works</span><!--RHLOG--></div>');""")
+rep('rhChk("ra-deflect", "it Deflects (Reactive Osmosis: its MT +4)")', 'rhChk("ra-deflect", "it Deflects (MT +4)")')
+rep('rhChk("ra-odtrain", "has the Overdrive Training Adaptation (Overdrive costs 3 ATP / 3 MI, ATLAS §4.2)")', 'rhChk("ra-odtrain", "has Overdrive Training (costs 3)")')
+rep('"<div>Total <b>" + L.total + "</b> (the dice that are not 1s, added up) vs Membrane Threshold (MT) " + L.mt + " → "', '"<div>Total <b>" + L.total + "</b> vs MT " + L.mt + " "')
+rep(""""<div>Attacker's Total <b>" + L.total + "</b> vs your Membrane Threshold (MT) " + L.mt + " → \"""", """"<div>Its Total <b>" + L.total + "</b> vs your MT " + L.mt + " \"""")
 
 # ------------------------------------------------------------------ BitSight: one-line intro; the reader fills the window
 h = re.sub(r"(function screenBitSight\(\) \{\n    return '<div class=\"featcheck\"><h2>BitSight RSVP</h2><span class=\"badge\">speed reader</span>' \+\n)      '<span class=\"cite\">.*?\n  \}",
@@ -251,13 +347,20 @@ FIT = r"""
     var bs = document.getElementById("bitsight-frame"); if (bs && bs.offsetParent) size(bs);
     [].forEach.call(document.querySelectorAll("[data-oxkeep]"), function (el) { var k = el.getAttribute("data-oxkeep"); if (keep[k] != null && el.scrollTop !== keep[k]) el.scrollTop = keep[k]; });
     if (document.querySelector(".mtx")) mtShow(window.__mtSel || "units");
+    [].forEach.call(document.querySelectorAll(".rh-final"), function (f) {
+      f.classList.toggle("eq-open", !!window.__rhEq);
+      var h4 = f.querySelector(".rhf h4"); if (h4 && !h4.hasAttribute("tabindex")) { h4.setAttribute("tabindex", "0"); h4.setAttribute("role", "button"); }
+      if (h4) h4.setAttribute("aria-expanded", window.__rhEq ? "true" : "false");
+    });
   }
   document.addEventListener("scroll", function (e) { var el = e.target; if (el && el.getAttribute && el.getAttribute("data-oxkeep")) keep[el.getAttribute("data-oxkeep")] = el.scrollTop; }, true);
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-mtsel]");
     if (b) { window.__mtSel = b.getAttribute("data-mtsel"); keep["mtx-pane"] = 0; mtShow(window.__mtSel); var p = document.querySelector(".mtx-pane"); if (p) p.scrollTop = 0; return; }
+    if (e.target.closest && e.target.closest(".rh-final .rhf h4")) { window.__rhEq = !window.__rhEq; fit(); return; }
     if (e.target.closest && e.target.closest('[data-act="tab"]')) { setTimeout(fit, 30); setTimeout(fit, 250); }
   });
+  document.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target.closest && e.target.closest(".rh-final .rhf h4")) { e.preventDefault(); window.__rhEq = !window.__rhEq; fit(); } });
   window.addEventListener("resize", function () { requestAnimationFrame(fit); });
   try { new MutationObserver(function (ms) {
     for (var i = 0; i < ms.length; i++) if (ms[i].addedNodes.length) { fit(); return; }
