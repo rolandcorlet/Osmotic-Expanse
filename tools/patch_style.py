@@ -433,6 +433,26 @@ html[data-oxtab=campaign] #app>.subgroup>.subgroup>.row:last-child{margin-top:au
 html[data-oxtab=campaign] #app>.subgroup>.subgroup .small{white-space:normal}
 html[data-oxtab=campaign] #app>.subgroup>.subgroup details[open]{position:fixed;inset:6vh 8vw;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.6)}
 }
+/* ---- condition pickers: a pill that opens a floating list */
+.rh-conds{position:relative;display:inline-block;margin-left:auto}
+.rh-conds>summary{list-style:none;cursor:pointer;font:600 12px/1.2 system-ui,sans-serif;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel2,var(--bg));color:var(--dim);white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.rh-conds>summary::-webkit-details-marker{display:none}
+.rh-conds>summary .car{opacity:.7}
+.rh-conds.has>summary{color:var(--warn-c);border-color:color-mix(in srgb,var(--warn-c) 60%,var(--line));background:color-mix(in srgb,var(--warn-c) 10%,var(--panel))}
+.rh-conds[open]>summary{border-color:var(--accent);color:var(--ink)}
+.rh-cpop{position:fixed;z-index:60;min-width:310px;display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.55)}
+.rh-cpop .rh-cph{font:700 13px system-ui,sans-serif;color:var(--ink);margin-bottom:3px;display:flex;justify-content:space-between;gap:10px}
+.rh-cpop .rh-cph .dim{font-weight:500;font-size:11.5px;color:var(--faint)}
+.rh-cpop .rh-chip{display:flex;justify-content:space-between}
+.rh-cpop .rh-chip label.small{white-space:nowrap!important;border-radius:999px!important;flex:1}
+.rh-chips>.rh-conds{margin:0 0 2px}
+.rh-sub .rh-conds{margin:-4px 0 -4px auto}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-chips .rh-chip label.small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-chips{min-width:0;max-width:100%}
+.rh-sub .rh-conds>summary{padding:2px 9px;font-size:11.5px}
+@media (max-height:800px) and (min-width:1051px){.rh-steps .rh-chips{gap:3px}.rh-steps .rh-chip label.small{padding-top:2px;padding-bottom:2px}}
+.rh-step:has(details[data-oxopen][open]),.rh-steps:has(details[data-oxopen][open]),.rh-flow:has(details[data-oxopen][open]){position:relative;z-index:70}
+.rh-final .rh-cnote{color:var(--warn-c);font-size:12px}
 .rh-top{position:relative}
 .rh-log{margin-left:auto;position:relative;font-size:13px}
 .rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
@@ -572,7 +592,7 @@ splice('''    var odb = '<div class="small" style="margin-bottom:6px">''', "    
 splice('''    var tb = '<div class="row"><span class="lbl">target</span>' ''', "    out += rhStep(5, ", '''    var tb = '<div class="rh-fields hd">' + rhF("Target", "mt", rhSel("ra-target", rhCreatureOpts(), "manual"), "wide") + "</div>" +
       (tc ? '<div class="rh-meta">' + esc(tc.name) + " · MT <b>" + tc.mt + "</b> · soak <b>" + tc.soak + "</b></div>"
         : '<div class="rh-tiles">' + rhF("Its MT", "mt", rhInp("ra-tmt", 12, ' min="0"'), "tile wide2") + rhF("Its soak", "soak", rhInp("ra-tsoak", 0, ' min="0"'), "tile wide2") + "</div>") +
-      '<div class="rh-chips">' + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect") + rhChip(rhChk("ra-tinhib", "it Inhibits you (−2 dice)"), "tinhib") + "</div>";
+      '<div class="rh-chips">' + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect") + rhChip(rhChk("ra-tinhib", "it Inhibits you (−2)"), "tinhib") + "</div>";
 ''')
 h = h.replace('''      '<div class="row"><span class="lbl">Effect Value (from a Burst, else 0)</span>' + rhI("ev") + rhInp("ra-ev", 0, ' min="0"') + "</div>" +
 ''', "")
@@ -595,6 +615,108 @@ splice('''    var rb = '<div class="small dim">Reactions need''', "    var ppNee
       '<div class="rh-chips">' + rhChip(rhChk("rd-inhib", "Inhibition: " + inhibCost + " ATP + 1 held PP, attacker −2 dice"), "inhib") + "</div>" +
       '<div class="rh-meta">Reactions use a Pulse Point you held back (Reserve). One Reactive Osmosis per Cycle (CORE §4.10, §1.8).</div>';
 ''')
+
+# ------------------------------------------------------------------ Roll Helper: conditions (CORE §4.7) for the attacker, the target and the defender
+rep('''  function rhChip(chk, key) {''', '''  Object.assign(RH_INFO, {
+    brittle: ["Brittle", "A condition: the membrane has gone glassy.", "Usually from a Lytic hit's consequence. Ends with a Synthesise action and a Lipid patch.", "Graft soak halves against Kinetic damage; Lytic damage ignores 2 soak.", "CORE §4.7"],
+    encysted: ["Encysted", "A condition: sealed inside a cyst.", "Ends when you or an ally spends 3 ATP to crack the cyst.", "Takes half damage; cannot act; cannot be moved.", "CORE §4.7"],
+    flaccid: ["Flaccid", "A condition: shrunken, water pulled out.", "From an Osmotic hit or a Hypertonic region. Ends at the end of the next Cycle.", "VSC −2 (Weight attacks lose 2 dice); reach −1 band.", "CORE §4.7"],
+    denatured: ["Denatured", "A condition: catalytic functions impaired.", "Ends with an RTC save at the end of your turn.", "RTC −2 (Resonator and RTC Projector attacks lose 2 dice); Burst Effect Values halve.", "CORE §4.7"],
+    catabolic: ["Catabolic", "A condition: energy-starved.", "From a Thermic hit's consequence. Ends with a Reconstitution.", "Every ATP cost +1 (Overdrive costs 1 more ATP); ATP regeneration halved.", "CORE §4.7"],
+    locked: ["Locked", "A condition: signal jammed.", "From a Voltaic hit. Ends with a save each Cycle, or a Reactive Osmosis (Shed).", "Cannot Begin a Burst or use a class Burst feature, so no Effect Value.", "CORE §4.7"],
+    overclocked: ["Overclocked", "A condition: running too hot.", "Ends when you Vent, or after 3 Cycles.", "+1 PP, but mark 2 Stress at the end of each Cycle.", "CORE §4.7"],
+    masked: ["Masked", "A condition: no scent trail.", "Ends when you Strike, or after an enemy's successful Sense.", "Cannot be targeted by scent, OSM or tracking. Striking ends it.", "CORE §4.7"],
+    sequestered: ["Sequestered", "A condition: enclosed in gel, shell or a vortex.", "Ends when an ally breaks the cage, or a VSC save at −2 each Cycle.", "Cannot act.", "CORE §4.7"]
+  });
+  var RH_CN = { turgid: "Turgid", flaccid: "Flaccid", jostled: "Jostled", denatured: "Denatured", catabolic: "Catabolic", locked: "Locked", overclocked: "Overclocked", masked: "Masked",
+    sequestered: "Sequestered", encysted: "Encysted", brittle: "Brittle", marked: "Marked" };
+  function rhConds(key, title, list) {
+    var on = list.filter(function (x) { return rhOn(x[0]); });
+    return '<details class="rh-conds' + (on.length ? " has" : "") + '" data-oxopen="' + key + '"><summary title="' + esc(title) + '">' +
+      (on.length ? "⚠ " + on.map(function (x) { return RH_CN[x[2]] || x[2]; }).join(" · ") : title) + ' <span class="car">▾</span></summary><div class="rh-cpop"><div class="rh-cph">' + esc(title) + ' <span class="dim">CORE §4.7</span></div>' +
+      list.map(function (x) { return rhChip(rhChk(x[0], x[1]), x[2]); }).join("") + "</div></details>";
+  }
+  function rhEV() { var e = rhNum("ra-ev", 0); if (rhOn("ra-c-locked")) return 0; if (rhOn("ra-c-denatured")) e = Math.floor(e / 2); return e; }
+  function rhSoakAfter(soak, ty, brittle) { if (!brittle) return soak; if (ty === "Kinetic") return Math.floor(soak / 2); if (ty === "Lytic") return Math.max(0, soak - 2); return soak; }
+  function rhChip(chk, key) {''')
+
+# attacker's conditions sit on the "Right now" line of step 1
+rep("""    b += '<div class="rh-grp n"><div class="rh-sub">Right now</div><div class="rh-tiles">'""",
+    """    b += '<div class="rh-grp n"><div class="rh-sub">Right now' + (prefix === "ra" ? rhConds("ra-c", "Conditions on you", [["ra-c-turgid", "Turgid — DFF −2", "turgid"], ["ra-c-flaccid", "Flaccid — VSC −2, reach −1 band", "flaccid"],
+        ["ra-c-denatured", "Denatured — RTC −2, Burst EV halves", "denatured"], ["ra-c-catabolic", "Catabolic — ATP costs +1", "catabolic"], ["ra-c-locked", "Locked — no Burst, EV 0", "locked"],
+        ["ra-c-jostled", "Jostled — −1 PP this Cycle", "jostled"], ["ra-c-overclocked", "Overclocked — +1 PP, 2 Stress at Cycle end", "overclocked"], ["ra-c-masked", "Masked — striking ends it", "masked"],
+        ["ra-c-sequestered", "Sequestered — cannot act", "sequestered"], ["ra-c-encysted", "Encysted — cannot act", "encysted"]]) : "") + '</div><div class="rh-tiles">'""")
+
+# the attacker's grade loses 2 to Turgid / Flaccid / Denatured when it is the grade being rolled
+rep("""    var grade = ch.grades[baseKey] || 0, rank = ch.fromSheet ? (ch.ranks[pathName] || 0) : rhNum("ra-rank", 0);""",
+    """    var grade = ch.grades[baseKey] || 0, rank = ch.fromSheet ? (ch.ranks[pathName] || 0) : rhNum("ra-rank", 0);
+    var condCut = Math.min(grade, (baseKey === "DFF" && rhOn("ra-c-turgid") ? 2 : 0) + (baseKey === "VSC" && rhOn("ra-c-flaccid") ? 2 : 0) + (baseKey === "RTC" && rhOn("ra-c-denatured") ? 2 : 0));
+    var condName = baseKey === "DFF" ? "Turgid" : baseKey === "VSC" ? "Flaccid" : "Denatured";""")
+rep("""    var pool = Math.max(0, grade + rank + bonus + sitCap + odDice - (tinhib ? 2 : 0));""",
+    """    var pool = Math.max(0, grade + rank + bonus + sitCap + odDice - (tinhib ? 2 : 0) - condCut);""")
+rep("""    if (tinhib) poolTerms.push(rhT("target's Inhibition", "", -2, "tinhib"));""",
+    """    if (tinhib) poolTerms.push(rhT("target's Inhibition", "", -2, "tinhib"));
+    if (condCut) poolTerms.push(rhT(condName + " (" + baseKey + " −2)", "", -condCut, condName.toLowerCase()));""")
+rep("""    var odCost = (odTrain ? 3 : 4) + (st >= 6 ? 1 : 0)""", """    var odCost = (odTrain ? 3 : 4) + (st >= 6 ? 1 : 0) + (rhOn("ra-c-catabolic") ? 1 : 0)""")
+rep('''rhT("Effect Value", "EV", rhNum("ra-ev", 0), "ev")''', '''rhT("Effect Value", "EV", rhEV(), "ev")''')
+rep('''      var ev = rhNum("ra-ev", 0);''', '''      var ev = rhEV();''')
+
+# the target's conditions: MT, soak, half damage
+rep("""    var mtEff = tmt + (deflect ? 4 : 0);""", """    var tTurgid = rhOn("ra-t-turgid"), tJostled = rhOn("ra-t-jostled"), tBrittle = rhOn("ra-t-brittle"), tHalf = rhOn("ra-t-encysted");
+    var mtEff = tmt + (deflect ? 4 : 0) + (tTurgid ? -2 : 0) + (tJostled ? -2 : 0);
+    var hitTy = mom !== "0" ? "Kinetic" : a.ty, soakEff = rhSoakAfter(tsoak, hitTy, tBrittle);""")
+rep("""    if (deflect) mtTerms.push(rhT("Deflect", "Reactive Osmosis", 4, "deflect"));""",
+    """    if (deflect) mtTerms.push(rhT("Deflect", "Reactive Osmosis", 4, "deflect"));
+    if (tTurgid) mtTerms.push(rhT("it is Turgid", "", -2, "turgid"));
+    if (tJostled) mtTerms.push(rhT("it is Jostled", "", -2, "jostled"));""")
+rep('''rhT("target's Soak", "", tsoak, "soak", false, true)], "at least 1 " + esc(mom !== "0" ? "Kinetic" : a.ty))''',
+    '''rhT("target's Soak" + (soakEff !== tsoak ? " (Brittle, was " + tsoak + ")" : ""), "", soakEff, soakEff !== tsoak ? "brittle" : "soak", false, true)], "at least 1 " + esc(hitTy) + (tHalf ? ", then halved (Encysted)" : ""))''')
+rep("""    RH_LAST._attackSetup = { pool: pool, mt: mtEff, bd: bd, soak: tsoak,""", """    RH_LAST._attackSetup = { half: tHalf, pool: pool, mt: mtEff, bd: bd, soak: soakEff,""")
+rep("""      var dmg = hit ? Math.max(1, over + (L.runaway ? ev * 2 : ev) + L.bd - L.soak) : 0;""",
+    """      var dmg = hit ? Math.max(1, over + (L.runaway ? ev * 2 : ev) + L.bd - L.soak) : 0;
+      if (hit && L.half) dmg = Math.max(1, Math.floor(dmg / 2));""")
+rep('''" − Soak " + L.soak + " = <b>" + dmg + " " + esc(L.ty) + "</b>"''', '''" − Soak " + L.soak + (L.half ? ", halved (Encysted)" : "") + " = <b>" + dmg + " " + esc(L.ty) + "</b>"''')
+# step 3 loses its Marked chip: Marked is now one of the target's conditions (same switch, same +2)
+h = h.replace('''rhChip(rhChk("ra-marked", "target Marked (+2)"), "marked") +''', "")
+rep("""'<div class="rh-chips">' + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect")""",
+    """'<div class="rh-chips">' + rhConds("ra-t", "Its conditions", [["ra-t-turgid", "Turgid — its MT −2", "turgid"], ["ra-t-jostled", "Jostled — its MT −2", "jostled"],
+        ["ra-marked", "Marked — you gain +2 dice", "marked"], ["ra-t-brittle", "Brittle — soak halves vs Kinetic, Lytic ignores 2", "brittle"],
+        ["ra-t-encysted", "Encysted — takes half damage", "encysted"], ["ra-t-masked", "Masked — no scent / OSM targeting", "masked"]]) + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect")""")
+
+# conditions that stop the attack, or that the player should know about
+rep("""    var autoMiss = rhStr("ra-cover", "0") === "x";""", """    var autoMiss = rhStr("ra-cover", "0") === "x";
+    var cantAct = rhOn("ra-c-sequestered") ? "Sequestered: you cannot act until the cage is broken (CORE §4.7)." : rhOn("ra-c-encysted") ? "Encysted: you cannot act until the cyst is cracked (3 ATP, CORE §4.7)." : "";
+    var cNotes = [];
+    if (rhOn("ra-c-locked") && rhNum("ra-ev", 0)) cNotes.push("Locked: you cannot Begin a Burst, so its Effect Value counts as 0");
+    if (rhOn("ra-c-denatured") && rhNum("ra-ev", 0) && !rhOn("ra-c-locked")) cNotes.push("Denatured: the Burst's Effect Value is halved");
+    if (rhOn("ra-c-catabolic")) cNotes.push("Catabolic: every ATP cost is +1");
+    if (rhOn("ra-c-jostled")) cNotes.push("Jostled: you have 1 PP fewer this Cycle");
+    if (rhOn("ra-c-overclocked")) cNotes.push("Overclocked: +1 PP, mark 2 Stress at the end of the Cycle");
+    if (rhOn("ra-c-flaccid")) cNotes.push("Flaccid: your reach is one band shorter");
+    if (rhOn("ra-c-masked")) cNotes.push("Masked: this Strike ends it");
+    if (rhOn("ra-t-masked")) cNotes.push("the target is Masked: it cannot be found by scent, OSM or tracking — you need to see or feel it");""")
+rep("""      '<div class="rhl"><span class="lead">2 · Roll them.</span>""", """      (cNotes.length ? '<div class="rhsub rh-cnote">⚠ ' + cNotes.map(esc).join(" · ") + "</div>" : "") +
+      '<div class="rhl"><span class="lead">2 · Roll them.</span>""")
+rep("""      '<div class="row">' + (autoMiss ? '<span class="warnbox small">""", """      '<div class="row">' + (cantAct ? '<span class="warnbox small">' + cantAct + "</span>" : autoMiss ? '<span class="warnbox small">""")
+
+# defence: your conditions
+rep("""      '<div class="rh-chips">' + rhChip(rhChk("rd-jostled", "I am Jostled (MT −2)"), "jostled") + rhChip(rhChk("rd-turgid", "I am Turgid (MT −2)"), "turgid") + "</div>";""",
+    """      '<div class="rh-chips">' + rhConds("rd-c", "Conditions on you", [["rd-jostled", "Jostled — your MT −2", "jostled"], ["rd-turgid", "Turgid — your MT −2", "turgid"],
+        ["rd-marked", "Marked — the attacker gains +2 dice", "marked"], ["rd-brittle", "Brittle — soak halves vs Kinetic, Lytic ignores 2", "brittle"],
+        ["rd-encysted", "Encysted — you take half damage", "encysted"], ["rd-masked", "Masked — it cannot find you by scent", "masked"]]) + "</div>";""")
+rep("""    var rollPool = Math.max(0, aPool - (inhibOn ? 2 : 0));""", """    var rollPool = Math.max(0, aPool - (inhibOn ? 2 : 0) + (rhOn("rd-marked") ? 2 : 0)), dSoak = rhSoakAfter(soak, aTy, rhOn("rd-brittle")), dHalf = rhOn("rd-encysted");""")
+rep("""    if (inhibOn) dpoolTerms.push(rhT("your Inhibition", "", -2, "inhib"));""", """    if (inhibOn) dpoolTerms.push(rhT("your Inhibition", "", -2, "inhib"));
+    if (rhOn("rd-marked")) dpoolTerms.push(rhT("you are Marked", "", 2, "marked"));""")
+rep('''rhT("your Soak", "", soak, "soak", false, true)], "at least 1 " + esc(aTy) + (react === "brace" && /Osmotic|Kinetic/.test(aTy) ? ", then halved (Brace)" : ""))''',
+    '''rhT("your Soak" + (dSoak !== soak ? " (Brittle, was " + soak + ")" : ""), "", dSoak, dSoak !== soak ? "brittle" : "soak", false, true)], "at least 1 " + esc(aTy) + (react === "brace" && /Osmotic|Kinetic/.test(aTy) ? ", then halved (Brace)" : "") + (dHalf ? ", then halved (Encysted)" : ""))''')
+rep("""    RH_LAST._defenceSetup = { mt: mtEff, soak: soak,""", """    RH_LAST._defenceSetup = { half: dHalf, mt: mtEff, soak: dSoak,""")
+rep("""      if (hit && L.brace && /Osmotic|Kinetic/.test(L.ty)) dmg = Math.max(1, Math.floor(dmg / 2));""",
+    """      if (hit && L.brace && /Osmotic|Kinetic/.test(L.ty)) dmg = Math.max(1, Math.floor(dmg / 2));
+      if (hit && L.half) dmg = Math.max(1, Math.floor(dmg / 2));""")
+rep("""        if (hit && X.brace && /Osmotic|Kinetic/.test(X.ty)) dmg = Math.max(1, Math.floor(dmg / 2));""",
+    """        if (hit && X.brace && /Osmotic|Kinetic/.test(X.ty)) dmg = Math.max(1, Math.floor(dmg / 2));
+        if (hit && X.half) dmg = Math.max(1, Math.floor(dmg / 2));""")
+rep('''(L.brace && /Osmotic|Kinetic/.test(L.ty) ? ", halved by Brace" : "") + " = <b>"''', '''(L.brace && /Osmotic|Kinetic/.test(L.ty) ? ", halved by Brace" : "") + (L.half ? ", halved (Encysted)" : "") + " = <b>"''')
 
 # ---- compact: the switch joins the title line; shorter labels and result text
 rep("""    var out = '<div class="featcheck"><h2>Roll Helper</h2><span class="badge">step by step</span>' +
@@ -651,6 +773,13 @@ FIT = r"""
     var cgf = document.getElementById("cg-frame"); if (cgf && cgf.offsetParent && window.innerWidth > 1050) { MIN = 420; size(cgf); MIN = 260; }
     [].forEach.call(document.querySelectorAll("[data-oxkeep]"), function (el) { var k = el.getAttribute("data-oxkeep"); if (keep[k] != null && el.scrollTop !== keep[k]) el.scrollTop = keep[k]; });
     if (document.querySelector(".mtx")) mtShow(window.__mtSel || "units");
+    [].forEach.call(document.querySelectorAll("details[data-oxopen]"), function (d) {
+      var k = d.getAttribute("data-oxopen"); if ((window.__oxOpen || {})[k] && !d.open) d.open = true;
+      var pop = d.querySelector(".rh-cpop"), sm = d.querySelector("summary");
+      if (d.open && pop && sm) { var r = sm.getBoundingClientRect(), w = pop.offsetWidth, hh = pop.offsetHeight;
+        pop.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + "px";
+        pop.style.top = (r.bottom + 6 + hh > window.innerHeight - 8 ? Math.max(8, r.top - 6 - hh) : r.bottom + 6) + "px"; }
+    });
     [].forEach.call(document.querySelectorAll(".rh-final"), function (f) {
       f.classList.toggle("eq-open", window.__rhEq !== false);
       var h4 = f.querySelector(".rhf h4"); if (h4 && !h4.hasAttribute("tabindex")) { h4.setAttribute("tabindex", "0"); h4.setAttribute("role", "button"); }
@@ -662,6 +791,11 @@ FIT = r"""
       }
     });
   }
+  document.addEventListener("toggle", function (e) { var d = e.target; if (d && d.getAttribute && d.getAttribute("data-oxopen")) { window.__oxOpen = window.__oxOpen || {}; window.__oxOpen[d.getAttribute("data-oxopen")] = d.open; if (d.open) fit(); } }, true);
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("details[data-oxopen]")) return;
+    [].forEach.call(document.querySelectorAll("details[data-oxopen][open]"), function (d) { d.open = false; });
+  }, true);
   document.addEventListener("scroll", function (e) { var el = e.target; if (el && el.getAttribute && el.getAttribute("data-oxkeep")) keep[el.getAttribute("data-oxkeep")] = el.scrollTop; }, true);
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-mtsel]");

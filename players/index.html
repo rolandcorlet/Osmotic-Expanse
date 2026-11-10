@@ -681,6 +681,26 @@ html[data-oxtab=campaign] #app>.subgroup>.subgroup>.row:last-child{margin-top:au
 html[data-oxtab=campaign] #app>.subgroup>.subgroup .small{white-space:normal}
 html[data-oxtab=campaign] #app>.subgroup>.subgroup details[open]{position:fixed;inset:6vh 8vw;z-index:50;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 20px;overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.6)}
 }
+/* ---- condition pickers: a pill that opens a floating list */
+.rh-conds{position:relative;display:inline-block;margin-left:auto}
+.rh-conds>summary{list-style:none;cursor:pointer;font:600 12px/1.2 system-ui,sans-serif;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--panel2,var(--bg));color:var(--dim);white-space:nowrap;max-width:230px;overflow:hidden;text-overflow:ellipsis}
+.rh-conds>summary::-webkit-details-marker{display:none}
+.rh-conds>summary .car{opacity:.7}
+.rh-conds.has>summary{color:var(--warn-c);border-color:color-mix(in srgb,var(--warn-c) 60%,var(--line));background:color-mix(in srgb,var(--warn-c) 10%,var(--panel))}
+.rh-conds[open]>summary{border-color:var(--accent);color:var(--ink)}
+.rh-cpop{position:fixed;z-index:60;min-width:310px;display:flex;flex-direction:column;align-items:stretch;gap:5px;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.55)}
+.rh-cpop .rh-cph{font:700 13px system-ui,sans-serif;color:var(--ink);margin-bottom:3px;display:flex;justify-content:space-between;gap:10px}
+.rh-cpop .rh-cph .dim{font-weight:500;font-size:11.5px;color:var(--faint)}
+.rh-cpop .rh-chip{display:flex;justify-content:space-between}
+.rh-cpop .rh-chip label.small{white-space:nowrap!important;border-radius:999px!important;flex:1}
+.rh-chips>.rh-conds{margin:0 0 2px}
+.rh-sub .rh-conds{margin:-4px 0 -4px auto}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-chips .rh-chip label.small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rh-steps.attack>.rh-step:nth-child(5) .rh-body>.rh-chips{min-width:0;max-width:100%}
+.rh-sub .rh-conds>summary{padding:2px 9px;font-size:11.5px}
+@media (max-height:800px) and (min-width:1051px){.rh-steps .rh-chips{gap:3px}.rh-steps .rh-chip label.small{padding-top:2px;padding-bottom:2px}}
+.rh-step:has(details[data-oxopen][open]),.rh-steps:has(details[data-oxopen][open]),.rh-flow:has(details[data-oxopen][open]){position:relative;z-index:70}
+.rh-final .rh-cnote{color:var(--warn-c);font-size:12px}
 .rh-top{position:relative}
 .rh-log{margin-left:auto;position:relative;font-size:13px}
 .rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
@@ -21491,6 +21511,27 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
   }
   var RH_FRESH = 0;
   function rhF(label, key, control, cls) { return '<label class="rh-fld' + (cls ? " " + cls : "") + '"><span class="fl">' + label + (key ? rhI(key) : "") + "</span>" + control + "</label>"; }
+  Object.assign(RH_INFO, {
+    brittle: ["Brittle", "A condition: the membrane has gone glassy.", "Usually from a Lytic hit's consequence. Ends with a Synthesise action and a Lipid patch.", "Graft soak halves against Kinetic damage; Lytic damage ignores 2 soak.", "CORE §4.7"],
+    encysted: ["Encysted", "A condition: sealed inside a cyst.", "Ends when you or an ally spends 3 ATP to crack the cyst.", "Takes half damage; cannot act; cannot be moved.", "CORE §4.7"],
+    flaccid: ["Flaccid", "A condition: shrunken, water pulled out.", "From an Osmotic hit or a Hypertonic region. Ends at the end of the next Cycle.", "VSC −2 (Weight attacks lose 2 dice); reach −1 band.", "CORE §4.7"],
+    denatured: ["Denatured", "A condition: catalytic functions impaired.", "Ends with an RTC save at the end of your turn.", "RTC −2 (Resonator and RTC Projector attacks lose 2 dice); Burst Effect Values halve.", "CORE §4.7"],
+    catabolic: ["Catabolic", "A condition: energy-starved.", "From a Thermic hit's consequence. Ends with a Reconstitution.", "Every ATP cost +1 (Overdrive costs 1 more ATP); ATP regeneration halved.", "CORE §4.7"],
+    locked: ["Locked", "A condition: signal jammed.", "From a Voltaic hit. Ends with a save each Cycle, or a Reactive Osmosis (Shed).", "Cannot Begin a Burst or use a class Burst feature, so no Effect Value.", "CORE §4.7"],
+    overclocked: ["Overclocked", "A condition: running too hot.", "Ends when you Vent, or after 3 Cycles.", "+1 PP, but mark 2 Stress at the end of each Cycle.", "CORE §4.7"],
+    masked: ["Masked", "A condition: no scent trail.", "Ends when you Strike, or after an enemy's successful Sense.", "Cannot be targeted by scent, OSM or tracking. Striking ends it.", "CORE §4.7"],
+    sequestered: ["Sequestered", "A condition: enclosed in gel, shell or a vortex.", "Ends when an ally breaks the cage, or a VSC save at −2 each Cycle.", "Cannot act.", "CORE §4.7"]
+  });
+  var RH_CN = { turgid: "Turgid", flaccid: "Flaccid", jostled: "Jostled", denatured: "Denatured", catabolic: "Catabolic", locked: "Locked", overclocked: "Overclocked", masked: "Masked",
+    sequestered: "Sequestered", encysted: "Encysted", brittle: "Brittle", marked: "Marked" };
+  function rhConds(key, title, list) {
+    var on = list.filter(function (x) { return rhOn(x[0]); });
+    return '<details class="rh-conds' + (on.length ? " has" : "") + '" data-oxopen="' + key + '"><summary title="' + esc(title) + '">' +
+      (on.length ? "⚠ " + on.map(function (x) { return RH_CN[x[2]] || x[2]; }).join(" · ") : title) + ' <span class="car">▾</span></summary><div class="rh-cpop"><div class="rh-cph">' + esc(title) + ' <span class="dim">CORE §4.7</span></div>' +
+      list.map(function (x) { return rhChip(rhChk(x[0], x[1]), x[2]); }).join("") + "</div></details>";
+  }
+  function rhEV() { var e = rhNum("ra-ev", 0); if (rhOn("ra-c-locked")) return 0; if (rhOn("ra-c-denatured")) e = Math.floor(e / 2); return e; }
+  function rhSoakAfter(soak, ty, brittle) { if (!brittle) return soak; if (ty === "Kinetic") return Math.floor(soak / 2); if (ty === "Lytic") return Math.max(0, soak - 2); return soak; }
   function rhChip(chk, key) { return '<span class="rh-chip">' + chk + (key ? rhI(key) : "") + "</span>"; }
   function rhHero(mode) {
     var S = mode === "defence" ? RH_LAST._defenceSetup : RH_LAST._attackSetup; if (!S) return "";
@@ -21905,7 +21946,10 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
       b += '<div class="rh-meta">' + RH_BASE.map(function (k) { return k + " <b>" + ch.grades[k] + "</b>"; }).join(" · ") + " · Level " + ch.level + " (tier " + ch.tier + ") · PP " + ch.pp +
         " · ATP max " + ch.atpMax + " · MI max " + ch.miMax + " · MT " + ch.mt + " · soak " + ch.soak + "</div>";
     }
-    b += '<div class="rh-grp n"><div class="rh-sub">Right now</div><div class="rh-tiles">' + rhF("Stress", "stress", rhInp(prefix + "-stress", 0, ' min="0" max="8"'), "tile") +
+    b += '<div class="rh-grp n"><div class="rh-sub">Right now' + (prefix === "ra" ? rhConds("ra-c", "Conditions on you", [["ra-c-turgid", "Turgid — DFF −2", "turgid"], ["ra-c-flaccid", "Flaccid — VSC −2, reach −1 band", "flaccid"],
+        ["ra-c-denatured", "Denatured — RTC −2, Burst EV halves", "denatured"], ["ra-c-catabolic", "Catabolic — ATP costs +1", "catabolic"], ["ra-c-locked", "Locked — no Burst, EV 0", "locked"],
+        ["ra-c-jostled", "Jostled — −1 PP this Cycle", "jostled"], ["ra-c-overclocked", "Overclocked — +1 PP, 2 Stress at Cycle end", "overclocked"], ["ra-c-masked", "Masked — striking ends it", "masked"],
+        ["ra-c-sequestered", "Sequestered — cannot act", "sequestered"], ["ra-c-encysted", "Encysted — cannot act", "encysted"]]) : "") + '</div><div class="rh-tiles">' + rhF("Stress", "stress", rhInp(prefix + "-stress", 0, ' min="0" max="8"'), "tile") +
       rhF("ATP", "atp", rhInp(prefix + "-atp", ch.atpMax, ' min="0"'), "tile") + rhF("MI", "mi", rhInp(prefix + "-mi", ch.curMI, ' min="0"'), "tile") +
       rhF("PP left", "pp", rhInp(prefix + "-pp", ch.pp, ' min="0"'), "tile") + (extra || "") + "</div></div>";
     var st = rhNum(prefix + "-stress", 0);
@@ -21924,6 +21968,8 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var baseKey = cls === "Weight" ? "VSC" : cls === "Lash" ? "DFF" : cls === "Resonator" ? "RTC" : rhStr("ra-pbase", ch.grades.RTC > ch.grades.DFF ? "RTC" : "DFF");
     var pathName = cls === "Resonator" ? "Catalysis" : cls === "Projector" ? rhStr("ra-ppath", "Membrane Penetration") : "Membrane Penetration";
     var grade = ch.grades[baseKey] || 0, rank = ch.fromSheet ? (ch.ranks[pathName] || 0) : rhNum("ra-rank", 0);
+    var condCut = Math.min(grade, (baseKey === "DFF" && rhOn("ra-c-turgid") ? 2 : 0) + (baseKey === "VSC" && rhOn("ra-c-flaccid") ? 2 : 0) + (baseKey === "RTC" && rhOn("ra-c-denatured") ? 2 : 0));
+    var condName = baseKey === "DFF" ? "Turgid" : baseKey === "VSC" ? "Flaccid" : "Denatured";
     var bonus = rhBonus(a.x), bd = rhBD(a, ch.tier), props = String(a.pr || "");
     var heavy = /Heavy/.test(props), braced = /Braced/.test(props), twoH = /Two-handed/.test(props);
     var wb = '<div class="rh-fields">' + rhF("Weapon", "weapon", rhSel("ra-weapon", ws.map(function (x) { return { v: x.id, l: x.l }; }), ws[0] ? ws[0].id : ""), "wide") +
@@ -21954,7 +22000,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
       rhF("Target cover", "cover", rhSel("ra-cover", [{ v: "0", l: "none" }, { v: "-2", l: "partial (−2)" }, { v: "-4", l: "heavy (−4)" }, { v: "x", l: "total, in turbid fluid (auto miss)" }], "0")) +
       rhF("Momentum", "mom", braced ? '<span class="rh-na">not with a Braced weapon</span>'
         : rhSel("ra-mom", [{ v: "0", l: "no run-up" }, { v: "2", l: "3+ Drifts straight (+2, 1 PP, Kinetic)" }, { v: "3", l: "run began in a Current (+3)" }], "0")) + "</div>" +
-      '<div class="rh-chips">' + rhChip(rhChk("ra-pos", "good position (+1)"), "pos") + rhChip(rhChk("ra-cat", "Catalysed (+1)"), "cat") + rhChip(rhChk("ra-marked", "target Marked (+2)"), "marked") +
+      '<div class="rh-chips">' + rhChip(rhChk("ra-pos", "good position (+1)"), "pos") + rhChip(rhChk("ra-cat", "Catalysed (+1)"), "cat") + 
       (braced ? rhChip(rhChk("ra-still", "did not Drift (Braced, +1)"), "still") : "") + rhChip(rhChk("ra-squeeze", "squeezed / pinned (−2)"), "squeeze") + "</div>" +
       '<div class="rh-meta rh-sit">' + rhI("cap") + "Situational dice: " + (sit.length ? sit.map(function (x) { return esc(x[0]) + " " + (x[1] > 0 ? "+" : "") + x[1]; }).join(", ") : "none") +
       " → <b>" + (sitCap >= 0 ? "+" : "") + sitCap + "</b>" + (sitRaw !== sitCap ? " (capped from " + sitRaw + ", CORE §1.3)" : "") + "</div>";
@@ -21962,7 +22008,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     // 4 overdrive — CORE §1.8. A Reagent IS one d6 in the pool (CORE §1.1: "roll a Reagent Pool of d6").
     var st = rhNum("ra-stress", 0), atpNow = rhNum("ra-atp", ch.atpMax), miNow = rhNum("ra-mi", ch.curMI);
     var odTrain = (ch.adaptations || []).indexOf("Overdrive Training") >= 0 || (!ch.fromSheet && rhOn("ra-odtrain"));
-    var odCost = (odTrain ? 3 : 4) + (st >= 6 ? 1 : 0), miCost = odTrain ? 3 : 4, od = rhStr("ra-od", "none");
+    var odCost = (odTrain ? 3 : 4) + (st >= 6 ? 1 : 0) + (rhOn("ra-c-catabolic") ? 1 : 0), miCost = odTrain ? 3 : 4, od = rhStr("ra-od", "none");
     var odb = '<div class="rh-fields">' + rhF("Overdrive: buy dice with ATP or MI", "od", rhSel("ra-od", [{ v: "none", l: "no Overdrive" },
         { v: "atp", l: "spend " + odCost + " ATP → +2 dice" + (atpNow < odCost ? " (you have " + atpNow + ")" : "") },
         { v: "mi", l: "spend " + miCost + " MI → +4 dice, +1 Stress" + (miNow <= miCost ? " (you have " + miNow + " MI)" : "") }], "none"), "wide") + "</div>" +
@@ -21979,49 +22025,68 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var tb = '<div class="rh-fields hd">' + rhF("Target", "mt", rhSel("ra-target", rhCreatureOpts(), "manual"), "wide") + "</div>" +
       (tc ? '<div class="rh-meta">' + esc(tc.name) + " · MT <b>" + tc.mt + "</b> · soak <b>" + tc.soak + "</b></div>"
         : '<div class="rh-tiles">' + rhF("Its MT", "mt", rhInp("ra-tmt", 12, ' min="0"'), "tile wide2") + rhF("Its soak", "soak", rhInp("ra-tsoak", 0, ' min="0"'), "tile wide2") + "</div>") +
-      '<div class="rh-chips">' + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect") + rhChip(rhChk("ra-tinhib", "it Inhibits you (−2 dice)"), "tinhib") + "</div>";
+      '<div class="rh-chips">' + rhConds("ra-t", "Its conditions", [["ra-t-turgid", "Turgid — its MT −2", "turgid"], ["ra-t-jostled", "Jostled — its MT −2", "jostled"],
+        ["ra-marked", "Marked — you gain +2 dice", "marked"], ["ra-t-brittle", "Brittle — soak halves vs Kinetic, Lytic ignores 2", "brittle"],
+        ["ra-t-encysted", "Encysted — takes half damage", "encysted"], ["ra-t-masked", "Masked — no scent / OSM targeting", "masked"]]) + rhChip(rhChk("ra-deflect", "it Deflects (MT +4)"), "deflect") + rhChip(rhChk("ra-tinhib", "it Inhibits you (−2)"), "tinhib") + "</div>";
     out += rhStep(5, "Who are you hitting?", tb);
     // 6 summary + roll
     var autoMiss = rhStr("ra-cover", "0") === "x";
-    var pool = Math.max(0, grade + rank + bonus + sitCap + odDice - (tinhib ? 2 : 0));
-    var mtEff = tmt + (deflect ? 4 : 0);
+    var cantAct = rhOn("ra-c-sequestered") ? "Sequestered: you cannot act until the cage is broken (CORE §4.7)." : rhOn("ra-c-encysted") ? "Encysted: you cannot act until the cyst is cracked (3 ATP, CORE §4.7)." : "";
+    var cNotes = [];
+    if (rhOn("ra-c-locked") && rhNum("ra-ev", 0)) cNotes.push("Locked: you cannot Begin a Burst, so its Effect Value counts as 0");
+    if (rhOn("ra-c-denatured") && rhNum("ra-ev", 0) && !rhOn("ra-c-locked")) cNotes.push("Denatured: the Burst's Effect Value is halved");
+    if (rhOn("ra-c-catabolic")) cNotes.push("Catabolic: every ATP cost is +1");
+    if (rhOn("ra-c-jostled")) cNotes.push("Jostled: you have 1 PP fewer this Cycle");
+    if (rhOn("ra-c-overclocked")) cNotes.push("Overclocked: +1 PP, mark 2 Stress at the end of the Cycle");
+    if (rhOn("ra-c-flaccid")) cNotes.push("Flaccid: your reach is one band shorter");
+    if (rhOn("ra-c-masked")) cNotes.push("Masked: this Strike ends it");
+    if (rhOn("ra-t-masked")) cNotes.push("the target is Masked: it cannot be found by scent, OSM or tracking — you need to see or feel it");
+    var pool = Math.max(0, grade + rank + bonus + sitCap + odDice - (tinhib ? 2 : 0) - condCut);
+    var tTurgid = rhOn("ra-t-turgid"), tJostled = rhOn("ra-t-jostled"), tBrittle = rhOn("ra-t-brittle"), tHalf = rhOn("ra-t-encysted");
+    var mtEff = tmt + (deflect ? 4 : 0) + (tTurgid ? -2 : 0) + (tJostled ? -2 : 0);
+    var hitTy = mom !== "0" ? "Kinetic" : a.ty, soakEff = rhSoakAfter(tsoak, hitTy, tBrittle);
     var ppCost = 2 + (heavy ? 1 : 0) + (mom !== "0" ? 1 : 0), ppLeft = rhNum("ra-pp", ch.pp);
     var atpCost = od === "atp" ? odCost : 0;
     var poolTerms = [rhT(RH_BASE_NAMES[baseKey] + " Grade", baseKey, grade, "grade", true), rhT(pathName + " rank", "Pathway", rank, "rank"),
       rhT("weapon bonus", a.n, bonus, "weapon"), rhT("situational dice", "capped ±5", sitCap, "cap"), rhT("Overdrive", "Reagents bought", odDice, "od")];
     if (tinhib) poolTerms.push(rhT("target's Inhibition", "", -2, "tinhib"));
+    if (condCut) poolTerms.push(rhT(condName + " (" + baseKey + " −2)", "", -condCut, condName.toLowerCase()));
     var mtTerms = [rhT("its Membrane Threshold", "MT", tmt, "mt", true)];
     if (deflect) mtTerms.push(rhT("Deflect", "Reactive Osmosis", 4, "deflect"));
+    if (tTurgid) mtTerms.push(rhT("it is Turgid", "", -2, "turgid"));
+    if (tJostled) mtTerms.push(rhT("it is Jostled", "", -2, "jostled"));
     var ppTerms = [rhT("Strike", "", 2, "pp", true)];
     if (mom !== "0") ppTerms.push(rhT("Drift (run-up)", "", 1, "mom"));
     if (heavy) ppTerms.push(rhT("Heavy weapon", "", 1, "weapon"));
     var sum = '<div class="rhf"><h4>How your total is found</h4>' +
       rhLine("1 · Your dice (Reagent Pool) =", poolTerms, pool + " dice (" + pool + "d6)") +
       (sit.length ? '<div class="rhsub">situational dice: ' + sit.map(function (x) { return esc(x[0]) + " " + (x[1] > 0 ? "+" : "") + x[1]; }).join(", ") + (sitRaw !== sitCap ? " — " + sitRaw + ", capped to " + sitCap : "") + "</div>" : "") +
+      (cNotes.length ? '<div class="rhsub rh-cnote">⚠ ' + cNotes.map(esc).join(" · ") + "</div>" : "") +
       '<div class="rhl"><span class="lead">2 · Roll them.</span><span>Every 1 is an <b>Inhibitor</b> — it scores nothing and marks 1 Stress. Add up the other dice: that is your <b>Total</b>.</span>' + rhI("inhibitors") + "</div>" +
       rhLine("3 · You hit if your Total reaches", mtTerms, "MT " + mtEff) +
       rhLine("4 · Damage if it hits =", [rhT("Overflow", "Total − MT", "?", "overflow", true).replace('<span class="tv">?</span>', '<span class="tv">Overflow</span>').replace('<span class="tn">Overflow <i>', '<span class="tn"><i>'),
-        rhT("Base Damage", "BD", bd, "bd"), rhT("Effect Value", "EV", rhNum("ra-ev", 0), "ev"), rhT("target's Soak", "", tsoak, "soak", false, true)], "at least 1 " + esc(mom !== "0" ? "Kinetic" : a.ty)) +
+        rhT("Base Damage", "BD", bd, "bd"), rhT("Effect Value", "EV", rhEV(), "ev"), rhT("target's Soak" + (soakEff !== tsoak ? " (Brittle, was " + tsoak + ")" : ""), "", soakEff, soakEff !== tsoak ? "brittle" : "soak", false, true)], "at least 1 " + esc(hitTy) + (tHalf ? ", then halved (Encysted)" : "")) +
       rhLine("5 · This attack costs", ppTerms, ppCost + " PP" + (atpCost ? " + " + atpCost + " ATP" : "") + (od === "mi" ? " + " + miCost + " MI + 1 Stress" : "")) +
       (ppCost > ppLeft ? '<div class="warnbox small">You have only ' + ppLeft + " Pulse Points (PP) left this Cycle.</div>" : "") + "</div>" +
-      '<div class="row">' + (autoMiss ? '<span class="warnbox small">Total concealment in turbid fluid: an automatic miss unless the target is searched out first (CORE §1.3).</span>'
+      '<div class="row">' + (cantAct ? '<span class="warnbox small">' + cantAct + "</span>" : autoMiss ? '<span class="warnbox small">Total concealment in turbid fluid: an automatic miss unless the target is searched out first (CORE §1.3).</span>'
         : '<button class="btn primary" type="button" data-rhroll="attack">🎲 Roll ' + pool + "d6</button>") + "</div>";
     var L = RH_LAST.attack;
     if (L) {
-      var ev = rhNum("ra-ev", 0);
+      var ev = rhEV();
       var hit = L.total >= L.mt, over = L.total - L.mt;
       var dmg = hit ? Math.max(1, over + (L.runaway ? ev * 2 : ev) + L.bd - L.soak) : 0;
+      if (hit && L.half) dmg = Math.max(1, Math.floor(dmg / 2));
       sum += '<div class="promptbox"><div>' + rhDiceHtml(L.dice) + "</div>" +
         "<div>Total <b>" + L.total + "</b> vs MT " + L.mt + " " + (hit ? pill("HIT · Overflow " + over, "ok") : pill("miss by " + (L.mt - L.total), "no")) +
         (L.runaway ? " " + pill("Runaway Catalysis", "info") : "") + (L.inhib ? " " + pill(L.inhib + " Inhibitor(s): mark " + L.inhib + " Stress", "warn") : "") + "</div>" +
-        (hit ? "<div>Damage = Overflow (Total " + L.total + " − MT " + L.mt + ") " + over + " + Base Damage (BD) " + L.bd + (ev ? " + Effect Value (EV) " + (L.runaway ? ev + " × 2 (Runaway)" : ev) : "") + " − Soak " + L.soak + " = <b>" + dmg + " " + esc(L.ty) + "</b>" +
+        (hit ? "<div>Damage = Overflow (Total " + L.total + " − MT " + L.mt + ") " + over + " + Base Damage (BD) " + L.bd + (ev ? " + Effect Value (EV) " + (L.runaway ? ev + " × 2 (Runaway)" : ev) : "") + " − Soak " + L.soak + (L.half ? ", halved (Encysted)" : "") + " = <b>" + dmg + " " + esc(L.ty) + "</b>" +
           (L.runaway && a.pr ? " · add the weapon's Rider" : "") + "</div><div class=\"small\">Then choose one " + esc(L.ty) + " consequence: " + esc(RH_CONSEQ[L.ty] || "—") + " (CORE §4.9)</div>" : "") +
         '<div class="small dim">Pay: ' + L.pp + " PP" + (L.atp ? ", " + L.atp + " ATP" : "") + (L.miCost ? ", 4 MI" : "") + "; Stress +" + (L.inhib + (L.miCost ? 1 : 0)) + ".</div>" +
         '<div class="row"><button class="btn small" type="button" data-rhpay="attack">apply the costs and Stress above to step 1</button>' +
         (hit && L.rosterId ? '<button class="btn small" type="button" data-rhdmg="' + L.rosterId + '" data-amt="' + dmg + '">deal ' + dmg + " damage to " + esc(L.tname) + " on the Roster</button>" : "") + "</div></div>";
     }
     out += rhStep(6, "Your pool, and the roll", sum);
-    RH_LAST._attackSetup = { pool: pool, mt: mtEff, bd: bd, soak: tsoak, ty: mom !== "0" ? "Kinetic" : a.ty, pp: ppCost, atp: atpCost, miCost: od === "mi", rosterId: tc && tc.rosterId, tname: tc && tc.name, who: ch.name, weapon: a.n,
+    RH_LAST._attackSetup = { half: tHalf, pool: pool, mt: mtEff, bd: bd, soak: soakEff, ty: mom !== "0" ? "Kinetic" : a.ty, pp: ppCost, atp: atpCost, miCost: od === "mi", rosterId: tc && tc.rosterId, tname: tc && tc.name, who: ch.name, weapon: a.n,
       now: { stress: st, atp: atpNow, mi: miNow, pp: ppLeft } };
     return out;
   }
@@ -22035,7 +22100,9 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var condMT = (rhOn("rd-jostled") ? -2 : 0) + (rhOn("rd-turgid") ? -2 : 0);
     var db = (ch.fromSheet ? '<div class="rh-meta">Membrane Threshold <b>' + mtBase + "</b> · soak <b>" + soak + "</b> (from the sheet)</div>"
       : '<div class="rh-tiles">' + rhF("Your MT", "mt", rhInp("rd-mt", 10 + ch.grades.DFF, ' min="0"'), "tile wide2") + rhF("Your soak", "soak", rhInp("rd-soak", 0, ' min="0"'), "tile wide2") + "</div>") +
-      '<div class="rh-chips">' + rhChip(rhChk("rd-jostled", "I am Jostled (MT −2)"), "jostled") + rhChip(rhChk("rd-turgid", "I am Turgid (MT −2)"), "turgid") + "</div>";
+      '<div class="rh-chips">' + rhConds("rd-c", "Conditions on you", [["rd-jostled", "Jostled — your MT −2", "jostled"], ["rd-turgid", "Turgid — your MT −2", "turgid"],
+        ["rd-marked", "Marked — the attacker gains +2 dice", "marked"], ["rd-brittle", "Brittle — soak halves vs Kinetic, Lytic ignores 2", "brittle"],
+        ["rd-encysted", "Encysted — you take half damage", "encysted"], ["rd-masked", "Masked — it cannot find you by scent", "masked"]]) + "</div>";
     out += rhStep(2, "Your defences right now", db);
     // 3 incoming
     var how = rhStr("rd-how", "roll");
@@ -22064,20 +22131,21 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     out += rhStep(4, "How do you react?", rb);
     // 5 resolve
     var mtEff = mtBase + condMT + (react === "deflect" ? 4 : 0);
-    var rollPool = Math.max(0, aPool - (inhibOn ? 2 : 0));
+    var rollPool = Math.max(0, aPool - (inhibOn ? 2 : 0) + (rhOn("rd-marked") ? 2 : 0)), dSoak = rhSoakAfter(soak, aTy, rhOn("rd-brittle")), dHalf = rhOn("rd-encysted");
     var dmtTerms = [rhT("your Membrane Threshold", "MT", mtBase, "mt", true)];
     if (rhOn("rd-jostled")) dmtTerms.push(rhT("Jostled", "", -2, "jostled"));
     if (rhOn("rd-turgid")) dmtTerms.push(rhT("Turgid", "", -2, "turgid"));
     if (react === "deflect") dmtTerms.push(rhT("Deflect", "Reactive Osmosis", 4, "deflect"));
     var dpoolTerms = [rhT("its pool", "dice", aPool, "apool", true)];
     if (inhibOn) dpoolTerms.push(rhT("your Inhibition", "", -2, "inhib"));
+    if (rhOn("rd-marked")) dpoolTerms.push(rhT("you are Marked", "", 2, "marked"));
     var res = '<div class="rhf"><h4>How it is worked out</h4>' +
       rhLine("1 · The number it must reach =", dmtTerms, "MT " + mtEff) +
       (how === "typed" ? '<div class="rhl"><span class="lead">2 · Its Total:</span><span>the Director says <b>' + rhNum("rd-atotal", 14) + "</b></span></div>"
         : rhLine("2 · The attacker's dice =", dpoolTerms, rollPool + "d6") + '<div class="rhsub">1s are Inhibitors (score nothing); the rest are added up to its Total.' + rhI("inhibitors") + "</div>") +
       '<div class="rhl"><span class="lead">3 · It hits you if its Total ≥ your MT ' + mtEff + ".</span></div>" +
       rhLine("4 · Damage to you =", [rhT("Overflow", "its Total − your MT", "?", "overflow", true).replace('<span class="tv">?</span>', '<span class="tv">Overflow</span>').replace('<span class="tn">Overflow <i>', '<span class="tn"><i>'),
-        rhT("its Base Damage", "BD", aBD, "bd"), rhT("your Soak", "", soak, "soak", false, true)], "at least 1 " + esc(aTy) + (react === "brace" && /Osmotic|Kinetic/.test(aTy) ? ", then halved (Brace)" : "")) +
+        rhT("its Base Damage", "BD", aBD, "bd"), rhT("your Soak" + (dSoak !== soak ? " (Brittle, was " + soak + ")" : ""), "", dSoak, dSoak !== soak ? "brittle" : "soak", false, true)], "at least 1 " + esc(aTy) + (react === "brace" && /Osmotic|Kinetic/.test(aTy) ? ", then halved (Brace)" : "") + (dHalf ? ", then halved (Encysted)" : "")) +
       '<div class="rhl"><span class="lead">5 · This costs you:</span><span>' + (ppNeed ? ppNeed + " held Pulse Point" + (ppNeed > 1 ? "s" : "") + " (PP)" : "nothing") + (atpNeed ? " + " + atpNeed + " ATP" : "") + "</span>" + rhI("react") + "</div>" +
       '<div class="rhsub">If the damage takes you to 0 Membrane Integrity (MI) you are Dormant; 8 or more past 0 is a Breach.' + rhI("breach") + "</div></div>" +
       '<div class="row"><button class="btn primary" type="button" data-rhroll="defence">' + (how === "typed" ? "Resolve the hit" : "🎲 Roll the attacker’s " + rollPool + "d6") + "</button></div>";
@@ -22086,10 +22154,11 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
       var hit = L.total >= L.mt, over = L.total - L.mt;
       var dmg = hit ? Math.max(1, over + L.bd - L.soak) : 0;
       if (hit && L.brace && /Osmotic|Kinetic/.test(L.ty)) dmg = Math.max(1, Math.floor(dmg / 2));
+      if (hit && L.half) dmg = Math.max(1, Math.floor(dmg / 2));
       var miAfter = L.mi - dmg, breach = hit && dmg >= L.mi + 8;
       res += '<div class="promptbox">' + (L.dice ? "<div>" + rhDiceHtml(L.dice) + (L.rerollNote ? ' <span class="small dim">' + esc(L.rerollNote) + "</span>" : "") + "</div>" : "") +
         "<div>Its Total <b>" + L.total + "</b> vs your MT " + L.mt + " " + (hit ? pill("you are HIT · Overflow " + over, "no") : pill("it misses", "ok")) + "</div>" +
-        (hit ? "<div>Damage = Overflow (its Total " + L.total + " − your MT " + L.mt + ") " + over + " + its Base Damage (BD) " + L.bd + " − your Soak " + L.soak + (L.brace && /Osmotic|Kinetic/.test(L.ty) ? ", halved by Brace" : "") + " = <b>" + dmg + " " + esc(L.ty) + "</b> → MI " + Math.max(0, miAfter) + "</div>" +
+        (hit ? "<div>Damage = Overflow (its Total " + L.total + " − your MT " + L.mt + ") " + over + " + its Base Damage (BD) " + L.bd + " − your Soak " + L.soak + (L.brace && /Osmotic|Kinetic/.test(L.ty) ? ", halved by Brace" : "") + (L.half ? ", halved (Encysted)" : "") + " = <b>" + dmg + " " + esc(L.ty) + "</b> → MI " + Math.max(0, miAfter) + "</div>" +
           (breach ? '<div class="warnbox small"><b>Breach:</b> the hit exceeds your remaining MI by 8 or more. You go straight to Dormancy and mark a Lysis Countdown box now (CORE §5.2).</div>'
             : miAfter <= 0 ? '<div class="warnbox small">MI 0: you are Dormant (CORE §5.4).</div>' : "") +
           '<div class="small">The attacker may choose one ' + esc(L.ty) + " consequence: " + esc(RH_CONSEQ[L.ty] || "—") + "</div>" : "") +
@@ -22099,7 +22168,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     }
     out += rhStep(5, "Resolve it", res);
     var src = rhStr("rd-who", "manual");
-    RH_LAST._defenceSetup = { mt: mtEff, soak: soak, bd: aBD, ty: aTy, pool: rollPool, how: how, typed: rhNum("rd-atotal", 14), brace: react === "brace", reroll: react === "reroll",
+    RH_LAST._defenceSetup = { half: dHalf, mt: mtEff, soak: dSoak, bd: aBD, ty: aTy, pool: rollPool, how: how, typed: rhNum("rd-atotal", 14), brace: react === "brace", reroll: react === "reroll",
       pp: ppNeed, atp: atpNeed, mi: rhNum("rd-mi", ch.curMI), pcId: src.indexOf("pc:") === 0 ? src.slice(3) : null, who: ch.name,
       now: { stress: st, atp: atpNow, mi: rhNum("rd-mi", ch.curMI), pp: ppNow } };
     return out;
@@ -22139,6 +22208,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
       else {
         var hit = X.total >= X.mt, dmg = hit ? Math.max(1, X.total - X.mt + X.bd - X.soak) : 0;
         if (hit && X.brace && /Osmotic|Kinetic/.test(X.ty)) dmg = Math.max(1, Math.floor(dmg / 2));
+        if (hit && X.half) dmg = Math.max(1, Math.floor(dmg / 2));
         mi -= dmg; atp -= X.atp; pp -= X.pp;
       }
       rhSet(P + "-stress", String(Math.min(8, Math.max(0, stress)))); rhSet(P + "-atp", String(Math.max(0, atp)));
@@ -23833,6 +23903,13 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var cgf = document.getElementById("cg-frame"); if (cgf && cgf.offsetParent && window.innerWidth > 1050) { MIN = 420; size(cgf); MIN = 260; }
     [].forEach.call(document.querySelectorAll("[data-oxkeep]"), function (el) { var k = el.getAttribute("data-oxkeep"); if (keep[k] != null && el.scrollTop !== keep[k]) el.scrollTop = keep[k]; });
     if (document.querySelector(".mtx")) mtShow(window.__mtSel || "units");
+    [].forEach.call(document.querySelectorAll("details[data-oxopen]"), function (d) {
+      var k = d.getAttribute("data-oxopen"); if ((window.__oxOpen || {})[k] && !d.open) d.open = true;
+      var pop = d.querySelector(".rh-cpop"), sm = d.querySelector("summary");
+      if (d.open && pop && sm) { var r = sm.getBoundingClientRect(), w = pop.offsetWidth, hh = pop.offsetHeight;
+        pop.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + "px";
+        pop.style.top = (r.bottom + 6 + hh > window.innerHeight - 8 ? Math.max(8, r.top - 6 - hh) : r.bottom + 6) + "px"; }
+    });
     [].forEach.call(document.querySelectorAll(".rh-final"), function (f) {
       f.classList.toggle("eq-open", window.__rhEq !== false);
       var h4 = f.querySelector(".rhf h4"); if (h4 && !h4.hasAttribute("tabindex")) { h4.setAttribute("tabindex", "0"); h4.setAttribute("role", "button"); }
@@ -23844,6 +23921,11 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
       }
     });
   }
+  document.addEventListener("toggle", function (e) { var d = e.target; if (d && d.getAttribute && d.getAttribute("data-oxopen")) { window.__oxOpen = window.__oxOpen || {}; window.__oxOpen[d.getAttribute("data-oxopen")] = d.open; if (d.open) fit(); } }, true);
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest("details[data-oxopen]")) return;
+    [].forEach.call(document.querySelectorAll("details[data-oxopen][open]"), function (d) { d.open = false; });
+  }, true);
   document.addEventListener("scroll", function (e) { var el = e.target; if (el && el.getAttribute && el.getAttribute("data-oxkeep")) keep[el.getAttribute("data-oxkeep")] = el.scrollTop; }, true);
   document.addEventListener("click", function (e) {
     var b = e.target.closest && e.target.closest("[data-mtsel]");
