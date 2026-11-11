@@ -760,7 +760,25 @@ FIT = r"""
     else window.__rhEq = window.__rhEq === false;
     fit();
   }
+  var OXBS_MAP = [["--bg", "--bg"], ["--bg2", "--panel"], ["--panel", "--panel"], ["--panel2", "--panel2"], ["--line", "--line"], ["--tx", "--ink"], ["--tx2", "--dim"],
+    ["--acc", "--accent"], ["--acc2", "--accent"], ["--good", "--ok"], ["--warn", "--warn-c"], ["--focus", "--no"], ["--sel", "--hl"]];
+  function oxLight(c) { var m = /^#?([0-9a-f]{6})$/i.exec(String(c).trim()); if (!m) return false; var n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) > 150; }
+  /* BitSight wears the Colours tab's scheme: its own colour variables are set from the app's, inside its frame */
+  function bsTheme() {
+    var fr = document.getElementById("bitsight-frame"); if (!fr) return;
+    if (!fr.__oxth) { fr.__oxth = 1; fr.addEventListener("load", bsTheme); }
+    var doc; try { doc = fr.contentDocument; } catch (e) { return; }
+    if (!doc || !doc.head) return;
+    var cs = getComputedStyle(document.documentElement), bg = cs.getPropertyValue("--bg").trim();
+    var vars = OXBS_MAP.map(function (m) { var v = cs.getPropertyValue(m[1]).trim(); return v ? m[0] + ":" + v + " !important" : ""; }).filter(Boolean).join(";");
+    var css = ":root,body,body.theme-light,body.theme-sepia,body.theme-black{" + vars + ";color-scheme:" + (oxLight(bg) ? "light" : "dark") + "}";
+    var st = doc.getElementById("ox-theme");
+    if (!st) { st = doc.createElement("style"); st.id = "ox-theme"; doc.head.appendChild(st); }
+    if (st.textContent !== css) st.textContent = css;
+    if (bg) fr.style.background = bg;
+  }
   function fit() {
+    try { bsTheme(); } catch (eT) {}
     var on = document.querySelector("#tabs .tab.on"), tab = on ? on.getAttribute("data-tab") : "", de = document.documentElement;
     if (de.getAttribute("data-oxtab") !== tab) {
       de.setAttribute("data-oxtab", tab);
@@ -889,4 +907,5 @@ h = h[:m.start()] + "  function screenMetabolicTime() { return " + json.dumps(MT
 # Learn / Reader frames: also take back any space left below them, so the page never scrolls
 rep('if (room >= 520) { f.style.height = room + "px"; }',
     'if (room >= 520) { f.style.height = room + "px"; var spill = document.documentElement.scrollHeight - window.innerHeight; if (spill > 0 && room - spill >= 420) f.style.height = (room - spill) + "px"; }')
+h = h.replace("The character generator and BitSight frames keep their own colours.", "BitSight follows this scheme too; the character generator keeps its own colours.")
 open(dst, "w", encoding="utf-8").write(h); print(dst, len(h))
