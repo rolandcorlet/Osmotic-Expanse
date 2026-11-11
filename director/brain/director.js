@@ -68,6 +68,13 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   }
 
   L.push('');
+  const paidHere = (state.paid || []).filter((p) => p.site === site.id);
+  if (paidHere.length) {
+    const byWhy = {};
+    for (const p of paidHere) (byWhy[p.why] = byWhy[p.why] || []).push((state.organisms[p.org] || {}).name || p.org);
+    L.push(`# ALREADY PAID AT THIS SITE (do not pay these again): ${Object.entries(byWhy).map(([w, who]) => `"${w}" to ${who.join(' and ')}`).join('; ')}`);
+    L.push('');
+  }
   L.push(`# CLOCKS (the players can see these): ${Object.values(state.clocks).map((c) => `${c.name} ${c.filled}/${c.segments}${c.aiAdvanced ? ' (already advanced this session)' : ''}`).join(' · ')}`);
   L.push('CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.');
 

@@ -408,3 +408,10 @@ test('during a Pulse War the briefing says who is still up and that the Cohort c
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
   assert.match(briefing(s, scenario, bestiary, {}), /Still up: Gnaw Swarm.*cannot end the Pulse War or change site/);
 });
+
+test('the briefing lists what has already been paid at this site', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  assert.ok(!/ALREADY PAID/.test(briefing(T.state, scenario, bestiary, {})));
+  T.run('award', { why: 'Getting inside without making an enemy of Order II', codon: 15 });
+  assert.match(briefing(T.state, scenario, bestiary, {}), /ALREADY PAID AT THIS SITE.*"getting inside without making an enemy of order ii" to Bresk of the Sixth Choir and Brost of the Third Current/);
+});
