@@ -514,3 +514,15 @@ test('ending the turn of a stood-down creature is not a refusal', () => {
   assert.match(r.note, /out of the fight/);
   assert.equal(T.refusals, 0);
 });
+
+test('the briefing says whether the acting creature can Strike', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'contact' }] }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  for (let i = 0; i < 20 && s.fight.turn !== `cre:${cid}`; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
+  assert.match(briefing(s, scenario, bestiary, {}), /Gnaw Swarm[^\n]*can Strike now/);
+  s.fight.actors[`cre:${cid}`].pp = 1;
+  assert.match(briefing(s, scenario, bestiary, {}), /CANNOT Strike now \(a Strike costs 2 and it has 1\)/);
+  s.creatures[cid].segments = 1;
+  assert.match(briefing(s, scenario, bestiary, {}), /too few Segments left to Strike at all/);
+});

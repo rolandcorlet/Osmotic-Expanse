@@ -90,10 +90,24 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       const a = f.actors[k];
       const body = a.kind === 'org' ? state.organisms[a.id] : state.creatures[a.id];
       if (!body) continue;
-      L.push(`- ${body.name} (${a.kind === 'org' ? 'player' : 'creature'}): ${a.status}${a.status === 'acting' || a.status === 'holding' ? `, ${a.pp} Pulse Points left` : ''}${a.reserve ? ', holding a Reserve' : ''}${f.turn === k ? '  <= ACTING NOW' : ''}`);
+      // What a creature can afford, worked out here so the Director does not try what the Engine will refuse.
+      let can = '';
+      if (a.kind === 'cre' && !body.down && !body.stoodDown) {
+        const swarm = body.segments != null;
+        const allowed = swarm ? Math.floor(body.segments / 2) : Infinity;
+        if (swarm && allowed === 0) can = '; too few Segments left to Strike at all (it can only Drift or end its turn)';
+        else if (a.status === 'acting') {
+          const cost = swarm && a.strikes > 0 ? 0 : 2;
+          const why = body.band === 'far' || body.band === 'loose' ? `it is at ${body.band} and must Drift closer first`
+            : swarm && a.strikes >= allowed ? 'it has used its Strikes for this Cycle'
+              : a.pp < cost ? `a Strike costs ${cost} and it has ${a.pp}` : '';
+          can = why ? `; CANNOT Strike now (${why})` : '; can Strike now';
+        }
+      }
+      L.push(`- ${body.name} (${a.kind === 'org' ? 'player' : 'creature'}): ${a.status}${a.status === 'acting' || a.status === 'holding' ? `, ${a.pp} Pulse Points left` : ''}${a.reserve ? ', holding a Reserve' : ''}${can}${f.turn === k ? '  <= ACTING NOW' : ''}`);
     }
     const cur = f.turn ? f.actors[f.turn] : null;
-    L.push('Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1. A creature with fewer Pulse Points left than an action costs cannot take it: end its turn instead.');
+    L.push('Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1. A creature with fewer Pulse Points left than an action costs cannot take it: end its turn instead. Count before you act: a Drift then a Strike needs 3.');
     const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down && !c.stoodDown);
     if (up.length) L.push(`Still fighting: ${up.map((c) => c.name).join(', ')}. While any of these is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do. A creature that has yielded, fled or was never fighting does not belong in this list: use creature_stand_down for it, with the reason.`);
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
