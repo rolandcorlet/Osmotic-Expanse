@@ -443,6 +443,9 @@ function resolveAttack(s, ctx, req, read, entry, notes) {
       entry.segments = out.segments;
       entry.working = `Swarm: Overflow ${read.overflow} / 3, rounded up, + 1 = ${out.segments} Segments`;
     }
+    // Recorded for the Director: whether the thing struck is still up.
+    entry.targetName = c.name;
+    entry.targetDown = !!c.down;
     if ((w.props || []).includes('Lodged') && !c.down && !hasCond(c, 'Lodged')) {
       c.conditions.push({ name: 'Lodged' });
       notes.push(`Lodged: the ${w.name} stays in. ${c.name} is at -1 DFF until it is removed.`);

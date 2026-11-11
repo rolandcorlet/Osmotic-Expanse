@@ -129,7 +129,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       const res = r.source === 'baseline' ? 'no roll needed: passed on Baseline (no Overflow)'
         : r.at == null ? `dice ${r.dice.join(',')} total ${r.total}`
           : `dice ${r.dice.join(',')} = ${r.total} against ${r.at}: ${r.success ? `SUCCESS, Overflow ${r.overflow}` : `FAILED, short by ${r.shortBy}`}`;
-      L.push(`- ${r.who} — ${r.label}: ${res}${r.runaway ? ' — RUNAWAY CATALYSIS (say so)' : ''}${r.stressMarked ? ` — marked ${r.stressMarked} Stress, now ${r.stressNow}` : ''}${r.damage != null && r.segments == null ? ` — ${r.damage} damage` : ''}${r.segments != null ? ` — ${r.segments} Segments removed` : ''}`);
+      L.push(`- ${r.who} — ${r.label}: ${res}${r.runaway ? ' — RUNAWAY CATALYSIS (say so)' : ''}${r.stressMarked ? ` — marked ${r.stressMarked} Stress, now ${r.stressNow}` : ''}${r.damage != null && r.segments == null ? ` — ${r.damage} damage` : ''}${r.segments != null ? ` — ${r.segments} Segments removed` : ''}${r.targetName ? (r.targetDown ? ` — ${r.targetName} is DESTROYED by this` : ` — ${r.targetName} is STILL UP after this: describe it hurt, never destroyed`) : ''}${r.kind === 'attack' && r.whoKind === 'org' && r.at != null && !r.success ? ' — a miss: the target is unharmed' : ''}`);
     }
   }
 

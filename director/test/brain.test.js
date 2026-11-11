@@ -526,3 +526,22 @@ test('the briefing says whether the acting creature can Strike', () => {
   s.creatures[cid].segments = 1;
   assert.match(briefing(s, scenario, bestiary, {}), /too few Segments left to Strike at all/);
 });
+
+test('after a hit the briefing says whether the target is still up or destroyed', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'contact' }] }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  for (let i = 0; i < 20 && s.fight.turn !== 'org:wall'; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
+  s = apply(s, { type: 'strike', organismId: 'wall', targetId: cid }, ctx('player', 'p1'));
+  const n = s.requests[0].pool.dice;
+  s = apply(s, { type: 'roll', requestId: s.requests[0].id, dice: [6, 5, ...Array(n - 2).fill(2)] }, ctx('player', 'p1'));
+  assert.equal(s.creatures[cid].down, false);
+  assert.match(briefing(s, scenario, bestiary, {}), /Fold Sentinel is STILL UP after this: describe it hurt, never destroyed/);
+  s.creatures[cid].mi = 1;
+  for (let i = 0; i < 20 && s.fight.turn !== 'org:eyes'; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
+  s = apply(s, { type: 'strike', organismId: 'eyes', targetId: cid }, ctx('player', 'p2'));
+  const m = s.requests[0].pool.dice;
+  s = apply(s, { type: 'roll', requestId: s.requests[0].id, dice: Array(m).fill(6) }, ctx('player', 'p2'));
+  assert.equal(s.creatures[cid].down, true);
+  assert.match(briefing(s, scenario, bestiary, {}), /Fold Sentinel is DESTROYED by this/);
+});
