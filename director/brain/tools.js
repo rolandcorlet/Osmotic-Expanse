@@ -171,7 +171,7 @@ export const TOOLS = [
   },
   {
     name: 'creature_stand_down',
-    description: 'A creature leaves the fight without being destroyed: it has yielded, it has fled, it has what it wanted, or it was never fighting (a clerk honouring a filed oath). It takes no more turns and no longer keeps the Pulse War open. If a player strikes it afterwards it rejoins the fight. Never use this for a creature that is still attacking.',
+    description: 'A creature leaves the fight without being destroyed: it has yielded, it has fled, it has what it wanted, or it was never fighting (a clerk honouring a filed oath). Standing down ends its turn at once (do not call end_creature_turn for it); it takes no more turns and no longer keeps the Pulse War open. If a player strikes it afterwards it rejoins the fight. Never use this for a creature that is still attacking.',
     parameters: obj({ creature: S('Creature id from the briefing.'), why: S('Why it stands down, in a few words the players can hear.') }, ['creature', 'why']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
@@ -187,6 +187,8 @@ export const TOOLS = [
     run(a, T) {
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature);
+      // A creature that is down or has stood down has no turn to end: say so without a refusal.
+      if (T.state.fight && (c.down || c.stoodDown)) return { note: `${c.name} is out of the fight and has no turn to end.`, ...T.fightBrief() };
       const no = T.do({ type: 'turn.end', cid: c.cid });
       return no ? { refused: no } : T.fightBrief();
     },

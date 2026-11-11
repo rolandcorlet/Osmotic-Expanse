@@ -502,3 +502,15 @@ test('stand down: a creature that is not fighting leaves the fight, and striking
   T.run('creature_stand_down', { creature: cid, why: 'it yields' });
   assert.deepEqual(T.run('end_pulse_war', {}), { ended: true });
 });
+
+test('ending the turn of a stood-down creature is not a refusal', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const cid = Object.keys(T.state.creatures)[0];
+  T.run('creature_stand_down', { creature: cid, why: 'it honours the filed oath' });
+  const r = T.run('end_creature_turn', { creature: cid });
+  assert.ok(!r.refused);
+  assert.match(r.note, /out of the fight/);
+  assert.equal(T.refusals, 0);
+});
