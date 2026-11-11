@@ -461,3 +461,13 @@ test('a reply that runs long or has no question gets one rewrite', async () => {
   assert.equal(r2.narration, 'The brine drifts.');
   assert.ok(r2.flags.some((f) => f.kind === 'style'));
 });
+
+test('the briefing marks a downed creature as destroyed', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
+  assert.ok(!/DESTROYED/.test(briefing(s, scenario, bestiary, {})));
+  for (const c of Object.values(s.creatures)) c.down = true;
+  const text = briefing(s, scenario, bestiary, {});
+  assert.match(text, /Fold Sentinel \(id "[^"]+"\): DESTROYED/);
+  assert.match(text, /Every creature here is destroyed/);
+});

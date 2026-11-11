@@ -64,8 +64,11 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   if (!here.length) L.push('None are present yet.');
   for (const c of here) {
     const health = c.segments != null ? `Segments ${c.segments}/${c.segMax}` : `MI ${c.mi}/${c.miMax}`;
-    L.push(`- ${c.name} (id "${c.cid}", block ${c.blockId}): ${c.down ? 'DOWN' : health}; band ${c.band}${c.conditions.length ? `; ${c.conditions.map((x) => x.name).join(', ')}` : ''}`);
+    if (c.down) { L.push(`- ${c.name} (id "${c.cid}"): DESTROYED. It is out of the scene: it cannot act, block the way or be struck. Describe it only as wreckage.`); continue; }
+    L.push(`- ${c.name} (id "${c.cid}", block ${c.blockId}): ${health}; band ${c.band}${c.conditions.length ? `; ${c.conditions.map((x) => x.name).join(', ')}` : ''}`);
   }
+  const downNow = here.filter((c) => c.down);
+  if (downNow.length && !here.some((c) => !c.down)) L.push('Every creature here is destroyed. Do not describe any of them as alive, standing or holding a line.');
 
   L.push('');
   const paidHere = (state.paid || []).filter((p) => p.site === site.id);
