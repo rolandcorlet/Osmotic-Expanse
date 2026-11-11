@@ -212,7 +212,23 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   }
   if (!narration) return null;
   narration = narration.replace(/\*\*/g, '').trim();
-  const flags = checkNarration(narration, T.state, { moved: T.state.scene.siteId !== state.scene.siteId });
+  const moved = T.state.scene.siteId !== state.scene.siteId;
+  let flags = checkNarration(narration, T.state, { moved });
+  // A suspected leak gets one rewrite before anyone sees it. If the rewrite is clean it replaces
+  // the original; if not, the original's flags stand and the turn is held for the host.
+  if (flags.some((f) => f.kind === 'leak')) {
+    try {
+      const fix = await chat.send(`Your reply gave away something the table must not hear: ${flags.filter((f) => f.kind === 'leak').map((f) => f.text).join(' ')} Rewrite the whole reply without any creature numbers (no dice, Thresholds, Membrane Integrity or soak) and without naming the briefing, notes or tools. Describe what the organisms can see or sense instead. Keep everything else, plain text, and end on one question. Do not call any tools.`);
+      usage.in += fix.usage.in;
+      usage.out += fix.usage.out;
+      const text = String(fix.text || '').replace(/\*\*/g, '').trim();
+      const again = text ? checkNarration(text, T.state, { moved }) : null;
+      if (again && !again.some((f) => f.kind === 'leak')) {
+        narration = text;
+        flags = [...again, { kind: 'note', text: 'Rewritten once: the first draft gave away a creature\'s numbers or the machinery.' }];
+      }
+    } catch (e) { /* the rewrite failed: keep the original and its leak flag */ }
+  }
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
   T.do({ type: 'narrate', text: narration, by: 'ai' });
   return { state: T.state, narration, calls, flags, usage, refusals: T.refusals };

@@ -142,7 +142,7 @@ test('Co-pilot: the host sees a proposal, may edit it, and only then does the ta
 });
 
 test('Auto: a clean turn goes straight to the table; a suspected leak is held for the host', async () => {
-  const m = managed('auto', [{ text: 'The floor hums. Brost, do you tell Bresk?' }, { text: 'The Sentinel has MT 13 and soak 1. Brost, what now?' }]);
+  const m = managed('auto', [{ text: 'The floor hums. Brost, do you tell Bresk?' }, { text: 'The Sentinel has MT 13 and soak 1. Brost, what now?' }, { text: 'Its Membrane Threshold is 13. Brost, what now?' }]);
   await m.d.op({ op: 'config', mode: 'auto', apiKey: 'k' });
   await m.d.op({ op: 'run' });
   await settle(m.d);
@@ -414,4 +414,28 @@ test('the briefing lists what has already been paid at this site', () => {
   assert.ok(!/ALREADY PAID/.test(briefing(T.state, scenario, bestiary, {})));
   T.run('award', { why: 'Getting inside without making an enemy of Order II', codon: 15 });
   assert.match(briefing(T.state, scenario, bestiary, {}), /ALREADY PAID AT THIS SITE.*"getting inside without making an enemy of order ii" to Bresk of the Sixth Choir and Brost of the Third Current/);
+});
+
+test('a leaked creature number gets one rewrite; a clean rewrite replaces it', async () => {
+  const s = apply(seated(), { type: 'say', text: 'How many dice does the swarm roll?' }, ctx('player', 'p2'));
+  const make = scripted([
+    { text: 'A Gnaw Swarm rolls three dice, and its Membrane Threshold is 12. Brost, what now?' },
+    { text: 'The swarm is a brittle, frantic cloud that wants water more than a fight. Brost, what now?' },
+  ]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.match(r.narration, /brittle, frantic cloud/);
+  assert.ok(!r.flags.some((f) => f.kind === 'leak'));
+  assert.ok(r.flags.some((f) => f.kind === 'note'));
+  assert.match(String(make.seen.at(-1)), /Rewrite the whole reply/);
+});
+
+test('a rewrite that still leaks keeps the original and its leak flag', async () => {
+  const s = apply(seated(), { type: 'say', text: 'How many dice does the swarm roll?' }, ctx('player', 'p2'));
+  const make = scripted([
+    { text: 'A Gnaw Swarm has a pool of three dice. Brost, what now?' },
+    { text: 'Fine: it has a Membrane Threshold of 12. Brost, what now?' },
+  ]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.match(r.narration, /pool of three dice/);
+  assert.ok(r.flags.some((f) => f.kind === 'leak'));
 });
