@@ -1,0 +1,17 @@
+# ---- Secrets: never push these ----
+# director/saves/director.json holds a live Gemini API key.
+saves/
+.env
+.env.*
+*.env.local
+
+# ---- Per-machine / tool state ----
+.vercel/
+node_modules/
+
+# ---- OS and editor junk ----
+Thumbs.db
+desktop.ini
+.DS_Store
+__pycache__/
+*.pyc
