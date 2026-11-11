@@ -20,7 +20,7 @@ let order = '';
 for (let i = 0; i < lines.length; i++) {
   const l = lines[i];
   const oh = l.match(/^# (ORDER [IVX]+ — .+|ABIOTIC.+|COLONISTS.+)$/);
-  if (oh) order = title(oh[1].replace(/^ORDER ([IVX]+) — /, (m, r) => `Order ${r}: `));
+  if (oh) { const m = oh[1].match(/^ORDER ([IVX]+) — (.+)$/); order = m ? `Order ${m[1]}: ${title(m[2])}` : title(oh[1]); }
   const h = l.match(/^### (.+)$/);
   if (!h) continue;
   const stat = lines[i + 1] || '';
@@ -47,6 +47,7 @@ for (let i = 0; i < lines.length; i++) {
     mi: num(/MI\s+(\d+)/, stat),
     soak: num(/soak\s+(\d+)/, stat) || 0,
     bracedSoak: soakBraced ? Number(soakBraced[1]) : 0,
+    bracedMt: num(/Brace \([^)]*MT \+(\d)/, body.join(' ')) || 0,
     bd: bd ? Number(bd[1]) : 0,
     type: bd && bd[2] && !/^(type|never|it)$/i.test(bd[2]) ? bd[2] : '',
     pool: num(/pool\s+(\d+)d/, stat),

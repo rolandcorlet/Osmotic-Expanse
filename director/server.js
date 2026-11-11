@@ -22,6 +22,7 @@ import { spawn } from 'node:child_process';
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
 import { systemRng } from './engine/dice.js';
 import { scenario, publicScenario } from './data/first-carve.js';
+import { createDirector } from './brain/manager.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -78,9 +79,12 @@ function save() {
 // ------------------------------------------------------------- live screens
 const screens = new Set(); // { res, role, pid }
 
+let director = null; // the AI Director: created once the session is loaded
+
 function send(screen) {
   const view = viewFor(state, screen.role, screen.pid);
-  screen.res.write(`event: state\ndata: ${JSON.stringify(view)}\n\n`);
+  const payload = director ? { ...view, director: director.view(screen.role) } : view;
+  screen.res.write(`event: state\ndata: ${JSON.stringify(payload)}\n\n`);
 }
 
 function broadcast() {
@@ -179,6 +183,18 @@ function act(role, pid, action) {
   state = next;
 }
 
+// The Director's finished turn becomes the live Ledger.
+function commit(next) {
+  history.push(state);
+  if (history.length > 60) history.shift();
+  state = next.seq > state.seq ? next : { ...next, seq: state.seq + 1 };
+  save();
+  broadcast();
+}
+
+// Player actions the Director should answer.
+const ANSWERED = { say: 'a player spoke', roll: 'a roll was made', 'turn.end': 'a turn ended' };
+
 // ------------------------------------------------------------------- server
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
@@ -241,7 +257,17 @@ const server = http.createServer(async (req, res) => {
       }
       save();
       broadcast();
+      const type = (body.action || {}).type;
+      if (director && ANSWERED[type] && (role === 'player' || type === 'say')) director.playerActed(ANSWERED[type]);
       json(res, 200, { ok: true, seq: state.seq });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/director') {
+      const body = await readBody(req);
+      const who = access(req, { ...body, role: 'host' });
+      if (!who.role) { json(res, 403, who); return; }
+      await director.op(body);
+      json(res, 200, { ok: true });
       return;
     }
     json(res, 404, { error: 'Not found.' });
@@ -292,6 +318,8 @@ function startTunnel() {
 }
 
 load();
+director = createDirector({ getState: () => state, commit, scenario, bestiary, saveDir: SAVE_DIR, rng, onChange: broadcast });
+director.init();
 server.listen(PORT, '0.0.0.0', () => {
   const ips = addresses();
   const line = '-'.repeat(62);

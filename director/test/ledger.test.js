@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { newSession, apply, viewFor, RuleError, orgMT } from '../engine/ledger.js';
+import { newSession, apply, viewFor, RuleError, orgMT, creMT } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario, publicScenario } from '../data/first-carve.js';
@@ -289,4 +289,46 @@ test('Stress at 3 takes a die off every pool', () => {
   t.host({ type: 'set', target: { kind: 'org', id: 'wall' }, field: 'stress', value: 3 });
   t.host({ type: 'request.check', organismId: 'wall', baseline: 'VSC', pathway: 'Pressure Tolerance', at: 12 });
   assert.equal(t.s.requests[0].pool.dice, 5);
+});
+
+test('situation, Overdrive, Inhibit, and a creature that Deflects', () => {
+  const t = seated();
+  t.host({ type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'contact' }], ownDice: { wall: 6, eyes: 1, 'Order II: Protein Sentinels': 6 } });
+  const c = Object.values(t.s.creatures)[0];
+  assert.deepEqual(t.s.fight.order, ['org:wall', `cre:${c.cid}`, 'org:eyes']);
+  // The Wall holds a Reserve. The Sentinel strikes; the Wall Inhibits: Reserve and 3 ATP take 2 dice off.
+  t.as('p1', { type: 'act', organismId: 'wall', action: 'reserve' });
+  t.as('p1', { type: 'turn.end', organismId: 'wall' });
+  t.host({ type: 'creature.strike', cid: c.cid, targetId: 'wall' });
+  t.as('p1', { type: 'react', requestId: t.s.requests[0].id, kind: 'inhibit' });
+  assert.deepEqual([t.s.requests[0].pool.dice, t.s.organisms.wall.atp], [2, 7]);
+  t.as('p1', { type: 'roll', requestId: t.s.requests[0].id }); // the struck player lets the dice fall
+  assert.equal(t.s.rolls.at(-1).dice.length, 2);
+  // The Sentinel keeps its last Pulse Point as a Reserve.
+  t.host({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 });
+  assert.throws(() => t.host({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 }), /already holding/);
+  t.host({ type: 'turn.end', cid: c.cid });
+  // Players may only claim printed circumstances, one of each kind; anything else is ignored.
+  t.as('p2', { type: 'strike', organismId: 'eyes', weaponId: 'needle-dagger', targetId: c.cid, situation: ['ally1', 'ally2', 'cover2', 'made-up'], mods: [{ label: 'cheat', dice: 5 }] });
+  let q = t.s.requests[0];
+  assert.equal(q.pool.dice, 4 + 2 + 1 - 2); // DFF 4 + Dagger 2 + one ally - cover
+  assert.equal(q.at, 13 + 4); // it Deflects with its Reserve
+  assert.equal(q.reaction, 'deflect');
+  // Overdrive: 4 ATP for 2 dice, once per roll.
+  t.as('p2', { type: 'overdrive', requestId: q.id, with: 'atp' });
+  q = t.s.requests[0];
+  assert.deepEqual([q.pool.dice, t.s.organisms.eyes.atp], [7, 10]);
+  assert.throws(() => t.as('p2', { type: 'overdrive', requestId: q.id, with: 'mi' }), /twice/);
+  assert.throws(() => t.as('p1', { type: 'overdrive', requestId: q.id, with: 'atp' }), /not your organism/);
+  t.as('p2', { type: 'roll', requestId: q.id, dice: [6, 6, 5, 2, 2, 2, 2] }); // 25 against 17
+  const r = t.s.rolls.at(-1);
+  assert.deepEqual([r.success, r.overflow, r.runaway, r.damage], [true, 8, true, 8 + 2 - 1]);
+  // A second attack the same Cycle: the Reserve is spent, so no Deflect. Overdrive in body: +4 dice, outside the cap.
+  t.as('p2', { type: 'strike', organismId: 'eyes', weaponId: 'needle-dagger', targetId: c.cid });
+  assert.equal(t.s.requests[0].at, 13);
+  t.as('p2', { type: 'overdrive', requestId: t.s.requests[0].id, with: 'mi' });
+  assert.deepEqual([t.s.requests[0].pool.dice, t.s.organisms.eyes.mi, t.s.organisms.eyes.stress], [10, 23, 1]);
+  // Braced, a Fold Sentinel is harder to hit and to hurt.
+  t.host({ type: 'condition', target: { kind: 'cre', id: c.cid }, name: 'Braced' });
+  assert.equal(creMT(t.s.creatures[c.cid]), 15);
 });

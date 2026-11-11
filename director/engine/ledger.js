@@ -31,6 +31,7 @@ export function newSession(scenario) {
     requests: [],
     rolls: [],
     log: [],
+    story: [],
     nextId: 1,
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
@@ -91,6 +92,8 @@ export function makeCreature(block, { cid, name, band = 'near', siteId = null, g
     segMax: swarm ? block.segments : null,
     soak: block.soak || 0,
     bracedSoak: block.bracedSoak || 0,
+    bracedMt: block.bracedMt || 0,
+    canReact: !/caged|wounded/i.test(block.cls || ''), // Bestiary: Reactive Osmosis is open to Standards, Elites, Catastrophes and swarm clusters
     bd: block.bd || 0,
     type: block.type || '',
     pool: block.pool,
@@ -116,9 +119,11 @@ export function apply(state, action, ctx) {
   if (ctx.role === 'table') throw new RuleError('The table screen only watches.');
   const s = clone(state);
   s.seq += 1;
+  if (!s.story) s.story = []; // sessions saved before the story existed
   h.run(s, action, ctx);
   if (s.rolls.length > MAX_ROLLS) s.rolls = s.rolls.slice(-MAX_ROLLS);
   if (s.log.length > MAX_LOG) s.log = s.log.slice(-MAX_LOG);
+  if (s.story.length > MAX_LOG) s.story = s.story.slice(-MAX_LOG);
   return s;
 }
 
@@ -168,7 +173,7 @@ export function orgMT(o) {
 }
 
 export function creMT(c) {
-  return c.mt + condSum(c, 'mt');
+  return c.mt + condSum(c, 'mt') + (hasCond(c, 'Braced') ? (c.bracedMt || 0) : 0);
 }
 
 function creSoak(c) {
@@ -292,6 +297,44 @@ function cleanMods(mods) {
     .map((m) => ({ label: String(m.label || 'Modifier').slice(0, 40), dice: Math.trunc(Number(m.dice) || 0) }))
     .filter((m) => m.dice !== 0)
     .slice(0, 8);
+}
+
+// Add or remove dice on a waiting roll, keeping the +5 / -5 cap and Stress honest.
+function addDice(s, req, label, dice) {
+  const prior = req.pool.parts.filter((p) => !p.label.startsWith('Stress '));
+  const stress = req.actor.kind === 'org' ? s.organisms[req.actor.id].stress : 0;
+  const fixedPart = prior.find((p) => p.label === 'Printed pool');
+  const basePart = prior.find((p) => p.label === 'Baseline');
+  const pathPart = prior.find((p) => p.label === 'Pathway');
+  const mods = prior.filter((p) => p !== fixedPart && p !== basePart && p !== pathPart).concat([/^Overdrive/.test(label) ? { label, dice, uncapped: true } : { label, dice }]);
+  const next = R.buildPool({ baseline: basePart ? basePart.dice : 0, pathway: pathPart ? pathPart.dice : 0, fixed: fixedPart ? fixedPart.dice : null, mods, stress });
+  next.baselineName = req.pool.baselineName;
+  next.pathwayName = req.pool.pathwayName;
+  req.pool = next;
+  req.chance = req.at != null ? successChance(Math.min(30, next.dice), req.at) : null;
+}
+
+// CORE 1.3: the circumstances a player may claim for their own roll.
+export const SITUATIONS = {
+  ally1: { label: 'An ally helps', dice: 1 },
+  ally2: { label: 'Two allies help', dice: 2 },
+  position: { label: 'Good position', dice: 1 },
+  tonic1: { label: 'Wrong tonic', dice: -1 },
+  tonic2: { label: 'Wrong tonic, badly', dice: -2 },
+  cover2: { label: 'Target in partial cover', dice: -2 },
+  cover4: { label: 'Target in heavy cover', dice: -4 },
+  squeezed: { label: 'Squeezed or pinned', dice: -2 },
+};
+function situationMods(list) {
+  const seen = new Set();
+  const out = [];
+  for (const id of Array.isArray(list) ? list : []) {
+    const group = String(id).replace(/\d$/, '');
+    if (!SITUATIONS[id] || seen.has(group)) continue;
+    seen.add(group);
+    out.push({ ...SITUATIONS[id] });
+  }
+  return out;
 }
 
 function pushRequest(s, req) {
@@ -639,13 +682,44 @@ const HANDLERS = {
     },
   },
 
+  // ---- the story: what players say they do, and what the Director narrates
+  say: {
+    run(s, a, ctx) {
+      const text = String(a.text || '').trim().slice(0, 600);
+      if (!text) throw new RuleError('Say something first.');
+      let o = null;
+      if (ctx.role === 'host') {
+        o = a.organismId ? org(s, a.organismId) : null;
+      } else {
+        const p = s.players[ctx.pid];
+        if (!p) throw new RuleError('Join the table first.');
+        o = p.organismId ? s.organisms[p.organismId] : null;
+        if (!o) throw new RuleError('Choose your organism first.');
+      }
+      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, kind: 'say', who: o ? o.name : 'The host', orgId: o ? o.id : null, text });
+    },
+  },
+  narrate: {
+    host: true,
+    run(s, a, ctx) {
+      const text = String(a.text || '').trim().slice(0, 2400);
+      if (!text) throw new RuleError('There is nothing to narrate.');
+      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text });
+    },
+  },
+
   // ---- rolls
   roll: {
     run(s, a, ctx) {
       const req = s.requests.find((q) => q.id === a.requestId);
       if (!req) throw new RuleError('That roll is no longer waiting.');
       if (req.actor.kind === 'org') needControl(s, ctx, req.actor.id);
-      else if (ctx.role !== 'host') throw new RuleError('Creature dice are rolled by the host, in the open.');
+      else if (ctx.role !== 'host') {
+        // The player being struck may let the dice fall; the Engine rolls them, in the open.
+        if (!(req.kind === 'incoming' && req.target && mayControl(s, ctx, req.target.id))) throw new RuleError('Creature dice are rolled by the host, in the open.');
+        resolve(s, ctx, req, null);
+        return;
+      }
       resolve(s, ctx, req, a.dice);
     },
   },
@@ -706,17 +780,8 @@ const HANDLERS = {
       if (!req) throw new RuleError('That roll is no longer waiting.');
       const add = cleanMods([{ label: a.label || 'Director', dice: a.dice }]);
       if (!add.length) return;
-      const prior = req.pool.parts.filter((p) => !p.label.startsWith('Stress '));
-      const stress = req.actor.kind === 'org' ? s.organisms[req.actor.id].stress : 0;
-      const fixedPart = prior.find((p) => p.label === 'Printed pool');
-      const basePart = prior.find((p) => p.label === 'Baseline');
-      const pathPart = prior.find((p) => p.label === 'Pathway');
-      const mods = prior.filter((p) => p !== fixedPart && p !== basePart && p !== pathPart).concat(add);
-      const next = R.buildPool({ baseline: basePart ? basePart.dice : 0, pathway: pathPart ? pathPart.dice : 0, fixed: fixedPart ? fixedPart.dice : null, mods, stress });
-      next.baselineName = req.pool.baselineName;
-      next.pathwayName = req.pool.pathwayName;
-      req.pool = next;
-      req.chance = req.at != null ? successChance(Math.min(30, next.dice), req.at) : null;
+      addDice(s, req, add[0].label, add[0].dice);
+      const next = req.pool;
       say(s, ctx, `${req.label}: ${add[0].dice > 0 ? '+' : ''}${add[0].dice} dice (${add[0].label}). Now ${next.dice} dice.`, 'ask');
     },
   },
@@ -780,7 +845,13 @@ const HANDLERS = {
       const c = s.clocks[a.id];
       if (!c) throw new RuleError('No such Clock.');
       const before = c.filled;
-      c.filled = clamp(c.filled + Math.trunc(Number(a.delta) || 0), 0, c.segments);
+      const delta = Math.trunc(Number(a.delta) || 0);
+      if (a.by === 'ai' && delta > 0) {
+        // Clock discipline (Vector 3.4): at most one segment per Clock per session.
+        if (delta > 1 || c.aiAdvanced) throw new RuleError(`Clock discipline: ${c.name} may advance at most one segment per session, and it already has.`);
+        c.aiAdvanced = true;
+      }
+      c.filled = clamp(c.filled + delta, 0, c.segments);
       if (c.filled !== before) say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.${a.why ? ` ${String(a.why).slice(0, 120)}` : ''}`, 'clock');
     },
   },
@@ -1084,7 +1155,8 @@ const HANDLERS = {
       if (braced && s.fight && act && !act.drifted) mods.push({ label: 'Braced (did not Drift)', dice: 1 });
       if (a.momentum && !braced) mods.push({ label: 'Momentum', dice: a.current ? 3 : 2 });
       if (hasCond(c, 'Marked')) mods.push({ label: 'Target is Marked', dice: 2 });
-      for (const m of cleanMods(a.mods)) mods.push(m);
+      for (const m of situationMods(a.situation)) mods.push(m);
+      if (ctx.role === 'host') for (const m of cleanMods(a.mods)) mods.push(m);
       const pool = R.buildPool({ baseline: o.base[baseName] + condBase(o, baseName), pathway: o.pathways[pathName] || 0, mods, stress: o.stress });
       pool.baselineName = baseName;
       pool.pathwayName = pathName;
@@ -1096,6 +1168,18 @@ const HANDLERS = {
         weapon: { id: w.id, name: w.name, bd: (w.bd || [0])[tier - 1] || 0, type, props: w.props || [] }, ppCost: s.fight ? cost : 0, flank: !!a.flank,
       });
       say(s, ctx, `${o.name} Strikes ${c.name} with the ${w.name}${s.fight ? `: ${cost} PP, ${act.pp} left` : ''}. ${pool.dice} dice against Membrane Threshold ${creMT(c)}.`, 'act');
+      // A creature holding a Reserve Deflects the first attack against it (Bestiary: +4 to its defending Threshold).
+      const cAct = actorOf(s, 'cre', c.cid);
+      if (cAct && cAct.reserve && !cAct.reacted) {
+        const req = s.requests[s.requests.length - 1];
+        cAct.reserve = false;
+        cAct.reacted = true;
+        req.at += 4;
+        req.reaction = 'deflect';
+        req.reactor = c.name;
+        req.chance = successChance(Math.min(30, req.pool.dice), req.at);
+        say(s, ctx, `${c.name} spends its Reserve: Deflect. Its Membrane Threshold against this attack is ${req.at}.`, 'act');
+      }
     },
   },
   react: {
@@ -1109,16 +1193,50 @@ const HANDLERS = {
       if (!act || !act.reserve) throw new RuleError('A Reactive Osmosis needs a held Reserve (1 PP, set aside on your turn).');
       if (act.reacted) throw new RuleError('One Reactive Osmosis per Cycle.');
       if (req.reaction) throw new RuleError('A reaction has already been made against this attack.');
-      if (a.kind !== 'deflect' && a.kind !== 'brace') throw new RuleError('Choose Deflect or Brace.');
+      if (a.kind !== 'deflect' && a.kind !== 'brace' && a.kind !== 'inhibit') throw new RuleError('Choose Deflect, Brace or Inhibit.');
+      const helper = s.organisms[helperId];
+      if (a.kind === 'inhibit') {
+        // CORE 1.8 and 4.10: 3 ATP and the Reserve take 2 dice off a hostile roll.
+        const atp = R.atpCost(3, { stress: helper.stress, conditions: helper.conditions.map((c) => c.name) });
+        if (helper.atp < atp) throw new RuleError(`Inhibition costs ${atp} ATP and ${helper.name} has ${helper.atp}.`);
+        helper.atp -= atp;
+        act.spentAtp = true;
+        addDice(s, req, `Inhibited by ${helper.name}`, -2);
+      }
       act.reserve = false;
       act.reacted = true;
       req.reaction = a.kind;
-      req.reactor = s.organisms[helperId].name;
+      req.reactor = helper.name;
       if (a.kind === 'deflect') {
         req.at += 4;
         req.chance = successChance(Math.min(30, req.pool.dice), req.at);
       }
       say(s, ctx, `${s.organisms[helperId].name} spends the Reserve: ${R.REACTIONS[a.kind].name}. ${R.REACTIONS[a.kind].does}`, 'act');
+    },
+  },
+  overdrive: {
+    // CORE 1.8: pay energy or body for dice, once per roll.
+    run(s, a, ctx) {
+      const req = s.requests.find((q) => q.id === a.requestId);
+      if (!req || req.actor.kind !== 'org') throw new RuleError('That roll is no longer waiting.');
+      needControl(s, ctx, req.actor.id);
+      const o = org(s, req.actor.id);
+      if (req.overdrive) throw new RuleError('You cannot Overdrive twice on the same roll.');
+      const act = actorOf(s, 'org', o.id);
+      if (a.with === 'mi') {
+        if (o.mi <= 4) throw new RuleError(`Overdriving with the body costs 4 MI and ${o.name} has ${o.mi}.`);
+        o.mi -= 4;
+        addStress(s, ctx, o, 1, 'Overdrive paid in body');
+        addDice(s, req, 'Overdrive (4 MI)', 4);
+      } else {
+        const atp = R.atpCost(4, { stress: o.stress, conditions: o.conditions.map((c) => c.name) });
+        if (o.atp < atp) throw new RuleError(`Overdrive costs ${atp} ATP and ${o.name} has ${o.atp}.`);
+        o.atp -= atp;
+        if (act) act.spentAtp = true;
+        addDice(s, req, `Overdrive (${atp} ATP)`, 2);
+      }
+      req.overdrive = a.with === 'mi' ? 'mi' : 'atp';
+      say(s, ctx, `${o.name} Overdrives: ${req.overdrive === 'mi' ? '4 MI for 4 more dice, and 1 Stress' : '2 more dice for ATP'}. Now ${req.pool.dice} dice.`, 'act');
     },
   },
   stabilise: {
@@ -1148,6 +1266,15 @@ const HANDLERS = {
       const act = actorOf(s, 'cre', c.cid);
       if (!act) throw new RuleError(`${c.name} is not in this fight.`);
       const cost = clamp(Math.trunc(Number(a.cost) || 1), 0, 6);
+      if (a.what === 'Reserve') {
+        if (c.canReact === false) throw new RuleError(`${c.name} cannot use a Reactive Osmosis.`);
+        if (act.reserve) throw new RuleError(`${c.name} is already holding a Reserve.`);
+        if (act.reacted) throw new RuleError('One Reactive Osmosis per Cycle.');
+        spendPP(s, act, 1, 'A Reserve');
+        act.reserve = true;
+        say(s, ctx, `${c.name} holds a Reserve: it will Deflect the next attack against it (1 PP, ${act.pp} left).`, 'act');
+        return;
+      }
       spendPP(s, act, cost, String(a.what || 'That'));
       if (a.band) c.band = a.band;
       if (a.what === 'Brace' && !hasCond(c, 'Braced')) c.conditions.push({ name: 'Braced' });

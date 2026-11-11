@@ -164,6 +164,40 @@ input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-rad
 .rolls .r .top{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
 .src{font:11px var(--mono);color:var(--faint)}
 
+/* ---- the beat when an attack lands or misses, and Runaway Catalysis ---- */
+.fx{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:18px;background:color-mix(in srgb,var(--bg) 78%,transparent);animation:fxin .18s ease-out both;cursor:pointer;--fxc:var(--ok)}
+.fx.no{--fxc:var(--no)} .fx.run{--fxc:var(--warn-c)}
+.fxbox{position:relative;width:min(520px,100%);text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--panel);border:2px solid var(--fxc);border-radius:18px;padding:22px 18px;box-shadow:0 0 0 6px color-mix(in srgb,var(--fxc) 18%,transparent),0 18px 60px color-mix(in srgb,var(--bg) 80%,transparent);animation:fxpop .45s cubic-bezier(.2,1.4,.4,1) both}
+.fx.no:not(.run) .fxbox{animation:fxpop .3s ease-out both,fxshake .45s .25s both}
+.fxwho{font-size:13px;color:var(--dim)}
+.fxword{font:800 40px/1 var(--ui);letter-spacing:.06em;color:var(--fxc)}
+.fxnum{display:flex;align-items:baseline;gap:10px;justify-content:center}
+.fxnum b{font:800 64px/1 var(--ui);font-variant-numeric:tabular-nums}
+.fxnum span{color:var(--dim);font-size:18px}
+.fxeff{font-weight:700;font-size:18px;color:var(--fxc);background:color-mix(in srgb,var(--fxc) 16%,transparent);border-radius:30px;padding:4px 16px}
+.fxsub{font-size:13px;color:var(--dim);max-width:36ch}
+.fxrun{position:relative;height:34px;width:100%;display:grid;place-items:center}
+.fxrun span{position:relative;font:800 15px var(--ui);letter-spacing:.22em;color:var(--warn-c);animation:fxglow 1s ease-in-out infinite alternate}
+.fxrun i{position:absolute;left:50%;top:50%;width:60px;height:60px;margin:-30px;border-radius:50%;border:2px solid var(--warn-c);opacity:0;animation:fxring 1.6s ease-out infinite}
+.fxrun i:nth-child(2){animation-delay:.5s}.fxrun i:nth-child(3){animation-delay:1s}
+.fx.run .fxbox{border-color:var(--warn-c);box-shadow:0 0 0 6px color-mix(in srgb,var(--warn-c) 22%,transparent),0 0 70px color-mix(in srgb,var(--warn-c) 45%,transparent)}
+.fx.run .die.six{animation:tumble .55s cubic-bezier(.2,.9,.3,1.2) both,fxsix .7s .6s ease-in-out infinite alternate}
+@keyframes fxin{from{opacity:0}to{opacity:1}}
+@keyframes fxpop{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+@keyframes fxshake{0%,100%{transform:none}20%{transform:translateX(-9px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+@keyframes fxring{0%{transform:scale(.4);opacity:.9}100%{transform:scale(6);opacity:0}}
+@keyframes fxglow{from{text-shadow:0 0 0 transparent}to{text-shadow:0 0 18px var(--warn-c)}}
+@keyframes fxsix{from{transform:none;box-shadow:none}to{transform:scale(1.14);box-shadow:0 0 16px var(--ok)}}
+@media (prefers-reduced-motion:reduce){.fx,.fxbox,.fxrun i,.fxrun span,.fx.run .die.six{animation:none!important}.fxrun i{display:none}}
+
+/* ---- the story ---- */
+.story{display:flex;flex-direction:column-reverse;gap:10px}
+.story.short{max-height:38vh}
+.story .st.say{font-size:14px;color:var(--dim);border-left:2px solid var(--accent);padding-left:9px}
+.story .st.say b{color:var(--ink)}
+.story .st.dir .tale{white-space:pre-wrap}
+textarea{resize:vertical;font-family:var(--tale);font-size:15.5px;line-height:1.5}
+
 /* ---- scene card ---- */
 .scene h2{font-size:22px;line-height:1.2}
 .scene .n{font:700 12px var(--mono);color:var(--accent);letter-spacing:.08em}

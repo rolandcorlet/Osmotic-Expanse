@@ -36,7 +36,7 @@ let codeBad = false;
 const TABS = {
   player: [['play', 'Play'], ['sheet', 'Sheet'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -45,6 +45,10 @@ const ui = {
   join: { name: store.get('oxd.name') || '' },
   claim: { hand: null, name: '' },
   own: null,
+  seenReq: {},
+  jumpTop: false,
+  say: { text: '' },
+  dir: { key: '', note: '', edit: '', editId: null, narrate: '' },
   strike: null,
   drift: false,
   quick: { baseline: 'OSM', pathway: '', at: '', practice: false },
@@ -77,6 +81,51 @@ function toast(text, good = false) {
   toastTimer = setTimeout(() => { t.hidden = true; }, good ? 2200 : 5200);
 }
 
+// ------------------------------------------------------------------ effects
+// A short full-screen beat when an attack lands or misses, and for any Runaway
+// Catalysis. It is drawn outside the main screen so live updates do not cut it off.
+let fxTimer = null;
+function showFx(r) {
+  const attack = r.kind === 'attack' || r.kind === 'incoming';
+  if (!attack && !r.runaway) return;
+  if (!r.dice || !r.dice.length) return;
+  const el = $('#fx');
+  const o = mine();
+  const atMe = r.kind === 'incoming' && o && r.label.endsWith(o.name);
+  let word = '';
+  let kind = r.success ? 'ok' : 'no';
+  if (r.kind === 'attack') word = r.success ? 'HIT' : 'MISS';
+  else if (r.kind === 'incoming') { word = r.success ? (atMe ? 'YOU ARE HIT' : 'IT HITS') : (atMe ? 'IT MISSES YOU' : 'IT MISSES'); kind = r.success ? 'no' : 'ok'; }
+  else word = r.success === false ? 'NOT ENOUGH' : 'SUCCESS';
+  const effect = r.success && r.segments != null ? `${r.segments} Segments stripped` : r.success && r.damage != null ? `${r.damage} damage` : r.success && r.overflow != null ? `Overflow ${r.overflow}` : r.success === false ? `short by ${r.shortBy}` : '';
+  el.className = `fx ${kind}${r.runaway ? ' run' : ''}`;
+  el.innerHTML = `<div class="fxbox">
+      ${r.runaway ? '<div class="fxrun"><i></i><i></i><i></i><span>RUNAWAY CATALYSIS</span></div>' : ''}
+      <div class="fxwho">${esc(r.who)} · ${esc(r.label)}</div>
+      <div class="fxword">${word}</div>
+      <div class="fxnum"><b data-count="${r.total}">0</b>${r.at != null ? `<span>against ${r.at}</span>` : ''}</div>
+      <div class="big">${diceHtml(r.dice, true)}</div>
+      ${effect ? `<div class="fxeff">${esc(effect)}</div>` : ''}
+      ${r.runaway ? '<div class="fxsub">No Inhibitors and two or more 6s: you gain the Rider, and any Effect Value counts twice.</div>' : ''}
+    </div>`;
+  el.hidden = false;
+  const num = el.querySelector('[data-count]');
+  const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (still) num.textContent = r.total;
+  else {
+    const t0 = performance.now();
+    const tick = (now) => {
+      const k = Math.min(1, (now - t0 - 350) / 650);
+      num.textContent = Math.round(r.total * Math.max(0, 1 - Math.pow(1 - Math.max(0, k), 3)));
+      if (k < 1 && !el.hidden) requestAnimationFrame(tick); else num.textContent = r.total;
+    };
+    requestAnimationFrame(tick);
+  }
+  clearTimeout(fxTimer);
+  fxTimer = setTimeout(() => { el.hidden = true; }, r.runaway ? 4200 : 2800);
+}
+document.addEventListener('click', (e) => { const fx = e.target.closest('#fx'); if (fx) { fx.hidden = true; clearTimeout(fxTimer); } }, true);
+
 // ---------------------------------------------------------------- transport
 async function send(action) {
   try {
@@ -94,6 +143,17 @@ async function send(action) {
   }
 }
 
+async function sendDirector(body) {
+  try {
+    const res = await fetch('/api/director', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, ...body }) });
+    if (!res.ok) toast('The Director host refused that.');
+    return res.ok;
+  } catch (e) {
+    toast('Cannot reach the Director host. Is it still running?');
+    return false;
+  }
+}
+
 function connect() {
   const es = new EventSource(`/api/events?${auth()}`);
   es.addEventListener('state', (ev) => {
@@ -102,12 +162,21 @@ function connect() {
     const last = lastRoll();
     if (last && last.id !== ui.lastRollId) {
       if (ui.lastRollId !== null) {
+        if (role === 'player' || role === 'table') showFx(last);
         ui.freshId = last.id;
         setTimeout(() => { if (ui.freshId === last.id) ui.freshId = null; }, 900);
       }
       ui.lastRollId = last.id;
     } else if (!last) ui.lastRollId = '';
     if (ui.own && ui.own.reqId && !state.requests.some((q) => q.id === ui.own.reqId)) ui.own = null;
+    // A roll or an attack that has just arrived for this player goes to the top of their screen.
+    const myId = state.me && state.me.organismId;
+    for (const q of state.requests) {
+      const forMe = myId && ((q.actor.kind === 'org' && q.actor.id === myId) || (q.kind === 'incoming' && q.target && q.target.id === myId));
+      if (forMe && !ui.seenReq[q.id]) { ui.seenReq[q.id] = true; ui.jumpTop = true; }
+    }
+    const prop = state.director && state.director.proposal;
+    if (prop && prop.id !== ui.dir.editId) { ui.dir.edit = prop.narration; ui.dir.editId = prop.id; }
     render();
   });
   es.onerror = () => { online = false; render(); };
@@ -183,9 +252,15 @@ function render() {
   patch($('#head'), `
     <div class="brand"><b>The Osmotic Expanse</b><span>${esc(sc ? sc.title : 'Director prototype')}${roleName ? ` · ${roleName}` : ''}</span></div>
     ${role === 'home' ? '' : `<div class="link"><i class="dot${online ? '' : ' off'}"></i>${online ? 'live' : 'reconnecting'}</div>`}
+    ${role === 'host' && state && state.director && state.director.proposal && ui.tab !== 'director' ? '<button class="chip warn" data-act="tab" data-t="director">The Director has a proposal</button>' : ''}
     <div class="tabs">${tabs}</div>`);
   patch($('#nav'), role === 'player' && state && me() ? tabs : '');
   patch($('#main'), mainHtml());
+  if (ui.jumpTop) {
+    ui.jumpTop = false;
+    const stack = $('#main .stack');
+    if (stack && ui.tab === 'play') stack.scrollTop = 0;
+  }
 }
 
 function mainHtml() {
@@ -310,6 +385,18 @@ function orderList({ numbers = true } = {}) {
       <span class="nm">${esc(body.name)}${a.reserve ? ' <span class="chip on">Reserve</span>' : ''} ${extra}</span>
       <span class="row">${showPips && a.status !== 'waiting' && a.status !== 'done' ? pips(a.pp, a.ppMax) : ''}<span class="small dim">${st}</span></span></div>`;
   }).join('')}</div>`;
+}
+
+// The story: what players said and what the Director narrated. Newest at the bottom;
+// the list is drawn bottom-up so it stays pinned to the latest line.
+function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {}) {
+  const d = state.director || {};
+  const rows = (state.story || []).slice(-n).reverse().map((e) => (e.kind === 'narration'
+    ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
+    : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
+  return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${d.on ? `<span class="chip${d.thinking ? ' on' : ''}">${d.thinking ? 'The Director is thinking…' : 'AI Director'}</span>` : ''}</span></h3>
+    <div class="story${fill ? ' scroll' : ' scroll short'}" data-scroll="story">${rows || '<div class="empty">Nothing has been said yet.</div>'}</div>
+    ${input}</section>`;
 }
 
 function logHtml(n = 40) {
@@ -524,6 +611,13 @@ function askCard(q, { hostView = false } = {}) {
       <div class="grow"><b>${esc(q.label)}</b><div class="dim">${q.at != null ? `against ${esc(q.atLabel || 'Threshold')} <b style="color:var(--ink)">${q.at}</b>${name ? ` (${name})` : ''}` : 'no Threshold: just the total'}</div></div></div>
     ${receipt(q.pool)}
     ${q.note ? `<div class="note">${esc(q.note)}</div>` : ''}
+    ${q.reaction === 'deflect' ? `<div class="note hot">${esc(q.reactor || 'It')} spends its Reserve to Deflect: Membrane Threshold +4 against this attack.</div>` : ''}
+    ${hostView || owning ? '' : (() => {
+    const me2 = state.organisms[q.actor.id];
+    if (!me2) return '';
+    if (q.overdrive) return `<div class="small dim">Overdriven with ${q.overdrive === 'mi' ? 'body' : 'ATP'}. Once per roll.</div>`;
+    return `<div class="row"><span class="small dim">Overdrive:</span><button class="chip" data-act="overdrive" data-id="${q.id}" data-with="atp" ${me2.atp >= 4 ? '' : 'disabled'} title="CORE 1.8">+2 dice for 4 ATP</button><button class="chip" data-act="overdrive" data-id="${q.id}" data-with="mi" ${me2.mi > 4 ? '' : 'disabled'} title="Marks 1 Stress whatever happens">+4 dice for 4 MI and 1 Stress</button></div>`;
+  })()}
     ${buttons}
   </section>`;
 }
@@ -535,8 +629,10 @@ function incomingCard(q, o) {
     <h3>Incoming<span class="right">${q.chance != null ? `<span class="chip no">${pct(q.chance)} to hit</span>` : ''}</span></h3>
     <div><b>${esc(q.actor.name)}</b> strikes at you: <b>${q.pool.dice} dice</b> against your Membrane Threshold <b>${q.at}</b>.</div>
     ${q.reaction ? `<div class="note hot">${esc(q.reactor || 'You')} spent a Reserve: ${cap(q.reaction)}.</div>` : ''}
-    ${can ? `<div class="row"><button class="btn primary grow" data-act="react" data-id="${q.id}" data-kind="deflect">Deflect: MT +4</button><button class="btn grow" data-act="react" data-id="${q.id}" data-kind="brace">Brace: halve Kinetic and Osmotic</button></div><div class="small dim">You are holding a Reserve. Spend it now, or let the dice fall.</div>`
-    : '<div class="small dim">The host rolls the creature\'s dice in the open.</div>'}
+    ${can ? `<div class="acts"><button class="btn primary" data-act="react" data-id="${q.id}" data-kind="deflect" title="Your Membrane Threshold is +4 against this attack">Deflect: MT +4</button><button class="btn" data-act="react" data-id="${q.id}" data-kind="brace" title="Halve Kinetic and Osmotic damage; ignore the push">Brace: halve it</button><button class="btn" data-act="react" data-id="${q.id}" data-kind="inhibit" ${o.atp >= 3 ? '' : 'disabled'} title="The attacker rolls 2 fewer dice">Inhibit: −2 dice <span class="cost">3 ATP</span></button></div>
+      <div class="small dim">You are holding a Reserve. Spend it on one of these, or let the dice fall.</div>`
+    : `<div class="small dim">${q.reaction ? '' : 'You are not holding a Reserve, so you cannot Deflect, Brace or Inhibit. Set one aside on your turn (1 PP).'}</div>`}
+    <button class="btn grow" data-act="roll" data-id="${q.id}">Let the dice fall</button>
   </section>`;
 }
 
@@ -546,6 +642,7 @@ function playHtml(o) {
   const incoming = state.requests.filter((q) => q.kind === 'incoming' && q.target && q.target.id === o.id);
   for (const q of incoming) out.push(incomingCard(q, o));
   for (const q of myAsks) out.push(askCard(q));
+  out.push(storyCard({ n: 12, input: `<div class="row"><input type="text" class="grow" data-k="say" data-bind="say.text" value="${esc(ui.say.text)}" maxlength="600" placeholder="What does ${esc(o.name.split(' ')[0])} do?" autocomplete="off"><button class="btn primary" data-act="say">Say</button></div>` }));
   if (ui.own && ui.own.mode === 'quick') out.push(`<section class="card ask"><h3>Your own dice</h3><div><b>${esc(ui.own.label)}</b></div>${ownPad(ui.own.n)}</section>`);
   // In a fight everyone watches every roll; outside one, show your own latest.
   // A roll that has only just landed goes on top; an older one sits under the fight.
@@ -587,6 +684,9 @@ function fightCard(o) {
       ${carried.length > 1 ? `<div class="seg">${carried.map((x) => `<button class="${x.id === w.id ? 'on' : ''}" data-act="strike.weapon" data-id="${x.id}">${esc(x.name)}</button>`).join('')}</div>` : `<b>${esc(w.name)}</b>`}
       <div class="small dim">Choose a target.</div>
       <div class="row">${targets.map((c) => `<button class="chip${ui.strike.targetId === c.cid ? ' on' : ''}" data-act="strike.pick" data-id="${c.cid}">${esc(c.name)} · ${esc(c.band || '')}</button>`).join('') || '<span class="faint small">Nothing to strike.</span>'}</div>
+      <div class="fl dim small">THE SITUATION (tap what applies)</div>
+      <div class="row">${[['ally1', 'An ally helps +1'], ['ally2', 'Two allies help +2'], ['position', 'Good position +1'], ['tonic1', 'Wrong tonic −1'], ['tonic2', 'Wrong tonic −2'], ['cover2', 'Target in partial cover −2'], ['cover4', 'Target in heavy cover −4'], ['squeezed', 'Squeezed or pinned −2']].map(([id, label]) => `<button class="chip${ui.strike.sit[id] ? ' on' : ''}" data-act="strike.sit" data-id="${id}">${label}</button>`).join('')}</div>
+      ${/hypertonic|hypotonic|acid/i.test(site().tonic) ? `<div class="small" style="color:var(--warn-c)">The fluid here is ${esc(site().tonic)}.</div>` : ''}
       ${w.props.includes('Braced') ? `<div class="small dim">${a.drifted ? 'You Drifted this Cycle: no Braced die.' : 'Braced: +1 die, because you have not Drifted this Cycle.'}</div>` : `<label class="chip${ui.strike.momentum ? ' on' : ''}"><input type="checkbox" data-bind="strike.momentum" ${ui.strike.momentum ? 'checked' : ''}> Momentum: I Drifted 3 in a straight line (+2 dice, Kinetic)</label>`}
       <div class="row"><button class="btn primary grow" data-act="strike.go" ${ui.strike.targetId && a.pp >= strikeCost(w) ? '' : 'disabled'}>Strike <span class="cost">${strikeCost(w)}</span></button><button class="btn ghost" data-act="strike.cancel">Cancel</button></div></div>`;
   }
@@ -611,7 +711,7 @@ function fightCard(o) {
       ${btn('sense', 'Sense', 1)}
       ${btn('vent', 'Vent', 1, 'title="Stress −2, costs 2 ATP"', o.stress === 0)}
       ${btn('synthesise', 'Synthesise', 2)}
-      ${btn('reserve', 'Reserve', 1, 'title="Hold 1 PP for Deflect or Brace"', a.reserve)}
+      ${btn('reserve', 'Reserve', 1, 'title="Hold 1 PP to Deflect, Brace or Inhibit when you are attacked later this Cycle"', a.reserve)}
       <button class="btn" data-act="act" data-a="burst" data-cost="3" ${!canAct || a.pp < 3 ? 'disabled' : ''}>Burst <span class="cost">3+</span></button>
       ${fallen.map((x) => `<button class="btn danger" data-act="stabilise" data-id="${x.id}" ${!canAct || a.pp < 2 ? 'disabled' : ''}>Stabilise ${esc(x.name)} <span class="cost">2</span></button>`).join('')}
     </div>
@@ -645,16 +745,15 @@ function tableHtml() {
   const last = lastRoll();
   const waiting = state.requests.map((q) => `<div class="note hot"><b>${esc(q.kind === 'incoming' ? q.actor.name : q.actor.name)}</b>: ${esc(q.label)} · ${q.pool.dice} dice against ${q.at ?? 'no Threshold'}${q.chance != null ? ` · ${pct(q.chance)}` : ''}</div>`).join('');
   const join = info && info.addresses && info.addresses.length ? `http://${info.addresses[0]}:${info.port}/play` : `${location.origin}/play`;
-  const right = state.fight
-    ? `<section class="card fill"><h3>Pulse War · Cycle ${state.fight.cycle}</h3><div class="scroll" data-scroll="order">${orderList()}</div></section>`
-    : `<section class="card fill"><h3>What happened</h3><div class="scroll" data-scroll="log">${logHtml(30)}</div></section>`;
+  const right = `${state.fight ? `<section class="card"><h3>Pulse War · Cycle ${state.fight.cycle}</h3><div class="scroll" data-scroll="order" style="max-height:34vh">${orderList()}</div></section>` : ''}
+    ${(state.story || []).length || (state.director || {}).on ? storyCard({ fill: true }) : `<section class="card fill"><h3>What happened</h3><div class="scroll" data-scroll="log">${logHtml(30)}</div></section>`}`;
   return `<div class="lay-table">
     <div class="col" style="grid-template-rows:minmax(0,1fr) auto">${sceneCard({ full: true })}
       <section class="card"><div class="row"><span class="dim small">Players join at</span><b style="font-family:var(--mono)">${esc(join)}</b></div>
         ${info && info.online ? `<div class="row"><span class="dim small">From outside this network</span><b style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</b></div>` : ''}</section></div>
     <div class="col" style="grid-template-rows:auto minmax(0,1fr)">${bandMap()}
       <div class="scroll" data-scroll="mid" style="display:flex;flex-direction:column;gap:12px">${waiting ? `<section class="card ask"><h3>Waiting for dice</h3>${waiting}</section>` : ''}${last ? resultCard(last, { big: true }) : '<section class="card"><h3>Last roll</h3><div class="empty">No dice yet.</div></section>'}</div></div>
-    <div class="col" style="grid-template-rows:auto minmax(0,1fr)">${clocksCard()}${right}</div>
+    <div class="col" style="display:flex;flex-direction:column">${clocksCard()}${right}</div>
   </div>`;
 }
 
@@ -662,6 +761,7 @@ function tableHtml() {
 function hostHtml() {
   if (ui.tab === 'sheets') return `<div class="sheets">${Object.values(state.organisms).map((o) => sheetCard(o, { edit: true })).join('')}</div>`;
   if (ui.tab === 'bestiary') return bestiaryHtml();
+  if (ui.tab === 'director') return directorHtml();
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}</div>
     <div class="col">${hostAskCard()}${hostWaitingCard()}</div>
@@ -754,7 +854,7 @@ function hostCreature(c) {
   const health = c.segments != null ? `Segments ${c.segments}/${c.segMax}` : `MI ${c.mi}/${c.miMax}`;
   const myTurn = a && (a.status === 'acting' || a.status === 'holding');
   return `<div class="cre${f && f.turn === `cre:${c.cid}` ? ' now' : ''}${c.down ? ' down' : ''}">
-    <div class="row"><b>${esc(c.name)}</b>${a ? `${pips(a.pp, a.ppMax)}<span class="small dim">${a.status}</span>` : ''}<span class="grow"></span>
+    <div class="row"><b>${esc(c.name)}</b>${a ? `${pips(a.pp, a.ppMax)}<span class="small dim">${a.status}</span>${a.reserve ? '<span class="chip on">Reserve</span>' : ''}` : ''}<span class="grow"></span>
       <select style="width:96px" data-cre-band="${c.cid}" data-k="band.${c.cid}">${R.BANDS.map((x) => `<option value="${x.id}" ${c.band === x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</select></div>
     <div class="stat">MT ${c.mt} · ${health} · soak ${c.soak}${c.bracedSoak ? ` (+${c.bracedSoak} braced)` : ''} · ${c.pool}d · BD ${c.bd} ${esc(c.type)}${c.conditions.length ? ` · ${c.conditions.map((x) => x.name).join(', ')}` : ''}</div>
     ${c.down ? '' : `<div class="row">
@@ -763,6 +863,7 @@ function hostCreature(c) {
       ${c.segments != null ? `<button class="btn sm" data-act="h.cre.strike" data-id="${c.cid}" data-cost="0" title="A swarm gets 1 Strike per 2 Segments (CORE 4.13)" ${f && !myTurn ? 'disabled' : ''}>Bite <span class="cost">0</span></button>` : ''}
       ${f ? `<button class="btn sm" data-act="h.cre.act" data-id="${c.cid}" data-what="Drift" data-cost="1" ${myTurn ? '' : 'disabled'}>Drift <span class="cost">1</span></button>
       <button class="btn sm" data-act="h.cre.act" data-id="${c.cid}" data-what="Brace" data-cost="1" ${myTurn ? '' : 'disabled'}>Brace <span class="cost">1</span></button>
+      <button class="btn sm" data-act="h.cre.act" data-id="${c.cid}" data-what="Reserve" data-cost="1" title="It will Deflect the next attack against it this Cycle (+4 MT)" ${myTurn && !(a && a.reserve) ? '' : 'disabled'}>Reserve <span class="cost">1</span></button>
       <button class="btn sm" data-act="h.cre.act" data-id="${c.cid}" data-what="Special" data-cost="2" ${myTurn ? '' : 'disabled'}>Special <span class="cost">2</span></button>
       <button class="btn sm" data-act="h.cre.end" data-id="${c.cid}" ${myTurn ? '' : 'disabled'}>End turn</button>` : ''}
     </div>`}
@@ -808,6 +909,48 @@ function hostToolsCard() {
   </section>`;
 }
 
+function toolLine(c) {
+  const args = Object.entries(c.args || {}).map(([k, v]) => `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`).join(', ');
+  return `<div class="ln"><b>${esc(c.name.replace(/_/g, ' '))}</b><span>${esc(args)}${c.refused ? ` <span style="color:var(--no)">Refused: ${esc(c.refused)}</span>` : ''}</span></div>`;
+}
+
+function directorHtml() {
+  const d = state.director || {};
+  const p = d.proposal;
+  const proposal = p ? `<section class="card ask">
+      <h3>${p.held ? 'Held for you: the check found something' : 'The Director proposes'}<span class="right">${p.stale ? '<span class="chip warn">The table has moved on: approving will ask it again</span>' : ''}</span></h3>
+      ${p.flags.map((f) => `<div class="note hot"><b>${f.kind === 'leak' ? 'Possible leak' : f.kind === 'rule' ? 'Rules' : 'Style'}:</b> ${esc(f.text)}</div>`).join('')}
+      ${p.calls.length ? `<div><div class="fl dim small">WHAT IT DID WITH THE ENGINE (takes effect when you approve)</div><div class="receipt">${p.calls.map(toolLine).join('')}</div></div>` : '<div class="small dim">It changed nothing in the Engine: narration only.</div>'}
+      <label class="fld"><span class="fl">What it will say (you can edit this)</span><textarea rows="5" data-k="dir.edit" data-bind="dir.edit">${esc(ui.dir.edit)}</textarea></label>
+      <div class="row"><button class="btn primary grow" data-act="d.approve">Approve</button><button class="btn" data-act="d.retry">Try again</button><button class="btn danger" data-act="d.discard">Discard</button></div>
+    </section>` : '';
+  const story = storyCard({ fill: true, input: `<div class="row"><input type="text" class="grow" data-k="dir.narrate" data-bind="dir.narrate" value="${esc(ui.dir.narrate)}" maxlength="2000" placeholder="Narrate something yourself, as the Director"><button class="btn" data-act="d.narrate">Narrate</button></div>` });
+  const last = d.last;
+  const phase = { idle: 'Waiting for the players', thinking: 'Thinking…', proposal: 'Waiting for your approval', error: 'Stopped on a problem' }[d.phase] || '';
+  const settings = `<section class="card fill"><h3>The AI Director<span class="right"><span class="chip${d.phase === 'error' ? ' no' : d.on ? ' ok' : ''}">${d.mode === 'off' ? 'Off' : esc(phase)}</span></span></h3>
+    <div class="scroll" data-scroll="dset" style="display:flex;flex-direction:column;gap:12px">
+      <div class="fld"><span class="fl">Who runs the table</span>
+        <div class="seg">${[['off', 'Off: a person'], ['copilot', 'Co-pilot: you approve'], ['auto', 'Auto: it runs']].map(([id, name]) => `<button class="${d.mode === id ? 'on' : ''}" data-act="d.mode" data-id="${id}">${name}</button>`).join('')}</div>
+        <span class="small dim">${d.mode === 'auto' ? 'The Director answers the players by itself. A turn that fails the leak check is still held for you.' : d.mode === 'copilot' ? 'The Director prepares each turn and nothing reaches the table until you approve it.' : 'The AI is off. Run the table from the Run tab.'}</span></div>
+      ${d.error ? `<div class="note hot" style="border-color:var(--no)">${esc(d.error)}</div>` : ''}
+      <div class="fld"><span class="fl">Google Gemini API key ${d.keySet ? '· saved on this computer' : '· not set'}</span>
+        <div class="row"><input type="password" class="grow" data-k="dir.key" data-bind="dir.key" value="${esc(ui.dir.key)}" placeholder="${d.keySet ? 'Paste a new key to replace the saved one' : 'Paste your key from Google AI Studio'}" autocomplete="off"><button class="btn" data-act="d.key">Save key</button></div>
+        <span class="small dim">Create a key at aistudio.google.com. It is kept in the saves folder on the host computer and is never sent to players or to GitHub.</span></div>
+      <div class="fld"><span class="fl">Model</span>
+        <div class="row"><select class="grow" data-k="dir.model" data-dmodel="1">${(d.models || []).length ? d.models.map((m) => `<option value="${esc(m.id)}" ${m.id === d.model ? 'selected' : ''}>${esc(m.name)} (${esc(m.id)})</option>`).join('') : `<option>${d.keySet ? 'Press Refresh to load your models' : 'Save a key first'}</option>`}</select><button class="btn" data-act="d.models" ${d.keySet ? '' : 'disabled'}>Refresh</button></div>
+        <span class="small dim">The list comes from your own Google account. A Flash model is quick and cheap; a Pro model follows the rules more carefully.</span></div>
+      <hr class="sep">
+      <div class="fld"><span class="fl">Ask for a turn now</span>
+        <div class="row"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" maxlength="400" placeholder="Optional note to the Director, for example: open the scene"><button class="btn primary" data-act="d.run" ${d.mode === 'off' || !d.keySet || d.thinking ? 'disabled' : ''}>Take a turn</button></div>
+        <span class="small dim">The Director also takes a turn by itself after a player speaks, rolls or ends a turn.</span></div>
+      ${last ? `<div><div class="fl dim small">ITS LAST TURN · ${(last.ms / 1000).toFixed(1)} s · ${last.usage.in + last.usage.out} tokens</div>
+        <div class="receipt">${last.calls.map(toolLine).join('') || '<div class="ln"><span>Narration only.</span></div>'}</div>
+        ${last.flags.map((f) => `<div class="note">${esc(f.text)}</div>`).join('')}</div>` : ''}
+      ${d.totals && d.totals.turns ? `<div class="small faint">This session: ${d.totals.turns} turns, ${d.totals.in} tokens in, ${d.totals.out} tokens out.</div>` : ''}
+    </div></section>`;
+  return `<div class="lay-two"><div style="display:flex;flex-direction:column;gap:12px;min-height:0">${proposal}${story}</div>${settings}</div>`;
+}
+
 function bestiaryHtml() {
   const q = ui.host.bq.trim().toLowerCase();
   const list = (sc.bestiary || []).filter((b) => !q || `${b.name} ${b.order} ${b.cls}`.toLowerCase().includes(q));
@@ -835,6 +978,25 @@ function hostWho() {
 const ACT = {
   tab: (d) => { ui.tab = d.t; },
   'rolls.mine': () => { ui.rollsMine = !ui.rollsMine; },
+  say: async () => {
+    const text = ui.say.text.trim();
+    if (!text) return;
+    if (await send({ type: 'say', text })) ui.say.text = '';
+  },
+  'd.mode': (d) => sendDirector({ op: 'config', mode: d.id }),
+  'd.key': async () => {
+    if (!ui.dir.key.trim()) { toast('Paste the key first.'); return; }
+    if (await sendDirector({ op: 'config', apiKey: ui.dir.key.trim() })) { ui.dir.key = ''; toast('Key saved. Loading your models…', true); }
+  },
+  'd.models': () => sendDirector({ op: 'models' }),
+  'd.run': async () => { if (await sendDirector({ op: 'run', note: ui.dir.note })) ui.dir.note = ''; },
+  'd.approve': () => {
+    const p = state.director.proposal;
+    return sendDirector({ op: 'approve', text: p && ui.dir.edit.trim() !== p.narration ? ui.dir.edit : '' });
+  },
+  'd.retry': () => sendDirector({ op: 'run', note: ui.dir.note }),
+  'd.discard': () => sendDirector({ op: 'discard' }),
+  'd.narrate': async () => { if (ui.dir.narrate.trim() && await send({ type: 'narrate', text: ui.dir.narrate })) ui.dir.narrate = ''; },
   'name.random': () => { ui.claim.name = osmoticName(); },
   'code.go': () => {
     const q = new URLSearchParams(location.search);
@@ -899,15 +1061,23 @@ const ACT = {
     const o = mine();
     const carried = o.weapons.filter((w) => w.carried !== false);
     const targets = creaturesHere().filter((c) => !c.down);
-    ui.strike = { weaponId: carried[0] && carried[0].id, targetId: targets.length === 1 ? targets[0].cid : null, momentum: false };
+    ui.strike = { weaponId: carried[0] && carried[0].id, targetId: targets.length === 1 ? targets[0].cid : null, momentum: false, sit: {} };
     ui.drift = false;
   },
   'strike.weapon': (d) => { ui.strike.weaponId = d.id; },
   'strike.pick': (d) => { ui.strike.targetId = d.id; },
+  'strike.sit': (d) => {
+    const sit = ui.strike.sit;
+    const group = d.id.replace(/\d$/, '');
+    const was = sit[d.id];
+    for (const k of Object.keys(sit)) if (k.replace(/\d$/, '') === group) delete sit[k]; // one of each kind
+    if (!was) sit[d.id] = true;
+  },
+  overdrive: (d) => send({ type: 'overdrive', requestId: d.id, with: d.with }),
   'strike.cancel': () => { ui.strike = null; },
   'strike.go': async () => {
     const s = ui.strike;
-    if (await send({ type: 'strike', organismId: mine().id, weaponId: s.weaponId, targetId: s.targetId, momentum: s.momentum })) ui.strike = null;
+    if (await send({ type: 'strike', organismId: mine().id, weaponId: s.weaponId, targetId: s.targetId, momentum: s.momentum, situation: Object.keys(s.sit) })) ui.strike = null;
   },
   'turn.end': () => send({ type: 'turn.end', organismId: mine().id }),
   'turn.hold': () => send({ type: 'turn.end', organismId: mine().id, hold: true }),
@@ -1001,6 +1171,7 @@ function onField(e) {
     ui.host.enc[k][t.dataset.f] = t.dataset.f === 'count' ? Number(t.value) : t.value;
     return;
   }
+  if (t.dataset.dmodel) { if (e.type === 'change') sendDirector({ op: 'config', model: t.value }); return; }
   if (t.dataset.creTarget) { ui.host.cre[t.dataset.creTarget] = { ...(ui.host.cre[t.dataset.creTarget] || {}), target: t.value }; return; }
   if (t.dataset.creBand) { if (e.type === 'change') send({ type: 'set', target: { kind: 'cre', id: t.dataset.creBand }, field: 'band', value: t.value }); return; }
   if (!t.dataset.bind) return;
@@ -1013,6 +1184,8 @@ document.addEventListener('input', onField);
 document.addEventListener('change', onField);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+  const more = { say: 'say', 'dir.narrate': 'd.narrate', 'dir.note': 'd.run', 'dir.key': 'd.key' }[e.target.getAttribute('data-k')];
+  if (more) { e.preventDefault(); Promise.resolve(ACT[more]({})).then(render); return; }
   const k = e.target.getAttribute('data-k');
   const map = { 'join.name': 'join', 'claim.name': 'claim.go', keyTry: codeBad ? 'code.go' : 'key.go', 'h.label': 'h.ask', rename: 'rename' };
   if (map[k]) { e.preventDefault(); Promise.resolve(ACT[map[k]]({})).then(render); }

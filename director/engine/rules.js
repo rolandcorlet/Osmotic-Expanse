@@ -34,7 +34,7 @@ export const ACTIONS = {
 // ---- §4.10 Reactive Osmosis --------------------------------------------------
 export const REACTIONS = {
   deflect: { name: 'Deflect', does: 'Your MT against one incoming attack is +4.' },
-  inhibit: { name: 'Inhibit', does: 'An attacker in Contact or Near re-rolls one die (or spend 3 ATP: 2 fewer dice).' },
+  inhibit: { name: 'Inhibit', does: 'The attacker rolls 2 fewer dice (3 ATP).' },
   brace: { name: 'Brace', does: 'Halve Osmotic and Kinetic damage from one effect; ignore the push.' },
   shed: { name: 'Shed', does: 'End one condition that a Reactive Osmosis can end (Locked, Turgid, Marked).' },
 };
@@ -129,13 +129,18 @@ export function buildPool({ baseline = 0, pathway = 0, mods = [], stress = 0, fi
     parts.push({ label: 'Baseline', dice: baseline });
     if (pathway) parts.push({ label: 'Pathway', dice: pathway });
   }
-  const list = mods.filter((m) => m && m.dice).map((m) => ({ label: m.label || 'Modifier', dice: Number(m.dice) }));
+  const list = mods.filter((m) => m && m.dice).map((m) => {
+    const out = { label: m.label || 'Modifier', dice: Number(m.dice) };
+    if (m.uncapped) out.uncapped = true; // bought dice (Overdrive, CORE 1.8) are not situational modifiers
+    return out;
+  });
   const sp = stressPenalty(stress);
   if (sp) list.push({ label: `Stress ${stress}`, dice: sp });
-  const raw = list.reduce((a, m) => a + m.dice, 0);
+  const raw = list.filter((m) => !m.uncapped).reduce((a, m) => a + m.dice, 0);
+  const bought = list.filter((m) => m.uncapped).reduce((a, m) => a + m.dice, 0);
   const applied = Math.max(-MOD_CAP, Math.min(MOD_CAP, raw));
   const base = fixed != null ? fixed : baseline + pathway;
-  const dice = Math.max(0, base + applied);
+  const dice = Math.max(0, base + applied + bought);
   return { dice, base, mods: list, modsRaw: raw, modsApplied: applied, capped: raw !== applied, parts: parts.concat(list) };
 }
 
