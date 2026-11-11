@@ -701,6 +701,21 @@ html[data-oxtab=campaign] #app>.subgroup>.subgroup details[open]{position:fixed;
 @media (max-height:800px) and (min-width:1051px){.rh-steps .rh-chips{gap:3px}.rh-steps .rh-chip label.small{padding-top:2px;padding-bottom:2px}}
 .rh-step:has(details[data-oxopen][open]),.rh-steps:has(details[data-oxopen][open]),.rh-flow:has(details[data-oxopen][open]){position:relative;z-index:70}
 .rh-final .rh-cnote{color:var(--warn-c);font-size:12px}
+/* ---- Ask the Books: search and voice side by side */
+.ox-askrow{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:14px;column-span:all}
+.ox-askrow>.subgroup{margin:0!important}
+@media (min-width:1000px){.ox-askrow{grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr)}}
+.ox-voice>summary{font-weight:700;font-size:14.5px;color:var(--ink);cursor:pointer;margin-bottom:8px}
+.ox-voice .row{flex-wrap:wrap}
+.ox-voice select.inp{flex:1 1 100%;min-width:0}
+.ox-voice input[type=range]{flex:1 1 120px;accent-color:var(--accent)}
+.ox-voice .lbl{min-width:0!important}
+/* ---- Reader: picker and buttons follow the Colours tab */
+#readerHost select,#readerHost button{background:var(--input);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;min-height:34px;cursor:pointer}
+#readerHost button{background:var(--btn);color:var(--btn-ink,var(--ink))}
+#readerHost button:hover,#readerHost select:hover{border-color:var(--accent)}
+#readerHost select:focus,#readerHost button:focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+#readerHost select option,#readerHost select optgroup{background:var(--input);color:var(--ink)}
 .rh-top{position:relative}
 .rh-log{margin-left:auto;position:relative;font-size:13px}
 .rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
@@ -19407,7 +19422,7 @@ window.DM_MEMORY_UI = (function () {
     TABS.forEach(function (t) { if (RENAME[t[0]]) t[1] = RENAME[t[0]]; });
   })();
   /* PLAYERS EDITION: only these tabs, in this order. */
-  var PA_KEEP = ["learn", "reader", "askbooks", "aisetup", "bitsight", "rollhelper", "mtime", "chargen", "characters", "colours"], PA_NAMES = {reader:"Reader",learn:"Learn to Play",askbooks:"Ask the Books",aisetup:"AI Setup",bitsight:"BitSight",rollhelper:"Roll Helper",mtime:"Metabolic Time",chargen:"Char/Gen",characters:"Characters",colours:"Colours"};
+  var PA_KEEP = ["learn", "reader", "askbooks", "aisetup", "bitsight", "rollhelper", "mtime", "compendium", "chargen", "characters", "colours"], PA_NAMES = {compendium:"Compendium",reader:"Reader",learn:"Learn to Play",askbooks:"Ask the Books",aisetup:"AI Setup",bitsight:"BitSight",rollhelper:"Roll Helper",mtime:"Metabolic Time",chargen:"Char/Gen",characters:"Characters",colours:"Colours"};
   TABS.length = 0; PA_KEEP.forEach(function (id) { TABS.push([id, PA_NAMES[id]]); });
   function paOk(id) { return PA_KEEP.indexOf(id) >= 0 || id === "aisetup"; } /* AI Setup: off the strip, opened from Ask the Books */
 
@@ -20969,7 +20984,7 @@ window.DM_MEMORY_UI = (function () {
     var out = '<div class="featcheck"><h2>Ask the Books</h2><span class="badge">search \u00b7 voice</span>' +
       '<span class="cite">the rulebooks, the Society Rules and QUORUM, searched in this browser; optional Claude answers; answers read aloud</span>' + dmflag() + "</div>";
     registerId("ask-scope", "sel");
-    out += '<div class="subgroup"><div class="row"><input class="inp grow" id="ask-q" value="' + esc(ASK.q) + '" placeholder="Ask a rules question, e.g. how does Overflow work? what happens at 0 MI? when does the Carcass clock advance?" style="font-size:16px">' +
+    out += '<div class="ox-askrow"><div class="subgroup ox-asksearch"><div class="row"><input class="inp grow" id="ask-q" value="' + esc(ASK.q) + '" placeholder="Ask a rules question, e.g. how does Overflow work? what happens at 0 MI? when does the Carcass clock advance?" style="font-size:16px">' +
       oa("ask_go", "Search the books", "primary") + (window.SpeechRecognition || window.webkitSpeechRecognition ? oa("ask_mic", "\ud83c\udf99 speak", "small") : "") + "</div>" +
       '<div class="row"><span class="lbl">look in</span>' + sel("ask-scope", [{ v: "all", l: "all the books (rulebooks, Society Rules, QUORUM)" }]
         .concat((((DATA && DATA.world_books) || {}).books || []).map(function (b) { return { v: "book:" + b.id, l: b.title }; }))
@@ -20978,7 +20993,7 @@ window.DM_MEMORY_UI = (function () {
       '<button class="btn small" data-act="tab" data-tab="aisetup" title="choose Claude, another online model, or a local one">\u2699 AI Setup</button>'  + oa("ask_stop", "\u23f9 stop voice", "small") + "</div>";
     if (ASK.busy) out += '<div class="promptbox">Asking ' + esc(ASK.busyName || aiShortName()) + "\u2026</div>";
     if (ASK.err) out += '<div class="warnbox">' + esc(ASK.err) + "</div>";
-    out += "</div>";
+    out += "</div><!--OXVOICE--></div>";
     askStore();
     function card(title, sub, body, rmAct, sayAct) {
       return '<div class="promptbox" style="position:relative"><div class="row" style="justify-content:space-between"><div><b>' + title + "</b>" +
@@ -21003,11 +21018,12 @@ window.DM_MEMORY_UI = (function () {
       out += card("From the books", "\u201c" + esc(bk.q) + "\u201d", oxcRelated(bk.q, 4) + bookBody, "ask_rm_book", bk.answer ? "ask_say" : null);
     }
     var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-    out += '<details class="subgroup"><summary>Voice settings</summary><div class="row"><span class="lbl">voice</span><select class="inp" id="ask-voice" data-askpref="voice"><option value="">browser default</option>' +
+    var oxVoice = '<details class="subgroup ox-voice" open><summary>Voice settings</summary><div class="row"><span class="lbl">voice</span><select class="inp" id="ask-voice" data-askpref="voice"><option value="">browser default</option>' +
       voices.map(function (v) { return '<option value="' + esc(v.voiceURI) + '"' + (v.voiceURI === p.voice ? " selected" : "") + ">" + esc(v.name + " (" + v.lang + ")") + "</option>"; }).join("") +
       '</select><span class="lbl">speed</span><input type="range" min="0.6" max="1.6" step="0.1" value="' + p.rate + '" data-askpref="rate">' +
       '<label class="small"><input type="checkbox" data-askpref="autoSpeak"' + (p.autoSpeak ? " checked" : "") + "> read every answer aloud automatically</label></div>" +
       (window.speechSynthesis ? "" : '<div class="warnbox small">This browser has no speech synthesis, so answers cannot be read aloud here.</div>') + "</details>";
+    out = out.replace("<!--OXVOICE-->", oxVoice);
     var aiA = aiActive();
     out += '<div class="small dim">Answers are written by <b>' + esc(aiA.name) + "</b>" + (aiA.model ? " (" + esc(aiA.model) + ")" : "") +
       ". Change the model, or use a local one, on the AI Setup tab.</div>";
@@ -21608,7 +21624,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     ["learnFrame", "readerFrame"].forEach(function (id) {
       var f = document.getElementById(id); if (!f || f.style.position === "fixed") return;
       var top = f.getBoundingClientRect().top + (window.scrollY || 0), room = window.innerHeight - top - 12;
-      if (room >= 520) { f.style.height = room + "px"; var spill = document.documentElement.scrollHeight - window.innerHeight; if (spill > 0 && room - spill >= 420) f.style.height = (room - spill) + "px"; }
+      if (room >= 400) { f.style.height = room + "px"; var spill = document.documentElement.scrollHeight - window.innerHeight; if (spill > 0 && room - spill >= 360) f.style.height = (room - spill) + "px"; }
       else {   /* a tall header (many tabs, a small screen): give the frame the whole screen and bring it into view */
         f.style.height = Math.max(360, window.innerHeight - 16) + "px";
         if (!f.dataset.oxScrolled) { f.dataset.oxScrolled = "1"; window.scrollTo({ top: Math.max(0, top - 8), behavior: "smooth" }); }
@@ -21893,7 +21909,7 @@ var RH_INFO = {"who": ["Who is rolling", "Pick a saved character sheet or a Rost
     var pick = '<select onchange="oxReaderOpen(this.value)" style="max-width:360px">' + '<optgroup label="The books">' + READER_DOCS.map(opt).join("") + "</optgroup>" +
       (mine.length ? '<optgroup label="My documents (this browser)">' + mine.map(opt).join("") + "</optgroup>" : "") + "</select>";
     var isMine = rdIsMine(READER_CUR), nw = isMine && READER_PANEL_DATA[READER_CUR] ? Object.keys(READER_PANEL_DATA[READER_CUR].unknown).length : 0;
-    var tools = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0">' + pick +
+    var tools = '<div class="rd-tools" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0">' + pick +
       '<button onclick="oxReaderPick()" title="Convert a Word (.docx) or Markdown file into a Reader page">+ Add a document</button>' +
       '<input type="file" id="readerFile" accept=".docx,.md,.markdown,.txt" style="display:none" onchange="oxReaderFile(this)">' +
       (isMine ? '<button onclick="oxReaderPanel(\'words\')">Words without cards (' + nw + ")</button>" + '<button onclick="oxReaderRemove()">Remove</button>' : "") +

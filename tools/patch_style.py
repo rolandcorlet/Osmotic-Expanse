@@ -453,6 +453,21 @@ html[data-oxtab=campaign] #app>.subgroup>.subgroup details[open]{position:fixed;
 @media (max-height:800px) and (min-width:1051px){.rh-steps .rh-chips{gap:3px}.rh-steps .rh-chip label.small{padding-top:2px;padding-bottom:2px}}
 .rh-step:has(details[data-oxopen][open]),.rh-steps:has(details[data-oxopen][open]),.rh-flow:has(details[data-oxopen][open]){position:relative;z-index:70}
 .rh-final .rh-cnote{color:var(--warn-c);font-size:12px}
+/* ---- Ask the Books: search and voice side by side */
+.ox-askrow{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;margin-bottom:14px;column-span:all}
+.ox-askrow>.subgroup{margin:0!important}
+@media (min-width:1000px){.ox-askrow{grid-template-columns:minmax(0,1.9fr) minmax(300px,1fr)}}
+.ox-voice>summary{font-weight:700;font-size:14.5px;color:var(--ink);cursor:pointer;margin-bottom:8px}
+.ox-voice .row{flex-wrap:wrap}
+.ox-voice select.inp{flex:1 1 100%;min-width:0}
+.ox-voice input[type=range]{flex:1 1 120px;accent-color:var(--accent)}
+.ox-voice .lbl{min-width:0!important}
+/* ---- Reader: picker and buttons follow the Colours tab */
+#readerHost select,#readerHost button{background:var(--input);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;min-height:34px;cursor:pointer}
+#readerHost button{background:var(--btn);color:var(--btn-ink,var(--ink))}
+#readerHost button:hover,#readerHost select:hover{border-color:var(--accent)}
+#readerHost select:focus,#readerHost button:focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+#readerHost select option,#readerHost select optgroup{background:var(--input);color:var(--ink)}
 .rh-top{position:relative}
 .rh-log{margin-left:auto;position:relative;font-size:13px}
 .rh-log>summary{cursor:pointer;color:var(--dim);padding:8px 12px;border:1px solid var(--line);border-radius:999px;list-style:none;background:var(--panel)}
@@ -906,7 +921,7 @@ assert m, "screenMetabolicTime"
 h = h[:m.start()] + "  function screenMetabolicTime() { return " + json.dumps(MT, ensure_ascii=False).replace("</", "<\\/") + "; }\n" + h[m.end():]
 # Learn / Reader frames: also take back any space left below them, so the page never scrolls
 rep('if (room >= 520) { f.style.height = room + "px"; }',
-    'if (room >= 520) { f.style.height = room + "px"; var spill = document.documentElement.scrollHeight - window.innerHeight; if (spill > 0 && room - spill >= 420) f.style.height = (room - spill) + "px"; }')
+    'if (room >= 400) { f.style.height = room + "px"; var spill = document.documentElement.scrollHeight - window.innerHeight; if (spill > 0 && room - spill >= 360) f.style.height = (room - spill) + "px"; }')
 h = h.replace("The character generator and BitSight frames keep their own colours.", "BitSight follows this scheme too; the character generator keeps its own colours.")
 # Ask the Books (and BitSight's library): the Society Rules and QUORUM join the four rulebooks
 import os
@@ -935,4 +950,17 @@ h = h.replace("the four rulebooks, searched in this browser; optional Claude ans
 # Players: AI Setup gets its own tab (it already worked there, opened from Ask the Books)
 h = h.replace('var PA_KEEP = ["learn", "reader", "askbooks", "bitsight",', 'var PA_KEEP = ["learn", "reader", "askbooks", "aisetup", "bitsight",')
 h = h.replace('PA_NAMES = {reader:"Reader",learn:"Learn to Play",askbooks:"Ask the Books",', 'PA_NAMES = {reader:"Reader",learn:"Learn to Play",askbooks:"Ask the Books",aisetup:"AI Setup",')
+# Ask the Books: Voice settings sit beside the search panel, not at the bottom
+rep('''    out += '<div class="subgroup"><div class="row"><input class="inp grow" id="ask-q"''', '''    out += '<div class="ox-askrow"><div class="subgroup ox-asksearch"><div class="row"><input class="inp grow" id="ask-q"''')
+rep('''    out += "</div>";
+    askStore();''', '''    out += "</div><!--OXVOICE--></div>";
+    askStore();''')
+rep('''    out += '<details class="subgroup"><summary>Voice settings</summary>''', '''    var oxVoice = '<details class="subgroup ox-voice" open><summary>Voice settings</summary>''')
+rep('''(window.speechSynthesis ? "" : '<div class="warnbox small">This browser has no speech synthesis, so answers cannot be read aloud here.</div>') + "</details>";''',
+    '''(window.speechSynthesis ? "" : '<div class="warnbox small">This browser has no speech synthesis, so answers cannot be read aloud here.</div>') + "</details>";
+    out = out.replace("<!--OXVOICE-->", oxVoice);''')
+# Reader: the document picker and its buttons wear the theme
+h = h.replace('''    var tools = '<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0">' + pick +''', '''    var tools = '<div class="rd-tools" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0">' + pick +''')
+# Players: the Compendium
+h = h.replace('"rollhelper", "mtime", "chargen", "characters", "colours"], PA_NAMES = {', '"rollhelper", "mtime", "compendium", "chargen", "characters", "colours"], PA_NAMES = {compendium:"Compendium",')
 open(dst, "w", encoding="utf-8").write(h); print(dst, len(h))
