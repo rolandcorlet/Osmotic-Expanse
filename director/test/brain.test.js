@@ -387,3 +387,24 @@ test('the Director may not ask for an unhurried roll during a Pulse War', () => 
   const ok = T2.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Taste the water', unhurried: true });
   assert.ok(!ok.refused, `not refused outside a fight: ${ok.refused}`);
 });
+
+test('the leak check catches a creature\'s health as a number, but not a player\'s', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }, { blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
+  assert.deepEqual(kinds('The Fold Sentinel groans as its integrity drops to seven. Brost, what now?'), ['leak']);
+  assert.deepEqual(kinds('The sentinel oozes brine down to a single point of MI. Bresk, what now?'), ['leak']);
+  assert.deepEqual(kinds('The swarm bites Bresk for 5 Kinetic, down to 34 MI. Bresk, what now?'), []);
+});
+
+test('a travel turn may end without a question', () => {
+  const s = seated();
+  assert.deepEqual(checkNarration('You drift down the cut-lane into the Soft Field.', s, { moved: true }), []);
+  assert.deepEqual(checkNarration('You drift down the cut-lane into the Soft Field.', s).map((f) => f.kind), ['style']);
+});
+
+test('during a Pulse War the briefing says who is still up and that the Cohort cannot leave', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
+  assert.match(briefing(s, scenario, bestiary, {}), /Still up: Gnaw Swarm.*cannot end the Pulse War or change site/);
+});

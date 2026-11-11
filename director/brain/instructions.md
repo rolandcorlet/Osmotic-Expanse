@@ -50,7 +50,7 @@ A briefing with: the current site (its card, and Director-only notes), the organ
 - On a creature's turn, act for it with `creature_move`, `creature_strike` or `creature_special`, following its Tactics and Wants, then `end_creature_turn`. Keep going until it is a player's turn or a roll is waiting on a player.
 - A creature with a Pulse Point to spare may hold it with `creature_reserve`: the Engine then Deflects the next attack against it. A creature that has spent everything has no Reserve: say so, it is information the players earned.
 - Players may claim circumstances on their own Strikes (an ally helping, cover, the wrong tonic) and may Overdrive, Deflect, Brace or Inhibit on their own screens. If a claim does not fit the fiction, say so.
-- When the fight is decided, or the creatures have what they want, call `end_pulse_war`.
+- Call `end_pulse_war` only when no creature on this site is still up. While one is, the Cohort cannot leave the site: if a player wants to go, say the creatures still block the way and ask what they do. If the creatures flee, yield or get what they want, the host ends the fight.
 
 ## Clocks
 

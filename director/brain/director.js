@@ -83,6 +83,8 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     }
     const cur = f.turn ? f.actors[f.turn] : null;
     L.push('Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1. A creature with fewer Pulse Points left than an action costs cannot take it: end its turn instead.');
+    const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down);
+    if (up.length) L.push(`Still up: ${up.map((c) => c.name).join(', ')}. While any creature is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do.`);
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
     else if (cur) L.push('It is a player\'s turn: they act on their own screen.');
   } else {
@@ -125,8 +127,27 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 }
 
 // ---- checks on what the Director wrote, before anyone sees it --------------------
-export function checkNarration(text, state) {
+const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|zero|a single point)';
+const HEALTH = new RegExp(`\\b(?:integrity|MI)\\b[^.?!]{0,30}\\b${NUM}\\b|\\b${NUM}\\b[^.?!]{0,12}\\b(?:Membrane )?(?:Integrity|MI)\\b`, 'i');
+
+// moved: the Cohort changed site this turn, so the narration is one sentence of travel.
+export function checkNarration(text, state, { moved = false } = {}) {
   const flags = [];
+  // A creature's health in numbers ("its integrity drops to seven"). A player's own MI may be said.
+  const kinds = [...new Set(Object.values(state.creatures || {}).map((c) => String(c.name).replace(/\s+[A-Z]$/, '').split(/\s+/).pop().toLowerCase()).filter((w) => w.length > 2))];
+  const people = Object.values(state.organisms || {}).filter((o) => o.playerId).map((o) => String(o.name).split(/\s+/)[0].toLowerCase());
+  // Whoever is named last before the number owns it: "bites Bresk, down to 34 MI" is Bresk's.
+  const creatureOwns = (sn) => {
+    const m = sn.match(HEALTH);
+    if (!m) return false;
+    const before = sn.slice(0, m.index + m[0].length).toLowerCase();
+    const last = (words) => Math.max(-1, ...words.map((w) => before.lastIndexOf(w)));
+    return last(kinds) > last(people);
+  };
+  const sentences = text.split(/(?<=[.?!])\s+/);
+  if (kinds.length && sentences.some(creatureOwns)) {
+    flags.push({ kind: 'leak', text: 'Gives a creature\'s Membrane Integrity as a number.' });
+  }
   if (/\bBSP\b|\bMT\s*\d|\bsoak\s*\d|\bpool\s*\d|\b\d+d\b|\bSegments?\s+\d+\s*\/|\bblock\b/i.test(text)
     // A creature's own numbers in words: "a pool of three dice", "its Membrane Threshold of 12".
     || /Membrane Threshold|\bpool of (?:\w+ )?dice\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat)\b/i.test(text)) {
@@ -134,7 +155,7 @@ export function checkNarration(text, state) {
   }
   if (/Director-only|site notes|briefing|tool\b|ask_for_roll|the Engine/i.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools).' });
   const q = (text.match(/\?/g) || []).length;
-  if (q === 0) flags.push({ kind: 'style', text: 'Does not end on a question.' });
+  if (q === 0 && !moved) flags.push({ kind: 'style', text: 'Does not end on a question.' });
   if (q > 1) flags.push({ kind: 'style', text: `Asks ${q} questions; it should ask one.` });
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 170) flags.push({ kind: 'style', text: `Long: ${words} words.` });
@@ -184,7 +205,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   }
   if (!narration) return null;
   narration = narration.replace(/\*\*/g, '').trim();
-  const flags = checkNarration(narration, T.state);
+  const flags = checkNarration(narration, T.state, { moved: T.state.scene.siteId !== state.scene.siteId });
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
   T.do({ type: 'narrate', text: narration, by: 'ai' });
   return { state: T.state, narration, calls, flags, usage, refusals: T.refusals };
