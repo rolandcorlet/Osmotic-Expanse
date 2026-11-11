@@ -908,4 +908,31 @@ h = h[:m.start()] + "  function screenMetabolicTime() { return " + json.dumps(MT
 rep('if (room >= 520) { f.style.height = room + "px"; }',
     'if (room >= 520) { f.style.height = room + "px"; var spill = document.documentElement.scrollHeight - window.innerHeight; if (spill > 0 && room - spill >= 420) f.style.height = (room - spill) + "px"; }')
 h = h.replace("The character generator and BitSight frames keep their own colours.", "BitSight follows this scheme too; the character generator keeps its own colours.")
+# Ask the Books (and BitSight's library): the Society Rules and QUORUM join the four rulebooks
+import os
+def _book(bid, title, short, fname):
+    md = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", fname), encoding="utf-8-sig").read()
+    secs, cur, n = [], None, 0
+    for line in md.split("\n"):
+        m = re.match(r"^(#{1,6})\s+(.*)$", line)
+        if m:
+            n += 1; cur = {"id": "s%d" % n, "heading": m.group(2).strip(), "depth": len(m.group(1)), "body": ""}; secs.append(cur)
+        else:
+            if cur is None:
+                n += 1; cur = {"id": "s%d" % n, "heading": title, "depth": 1, "body": ""}; secs.append(cur)
+            cur["body"] += line + "\n"
+    return {"id": bid, "title": title, "shortTitle": short, "kind": "setting", "baked": True, "readOnly": True, "fileName": fname, "sections": secs}
+EXTRA = [_book("society", "The Osmotic Expanse — Society Rules and Social Norms", "SOCIETY", "The Osmotic Expanse - SOCIETY RULES AND SOCIAL NORMS.md"),
+         _book("quorum", "QUORUM — Colonies, Kin, and Law", "QUORUM", "The Osmotic Expanse - QUORUM.md")]
+rep('  var ASK = { q: "", results: [], answer: null,',
+    '  var OX_EXTRA_BOOKS = ' + json.dumps(EXTRA, ensure_ascii=False).replace("</", "<\\/") + ';\n'
+    '  (function () { try { var wb = DATA.world_books = DATA.world_books || {}; wb.books = wb.books || [];\n'
+    '    OX_EXTRA_BOOKS.forEach(function (b) { if (!wb.books.some(function (x) { return x.id === b.id; })) wb.books.push(b); }); } catch (e) {} })();\n'
+    '  var ASK = { q: "", results: [], answer: null,')
+h = h.replace('sel("ask-scope", [{ v: "all", l: "all four rulebooks" }]', 'sel("ask-scope", [{ v: "all", l: "all the books (rulebooks, Society Rules, QUORUM)" }]')
+h = h.replace("{ v: \"books\", l: \"the four books only\" }", "{ v: \"books\", l: \"the books only (no Vectors)\" }")
+h = h.replace("the four rulebooks, searched in this browser; optional Claude answers; answers read aloud", "the rulebooks, the Society Rules and QUORUM, searched in this browser; optional Claude answers; answers read aloud")
+# Players: AI Setup gets its own tab (it already worked there, opened from Ask the Books)
+h = h.replace('var PA_KEEP = ["learn", "reader", "askbooks", "bitsight",', 'var PA_KEEP = ["learn", "reader", "askbooks", "aisetup", "bitsight",')
+h = h.replace('PA_NAMES = {reader:"Reader",learn:"Learn to Play",askbooks:"Ask the Books",', 'PA_NAMES = {reader:"Reader",learn:"Learn to Play",askbooks:"Ask the Books",aisetup:"AI Setup",')
 open(dst, "w", encoding="utf-8").write(h); print(dst, len(h))
