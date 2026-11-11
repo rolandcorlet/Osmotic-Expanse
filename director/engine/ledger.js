@@ -486,7 +486,8 @@ function turnStartEffects(s, ctx, a) {
     }
     return true;
   }
-  return !s.creatures[a.id].down;
+  // A creature that is down, or has stood down, takes no turn.
+  return !s.creatures[a.id].down && !s.creatures[a.id].stoodDown;
 }
 
 function beginTurn(s, ctx, a) {
@@ -1051,14 +1052,37 @@ const HANDLERS = {
       if (!s.fight) return;
       // The Director may not end a Pulse War while a creature on this site is still up:
       // the host ends it by hand once the creatures have fled or yielded.
-      const up = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
+      const up = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down && !c.stoodDown);
       if (ctx.ai && up.length) {
-        throw new RuleError(`${up[0].name} is still up on this site. The host ends the Pulse War once the creatures have fled or yielded.`);
+        throw new RuleError(`${up[0].name} is still up and fighting on this site. If it has yielded, fled or was never fighting, stand it down first, with the reason.`);
       }
       const cycles = s.fight.cycle;
       s.fight = null;
       s.requests = [];
       say(s, ctx, `The Pulse War is over after ${cycles} Cycle${cycles > 1 ? 's' : ''}. Pulse Points exist only inside a fight; the next fight starts with a full set.`, 'turn');
+    },
+  },
+  // A creature yields, flees, or was never part of the fight. It takes no more turns and no
+  // longer holds the Pulse War open. A player who strikes it brings it back.
+  'creature.standDown': {
+    host: true,
+    run(s, a, ctx) {
+      const c = cre(s, a.cid);
+      if (c.down) throw new RuleError(`${c.name} is down.`);
+      if (c.stoodDown) throw new RuleError(`${c.name} has already stood down.`);
+      const why = String(a.why || '').trim().slice(0, 120);
+      if (!why) throw new RuleError('Say why it stands down: it yielded, it fled, or it was never fighting.');
+      c.stoodDown = { why };
+      say(s, ctx, `${c.name} stands down: ${why}.`, 'turn');
+      if (!s.fight) return;
+      const act = s.fight.actors[key('cre', c.cid)];
+      if (!act) return;
+      act.reserve = false;
+      if (act.status === 'acting' || act.status === 'holding') {
+        const wasTurn = s.fight.turn === act.key;
+        finishActor(s, ctx, act, false);
+        if (wasTurn || !s.fight.turn) advanceTurn(s, ctx);
+      }
     },
   },
   'turn.end': {
@@ -1159,6 +1183,11 @@ const HANDLERS = {
       if (!w) throw new RuleError(`${o.name} carries no Apparatus.`);
       const c = cre(s, a.targetId);
       if (c.down) throw new RuleError(`${c.name} is already down.`);
+      if (c.stoodDown) {
+        // Striking a creature that had stood down brings it back into the fight.
+        c.stoodDown = null;
+        say(s, ctx, `${c.name} had stood down. Struck, it is back in the fight.`, 'turn');
+      }
       const act = actorOf(s, 'org', o.id);
       const heavy = (w.props || []).includes('Heavy');
       const cost = 2 + (heavy ? 1 : 0);
@@ -1285,6 +1314,7 @@ const HANDLERS = {
       if (!s.fight) throw new RuleError('There is no Pulse War running.');
       const act = actorOf(s, 'cre', c.cid);
       if (!act) throw new RuleError(`${c.name} is not in this fight.`);
+      if (c.stoodDown) throw new RuleError(`${c.name} has stood down and does not act.`);
       const cost = clamp(Math.trunc(Number(a.cost) || 1), 0, 6);
       if (a.what === 'Reserve') {
         if (c.canReact === false) throw new RuleError(`${c.name} cannot use a Reactive Osmosis.`);
@@ -1307,6 +1337,7 @@ const HANDLERS = {
     run(s, a, ctx) {
       const c = cre(s, a.cid);
       if (c.down) throw new RuleError(`${c.name} is down.`);
+      if (c.stoodDown) throw new RuleError(`${c.name} has stood down and does not strike.`);
       const o = org(s, a.targetId);
       const act = actorOf(s, 'cre', c.cid);
       const cost = a.cost == null ? 2 : clamp(Math.trunc(Number(a.cost)), 0, 6);
@@ -1344,13 +1375,14 @@ export function viewFor(state, role, pid) {
     if (c.hidden) continue;
     let looks = '';
     if (c.down) looks = 'down';
+    else if (c.stoodDown) looks = 'standing down';
     else if (c.segments != null) looks = `${c.segments} of ${c.segMax} Segments`;
     else {
       const f = c.mi / c.miMax;
       looks = f >= 1 ? 'unhurt' : f > 0.66 ? 'scratched' : f > 0.33 ? 'hurt' : 'badly hurt';
     }
     pub[c.cid] = {
-      cid: c.cid, blockId: c.blockId, name: c.name, band: c.band, siteId: c.siteId, down: c.down,
+      cid: c.cid, blockId: c.blockId, name: c.name, band: c.band, siteId: c.siteId, down: c.down, stoodDown: !!c.stoodDown,
       segments: c.segments, segMax: c.segMax, looks, conditions: c.conditions,
     };
   }

@@ -65,10 +65,11 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   for (const c of here) {
     const health = c.segments != null ? `Segments ${c.segments}/${c.segMax}` : `MI ${c.mi}/${c.miMax}`;
     if (c.down) { L.push(`- ${c.name} (id "${c.cid}"): DESTROYED. It is out of the scene: it cannot act, block the way or be struck. Describe it only as wreckage.`); continue; }
+    if (c.stoodDown) { L.push(`- ${c.name} (id "${c.cid}"): STOOD DOWN (${c.stoodDown.why}). It is present but not fighting: it takes no turns and does not block the way. If a player strikes it, it rejoins the fight.`); continue; }
     L.push(`- ${c.name} (id "${c.cid}", block ${c.blockId}): ${health}; band ${c.band}${c.conditions.length ? `; ${c.conditions.map((x) => x.name).join(', ')}` : ''}`);
   }
   const downNow = here.filter((c) => c.down);
-  if (downNow.length && !here.some((c) => !c.down)) L.push('Every creature here is destroyed. Do not describe any of them as alive, standing or holding a line.');
+  if (downNow.length && !here.some((c) => !c.down && !c.stoodDown) && !here.some((c) => c.stoodDown)) L.push('Every creature here is destroyed. Do not describe any of them as alive, standing or holding a line.');
 
   L.push('');
   const paidHere = (state.paid || []).filter((p) => p.site === site.id);
@@ -93,8 +94,8 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     }
     const cur = f.turn ? f.actors[f.turn] : null;
     L.push('Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1. A creature with fewer Pulse Points left than an action costs cannot take it: end its turn instead.');
-    const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down);
-    if (up.length) L.push(`Still up: ${up.map((c) => c.name).join(', ')}. While any creature is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do.`);
+    const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down && !c.stoodDown);
+    if (up.length) L.push(`Still fighting: ${up.map((c) => c.name).join(', ')}. While any of these is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do. A creature that has yielded, fled or was never fighting does not belong in this list: use creature_stand_down for it, with the reason.`);
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
     else if (cur) L.push('It is a player\'s turn: they act on their own screen. Do not use any creature tool now (no creature_move, creature_strike, creature_special, creature_reserve): creatures act only on their own turns. Narrate and ask.');
   } else {

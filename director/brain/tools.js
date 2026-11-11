@@ -59,7 +59,7 @@ export const TOOLS = [
       if (!(at >= 8 && at <= 28)) return { refused: 'A Threshold is between 8 and 28: use the ladder (8, 12, 16, 20) or a number printed in the site notes.' };
       if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { refused: `${o.name} already has a roll waiting. Wait for it.` };
       const before = T.state.rolls.length;
-      const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: a.modifiers || [], unhurried: !!a.unhurried });
+      const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: a.modifiers || [], unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
       if (no) return { refused: no };
       if (T.state.rolls.length > before) return { no_roll_needed: true, note: `Unhurried, and ${o.name}'s Homeostatic Baseline meets ${at}. It simply succeeds. There is no Overflow.` };
       const q = T.state.requests[T.state.requests.length - 1];
@@ -167,6 +167,17 @@ export const TOOLS = [
       if (!c) return noCre(a.creature);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 });
       return no ? { refused: no } : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
+    },
+  },
+  {
+    name: 'creature_stand_down',
+    description: 'A creature leaves the fight without being destroyed: it has yielded, it has fled, it has what it wanted, or it was never fighting (a clerk honouring a filed oath). It takes no more turns and no longer keeps the Pulse War open. If a player strikes it afterwards it rejoins the fight. Never use this for a creature that is still attacking.',
+    parameters: obj({ creature: S('Creature id from the briefing.'), why: S('Why it stands down, in a few words the players can hear.') }, ['creature', 'why']),
+    run(a, T) {
+      const c = findCre(T.state, a.creature);
+      if (!c) return noCre(a.creature);
+      const no = T.do({ type: 'creature.standDown', cid: c.cid, why: a.why });
+      return no ? { refused: no } : { stood_down: c.name, ...(T.state.fight ? T.fightBrief() : {}) };
     },
   },
   {

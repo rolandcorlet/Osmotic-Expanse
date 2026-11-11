@@ -344,7 +344,7 @@ test('the Director cannot end a Pulse War while a creature on the site is still 
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
   const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
   const no = T.run('end_pulse_war', {});
-  assert.match(no.refused, /still up on this site/);
+  assert.match(no.refused, /still up and fighting on this site/);
   assert.ok(T.state.fight, 'the Pulse War is still running');
   // The host may end it by hand, and once the creatures are down the Director may too.
   for (const c of Object.values(s.creatures)) c.down = true;
@@ -406,7 +406,7 @@ test('a travel turn may end without a question', () => {
 test('during a Pulse War the briefing says who is still up and that the Cohort cannot leave', () => {
   let s = seated();
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
-  assert.match(briefing(s, scenario, bestiary, {}), /Still up: Gnaw Swarm.*cannot end the Pulse War or change site/);
+  assert.match(briefing(s, scenario, bestiary, {}), /Still fighting: Gnaw Swarm.*cannot end the Pulse War or change site/);
 });
 
 test('the briefing lists what has already been paid at this site', () => {
@@ -470,4 +470,35 @@ test('the briefing marks a downed creature as destroyed', () => {
   const text = briefing(s, scenario, bestiary, {});
   assert.match(text, /Fold Sentinel \(id "[^"]+"\): DESTROYED/);
   assert.match(text, /Every creature here is destroyed/);
+});
+
+test('unhurried sent as the text "False" is not treated as true', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Taste the water', unhurried: 'False' });
+  assert.equal(T.state.requests.length, 1, 'a roll is waiting, not skipped on Baseline');
+});
+
+test('stand down: a creature that is not fighting leaves the fight, and striking it brings it back', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const cid = Object.keys(T.state.creatures)[0];
+  assert.match(T.run('end_pulse_war', {}).refused, /stand it down first/);
+  assert.match(T.run('creature_stand_down', { creature: cid }).refused || '', /why/i);
+  const ok = T.run('creature_stand_down', { creature: cid, why: 'it honours the filed oath' });
+  assert.equal(ok.stood_down, 'Fold Sentinel');
+  assert.equal(T.state.fight.turn && T.state.fight.actors[T.state.fight.turn].kind, 'org', 'the turn is a player\'s: the Sentinel takes none');
+  assert.match(briefing(T.state, scenario, bestiary, {}), /STOOD DOWN \(it honours the filed oath\)/);
+  assert.ok(!/Still fighting/.test(briefing(T.state, scenario, bestiary, {})));
+  assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).refused, /stood down/);
+  // A player strikes it: it is back in, and the fight cannot be ended by the Director.
+  const who = T.state.fight.actors[T.state.fight.turn].id;
+  const pid = T.state.organisms[who].playerId;
+  T.state = apply(T.state, { type: 'strike', organismId: who, targetId: cid }, ctx('player', pid));
+  assert.equal(T.state.creatures[cid].stoodDown, null);
+  assert.match(T.run('end_pulse_war', {}).refused, /still up and fighting/);
+  // Stood down again, the Director may end the fight.
+  T.state.requests = [];
+  T.run('creature_stand_down', { creature: cid, why: 'it yields' });
+  assert.deepEqual(T.run('end_pulse_war', {}), { ended: true });
 });
