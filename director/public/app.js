@@ -48,7 +48,7 @@ const ui = {
   seenReq: {},
   jumpTop: false,
   say: { text: '' },
-  dir: { key: '', note: '', edit: '', editId: null, narrate: '' },
+  dir: { key: '', note: '', edit: '', editId: null, narrate: '', url: '', urlFor: null },
   strike: null,
   drift: false,
   quick: { baseline: 'OSM', pathway: '', at: '', practice: false },
@@ -177,6 +177,7 @@ function connect() {
     }
     const prop = state.director && state.director.proposal;
     if (prop && prop.id !== ui.dir.editId) { ui.dir.edit = prop.narration; ui.dir.editId = prop.id; }
+    if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
     render();
   });
   es.onerror = () => { online = false; render(); };
@@ -926,6 +927,8 @@ function directorHtml() {
     </section>` : '';
   const story = storyCard({ fill: true, input: `<div class="row"><input type="text" class="grow" data-k="dir.narrate" data-bind="dir.narrate" value="${esc(ui.dir.narrate)}" maxlength="2000" placeholder="Narrate something yourself, as the Director"><button class="btn" data-act="d.narrate">Narrate</button></div>` });
   const last = d.last;
+  const provs = d.providers || [];
+  const pv = provs.find((x) => x.id === d.provider) || { id: 'gemini', name: 'Google Gemini', key: 'required', group: 'cloud', hint: '', base: '' };
   const phase = { idle: 'Waiting for the players', thinking: 'Thinking…', proposal: 'Waiting for your approval', error: 'Stopped on a problem' }[d.phase] || '';
   const settings = `<section class="card fill"><h3>The AI Director<span class="right"><span class="chip${d.phase === 'error' ? ' no' : d.on ? ' ok' : ''}">${d.mode === 'off' ? 'Off' : esc(phase)}</span></span></h3>
     <div class="scroll" data-scroll="dset" style="display:flex;flex-direction:column;gap:12px">
@@ -933,15 +936,24 @@ function directorHtml() {
         <div class="seg">${[['off', 'Off: a person'], ['copilot', 'Co-pilot: you approve'], ['auto', 'Auto: it runs']].map(([id, name]) => `<button class="${d.mode === id ? 'on' : ''}" data-act="d.mode" data-id="${id}">${name}</button>`).join('')}</div>
         <span class="small dim">${d.mode === 'auto' ? 'The Director answers the players by itself. A turn that fails the leak check is still held for you.' : d.mode === 'copilot' ? 'The Director prepares each turn and nothing reaches the table until you approve it.' : 'The AI is off. Run the table from the Run tab.'}</span></div>
       ${d.error ? `<div class="note hot" style="border-color:var(--no)">${esc(d.error)}</div>` : ''}
-      <div class="fld"><span class="fl">Google Gemini API key ${d.keySet ? '· saved on this computer' : '· not set'}</span>
-        <div class="row"><input type="password" class="grow" data-k="dir.key" data-bind="dir.key" value="${esc(ui.dir.key)}" placeholder="${d.keySet ? 'Paste a new key to replace the saved one' : 'Paste your key from Google AI Studio'}" autocomplete="off"><button class="btn" data-act="d.key">Save key</button></div>
-        <span class="small dim">Create a key at aistudio.google.com. It is kept in the saves folder on the host computer and is never sent to players or to GitHub.</span></div>
+      <div class="fld"><span class="fl">Which AI</span>
+        <select data-k="dir.provider" data-dprov="1">${[['cloud', 'Online, with an API key'], ['local', 'On your own computer or network']].map(([g, label]) => `<optgroup label="${label}">${provs.filter((x) => x.group === g).map((x) => `<option value="${x.id}" ${x.id === d.provider ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</optgroup>`).join('')}</select>
+        ${pv.hint ? `<span class="small dim">${esc(pv.hint)}</span>` : ''}</div>
+      ${pv.url ? `<div class="fld"><span class="fl">Address of the AI server</span>
+        <div class="row"><input type="text" class="grow" data-k="dir.url" data-bind="dir.url" value="${esc(ui.dir.url)}" placeholder="${esc(pv.base || 'http://192.168.1.50:8000/v1')}" autocomplete="off" spellcheck="false"><button class="btn" data-act="d.url">Connect</button></div>
+        <span class="small dim">${pv.id === 'custom' ? 'The full address, usually ending in /v1.' : `On this computer it is ${esc(pv.base)}.`} For another computer on your network, use its address, for example http://192.168.1.50${esc((pv.base.match(/:\d+.*$/) || [':8000/v1'])[0])}</span></div>` : ''}
+      ${pv.key !== 'none' ? `<div class="fld"><span class="fl">${esc(pv.name.replace(/ \(.*$/, ''))} API key ${pv.key === 'optional' ? '(only if the server asks for one) ' : ''}${d.keySet ? '· saved on this computer' : '· not set'}</span>
+        <div class="row"><input type="password" class="grow" data-k="dir.key" data-bind="dir.key" value="${esc(ui.dir.key)}" placeholder="${d.keySet ? 'Paste a new key to replace the saved one' : pv.keyFrom ? `Paste your key from ${esc(pv.keyFrom)}` : 'Paste the key'}" autocomplete="off"><button class="btn" data-act="d.key">Save key</button></div>
+        <span class="small dim">${pv.keyFrom ? `Create a key at ${esc(pv.keyFrom)}. ` : ''}It is kept in the saves folder on the host computer and is never sent to players or to GitHub.</span></div>` : ''}
       <div class="fld"><span class="fl">Model</span>
-        <div class="row"><select class="grow" data-k="dir.model" data-dmodel="1">${(d.models || []).length ? d.models.map((m) => `<option value="${esc(m.id)}" ${m.id === d.model ? 'selected' : ''}>${esc(m.name)} (${esc(m.id)})</option>`).join('') : `<option>${d.keySet ? 'Press Refresh to load your models' : 'Save a key first'}</option>`}</select><button class="btn" data-act="d.models" ${d.keySet ? '' : 'disabled'}>Refresh</button></div>
-        <span class="small dim">The list comes from your own Google account. A Flash model is quick and cheap; a Pro model follows the rules more carefully.</span></div>
+        <div class="row"><select class="grow" data-k="dir.model" data-dmodel="1">${(d.models || []).length ? `${d.model && d.models.some((m) => m.id === d.model) ? '' : '<option value="" selected>Choose a model…</option>'}${d.models.map((m) => `<option value="${esc(m.id)}" ${m.id === d.model ? 'selected' : ''}>${esc(m.name)}${m.name === m.id ? '' : ` (${esc(m.id)})`}</option>`).join('')}` : `<option value="">${d.usable ? 'Press Refresh to load the models' : pv.key === 'required' ? 'Save a key first' : 'Enter the address first'}</option>`}</select><button class="btn" data-act="d.models" ${d.usable ? '' : 'disabled'}>Refresh</button><button class="btn" data-act="d.test" ${d.usable && d.model && !(d.test && d.test.busy) ? '' : 'disabled'} title="Checks the connection and that this model can use the Director's tools">Test</button></div>
+        ${d.test ? `<div class="note${d.test.ok ? '' : ' hot'}" ${d.test.busy ? '' : `style="border-color:var(--${d.test.ok ? 'ok' : 'no'})"`}>${esc(d.test.text)}</div>` : `<span class="small dim">${pv.group === 'local' ? 'The list is what that server has loaded or downloaded.' : 'The list comes from your own account.'} Test checks that the model can use the Director's tools.</span>`}</div>
+      ${pv.ctx ? `<div class="fld"><span class="fl">Context size (how much the model can read at once)</span>
+        <select data-k="dir.ctx" data-dctx="1">${[8192, 16384, 32768, 65536].map((n) => `<option value="${n}" ${Number(d.numCtx) === n ? 'selected' : ''}>${n.toLocaleString()} tokens${n === 16384 ? ' (recommended)' : n === 8192 ? ' (tight: long scenes may be cut off)' : ''}</option>`).join('')}</select>
+        <span class="small dim">Bigger needs more video memory. If the Director forgets the scene or stops using its tools, raise this.</span></div>` : ''}
       <hr class="sep">
       <div class="fld"><span class="fl">Ask for a turn now</span>
-        <div class="row"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" maxlength="400" placeholder="Optional note to the Director, for example: open the scene"><button class="btn primary" data-act="d.run" ${d.mode === 'off' || !d.keySet || d.thinking ? 'disabled' : ''}>Take a turn</button></div>
+        <div class="row"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" maxlength="400" placeholder="Optional note to the Director, for example: open the scene"><button class="btn primary" data-act="d.run" ${d.mode === 'off' || !d.usable || !d.model || d.thinking ? 'disabled' : ''}>Take a turn</button></div>
         <span class="small dim">The Director also takes a turn by itself after a player speaks, rolls or ends a turn.</span></div>
       ${last ? `<div><div class="fl dim small">ITS LAST TURN · ${(last.ms / 1000).toFixed(1)} s · ${last.usage.in + last.usage.out} tokens</div>
         <div class="receipt">${last.calls.map(toolLine).join('') || '<div class="ln"><span>Narration only.</span></div>'}</div>
@@ -989,6 +1001,8 @@ const ACT = {
     if (await sendDirector({ op: 'config', apiKey: ui.dir.key.trim() })) { ui.dir.key = ''; toast('Key saved. Loading your models…', true); }
   },
   'd.models': () => sendDirector({ op: 'models' }),
+  'd.test': () => sendDirector({ op: 'test' }),
+  'd.url': async () => { if (await sendDirector({ op: 'config', baseUrl: ui.dir.url.trim() })) toast('Looking for the AI server…', true); },
   'd.run': async () => { if (await sendDirector({ op: 'run', note: ui.dir.note })) ui.dir.note = ''; },
   'd.approve': () => {
     const p = state.director.proposal;
@@ -1171,7 +1185,9 @@ function onField(e) {
     ui.host.enc[k][t.dataset.f] = t.dataset.f === 'count' ? Number(t.value) : t.value;
     return;
   }
-  if (t.dataset.dmodel) { if (e.type === 'change') sendDirector({ op: 'config', model: t.value }); return; }
+  if (t.dataset.dmodel) { if (e.type === 'change' && t.value) sendDirector({ op: 'config', model: t.value }); return; }
+  if (t.dataset.dprov) { if (e.type === 'change') sendDirector({ op: 'config', provider: t.value }); return; }
+  if (t.dataset.dctx) { if (e.type === 'change') sendDirector({ op: 'config', numCtx: Number(t.value) }); return; }
   if (t.dataset.creTarget) { ui.host.cre[t.dataset.creTarget] = { ...(ui.host.cre[t.dataset.creTarget] || {}), target: t.value }; return; }
   if (t.dataset.creBand) { if (e.type === 'change') send({ type: 'set', target: { kind: 'cre', id: t.dataset.creBand }, field: 'band', value: t.value }); return; }
   if (!t.dataset.bind) return;
@@ -1184,7 +1200,7 @@ document.addEventListener('input', onField);
 document.addEventListener('change', onField);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-  const more = { say: 'say', 'dir.narrate': 'd.narrate', 'dir.note': 'd.run', 'dir.key': 'd.key' }[e.target.getAttribute('data-k')];
+  const more = { say: 'say', 'dir.narrate': 'd.narrate', 'dir.note': 'd.run', 'dir.key': 'd.key', 'dir.url': 'd.url' }[e.target.getAttribute('data-k')];
   if (more) { e.preventDefault(); Promise.resolve(ACT[more]({})).then(render); return; }
   const k = e.target.getAttribute('data-k');
   const map = { 'join.name': 'join', 'claim.name': 'claim.go', keyTry: codeBad ? 'code.go' : 'key.go', 'h.label': 'h.ask', rename: 'rename' };

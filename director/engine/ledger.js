@@ -743,6 +743,8 @@ const HANDLERS = {
       const at = clamp(Math.trunc(Number(a.at) || 12), 1, 60);
       const label = String(a.label || (a.pathway ? `${a.baseline} + ${a.pathway}` : a.baseline)).slice(0, 60);
       const base = R.homeostatic(pool.dice);
+      // Unhurried means unopposed: during a Pulse War nothing is unopposed, so the Director must roll.
+      if (ctx.ai && a.unhurried && s.fight) throw new RuleError('Not unhurried during a Pulse War: ask for the roll.');
       if (a.unhurried && base >= at) {
         // §1.6: unopposed and unhurried, and the Baseline meets the Threshold. No dice, no Stress.
         recordRoll(s, ctx, {
@@ -992,6 +994,18 @@ const HANDLERS = {
       const ids = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms).filter((id) => s.organisms[id].playerId));
       const codon = Number(a.codon) || 0;
       const sub = Math.trunc(Number(a.substrate) || 0);
+      // The Director may pay a printed reward once per organism per site: a repeated
+      // "why" at the same site is the same payment twice (a toll paid at the gate and again at the cut-lane).
+      const why = String(a.why || '').trim().toLowerCase();
+      s.paid = s.paid || [];
+      if (ctx.ai && why) {
+        for (const id of ids) {
+          if (s.paid.some((p) => p.org === id && p.site === s.scene.siteId && p.why === why)) {
+            throw new RuleError(`${org(s, id).name} has already been paid for that at this site. Pay a printed reward once.`);
+          }
+        }
+        for (const id of ids) s.paid.push({ org: id, site: s.scene.siteId, why });
+      }
       for (const id of ids) {
         const o = org(s, id);
         o.codon = Math.max(0, Math.round((o.codon + codon) * 10) / 10);
@@ -1035,6 +1049,12 @@ const HANDLERS = {
     host: true,
     run(s, a, ctx) {
       if (!s.fight) return;
+      // The Director may not end a Pulse War while a creature on this site is still up:
+      // the host ends it by hand once the creatures have fled or yielded.
+      const up = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
+      if (ctx.ai && up.length) {
+        throw new RuleError(`${up[0].name} is still up on this site. The host ends the Pulse War once the creatures have fled or yielded.`);
+      }
       const cycles = s.fight.cycle;
       s.fight = null;
       s.requests = [];

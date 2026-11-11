@@ -1,9 +1,11 @@
 // The Phase 3 test bench: plays a scripted table through the real model and
 // counts what went wrong. Run it after saving a key and choosing a model on the
-// host console's Director tab (or set GEMINI_API_KEY and pass --model).
+// host console's Director tab. It uses whichever AI is selected there.
 //
 //   node tools/bench.mjs                 the Toll-Vent script, once
-//   node tools/bench.mjs --model gemini-3.7-flash --runs 3
+//   node tools/bench.mjs --runs 3
+//   node tools/bench.mjs --provider ollama --model <name>     try another one
+//   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //
 // The gate for a model: no Engine refusals, no leak flags, and every reply ends
 // on exactly one question. Nothing here touches a saved session.
@@ -14,17 +16,23 @@ import { newSession, apply } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { directorTurn } from '../brain/director.js';
-import { gemini } from '../brain/gemini.js';
+import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
 const cfgFile = join(here, '..', 'saves', 'director.json');
 const cfg = existsSync(cfgFile) ? JSON.parse(readFileSync(cfgFile, 'utf8')) : {};
-const apiKey = process.env.GEMINI_API_KEY || cfg.apiKey;
-const model = opt('--model', cfg.model);
+const provider = opt('--provider', cfg.provider || 'gemini');
+if (!PROVIDERS.some((p) => p.id === provider)) { console.log(`Unknown provider "${provider}". Choose one of: ${PROVIDERS.map((p) => p.id).join(', ')}`); process.exit(1); }
+const info = providerInfo(provider);
+const apiKey = (cfg.keys || {})[provider] || (provider === 'gemini' && cfg.apiKey) || (info.env && process.env[info.env]) || '';
+const baseUrl = opt('--url', (cfg.urls || {})[provider] || '');
+const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemini' && cfg.model) || '');
+const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const runs = Number(opt('--runs', 1));
-if (!apiKey || !model) { console.log('Save a Gemini key and choose a model on the Director tab first (or set GEMINI_API_KEY and pass --model).'); process.exit(1); }
+if ((info.key === 'required' && !apiKey) || !model) { console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`); process.exit(1); }
+const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx });
 
 const bestiary = JSON.parse(readFileSync(join(here, '..', 'data', 'bestiary.json'), 'utf8'));
 const rng = systemRng();
@@ -54,7 +62,7 @@ async function once(n) {
 
   async function director(reason) {
     const t0 = Date.now();
-    const r = await directorTurn({ state: s, scenario, bestiary, provider: gemini({ apiKey, model }), rng, now: Date.now(), reason });
+    const r = await directorTurn({ state: s, scenario, bestiary, provider: makeProvider(), rng, now: Date.now(), reason });
     s = r.state;
     tally.turns += 1;
     tally.ms += Date.now() - t0;
@@ -102,7 +110,7 @@ async function once(n) {
     }
   }
 
-  console.log(`\n===== Run ${n}: ${model} =====`);
+  console.log(`\n===== Run ${n}: ${info.name} · ${model} =====`);
   await director('opening the scene');
   for (const [pid, text] of SCRIPT) {
     const o = Object.values(s.organisms).find((x) => x.playerId === pid);

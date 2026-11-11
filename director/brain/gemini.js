@@ -1,14 +1,15 @@
 // Google Gemini, through the Gemini API with an API key.
-// Every provider offers the same small surface, so others (a local model, Claude)
-// can be added beside this one:
+// Every provider offers the same small surface (see providers.js for the others):
 //   listModels()            -> [{ id, name }]
 //   start({ system, tools }) -> a chat with  send(text)  and  results([{ call, result }])
 //   each returns { text, calls: [{ id, name, args }], usage }
 
+import { ProviderError } from './net.js';
+
+export { ProviderError };
+
 // The address can be overridden for testing against a stand-in.
 const BASE = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta';
-
-export class ProviderError extends Error {}
 
 async function call(path, apiKey, body, fetchImpl) {
   let res;

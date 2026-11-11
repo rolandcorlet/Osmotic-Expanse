@@ -260,7 +260,8 @@ export const TOOLS = [
 
 // ---- running a tool against a sandbox copy of the Ledger -------------------------
 export function toolbox({ state, scenario, bestiary, rng, now }) {
-  const ctx = { role: 'host', pid: null, rng, now, scenario, bestiary };
+  // The Director acts as the host, but the Engine must know it is the Director (ai: true).
+  const ctx = { role: 'host', pid: null, rng, now, scenario, bestiary, ai: true };
   const T = {
     state,
     scenario,

@@ -5,6 +5,7 @@
 
 import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, orgMT } from './tools.js';
+import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
@@ -81,6 +82,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       L.push(`- ${body.name} (${a.kind === 'org' ? 'player' : 'creature'}): ${a.status}${a.status === 'acting' || a.status === 'holding' ? `, ${a.pp} Pulse Points left` : ''}${a.reserve ? ', holding a Reserve' : ''}${f.turn === k ? '  <= ACTING NOW' : ''}`);
     }
     const cur = f.turn ? f.actors[f.turn] : null;
+    L.push('Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1. A creature with fewer Pulse Points left than an action costs cannot take it: end its turn instead.');
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
     else if (cur) L.push('It is a player\'s turn: they act on their own screen.');
   } else {
@@ -125,7 +127,11 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 // ---- checks on what the Director wrote, before anyone sees it --------------------
 export function checkNarration(text, state) {
   const flags = [];
-  if (/\bBSP\b|\bMT\s*\d|\bsoak\s*\d|\bpool\s*\d|\b\d+d\b|\bSegments?\s+\d+\s*\/|\bblock\b/i.test(text)) flags.push({ kind: 'leak', text: 'May be reading out a creature\'s block or numbers.' });
+  if (/\bBSP\b|\bMT\s*\d|\bsoak\s*\d|\bpool\s*\d|\b\d+d\b|\bSegments?\s+\d+\s*\/|\bblock\b/i.test(text)
+    // A creature's own numbers in words: "a pool of three dice", "its Membrane Threshold of 12".
+    || /Membrane Threshold|\bpool of (?:\w+ )?dice\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat)\b/i.test(text)) {
+    flags.push({ kind: 'leak', text: 'May be reading out a creature\'s block or numbers.' });
+  }
   if (/Director-only|site notes|briefing|tool\b|ask_for_roll|the Engine/i.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools).' });
   const q = (text.match(/\?/g) || []).length;
   if (q === 0) flags.push({ kind: 'style', text: 'Does not end on a question.' });
@@ -138,7 +144,20 @@ export function checkNarration(text, state) {
 }
 
 // ---- one turn -------------------------------------------------------------------
-export async function directorTurn({ state, scenario, bestiary, provider, rng, now = 0, reason = '', hostNote = '' }) {
+// A turn may be tried again from the same table: a model that uses its tools and
+// then says nothing gets one fresh attempt before the host sees a problem.
+const ATTEMPTS = 2;
+
+export async function directorTurn(args) {
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    const done = await oneAttempt(args);
+    if (done) return done;
+  }
+  throw new ProviderError('The Director used its tools but never said anything to the table, even after a second try. Press "Take a turn" again.');
+}
+
+// Returns null when the model never narrated, so the caller can try again.
+async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, reason = '', hostNote = '' }) {
   const T = toolbox({ state, scenario, bestiary, rng, now });
   const chat = provider.start({ system: INSTRUCTIONS, tools: TOOLS });
   const calls = [];
@@ -163,7 +182,7 @@ export async function directorTurn({ state, scenario, bestiary, provider, rng, n
     nudged = true;
     reply = await chat.send('You have not said anything to the table yet. Narrate now, in plain text, and end on one question.');
   }
-  if (!narration) throw new Error('The Director used its tools but never narrated. Try again.');
+  if (!narration) return null;
   narration = narration.replace(/\*\*/g, '').trim();
   const flags = checkNarration(narration, T.state);
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });

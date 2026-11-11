@@ -186,3 +186,204 @@ test('the briefing changes with the site and never carries another site\'s notes
   assert.match(two, /Glaze Medusa/);
   assert.match(two, /CLAIM VOID/);
 });
+
+// ---- the other providers: each request is shaped as its API expects --------------
+const { build, PROVIDERS, pickDefaultModel: pickFor, testConnection } = await import('../brain/providers.js');
+const { writeFileSync: writeF } = await import('node:fs');
+const recorder = (replies) => {
+  const sent = [];
+  const fetchImpl = async (url, init) => {
+    sent.push({ url, init, body: init.body ? JSON.parse(init.body) : null });
+    const r = replies.shift();
+    return { ok: !r.status || r.status < 400, status: r.status || 200, json: async () => r.body ?? r };
+  };
+  return { sent, fetchImpl };
+};
+
+test('OpenAI-style requests: tools, bearer key, tool results by id, and a retry without temperature', async () => {
+  const { sent, fetchImpl } = recorder([
+    { status: 400, body: { error: { message: "Unsupported value: 'temperature' does not support 0.8 with this model." } } },
+    { choices: [{ message: { role: 'assistant', content: null, tool_calls: [{ id: 'call_9', type: 'function', function: { name: 'rest', arguments: '{}' } }], refusal: null } }], usage: { prompt_tokens: 10, completion_tokens: 2 } },
+    { choices: [{ message: { role: 'assistant', content: '<think>hm</think>Done. What next?' } }] },
+  ]);
+  const chat = build({ provider: 'openai', apiKey: 'KEY', model: 'gpt-x', fetchImpl }).start({ system: 'SYS', tools: TOOLS });
+  const a = await chat.send('briefing');
+  assert.deepEqual(a.calls, [{ id: 'call_9', name: 'rest', args: {} }]);
+  const b = await chat.results([{ call: a.calls[0], result: { rested: true } }]);
+  assert.equal(b.text, 'Done. What next?');
+  assert.equal(sent[0].url, 'https://api.openai.com/v1/chat/completions');
+  assert.equal(sent[0].init.headers.authorization, 'Bearer KEY');
+  assert.equal(sent[0].body.temperature, 0.8);
+  assert.ok(!('temperature' in sent[1].body));
+  assert.equal(sent[1].body.tools.length, TOOLS.length);
+  assert.equal(sent[1].body.tools[0].type, 'function');
+  assert.deepEqual(sent[2].body.messages.map((m) => m.role), ['system', 'user', 'assistant', 'tool']);
+  assert.deepEqual(Object.keys(sent[2].body.messages[2]).sort(), ['content', 'role', 'tool_calls']); // nothing a strict server rejects
+  assert.deepEqual(sent[2].body.messages[3], { role: 'tool', tool_call_id: 'call_9', content: '{"rested":true}' });
+});
+
+test('local OpenAI-style servers need no key, and the address may be changed', async () => {
+  const { sent, fetchImpl } = recorder([{ data: [{ id: 'qwen-tools' }, { id: 'text-embedding-3' }] }]);
+  const list = await build({ provider: 'lmstudio', baseUrl: 'http://192.168.1.50:1234/v1/', fetchImpl }).listModels();
+  assert.deepEqual(list, [{ id: 'qwen-tools', name: 'qwen-tools' }]);
+  assert.equal(sent[0].url, 'http://192.168.1.50:1234/v1/models');
+  assert.equal(sent[0].init.headers.authorization, undefined);
+  assert.throws(() => build({ provider: 'custom', model: 'x' }), /No address/);
+  assert.throws(() => build({ provider: 'groq', model: 'x' }), /API key/);
+});
+
+test('OpenRouter lists only models that can call tools', async () => {
+  const { fetchImpl } = recorder([{ data: [{ id: 'a/tools', name: 'A', supported_parameters: ['tools', 'temperature'] }, { id: 'b/plain', name: 'B', supported_parameters: ['temperature'] }] }]);
+  assert.deepEqual(await build({ provider: 'openrouter', apiKey: 'K', fetchImpl }).listModels(), [{ id: 'a/tools', name: 'A' }]);
+});
+
+test('Claude requests: system at the top, tool_use and tool_result blocks', async () => {
+  const { sent, fetchImpl } = recorder([
+    { content: [{ type: 'text', text: 'Resting them.' }, { type: 'tool_use', id: 'toolu_7', name: 'rest', input: {} }], usage: { input_tokens: 10, output_tokens: 3 } },
+    { content: [{ type: 'text', text: 'Done. What next?' }] },
+  ]);
+  const chat = build({ provider: 'anthropic', apiKey: 'KEY', model: 'claude-x', fetchImpl }).start({ system: 'SYS', tools: TOOLS });
+  const a = await chat.send('briefing');
+  assert.deepEqual(a.calls, [{ id: 'toolu_7', name: 'rest', args: {} }]);
+  assert.deepEqual(a.usage, { in: 10, out: 3 });
+  await chat.results([{ call: a.calls[0], result: { rested: true } }]);
+  assert.equal(sent[0].url, 'https://api.anthropic.com/v1/messages');
+  assert.equal(sent[0].init.headers['x-api-key'], 'KEY');
+  assert.equal(sent[0].init.headers['anthropic-version'], '2023-06-01');
+  assert.equal(sent[0].body.system, 'SYS');
+  assert.ok(sent[0].body.max_tokens > 0);
+  assert.ok(sent[0].body.tools[0].input_schema);
+  assert.deepEqual(sent[1].body.messages[2], { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_7', content: '{"rested":true}' }] });
+});
+
+test('Ollama requests use its own API with the context size, and say so when a model cannot use tools', async () => {
+  const { sent, fetchImpl } = recorder([
+    { message: { role: 'assistant', content: '', tool_calls: [{ function: { name: 'rest', arguments: {} } }] }, prompt_eval_count: 9, eval_count: 2 },
+    { message: { role: 'assistant', content: 'Done. What next?' } },
+    { status: 400, body: { error: 'registry.ollama.ai/library/tiny:1b does not support tools' } },
+  ]);
+  const p = build({ provider: 'ollama', baseUrl: 'http://box:11434/v1', model: 'm:14b', numCtx: 32768, fetchImpl });
+  const chat = p.start({ system: 'SYS', tools: TOOLS });
+  const a = await chat.send('briefing');
+  assert.deepEqual(a.calls, [{ id: null, name: 'rest', args: {} }]);
+  await chat.results([{ call: a.calls[0], result: { rested: true } }]);
+  assert.equal(sent[0].url, 'http://box:11434/api/chat');
+  assert.equal(sent[0].body.stream, false);
+  assert.equal(sent[0].body.options.num_ctx, 32768);
+  assert.deepEqual(sent[1].body.messages[3], { role: 'tool', tool_name: 'rest', content: '{"rested":true}' });
+  await assert.rejects(() => p.start({ system: 'S', tools: TOOLS }).send('x'), /cannot call tools/);
+});
+
+test('the connection test passes only when the model really uses a tool', async () => {
+  const good = recorder([
+    { choices: [{ message: { role: 'assistant', content: null, tool_calls: [{ id: 'c1', type: 'function', function: { name: 'ring_bell', arguments: '{"times":2}' } }] } }] },
+    { choices: [{ message: { role: 'assistant', content: 'ready' } }] },
+  ]);
+  assert.equal((await testConnection(build({ provider: 'custom', baseUrl: 'http://x/v1', model: 'm', fetchImpl: good.fetchImpl }))).ok, true);
+  const bad = recorder([{ choices: [{ message: { role: 'assistant', content: 'I ring the bell twice. Ready.' } }] }]);
+  assert.equal((await testConnection(build({ provider: 'custom', baseUrl: 'http://x/v1', model: 'm', fetchImpl: bad.fetchImpl }))).ok, false);
+});
+
+test('settings: each provider keeps its own key and model, old Gemini settings carry over, keys never reach a screen', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'oxd-'));
+  writeF(join(dir, 'director.json'), JSON.stringify({ mode: 'copilot', provider: 'gemini', apiKey: 'OLD-GEMINI-KEY', model: 'gemini-3.7-flash' }));
+  const seen = [];
+  const makeProvider = (o) => { seen.push(o); return { listModels: async () => (o.provider === 'ollama' ? [{ id: 'local:14b', name: 'local:14b' }] : o.provider === 'gemini' ? [{ id: 'gemini-3.7-flash', name: 'F' }] : [{ id: 'gpt-a', name: 'A' }, { id: 'gpt-b', name: 'B' }]), start: () => ({}) }; };
+  const d = createDirector({ getState: () => seated(), commit: () => {}, scenario, bestiary, rng, saveDir: dir, onChange: () => {}, makeProvider });
+  let v = d.view('host');
+  assert.equal(v.keySet, true);
+  assert.equal(v.model, 'gemini-3.7-flash');
+  assert.equal(v.providers.length, PROVIDERS.length);
+  await d.op({ op: 'config', provider: 'ollama' });
+  v = d.view('host');
+  assert.equal(v.usable, true); // no key needed
+  assert.equal(v.model, 'local:14b'); // the only local model is chosen
+  assert.equal(d.view('player').on, true);
+  await d.op({ op: 'config', baseUrl: 'ftp://nope' });
+  assert.match(d.view('host').error, /http/);
+  await d.op({ op: 'config', baseUrl: 'http://192.168.1.50:11434', numCtx: 32768 });
+  assert.equal(seen[seen.length - 1].baseUrl, 'http://192.168.1.50:11434');
+  assert.equal(d.view('host').numCtx, 32768);
+  await d.op({ op: 'config', provider: 'openai' });
+  assert.equal(d.view('host').usable, false);
+  await d.op({ op: 'config', apiKey: 'OPENAI-KEY' });
+  assert.equal(d.view('host').model, ''); // a cloud catalogue: the host chooses
+  await d.op({ op: 'config', model: 'gpt-b' });
+  await d.op({ op: 'config', provider: 'gemini' });
+  assert.equal(d.view('host').model, 'gemini-3.7-flash');
+  assert.equal(seen[seen.length - 1]?.apiKey ?? 'OLD-GEMINI-KEY', 'OLD-GEMINI-KEY');
+  assert.ok(!JSON.stringify(d.view('host')).includes('KEY'));
+  assert.equal(pickFor('anthropic', [{ id: 'claude-opus-9' }, { id: 'claude-sonnet-9' }]), 'claude-sonnet-9');
+});
+
+test('the leak check catches a creature\'s numbers in words, as the Run 3 bench did', () => {
+  const s = seated();
+  const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
+  assert.deepEqual(kinds('They test with a pool of three dice against a Membrane Threshold of 12. Bresk, what now?'), ['leak']);
+  assert.deepEqual(kinds('The mites roll three dice against a tough shell. Bresk, what now?'), ['leak']);
+  // The player's own Threshold, as the Director asks for a roll, is not a leak.
+  assert.deepEqual(kinds('Roll Osmosis against Threshold 12, Brost. How deep do you cast?'), []);
+});
+
+test('the Engine pays a printed reward once per organism per site, for the Director only', () => {
+  const s = seated();
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.deepEqual(T.run('award', { why: 'Entering legally under an Order II oath', codon: 15, organisms: ['wall'] }), { paid: true });
+  const again = T.run('award', { why: 'Entering legally under an Order II oath', codon: 15, organisms: ['wall'] });
+  assert.match(again.refused, /already been paid/);
+  assert.equal(T.state.organisms.wall.codon, 15); // the refused payment did not happen
+  // A different reason is a different payment, and the host may still pay by hand.
+  assert.deepEqual(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }), { paid: true });
+  let h = apply(s, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
+  h = apply(h, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
+  assert.equal(h.organisms.wall.codon, 30);
+});
+
+test('the Director cannot end a Pulse War while a creature on the site is still up', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const no = T.run('end_pulse_war', {});
+  assert.match(no.refused, /still up on this site/);
+  assert.ok(T.state.fight, 'the Pulse War is still running');
+  // The host may end it by hand, and once the creatures are down the Director may too.
+  for (const c of Object.values(s.creatures)) c.down = true;
+  const T2 = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.deepEqual(T2.run('end_pulse_war', {}), { ended: true });
+  const hostEnds = apply(apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null)), { type: 'fight.end' }, ctx('host', null));
+  assert.equal(hostEnds.fight, null);
+});
+
+test('a turn that uses its tools and never speaks gets one fresh try', async () => {
+  const s = apply(seated(), { type: 'say', text: 'What can I taste?' }, ctx('player', 'p2'));
+  // Attempt one: the model says nothing, twice (the nudge too). Attempt two: it narrates.
+  const make = scripted([{ text: '' }, { text: '' }]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.match(r.narration, /water waits/);
+});
+
+test('a turn that never speaks in either try says so plainly', async () => {
+  const s = apply(seated(), { type: 'say', text: 'What can I taste?' }, ctx('player', 'p2'));
+  const make = scripted([{ text: '' }, { text: '' }, { text: '' }, { text: '' }]);
+  await assert.rejects(directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' }), /never said anything/);
+});
+
+test('the briefing gives the creature costs during a Pulse War', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
+  const text = briefing(s, scenario, bestiary, {});
+  assert.match(text, /Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1/);
+  assert.ok(!/Creature costs/.test(briefing(seated(), scenario, bestiary, {})), 'no costs when no Pulse War is running');
+});
+
+test('the Director may not ask for an unhurried roll during a Pulse War', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const no = T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Taste the water', unhurried: true });
+  assert.match(no.refused, /Not unhurried during a Pulse War/);
+  // Outside a fight the same unhurried check is allowed.
+  const T2 = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  const ok = T2.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Taste the water', unhurried: true });
+  assert.ok(!ok.refused, `not refused outside a fight: ${ok.refused}`);
+});
