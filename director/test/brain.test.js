@@ -439,3 +439,10 @@ test('a rewrite that still leaks keeps the original and its leak flag', async ()
   assert.match(r.narration, /pool of three dice/);
   assert.ok(r.flags.some((f) => f.kind === 'leak'));
 });
+
+test('"the creatures block the lane" is not a leak', () => {
+  const s = seated();
+  const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
+  assert.deepEqual(kinds('You cannot slip past while they block the lane. Brost, do you strike again?'), []);
+  assert.deepEqual(kinds('Its stat block says it is tough. Brost, what now?'), ['leak']);
+});

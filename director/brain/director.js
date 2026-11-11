@@ -155,7 +155,7 @@ export function checkNarration(text, state, { moved = false } = {}) {
   if (kinds.length && sentences.some(creatureOwns)) {
     flags.push({ kind: 'leak', text: 'Gives a creature\'s Membrane Integrity as a number.' });
   }
-  if (/\bBSP\b|\bMT\s*\d|\bsoak\s*\d|\bpool\s*\d|\b\d+d\b|\bSegments?\s+\d+\s*\/|\bblock\b/i.test(text)
+  if (/\bBSP\b|\bMT\s*\d|\bsoak\s*\d|\bpool\s*\d|\b\d+d\b|\bSegments?\s+\d+\s*\/|\bstat[- ]block\b/i.test(text)
     // A creature's own numbers in words: "a pool of three dice", "its Membrane Threshold of 12".
     || /Membrane Threshold|\bpool of (?:\w+ )?dice\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat)\b/i.test(text)) {
     flags.push({ kind: 'leak', text: 'May be reading out a creature\'s block or numbers.' });
