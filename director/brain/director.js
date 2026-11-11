@@ -93,7 +93,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down);
     if (up.length) L.push(`Still up: ${up.map((c) => c.name).join(', ')}. While any creature is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do.`);
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
-    else if (cur) L.push('It is a player\'s turn: they act on their own screen.');
+    else if (cur) L.push('It is a player\'s turn: they act on their own screen. Do not use any creature tool now (no creature_move, creature_strike, creature_special, creature_reserve): creatures act only on their own turns. Narrate and ask.');
   } else {
     L.push('# NO PULSE WAR. Pulse Points do not exist right now: do not mention them.');
   }
@@ -214,20 +214,29 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   narration = narration.replace(/\*\*/g, '').trim();
   const moved = T.state.scene.siteId !== state.scene.siteId;
   let flags = checkNarration(narration, T.state, { moved });
-  // A suspected leak gets one rewrite before anyone sees it. If the rewrite is clean it replaces
-  // the original; if not, the original's flags stand and the turn is held for the host.
-  if (flags.some((f) => f.kind === 'leak')) {
+  // One rewrite before anyone sees it, for a suspected leak, a reply that runs long, or one that
+  // does not end on a question. A better rewrite replaces the draft; otherwise the draft and its
+  // flags stand (and a leak is held for the host).
+  const isLeak = (f) => f.kind === 'leak';
+  const fixable = (f) => f.kind === 'style' && /^(Long|Does not end)/.test(f.text);
+  if (flags.some((f) => isLeak(f) || fixable(f))) {
+    const asks = [];
+    if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, notes or tools; describe what the organisms can see or sense instead.`);
+    if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
+    if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
     try {
-      const fix = await chat.send(`Your reply gave away something the table must not hear: ${flags.filter((f) => f.kind === 'leak').map((f) => f.text).join(' ')} Rewrite the whole reply without any creature numbers (no dice, Thresholds, Membrane Integrity or soak) and without naming the briefing, notes or tools. Describe what the organisms can see or sense instead. Keep everything else, plain text, and end on one question. Do not call any tools.`);
+      const fix = await chat.send(`Rewrite your whole reply. ${asks.join(' ')} Keep the same events and any roll you asked for, in plain text, ending on one question. Do not call any tools.`);
       usage.in += fix.usage.in;
       usage.out += fix.usage.out;
       const text = String(fix.text || '').replace(/\*\*/g, '').trim();
-      const again = text ? checkNarration(text, T.state, { moved }) : null;
-      if (again && !again.some((f) => f.kind === 'leak')) {
+      const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved }) : null;
+      const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style').length;
+      if (again && !again.some(isLeak) && bad(again) < bad(flags)) {
+        const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery' : 'the first draft ran long or did not end on a question';
         narration = text;
-        flags = [...again, { kind: 'note', text: 'Rewritten once: the first draft gave away a creature\'s numbers or the machinery.' }];
+        flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
       }
-    } catch (e) { /* the rewrite failed: keep the original and its leak flag */ }
+    } catch (e) { /* the rewrite failed: keep the original and its flags */ }
   }
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
   T.do({ type: 'narrate', text: narration, by: 'ai' });

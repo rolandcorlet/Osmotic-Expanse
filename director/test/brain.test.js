@@ -426,7 +426,7 @@ test('a leaked creature number gets one rewrite; a clean rewrite replaces it', a
   assert.match(r.narration, /brittle, frantic cloud/);
   assert.ok(!r.flags.some((f) => f.kind === 'leak'));
   assert.ok(r.flags.some((f) => f.kind === 'note'));
-  assert.match(String(make.seen.at(-1)), /Rewrite the whole reply/);
+  assert.match(String(make.seen.at(-1)), /Rewrite your whole reply/);
 });
 
 test('a rewrite that still leaks keeps the original and its leak flag', async () => {
@@ -445,4 +445,19 @@ test('"the creatures block the lane" is not a leak', () => {
   const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
   assert.deepEqual(kinds('You cannot slip past while they block the lane. Brost, do you strike again?'), []);
   assert.deepEqual(kinds('Its stat block says it is tough. Brost, what now?'), ['leak']);
+});
+
+test('a reply that runs long or has no question gets one rewrite', async () => {
+  const s = apply(seated(), { type: 'say', text: 'What can I taste?' }, ctx('player', 'p2'));
+  const long = Array.from({ length: 60 }, () => 'The brine drifts slowly.').join(' ');
+  const make = scripted([{ text: long }, { text: 'The brine tastes of salt and old fat. Brost, what do you do?' }]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.match(r.narration, /salt and old fat/);
+  assert.ok(!r.flags.some((f) => f.kind === 'style'));
+  assert.match(r.flags.find((f) => f.kind === 'note').text, /ran long or did not end on a question/);
+  // A rewrite that is no better is not used.
+  const make2 = scripted([{ text: 'The brine drifts.' }, { text: 'The brine still drifts.' }]);
+  const r2 = await directorTurn({ state: s, scenario, bestiary, provider: make2(), rng, reason: 'test' });
+  assert.equal(r2.narration, 'The brine drifts.');
+  assert.ok(r2.flags.some((f) => f.kind === 'style'));
 });
