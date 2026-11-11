@@ -10,3 +10,5 @@
 *.py
 chargen/
 lessons/
+# The AI Director prototype runs on a home computer, not on these websites.
+director/

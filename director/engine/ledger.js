@@ -1,0 +1,1228 @@
+// The Ledger: the one shared record of the session. Every screen reads it and
+// only this file writes it. An action goes in, a new Ledger comes out, or a
+// RuleError explains in plain words why the action is not allowed.
+
+import { rollDice, checkOwnDice, d6 } from './dice.js';
+import * as R from './rules.js';
+import { successChance } from './odds.js';
+
+export class RuleError extends Error {}
+
+const MAX_ROLLS = 400;
+const MAX_LOG = 400;
+
+const clone = (o) => (typeof structuredClone === 'function' ? structuredClone(o) : JSON.parse(JSON.stringify(o)));
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const key = (kind, id) => `${kind}:${id}`;
+
+// ---------------------------------------------------------------- new session
+export function newSession(scenario) {
+  const s = {
+    v: 1,
+    seq: 0,
+    scenarioId: scenario.id,
+    title: scenario.title,
+    scene: { siteId: scenario.sites[0].id },
+    players: {},
+    organisms: {},
+    creatures: {},
+    clocks: {},
+    fight: null,
+    requests: [],
+    rolls: [],
+    log: [],
+    nextId: 1,
+  };
+  for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
+  for (const c of scenario.clocks) s.clocks[c.id] = { id: c.id, name: c.name, segments: c.segments, filled: 0, says: c.says };
+  return s;
+}
+
+function makeOrganism(h) {
+  return {
+    id: h.id,
+    hand: h.hand,
+    name: h.name || h.hand,
+    named: false,
+    phenotype: h.phenotype,
+    level: h.level || 1,
+    base: { ...h.base },
+    pathways: { ...h.pathways },
+    hull: h.hull,
+    mi: h.mi,
+    miMax: h.mi,
+    atp: h.atp,
+    atpMax: h.atp,
+    stress: 0,
+    ppMax: h.pp,
+    mt: h.mt,
+    flow: h.flow,
+    soak: h.soak || 0,
+    countdown: 0,
+    countdownMax: h.countdown,
+    oath: h.oath ?? null,
+    oathMax: h.oath ?? null,
+    substrate: h.substrate || 0,
+    codon: 0,
+    weapons: (h.weapons || []).map((w) => ({ ...w })),
+    kit: (h.kit || []).slice(),
+    notes: h.notes || '',
+    tie: h.tie || '',
+    firstMove: h.firstMove || '',
+    conditions: [],
+    band: null,
+    dormant: false,
+    playerId: null,
+  };
+}
+
+export function makeCreature(block, { cid, name, band = 'near', siteId = null, group = null } = {}) {
+  const swarm = block.segments != null;
+  return {
+    cid,
+    blockId: block.id,
+    name: name || block.name,
+    cls: block.cls || '',
+    tier: block.tier || 1,
+    mt: block.mt,
+    mi: swarm ? null : block.mi,
+    miMax: swarm ? null : block.mi,
+    segments: swarm ? block.segments : null,
+    segMax: swarm ? block.segments : null,
+    soak: block.soak || 0,
+    bracedSoak: block.bracedSoak || 0,
+    bd: block.bd || 0,
+    type: block.type || '',
+    pool: block.pool,
+    ppMax: block.pp,
+    flow: block.flow ?? null,
+    freqMod: block.freqMod || 0,
+    band,
+    siteId,
+    group: group || block.order || block.id,
+    conditions: [],
+    down: false,
+    hidden: false,
+  };
+}
+
+// --------------------------------------------------------------------- apply
+// ctx: { role: 'host' | 'player' | 'table', pid, rng, now, scenario, bestiary }
+export function apply(state, action, ctx) {
+  if (!action || typeof action.type !== 'string') throw new RuleError('That action is not understood.');
+  const h = HANDLERS[action.type];
+  if (!h) throw new RuleError(`Unknown action "${action.type}".`);
+  if (h.host && ctx.role !== 'host') throw new RuleError('Only the host can do that.');
+  if (ctx.role === 'table') throw new RuleError('The table screen only watches.');
+  const s = clone(state);
+  s.seq += 1;
+  h.run(s, action, ctx);
+  if (s.rolls.length > MAX_ROLLS) s.rolls = s.rolls.slice(-MAX_ROLLS);
+  if (s.log.length > MAX_LOG) s.log = s.log.slice(-MAX_LOG);
+  return s;
+}
+
+// ------------------------------------------------------------------- helpers
+function say(s, ctx, text, kind = 'info') {
+  s.log.push({ seq: s.seq, t: ctx.now || 0, text, kind });
+}
+
+function newId(s, prefix) {
+  const id = `${prefix}${s.nextId}`;
+  s.nextId += 1;
+  return id;
+}
+
+function org(s, id) {
+  const o = s.organisms[id];
+  if (!o) throw new RuleError('That organism is not in this session.');
+  return o;
+}
+
+function cre(s, cid) {
+  const c = s.creatures[cid];
+  if (!c) throw new RuleError('That creature is not in this scene.');
+  return c;
+}
+
+function mayControl(s, ctx, orgId) {
+  if (ctx.role === 'host') return true;
+  const o = s.organisms[orgId];
+  return !!o && o.playerId === ctx.pid;
+}
+
+function needControl(s, ctx, orgId) {
+  if (!mayControl(s, ctx, orgId)) throw new RuleError('That is not your organism.');
+}
+
+function hasCond(body, name) {
+  return body.conditions.some((c) => c.name === name);
+}
+
+function condSum(body, field) {
+  return body.conditions.reduce((a, c) => a + ((R.CONDITIONS[c.name] || {})[field] || 0), 0);
+}
+
+export function orgMT(o) {
+  return o.mt + condSum(o, 'mt');
+}
+
+export function creMT(c) {
+  return c.mt + condSum(c, 'mt');
+}
+
+function creSoak(c) {
+  return c.soak + (hasCond(c, 'Braced') ? c.bracedSoak : 0);
+}
+
+function ppFor(s, a) {
+  if (a.kind === 'org') {
+    const o = s.organisms[a.id];
+    return Math.max(0, o.ppMax + condSum(o, 'pp'));
+  }
+  const c = s.creatures[a.id];
+  return Math.max(0, c.ppMax + condSum(c, 'pp'));
+}
+
+function actorOf(s, kind, id) {
+  return s.fight ? s.fight.actors[key(kind, id)] : null;
+}
+
+function nameOf(s, kind, id) {
+  return kind === 'org' ? s.organisms[id].name : s.creatures[id].name;
+}
+
+function spendPP(s, a, cost, what) {
+  if (!a) return;
+  if (a.status !== 'acting' && a.status !== 'holding') {
+    throw new RuleError(`It is not ${nameOf(s, a.kind, a.id)}'s turn. Wait for your turn, or re-enter if you are holding.`);
+  }
+  if (a.pp < cost) throw new RuleError(`${what} costs ${cost} PP and ${nameOf(s, a.kind, a.id)} has ${a.pp}.`);
+  a.pp -= cost;
+}
+
+function addStress(s, ctx, o, n, why) {
+  if (n <= 0) return;
+  const r = R.markStress(o.stress, n);
+  o.stress = r.stress;
+  if (r.collapses) {
+    o.countdown = clamp(o.countdown + r.countdownMarks, 0, o.countdownMax);
+    say(s, ctx, `${o.name} reaches Stress 8: Autophagic Collapse. ${r.countdownMarks} Lysis Countdown boxes marked; Stress drops to 5.`, 'danger');
+    checkLysis(s, ctx, o);
+  }
+  if (why) say(s, ctx, `${o.name} marks ${n} Stress (${why}). Stress is ${o.stress}: ${R.stressNote(o.stress)}.`, 'stress');
+}
+
+function checkLysis(s, ctx, o) {
+  if (o.countdown >= o.countdownMax) say(s, ctx, `${o.name}'s Lysis Countdown is full: Total Lysis (CORE 5.6).`, 'danger');
+}
+
+function hurtOrganism(s, ctx, o, dmg) {
+  const r = R.applyDamage(o.mi, dmg);
+  o.mi = r.mi;
+  const a = actorOf(s, 'org', o.id);
+  if (a) a.tookDamage = true;
+  if (r.breach) {
+    o.countdown = clamp(o.countdown + 1, 0, o.countdownMax);
+    say(s, ctx, `Breach: the hit exceeds ${o.name}'s remaining MI by 8 or more. Straight to Dormancy, and a Countdown box is marked (${o.countdown} of ${o.countdownMax}).`, 'danger');
+  }
+  if (r.dormant && !o.dormant) {
+    o.dormant = true;
+    if (!hasCond(o, 'Leaking')) o.conditions.push({ name: 'Leaking', auto: true });
+    if (!r.breach) say(s, ctx, `${o.name} is at 0 MI: Dormant and Leaking. An ally at Contact can stabilise with Synthesise (RTC + Synthesis, Threshold ${R.stabiliseAT(o.level)}).`, 'danger');
+    checkLysis(s, ctx, o);
+  }
+  return r;
+}
+
+function hurtCreature(s, ctx, c, { overflow, dmg }) {
+  if (c.segments != null) {
+    const gone = Math.min(c.segments, R.segmentsRemoved(overflow));
+    c.segments -= gone;
+    if (c.segments <= 0) {
+      c.down = true;
+      say(s, ctx, `${c.name} loses ${gone} Segments and is broken.`, 'hit');
+    } else {
+      say(s, ctx, `${c.name} loses ${gone} Segments: ${c.segments} of ${c.segMax} left.`, 'hit');
+    }
+    return { segments: gone };
+  }
+  c.mi = Math.max(0, c.mi - dmg);
+  if (c.mi === 0) {
+    c.down = true;
+    say(s, ctx, `${c.name} takes ${dmg} damage and goes down.`, 'hit');
+  } else {
+    say(s, ctx, `${c.name} takes ${dmg} damage.`, 'hit');
+  }
+  return { damage: dmg };
+}
+
+const SIGNATURE = {
+  kinetic: 'push 1 Drift per 4 Overflow, break a graft slot, or inflict Jostled',
+  lytic: 'inflict Brittle, -1 soak until repaired, or dissolve one Vial',
+  osmotic: 'inflict Turgid or Flaccid, knock into the next band, or force a Fluid Navigation save',
+  thermal: 'ignite the fluid for 1 Cycle, inflict Catabolic, or cauterise',
+  thermic: 'ignite the fluid for 1 Cycle, inflict Catabolic, or cauterise',
+  voltaic: 'inflict Locked or Overclocked, interrupt a Sustained Reaction, or Mark',
+  genetic: 'inflict Hijacked, steal a Vial or held Specimen, or force a Sequence save',
+};
+
+function poolForCheck(o, { baseline, pathway, mods }) {
+  if (!R.BASELINES.includes(baseline)) throw new RuleError('Choose a Baseline: VSC, DFF, RTC, OSM or AFF.');
+  const rank = pathway ? (o.pathways[pathway] || 0) : 0;
+  const p = R.buildPool({ baseline: o.base[baseline] + condBase(o, baseline), pathway: rank, mods: mods || [], stress: o.stress });
+  p.baselineName = baseline;
+  p.pathwayName = pathway || null;
+  return p;
+}
+
+// Conditions that change a Baseline Grade for pools (§4.7).
+function condBase(o, baseline) {
+  let d = 0;
+  if (baseline === 'DFF' && hasCond(o, 'Turgid')) d -= 2;
+  if (baseline === 'DFF' && hasCond(o, 'Lodged')) d -= 1;
+  if (baseline === 'VSC' && hasCond(o, 'Flaccid')) d -= 2;
+  if (baseline === 'RTC' && hasCond(o, 'Denatured')) d -= 2;
+  return d;
+}
+
+function cleanMods(mods) {
+  if (!Array.isArray(mods)) return [];
+  return mods
+    .map((m) => ({ label: String(m.label || 'Modifier').slice(0, 40), dice: Math.trunc(Number(m.dice) || 0) }))
+    .filter((m) => m.dice !== 0)
+    .slice(0, 8);
+}
+
+function pushRequest(s, req) {
+  req.id = newId(s, 'q');
+  req.status = 'pending';
+  req.madeSeq = s.seq;
+  req.chance = req.at != null ? successChance(Math.min(30, req.pool.dice), req.at) : null;
+  s.requests.push(req);
+  return req;
+}
+
+function recordRoll(s, ctx, entry) {
+  entry.id = newId(s, 'r');
+  entry.seq = s.seq;
+  entry.t = ctx.now || 0;
+  s.rolls.push(entry);
+  return entry;
+}
+
+// Roll dice for a request, or accept the dice a player rolled themselves.
+function diceFor(ctx, n, own) {
+  if (own != null) return { dice: checkOwnDice(own, n), source: 'own' };
+  return { dice: rollDice(n, ctx.rng), source: 'app' };
+}
+
+// ------------------------------------------------------- resolving a request
+function resolve(s, ctx, req, ownDice) {
+  const { dice, source } = diceFor(ctx, req.pool.dice, ownDice);
+  const read = R.readRoll(dice, req.at);
+  const notes = [];
+  const entry = {
+    who: req.actor.name,
+    whoKind: req.actor.kind,
+    whoId: req.actor.id,
+    label: req.label,
+    kind: req.kind,
+    n: req.pool.dice,
+    parts: req.pool.parts,
+    dice: read.dice,
+    inhibitors: read.inhibitors,
+    total: read.total,
+    at: req.at,
+    success: read.success,
+    overflow: read.overflow,
+    shortBy: read.shortBy,
+    runaway: read.runaway,
+    source,
+    by: ctx.role === 'host' ? 'host' : (s.players[ctx.pid] || {}).name || 'player',
+    practice: !!req.practice,
+    notes,
+  };
+
+  let stressBefore = 0;
+  if (req.actor.kind === 'org') {
+    const o = s.organisms[req.actor.id];
+    stressBefore = o.stress;
+    if (read.inhibitors && !req.practice) {
+      addStress(s, ctx, o, read.inhibitors, `${read.inhibitors} Inhibitor${read.inhibitors > 1 ? 's' : ''}`);
+      entry.stressMarked = read.inhibitors;
+      entry.stressNow = o.stress;
+    }
+    if (!read.success && stressBefore >= 7 && !req.practice) {
+      const c = d6(ctx.rng);
+      notes.push(`Stress 7 and a failed roll: Cascade d6 = ${c}, ${R.CASCADE[c].name}. ${R.CASCADE[c].effect}`);
+    }
+  }
+  if (read.runaway) notes.push('Runaway Catalysis: no Inhibitors and two or more 6s. You gain the Rider, and any Effect Value counts twice.');
+
+  if (req.kind === 'check') {
+    if (read.success && read.overflow > 0) notes.push(`Overflow ${read.overflow} buys something: say what.`);
+  } else if (req.kind === 'attack') {
+    resolveAttack(s, ctx, req, read, entry, notes);
+  } else if (req.kind === 'incoming') {
+    resolveIncoming(s, ctx, req, read, entry, notes);
+  } else if (req.kind === 'stabilise') {
+    const t = s.organisms[req.target.id];
+    if (read.success && t) {
+      t.mi = clamp(read.overflow + 4, 0, t.miMax);
+      t.dormant = false;
+      t.conditions = t.conditions.filter((c) => !(c.name === 'Leaking' && c.auto));
+      t.countdown = clamp(t.countdown - 1, 0, t.countdownMax);
+      notes.push(`${t.name} is stabilised at ${t.mi} MI and one Countdown box is closed.`);
+    }
+  }
+
+  req.status = 'done';
+  s.requests = s.requests.filter((q) => q.id !== req.id);
+  recordRoll(s, ctx, entry);
+  const verdict = req.at == null ? `total ${read.total}` : read.success ? `success, Overflow ${read.overflow}` : `short by ${read.shortBy}`;
+  say(s, ctx, `${req.actor.name} rolls ${req.label}: ${read.dice.join(', ')} = ${read.total}${req.at != null ? ` against ${req.at}` : ''}: ${verdict}.`, 'roll');
+  return entry;
+}
+
+function resolveAttack(s, ctx, req, read, entry, notes) {
+  if (!read.success) return;
+  const w = req.weapon || {};
+  if (req.target.kind === 'cre') {
+    const c = s.creatures[req.target.id];
+    if (!c) return;
+    const soak = creSoak(c);
+    const dmg = R.damage({ overflow: read.overflow, bd: w.bd || 0, soak, runaway: read.runaway, flank: !!req.flank, type: w.type });
+    entry.damage = dmg;
+    entry.working = `Overflow ${read.overflow}${req.flank ? ' + 1 Flank Breach' : ''} + BD ${w.bd || 0} - soak ${soak} = ${dmg}`;
+    const out = hurtCreature(s, ctx, c, { overflow: read.overflow + (req.flank ? 1 : 0), dmg });
+    if (out.segments != null) {
+      entry.segments = out.segments;
+      entry.working = `Swarm: Overflow ${read.overflow} / 3, rounded up, + 1 = ${out.segments} Segments`;
+    }
+    if ((w.props || []).includes('Lodged') && !c.down && !hasCond(c, 'Lodged')) {
+      c.conditions.push({ name: 'Lodged' });
+      notes.push(`Lodged: the ${w.name} stays in. ${c.name} is at -1 DFF until it is removed.`);
+    }
+  }
+  const sig = SIGNATURE[String(w.type || '').toLowerCase()];
+  if (sig) notes.push(`${w.type} signature, choose one: ${sig}.`);
+}
+
+function resolveIncoming(s, ctx, req, read, entry, notes) {
+  const o = s.organisms[req.target.id];
+  if (!o) return;
+  if (req.reaction === 'deflect') notes.push('Deflect: Membrane Threshold +4 against this attack.');
+  if (!read.success) return;
+  const dmg = R.damage({ overflow: read.overflow, bd: req.bd || 0, soak: o.soak, runaway: read.runaway, braced: req.reaction === 'brace', type: req.dtype });
+  entry.damage = dmg;
+  entry.working = `Overflow ${read.overflow} + BD ${req.bd || 0} - soak ${o.soak} = ${Math.max(1, read.overflow + (req.bd || 0) - o.soak)}${req.reaction === 'brace' ? `, Braced: halved to ${dmg}` : ''}`;
+  const before = o.mi;
+  hurtOrganism(s, ctx, o, dmg);
+  say(s, ctx, `${o.name} takes ${dmg} ${req.dtype || ''} damage: MI ${before} to ${o.mi}.`, 'hit');
+  const sig = SIGNATURE[String(req.dtype || '').toLowerCase()];
+  if (sig) notes.push(`${req.dtype} signature, the attacker chooses one: ${sig}.`);
+}
+
+// ------------------------------------------------------------ the Pulse War
+// What happens to a body when its turn comes round, before it may act.
+// Returns false when it cannot act this Cycle (Dormant, or a creature that is down).
+function turnStartEffects(s, ctx, a) {
+  if (a.kind === 'org') {
+    const o = s.organisms[a.id];
+    if (o.dormant) {
+      // §5.4: a Dormant organism Leaks at the start of each of its turns.
+      o.countdown = clamp(o.countdown + 1, 0, o.countdownMax);
+      say(s, ctx, `${o.name} is Dormant and Leaking: a Countdown box is marked (${o.countdown} of ${o.countdownMax}).`, 'danger');
+      checkLysis(s, ctx, o);
+      return false;
+    }
+    if (hasCond(o, 'Leaking') && o.mi > 0) {
+      o.mi = Math.max(0, o.mi - 1);
+      say(s, ctx, `${o.name} is Leaking: 1 MI lost, now ${o.mi}.`, 'hit');
+    }
+    return true;
+  }
+  return !s.creatures[a.id].down;
+}
+
+function beginTurn(s, ctx, a) {
+  const f = s.fight;
+  if (!turnStartEffects(s, ctx, a)) {
+    a.status = 'done';
+    a.pp = 0;
+    return false;
+  }
+  a.status = 'acting';
+  a.pp = ppFor(s, a);
+  f.turn = a.key;
+  say(s, ctx, `Cycle ${f.cycle}: ${nameOf(s, a.kind, a.id)} acts with ${a.pp} PP.`, 'turn');
+  return true;
+}
+
+function advanceTurn(s, ctx) {
+  const f = s.fight;
+  if (!f) return;
+  for (let guard = 0; guard < 500; guard++) {
+    const nextKey = f.order.find((k) => f.actors[k].status === 'waiting');
+    if (nextKey) {
+      if (beginTurn(s, ctx, f.actors[nextKey])) return;
+      continue;
+    }
+    f.turn = null;
+    const holding = f.order.filter((k) => f.actors[k].status === 'holding');
+    if (holding.length) return; // holders may still re-enter and act
+    endCycle(s, ctx);
+  }
+}
+
+function endCycle(s, ctx) {
+  const f = s.fight;
+  for (const k of f.order) {
+    const a = f.actors[k];
+    if (a.kind === 'org') {
+      const o = s.organisms[a.id];
+      if (hasCond(o, 'Overclocked')) addStress(s, ctx, o, 2, 'Overclocked at the end of the Cycle');
+      // §5.8: -1 Stress at the end of a Cycle with no ATP spent and no damage taken.
+      if (!o.dormant && !a.spentAtp && !a.tookDamage && o.stress > 0) {
+        o.stress -= 1;
+        say(s, ctx, `${o.name} spent no ATP and took no damage this Cycle: Stress eases to ${o.stress}.`, 'stress');
+      }
+    }
+    const body = a.kind === 'org' ? s.organisms[a.id] : s.creatures[a.id];
+    body.conditions = body.conditions.filter((c) => !(c.until != null && c.until <= f.cycle));
+    a.pp = 0;
+    a.status = 'waiting';
+    a.reserve = false;
+    a.reacted = false;
+    a.drifted = false;
+    a.spentAtp = false;
+    a.tookDamage = false;
+    a.strikes = 0;
+  }
+  say(s, ctx, `End of Cycle ${f.cycle}. Unspent Pulse Points and unused Reserves are lost.`, 'turn');
+  f.cycle += 1;
+  f.turn = null;
+}
+
+function finishActor(s, ctx, a, hold) {
+  if (hold && a.pp > 0) {
+    a.status = 'holding';
+    say(s, ctx, `${nameOf(s, a.kind, a.id)} holds ${a.pp} PP (Split Frequency) and may re-enter after any later organism acts.`, 'turn');
+  } else {
+    a.status = 'done';
+    a.pp = 0; // ending a turn without holding gives up what is left (a held Reserve stays)
+  }
+  if (s.fight.turn === a.key) s.fight.turn = null;
+}
+
+function rollFrequency(s, ctx, label, who, mod, kind, id, own) {
+  const given = Number(own);
+  const die = Number.isInteger(given) && given >= 1 && given <= 6 ? given : d6(ctx.rng);
+  const freq = die + mod;
+  recordRoll(s, ctx, {
+    who, whoKind: kind, whoId: id, label, kind: 'frequency', n: 1, parts: [{ label: 'd6', dice: 1 }],
+    dice: [die], inhibitors: 0, total: freq, at: null, source: die === given ? 'own' : 'app', by: 'engine', notes: [`Frequency = d6 (${die}) + ${mod} = ${freq}`],
+  });
+  return { die, freq };
+}
+
+function addToFight(s, ctx, kind, id, freq, die) {
+  const f = s.fight;
+  const k = key(kind, id);
+  if (f.actors[k]) return;
+  const body = kind === 'org' ? s.organisms[id] : s.creatures[id];
+  f.actors[k] = {
+    key: k, kind, id, freq, die, pp: 0, ppMax: body.ppMax, status: 'waiting',
+    reserve: false, reacted: false, drifted: false, spentAtp: false, tookDamage: false, strikes: 0,
+  };
+  f.order.push(k);
+}
+
+function sortOrder(s) {
+  const f = s.fight;
+  const entries = f.order.map((k) => {
+    const a = f.actors[k];
+    const body = a.kind === 'org' ? s.organisms[a.id] : s.creatures[a.id];
+    return { k, freq: a.freq, pp: body.ppMax, osm: a.kind === 'org' ? body.base.OSM : 0, player: a.kind === 'org' };
+  });
+  f.order = R.frequencyOrder(entries).map((e) => e.k);
+}
+
+function spawn(s, ctx, list, bestiary) {
+  const made = [];
+  for (const item of list || []) {
+    const block = item.custom ? customBlock(item.custom) : bestiary[item.blockId];
+    if (!block) throw new RuleError(`No block called "${item.blockId}" in the Bestiary.`);
+    const count = clamp(Math.trunc(Number(item.count) || 1), 1, 12);
+    const have = Object.values(s.creatures).filter((c) => c.blockId === block.id && c.siteId === s.scene.siteId).length;
+    for (let i = 0; i < count; i++) {
+      const cid = newId(s, 'c');
+      const label = count + have > 1 ? `${item.name || block.name} ${String.fromCharCode(65 + ((have + i) % 26))}` : (item.name || block.name);
+      const c = makeCreature(block, { cid, name: label, band: item.band || 'near', siteId: s.scene.siteId });
+      if (item.hidden) c.hidden = true;
+      s.creatures[cid] = c;
+      made.push(c);
+    }
+  }
+  return made;
+}
+
+function customBlock(c) {
+  const n = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
+  const name = String(c.name || 'Creature').slice(0, 40);
+  return {
+    id: `custom-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+    name, cls: 'Custom', tier: n(c.tier, 1), mt: n(c.mt, 12), mi: n(c.mi, 10),
+    segments: c.segments ? n(c.segments, 6) : null, soak: n(c.soak, 0), bd: n(c.bd, 1),
+    type: String(c.type || 'Kinetic'), pool: n(c.pool, 3), pp: n(c.pp, 2), flow: n(c.flow, 4),
+  };
+}
+
+// ------------------------------------------------------------------ handlers
+const HANDLERS = {
+  // ---- players
+  join: {
+    run(s, a, ctx) {
+      const name = String(a.name || '').trim().slice(0, 24);
+      if (!name) throw new RuleError('Tell the table your name.');
+      if (!ctx.pid) throw new RuleError('This device has no player id.');
+      const had = s.players[ctx.pid];
+      s.players[ctx.pid] = { name, organismId: had ? had.organismId : null };
+      if (!had) say(s, ctx, `${name} joins the table.`, 'table');
+    },
+  },
+  claim: {
+    run(s, a, ctx) {
+      const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
+      const p = s.players[pid];
+      if (!p) throw new RuleError('Join the table first.');
+      const o = org(s, a.organismId);
+      if (o.playerId && o.playerId !== pid) throw new RuleError(`${o.name} is already being played.`);
+      if (p.organismId && p.organismId !== o.id && s.organisms[p.organismId]) s.organisms[p.organismId].playerId = null;
+      o.playerId = pid;
+      p.organismId = o.id;
+      const nm = String(a.name || '').trim().slice(0, 40);
+      if (nm) {
+        o.name = nm;
+        o.named = true;
+      }
+      say(s, ctx, `${p.name} plays ${o.name} (${o.hand}).`, 'table');
+    },
+  },
+  release: {
+    run(s, a, ctx) {
+      const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
+      const p = s.players[pid];
+      if (p && p.organismId && s.organisms[p.organismId]) s.organisms[p.organismId].playerId = null;
+      if (p) p.organismId = null;
+    },
+  },
+  rename: {
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      const nm = String(a.name || '').trim().slice(0, 40);
+      if (!nm) throw new RuleError('A name cannot be empty.');
+      o.name = nm;
+      o.named = true;
+    },
+  },
+  weapon: {
+    // Choose which printed kit option an organism carries (for example the Eyes: Dagger or Pistol).
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      const w = o.weapons.find((x) => x.id === a.weaponId);
+      if (!w) throw new RuleError('That Apparatus is not in this kit.');
+      o.weapons.forEach((x) => { if (x.choice && x.choice === w.choice) x.carried = x.id === w.id; });
+    },
+  },
+
+  // ---- rolls
+  roll: {
+    run(s, a, ctx) {
+      const req = s.requests.find((q) => q.id === a.requestId);
+      if (!req) throw new RuleError('That roll is no longer waiting.');
+      if (req.actor.kind === 'org') needControl(s, ctx, req.actor.id);
+      else if (ctx.role !== 'host') throw new RuleError('Creature dice are rolled by the host, in the open.');
+      resolve(s, ctx, req, a.dice);
+    },
+  },
+  quickRoll: {
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      const pool = poolForCheck(o, { baseline: a.baseline, pathway: a.pathway, mods: cleanMods(a.mods) });
+      const at = a.at == null || a.at === '' ? null : clamp(Math.trunc(Number(a.at)), 1, 60);
+      const label = String(a.label || (a.pathway ? `${a.baseline} + ${a.pathway}` : a.baseline)).slice(0, 60);
+      const req = { kind: 'check', actor: { kind: 'org', id: o.id, name: o.name }, label, pool, at, practice: !!a.practice };
+      pushRequest(s, req);
+      resolve(s, ctx, req, a.dice);
+    },
+  },
+  'request.check': {
+    host: true,
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      const pool = poolForCheck(o, { baseline: a.baseline, pathway: a.pathway, mods: cleanMods(a.mods) });
+      const at = clamp(Math.trunc(Number(a.at) || 12), 1, 60);
+      const label = String(a.label || (a.pathway ? `${a.baseline} + ${a.pathway}` : a.baseline)).slice(0, 60);
+      const base = R.homeostatic(pool.dice);
+      if (a.unhurried && base >= at) {
+        // §1.6: unopposed and unhurried, and the Baseline meets the Threshold. No dice, no Stress.
+        recordRoll(s, ctx, {
+          who: o.name, whoKind: 'org', whoId: o.id, label, kind: 'check', n: pool.dice, parts: pool.parts, dice: [],
+          inhibitors: 0, total: base, at, success: true, overflow: 0, runaway: false, source: 'baseline', by: 'host',
+          notes: [`No roll: unhurried and unopposed, and the Homeostatic Baseline (${pool.dice} dice x 3 = ${base}) meets Threshold ${at}.`],
+        });
+        say(s, ctx, `${o.name}: ${label}. No roll. Baseline ${base} meets Threshold ${at}.`, 'roll');
+        return;
+      }
+      const req = { kind: 'check', actor: { kind: 'org', id: o.id, name: o.name }, label, pool, at, extra: cleanMods(a.mods) };
+      if (a.unhurried) req.note = `Baseline ${base} does not meet Threshold ${at}, so this needs dice.`;
+      pushRequest(s, req);
+      say(s, ctx, `${o.name} is asked to roll ${label}: ${pool.dice} dice against Threshold ${at}.`, 'ask');
+    },
+  },
+  'request.cancel': {
+    host: true,
+    run(s, a, ctx) {
+      const req = s.requests.find((q) => q.id === a.requestId);
+      if (!req) return;
+      if (req.ppCost && s.fight) {
+        const act = s.fight.actors[key(req.actor.kind, req.actor.id)];
+        if (act) act.pp += req.ppCost;
+      }
+      s.requests = s.requests.filter((q) => q.id !== req.id);
+      say(s, ctx, `The roll for ${req.label} is withdrawn.`, 'info');
+    },
+  },
+  'request.adjust': {
+    // The host adds or removes dice on a waiting roll, with a reason, before it is rolled.
+    host: true,
+    run(s, a, ctx) {
+      const req = s.requests.find((q) => q.id === a.requestId);
+      if (!req) throw new RuleError('That roll is no longer waiting.');
+      const add = cleanMods([{ label: a.label || 'Director', dice: a.dice }]);
+      if (!add.length) return;
+      const prior = req.pool.parts.filter((p) => !p.label.startsWith('Stress '));
+      const stress = req.actor.kind === 'org' ? s.organisms[req.actor.id].stress : 0;
+      const fixedPart = prior.find((p) => p.label === 'Printed pool');
+      const basePart = prior.find((p) => p.label === 'Baseline');
+      const pathPart = prior.find((p) => p.label === 'Pathway');
+      const mods = prior.filter((p) => p !== fixedPart && p !== basePart && p !== pathPart).concat(add);
+      const next = R.buildPool({ baseline: basePart ? basePart.dice : 0, pathway: pathPart ? pathPart.dice : 0, fixed: fixedPart ? fixedPart.dice : null, mods, stress });
+      next.baselineName = req.pool.baselineName;
+      next.pathwayName = req.pool.pathwayName;
+      req.pool = next;
+      req.chance = req.at != null ? successChance(Math.min(30, next.dice), req.at) : null;
+      say(s, ctx, `${req.label}: ${add[0].dice > 0 ? '+' : ''}${add[0].dice} dice (${add[0].label}). Now ${next.dice} dice.`, 'ask');
+    },
+  },
+  'creature.roll': {
+    host: true,
+    run(s, a, ctx) {
+      const n = clamp(Math.trunc(Number(a.n) || 1), 1, 30);
+      const at = a.at == null || a.at === '' ? null : clamp(Math.trunc(Number(a.at)), 1, 60);
+      const who = String(a.who || 'The Director').slice(0, 40);
+      const req = { kind: 'check', actor: { kind: 'cre', id: a.cid || null, name: who }, label: String(a.label || 'Open roll').slice(0, 60), pool: R.buildPool({ fixed: n }), at };
+      pushRequest(s, req);
+      resolve(s, ctx, req, a.dice);
+    },
+  },
+
+  // ---- the scene
+  'scene.set': {
+    host: true,
+    run(s, a, ctx) {
+      const site = ctx.scenario.sites.find((x) => x.id === a.siteId);
+      if (!site) throw new RuleError('That site is not in this Vector.');
+      if (s.fight) throw new RuleError('End the Pulse War before changing the scene.');
+      s.scene = { siteId: site.id };
+      s.requests = [];
+      for (const o of Object.values(s.organisms)) o.band = null;
+      say(s, ctx, `New scene: ${site.name}.`, 'scene');
+    },
+  },
+  'creature.add': {
+    host: true,
+    run(s, a, ctx) {
+      const made = spawn(s, ctx, a.creatures, ctx.bestiary);
+      if (s.fight) {
+        const groups = {};
+        for (const c of made) {
+          if (!groups[c.group]) groups[c.group] = rollFrequency(s, ctx, 'Frequency', c.name.replace(/ [A-Z]$/, ''), c.freqMod, 'cre', c.cid);
+          addToFight(s, ctx, 'cre', c.cid, groups[c.group].freq, groups[c.group].die);
+        }
+        sortOrder(s);
+      }
+      if (made.length) say(s, ctx, `${made.map((c) => c.name).join(', ')} ${made.length > 1 ? 'are' : 'is'} here.`, 'scene');
+    },
+  },
+  'creature.remove': {
+    host: true,
+    run(s, a) {
+      const c = cre(s, a.cid);
+      delete s.creatures[c.cid];
+      if (s.fight) {
+        const k = key('cre', c.cid);
+        delete s.fight.actors[k];
+        s.fight.order = s.fight.order.filter((x) => x !== k);
+        if (s.fight.turn === k) s.fight.turn = null;
+      }
+      s.requests = s.requests.filter((q) => !(q.actor.kind === 'cre' && q.actor.id === c.cid) && !(q.target && q.target.kind === 'cre' && q.target.id === c.cid));
+    },
+  },
+  clock: {
+    host: true,
+    run(s, a, ctx) {
+      const c = s.clocks[a.id];
+      if (!c) throw new RuleError('No such Clock.');
+      const before = c.filled;
+      c.filled = clamp(c.filled + Math.trunc(Number(a.delta) || 0), 0, c.segments);
+      if (c.filled !== before) say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.${a.why ? ` ${String(a.why).slice(0, 120)}` : ''}`, 'clock');
+    },
+  },
+  note: {
+    host: true,
+    run(s, a, ctx) {
+      const t = String(a.text || '').trim().slice(0, 400);
+      if (t) say(s, ctx, t, 'note');
+    },
+  },
+  rest: {
+    // §5.10 Reconstitution. In The First Carve each one costs a CARCASS segment (Vector §7.4).
+    host: true,
+    run(s, a, ctx) {
+      if (s.fight) throw new RuleError('Nobody rests in a Pulse War.');
+      const ids = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms)).filter((id) => s.organisms[id]);
+      for (const id of ids) {
+        const o = s.organisms[id];
+        if (o.dormant) continue;
+        const r = R.reconstitute({ mi: o.mi, miMax: o.miMax, atpMax: o.atpMax, vsc: o.base.VSC, hull: o.hull });
+        o.mi = r.mi;
+        o.atp = r.atp;
+        o.stress = 0;
+        o.conditions = o.conditions.filter((c) => c.name !== 'Catabolic' && c.name !== 'Bloom');
+      }
+      say(s, ctx, 'Reconstitution: one Fugue Interval (about an hour). Full ATP, all Stress cleared, MI healed by VSC + Hull.', 'rest');
+      const rule = ctx.scenario.rules && ctx.scenario.rules.reconstitutionCostsClock;
+      if (rule && s.clocks[rule] && !a.free) {
+        const c = s.clocks[rule];
+        c.filled = clamp(c.filled + 1, 0, c.segments);
+        say(s, ctx, `Rest costs value here: ${c.name} is at ${c.filled} of ${c.segments}.`, 'clock');
+      }
+    },
+  },
+
+  // ---- host corrections
+  set: {
+    host: true,
+    run(s, a, ctx) {
+      const t = a.target || {};
+      const v = a.value;
+      const num = () => Math.trunc(Number(v) || 0);
+      if (t.kind === 'org') {
+        const o = org(s, t.id);
+        switch (a.field) {
+          case 'mi': o.mi = clamp(num(), 0, o.miMax); o.dormant = o.mi === 0; if (!o.dormant) o.conditions = o.conditions.filter((c) => !(c.name === 'Leaking' && c.auto)); break;
+          case 'miMax': o.miMax = clamp(num(), 1, 400); o.mi = Math.min(o.mi, o.miMax); break;
+          case 'atp': o.atp = clamp(num(), 0, o.atpMax); break;
+          case 'stress': o.stress = clamp(num(), 0, R.STRESS_MAX - 1); break;
+          case 'substrate': o.substrate = Math.max(0, num()); break;
+          case 'codon': o.codon = Math.max(0, Number(v) || 0); break;
+          case 'countdown': o.countdown = clamp(num(), 0, o.countdownMax); break;
+          case 'oath': o.oath = Math.max(0, num()); if (o.oathMax == null) o.oathMax = o.oath; break;
+          case 'soak': o.soak = Math.max(0, num()); break;
+          case 'band': o.band = v || null; break;
+          case 'name': o.name = String(v || '').trim().slice(0, 40) || o.name; o.named = true; break;
+          case 'pp': { const act = actorOf(s, 'org', o.id); if (act) act.pp = Math.max(0, num()); break; }
+          default: throw new RuleError(`"${a.field}" cannot be set.`);
+        }
+        return;
+      }
+      if (t.kind === 'cre') {
+        const c = cre(s, t.id);
+        switch (a.field) {
+          case 'mi': if (c.mi != null) { c.mi = clamp(num(), 0, c.miMax); c.down = c.mi === 0; } break;
+          case 'segments': if (c.segments != null) { c.segments = clamp(num(), 0, 40); c.segMax = Math.max(c.segMax, c.segments); c.down = c.segments === 0; } break;
+          case 'band': c.band = v || 'near'; break;
+          case 'name': c.name = String(v || '').trim().slice(0, 40) || c.name; break;
+          case 'mt': c.mt = clamp(num(), 1, 40); break;
+          case 'soak': c.soak = Math.max(0, num()); break;
+          case 'pool': c.pool = clamp(num(), 1, 30); break;
+          case 'hidden': c.hidden = !!v; break;
+          case 'pp': { const act = actorOf(s, 'cre', c.cid); if (act) act.pp = Math.max(0, num()); break; }
+          default: throw new RuleError(`"${a.field}" cannot be set.`);
+        }
+        return;
+      }
+      throw new RuleError('Choose an organism or a creature.');
+    },
+  },
+  damage: {
+    // Damage from a hazard or a ruling: soak applies once, minimum 1 (§4.8).
+    host: true,
+    run(s, a, ctx) {
+      const t = a.target || {};
+      const amount = Math.max(0, Math.trunc(Number(a.amount) || 0));
+      if (!amount) return;
+      if (t.kind === 'org') {
+        const o = org(s, t.id);
+        const dmg = a.ignoreSoak ? amount : Math.max(1, amount - o.soak);
+        const before = o.mi;
+        hurtOrganism(s, ctx, o, dmg);
+        say(s, ctx, `${o.name} takes ${dmg} ${a.dtype || ''} damage${a.ignoreSoak ? ' (soak ignored)' : o.soak ? ` (${amount} - soak ${o.soak})` : ''}: MI ${before} to ${o.mi}.`, 'hit');
+      } else {
+        const c = cre(s, t.id);
+        if (c.segments != null) {
+          c.segments = Math.max(0, c.segments - amount);
+          c.down = c.segments === 0;
+          say(s, ctx, `${c.name} loses ${amount} Segments${c.down ? ' and is broken' : `: ${c.segments} left`}.`, 'hit');
+        } else {
+          hurtCreature(s, ctx, c, { overflow: 0, dmg: a.ignoreSoak ? amount : Math.max(1, amount - creSoak(c)) });
+        }
+      }
+    },
+  },
+  heal: {
+    host: true,
+    run(s, a, ctx) {
+      const o = org(s, (a.target || {}).id);
+      const amount = Math.max(0, Math.trunc(Number(a.amount) || 0));
+      if (o.dormant) throw new RuleError('A Dormant organism can only be brought back by stabilisation (CORE 5.4).');
+      const before = o.mi;
+      o.mi = clamp(o.mi + amount, 0, o.miMax);
+      say(s, ctx, `${o.name} recovers ${o.mi - before} MI, now ${o.mi}.`, 'rest');
+    },
+  },
+  condition: {
+    host: true,
+    run(s, a, ctx) {
+      const t = a.target || {};
+      const body = t.kind === 'org' ? org(s, t.id) : cre(s, t.id);
+      if (!R.CONDITIONS[a.name]) throw new RuleError('That is not a printed condition.');
+      if (a.on === false) {
+        body.conditions = body.conditions.filter((c) => c.name !== a.name);
+        say(s, ctx, `${body.name} is no longer ${a.name}.`, 'info');
+        return;
+      }
+      if (hasCond(body, a.name)) return;
+      const c = { name: a.name };
+      if (R.CONDITIONS[a.name].timed && s.fight) c.until = s.fight.cycle + 1;
+      body.conditions.push(c);
+      say(s, ctx, `${body.name} is ${a.name}: ${R.CONDITIONS[a.name].effect}`, 'info');
+    },
+  },
+  award: {
+    host: true,
+    run(s, a, ctx) {
+      const ids = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms).filter((id) => s.organisms[id].playerId));
+      const codon = Number(a.codon) || 0;
+      const sub = Math.trunc(Number(a.substrate) || 0);
+      for (const id of ids) {
+        const o = org(s, id);
+        o.codon = Math.max(0, Math.round((o.codon + codon) * 10) / 10);
+        o.substrate = Math.max(0, o.substrate + sub);
+      }
+      const bits = [];
+      if (codon) bits.push(`${codon} Codon`);
+      if (sub) bits.push(`${sub} S`);
+      if (bits.length) say(s, ctx, `${bits.join(' and ')} each${a.why ? `: ${String(a.why).slice(0, 120)}` : ''}.`, 'award');
+    },
+  },
+
+  // ---- Pulse War: start, order, end
+  'fight.start': {
+    host: true,
+    run(s, a, ctx) {
+      if (s.fight) throw new RuleError('A Pulse War is already running.');
+      spawn(s, ctx, a.creatures, ctx.bestiary);
+      const orgIds = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms).filter((id) => s.organisms[id].playerId));
+      if (!orgIds.length) throw new RuleError('No organisms are in play yet. Players must join and choose a Hand first.');
+      const here = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
+      s.fight = { cycle: 1, order: [], actors: {}, turn: null, startedSeq: s.seq };
+      for (const id of orgIds) {
+        const o = org(s, id);
+        const mod = o.base.DFF + condBase(o, 'DFF') + (o.pathways['Pulse Discipline'] || 0);
+        const r = rollFrequency(s, ctx, 'Frequency', o.name, mod, 'org', o.id, (a.ownDice || {})[o.id]);
+        addToFight(s, ctx, 'org', o.id, r.freq, r.die);
+      }
+      // CODEX 3.2: roll Frequency once per Order-group, not per creature.
+      const groups = {};
+      for (const c of here) {
+        if (!groups[c.group]) groups[c.group] = rollFrequency(s, ctx, 'Frequency', c.name.replace(/ [A-Z]$/, ''), c.freqMod, 'cre', c.cid, (a.ownDice || {})[c.group]);
+        addToFight(s, ctx, 'cre', c.cid, groups[c.group].freq, groups[c.group].die);
+      }
+      sortOrder(s);
+      say(s, ctx, `A Pulse War begins. Order: ${s.fight.order.map((k) => `${nameOf(s, s.fight.actors[k].kind, s.fight.actors[k].id)} (${s.fight.actors[k].freq})`).join(', ')}.`, 'turn');
+      advanceTurn(s, ctx);
+    },
+  },
+  'fight.end': {
+    host: true,
+    run(s, a, ctx) {
+      if (!s.fight) return;
+      const cycles = s.fight.cycle;
+      s.fight = null;
+      s.requests = [];
+      say(s, ctx, `The Pulse War is over after ${cycles} Cycle${cycles > 1 ? 's' : ''}. Pulse Points exist only inside a fight; the next fight starts with a full set.`, 'turn');
+    },
+  },
+  'turn.end': {
+    run(s, a, ctx) {
+      if (!s.fight) throw new RuleError('There is no Pulse War running.');
+      const kind = a.cid ? 'cre' : 'org';
+      const id = a.cid || a.organismId;
+      if (kind === 'org') needControl(s, ctx, id);
+      else if (ctx.role !== 'host') throw new RuleError('Only the host moves creatures.');
+      const act = s.fight.actors[key(kind, id)];
+      if (!act) throw new RuleError('They are not in this fight.');
+      if (act.status !== 'acting' && act.status !== 'holding') throw new RuleError('It is not their turn.');
+      const wasTurn = s.fight.turn === act.key;
+      finishActor(s, ctx, act, !!a.hold && act.status === 'acting');
+      if (wasTurn || !s.fight.turn) advanceTurn(s, ctx);
+    },
+  },
+  'turn.next': {
+    host: true,
+    run(s, a, ctx) {
+      if (!s.fight) throw new RuleError('There is no Pulse War running.');
+      const cur = s.fight.turn ? s.fight.actors[s.fight.turn] : null;
+      if (cur) finishActor(s, ctx, cur, false);
+      advanceTurn(s, ctx);
+    },
+  },
+  'cycle.end': {
+    host: true,
+    run(s, a, ctx) {
+      if (!s.fight) throw new RuleError('There is no Pulse War running.');
+      // Anyone whose turn never came still Leaks: the Cycle passed for them too.
+      for (const k of s.fight.order) {
+        const act = s.fight.actors[k];
+        if (act.status === 'waiting') turnStartEffects(s, ctx, act);
+        act.status = 'done';
+      }
+      s.fight.turn = null;
+      endCycle(s, ctx);
+      advanceTurn(s, ctx);
+    },
+  },
+
+  // ---- Pulse War: what an organism does with its Pulse Points
+  act: {
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      if (!s.fight) throw new RuleError('Pulse Points are only spent in a Pulse War. Outside a fight, just say what you do.');
+      const act = actorOf(s, 'org', o.id);
+      if (!act) throw new RuleError(`${o.name} is not in this fight.`);
+      if (o.dormant) throw new RuleError(`${o.name} is Dormant and cannot act.`);
+      const def = R.ACTIONS[a.action];
+      if (!def || a.action === 'strike') throw new RuleError('Choose Drift, Vent, Sense, Synthesise, Burst or Reserve.');
+      let cost = def.cost;
+      if (a.action === 'burst') cost = clamp(Math.trunc(Number(a.cost) || 3), 3, 5);
+      if (a.action === 'reserve' && act.reserve) throw new RuleError('You are already holding a Reserve.');
+      if (a.action === 'vent') {
+        const atp = R.atpCost(2, { stress: o.stress, conditions: o.conditions.map((c) => c.name) });
+        if (o.atp < atp) throw new RuleError(`Vent costs ${atp} ATP and ${o.name} has ${o.atp}.`);
+        spendPP(s, act, cost, 'Vent');
+        o.atp -= atp;
+        act.spentAtp = true;
+        o.stress = Math.max(0, o.stress - 2);
+        o.conditions = o.conditions.filter((c) => c.name !== 'Overclocked' && c.name !== 'Turgid');
+        say(s, ctx, `${o.name} Vents: 1 PP and ${atp} ATP. Stress is ${o.stress}. ${act.pp} PP left.`, 'act');
+        return;
+      }
+      if (a.action === 'burst') {
+        const atp = R.atpCost(cost, { stress: o.stress, conditions: o.conditions.map((c) => c.name) });
+        if (o.atp < atp) throw new RuleError(`That Burst costs ${atp} ATP and ${o.name} has ${o.atp}.`);
+        spendPP(s, act, cost, 'That Burst');
+        o.atp -= atp;
+        act.spentAtp = true;
+        say(s, ctx, `${o.name} begins a Burst: ${cost} PP and ${atp} ATP. ${act.pp} PP left.`, 'act');
+        return;
+      }
+      spendPP(s, act, cost, def.name);
+      if (a.action === 'drift') {
+        act.drifted = true;
+        if (a.band) o.band = a.band;
+        o.conditions = o.conditions.filter((c) => c.name !== 'Braced');
+        say(s, ctx, `${o.name} Drifts${a.band ? ` to ${a.band}` : ''} (up to ${o.flow} Drifts). ${act.pp} PP left.`, 'act');
+      } else if (a.action === 'reserve') {
+        act.reserve = true;
+        say(s, ctx, `${o.name} holds a Reserve for a Reactive Osmosis. ${act.pp} PP left.`, 'act');
+      } else {
+        say(s, ctx, `${o.name}: ${def.name}. ${act.pp} PP left.`, 'act');
+      }
+    },
+  },
+  strike: {
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      if (o.dormant) throw new RuleError(`${o.name} is Dormant and cannot act.`);
+      const carried = o.weapons.filter((w) => w.carried !== false);
+      const w = carried.find((x) => x.id === a.weaponId) || carried[0];
+      if (!w) throw new RuleError(`${o.name} carries no Apparatus.`);
+      const c = cre(s, a.targetId);
+      if (c.down) throw new RuleError(`${c.name} is already down.`);
+      const act = actorOf(s, 'org', o.id);
+      const heavy = (w.props || []).includes('Heavy');
+      const cost = 2 + (heavy ? 1 : 0);
+      if (s.fight) {
+        if (!act) throw new RuleError(`${o.name} is not in this fight.`);
+        spendPP(s, act, cost, heavy ? `A Strike with the ${w.name} (Heavy)` : 'A Strike');
+        act.strikes += 1;
+      }
+      const baseName = w.cls === 'Weight' ? 'VSC' : w.cls === 'Resonator' ? 'RTC' : w.cls === 'Projector' ? (o.base.RTC > o.base.DFF ? 'RTC' : 'DFF') : 'DFF';
+      const pathName = w.cls === 'Resonator' ? 'Catalysis' : 'Membrane Penetration';
+      const mods = [];
+      if (w.bonus) mods.push({ label: w.name, dice: w.bonus });
+      const braced = (w.props || []).includes('Braced');
+      if (braced && s.fight && act && !act.drifted) mods.push({ label: 'Braced (did not Drift)', dice: 1 });
+      if (a.momentum && !braced) mods.push({ label: 'Momentum', dice: a.current ? 3 : 2 });
+      if (hasCond(c, 'Marked')) mods.push({ label: 'Target is Marked', dice: 2 });
+      for (const m of cleanMods(a.mods)) mods.push(m);
+      const pool = R.buildPool({ baseline: o.base[baseName] + condBase(o, baseName), pathway: o.pathways[pathName] || 0, mods, stress: o.stress });
+      pool.baselineName = baseName;
+      pool.pathwayName = pathName;
+      const tier = clamp(a.tier || 1, 1, 5);
+      const type = a.momentum && !braced ? 'Kinetic' : (w.type === 'any' ? (a.dtype || 'Kinetic') : w.type);
+      pushRequest(s, {
+        kind: 'attack', actor: { kind: 'org', id: o.id, name: o.name }, target: { kind: 'cre', id: c.cid, name: c.name },
+        label: `Strike: ${w.name} at ${c.name}`, pool, at: creMT(c), atLabel: 'Membrane Threshold',
+        weapon: { id: w.id, name: w.name, bd: (w.bd || [0])[tier - 1] || 0, type, props: w.props || [] }, ppCost: s.fight ? cost : 0, flank: !!a.flank,
+      });
+      say(s, ctx, `${o.name} Strikes ${c.name} with the ${w.name}${s.fight ? `: ${cost} PP, ${act.pp} left` : ''}. ${pool.dice} dice against Membrane Threshold ${creMT(c)}.`, 'act');
+    },
+  },
+  react: {
+    // §4.10 Reactive Osmosis, spent from a held Reserve against one incoming attack.
+    run(s, a, ctx) {
+      const req = s.requests.find((q) => q.id === a.requestId && q.kind === 'incoming');
+      if (!req) throw new RuleError('That attack is no longer waiting.');
+      const helperId = a.organismId || req.target.id;
+      needControl(s, ctx, helperId);
+      const act = actorOf(s, 'org', helperId);
+      if (!act || !act.reserve) throw new RuleError('A Reactive Osmosis needs a held Reserve (1 PP, set aside on your turn).');
+      if (act.reacted) throw new RuleError('One Reactive Osmosis per Cycle.');
+      if (req.reaction) throw new RuleError('A reaction has already been made against this attack.');
+      if (a.kind !== 'deflect' && a.kind !== 'brace') throw new RuleError('Choose Deflect or Brace.');
+      act.reserve = false;
+      act.reacted = true;
+      req.reaction = a.kind;
+      req.reactor = s.organisms[helperId].name;
+      if (a.kind === 'deflect') {
+        req.at += 4;
+        req.chance = successChance(Math.min(30, req.pool.dice), req.at);
+      }
+      say(s, ctx, `${s.organisms[helperId].name} spends the Reserve: ${R.REACTIONS[a.kind].name}. ${R.REACTIONS[a.kind].does}`, 'act');
+    },
+  },
+  stabilise: {
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      const t = org(s, a.targetId);
+      if (!t.dormant) throw new RuleError(`${t.name} is not Dormant.`);
+      if (o.dormant) throw new RuleError(`${o.name} is Dormant and cannot act.`);
+      const act = actorOf(s, 'org', o.id);
+      if (s.fight && act) spendPP(s, act, 2, 'Synthesise');
+      const pool = poolForCheck(o, { baseline: 'RTC', pathway: 'Synthesis', mods: cleanMods(a.mods) });
+      pushRequest(s, {
+        kind: 'stabilise', actor: { kind: 'org', id: o.id, name: o.name }, target: { kind: 'org', id: t.id, name: t.name },
+        label: `Stabilise ${t.name}`, pool, at: R.stabiliseAT(t.level), ppCost: s.fight && act ? 2 : 0,
+      });
+      say(s, ctx, `${o.name} works to stabilise ${t.name}: ${pool.dice} dice against Threshold ${R.stabiliseAT(t.level)}.`, 'act');
+    },
+  },
+
+  // ---- Pulse War: creatures (host only)
+  'creature.act': {
+    host: true,
+    run(s, a, ctx) {
+      const c = cre(s, a.cid);
+      if (!s.fight) throw new RuleError('There is no Pulse War running.');
+      const act = actorOf(s, 'cre', c.cid);
+      if (!act) throw new RuleError(`${c.name} is not in this fight.`);
+      const cost = clamp(Math.trunc(Number(a.cost) || 1), 0, 6);
+      spendPP(s, act, cost, String(a.what || 'That'));
+      if (a.band) c.band = a.band;
+      if (a.what === 'Brace' && !hasCond(c, 'Braced')) c.conditions.push({ name: 'Braced' });
+      if (a.band) { c.conditions = c.conditions.filter((x) => x.name !== 'Braced'); act.drifted = true; }
+      say(s, ctx, `${c.name}: ${String(a.what || 'acts').slice(0, 60)}${a.band ? ` to ${a.band}` : ''} (${cost} PP, ${act.pp} left).`, 'act');
+    },
+  },
+  'creature.strike': {
+    host: true,
+    run(s, a, ctx) {
+      const c = cre(s, a.cid);
+      if (c.down) throw new RuleError(`${c.name} is down.`);
+      const o = org(s, a.targetId);
+      const act = actorOf(s, 'cre', c.cid);
+      const cost = a.cost == null ? 2 : clamp(Math.trunc(Number(a.cost)), 0, 6);
+      if (s.fight) {
+        if (!act) throw new RuleError(`${c.name} is not in this fight.`);
+        if (c.segments != null && !a.force) {
+          const allowed = Math.floor(c.segments / 2);
+          if (act.strikes >= allowed) throw new RuleError(`A swarm gets 1 Strike per 2 Segments (CORE 4.13). ${c.name} has ${c.segments} Segments and has made ${act.strikes} this Cycle.`);
+        }
+        spendPP(s, act, cost, 'A Strike');
+        act.strikes += 1;
+      }
+      const mods = cleanMods(a.mods);
+      if (hasCond(o, 'Marked')) mods.push({ label: 'Target is Marked', dice: 2 });
+      const pool = R.buildPool({ fixed: c.pool, mods });
+      const tAct = actorOf(s, 'org', o.id);
+      pushRequest(s, {
+        kind: 'incoming', actor: { kind: 'cre', id: c.cid, name: c.name }, target: { kind: 'org', id: o.id, name: o.name },
+        label: `${c.name} strikes ${o.name}`, pool, at: orgMT(o), atLabel: 'Membrane Threshold', bd: c.bd, dtype: c.type,
+        ppCost: s.fight ? cost : 0, canReact: !!(tAct && tAct.reserve && !tAct.reacted),
+      });
+      say(s, ctx, `${c.name} strikes at ${o.name}: ${pool.dice} dice against Membrane Threshold ${orgMT(o)}.`, 'act');
+    },
+  },
+};
+
+// --------------------------------------------------------------------- views
+// What each kind of screen may see. Creature numbers stay with the host; the
+// table sees evidence (Segments, a word for how hurt it looks), not the block.
+export function viewFor(state, role, pid) {
+  if (role === 'host') return state;
+  const s = clone(state);
+  const pub = {};
+  for (const c of Object.values(s.creatures)) {
+    if (c.hidden) continue;
+    let looks = '';
+    if (c.down) looks = 'down';
+    else if (c.segments != null) looks = `${c.segments} of ${c.segMax} Segments`;
+    else {
+      const f = c.mi / c.miMax;
+      looks = f >= 1 ? 'unhurt' : f > 0.66 ? 'scratched' : f > 0.33 ? 'hurt' : 'badly hurt';
+    }
+    pub[c.cid] = {
+      cid: c.cid, blockId: c.blockId, name: c.name, band: c.band, siteId: c.siteId, down: c.down,
+      segments: c.segments, segMax: c.segMax, looks, conditions: c.conditions,
+    };
+  }
+  s.creatures = pub;
+  if (s.fight) {
+    for (const k of Object.keys(s.fight.actors)) {
+      const a = s.fight.actors[k];
+      if (a.kind === 'cre' && !pub[a.id]) {
+        delete s.fight.actors[k];
+        s.fight.order = s.fight.order.filter((x) => x !== k);
+      } else if (a.kind === 'cre') {
+        a.pp = null;
+        a.ppMax = null;
+      }
+    }
+  }
+  s.requests = s.requests.filter((q) => !(q.actor.kind === 'cre' && q.actor.id && !pub[q.actor.id]));
+  for (const q of s.requests) { delete q.bd; }
+  s.log = s.log.filter((l) => l.kind !== 'note-host');
+  s.me = pid && s.players[pid] ? { pid, ...s.players[pid] } : null;
+  return s;
+}

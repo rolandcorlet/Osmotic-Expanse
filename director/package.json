@@ -1,0 +1,12 @@
+{
+  "name": "osmotic-expanse-director",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Osmotic Expanse - AI Director: rules Engine, shared Ledger and local table prototype",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}
