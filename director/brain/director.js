@@ -26,11 +26,14 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
   if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} (harvest tool with no creature). The grade depends on CARCASS, not on the roll.`);
+  // The Soft Field can be carved; the wound mouth cannot. Saying only the positive left the Director
+  // to try a site cut at the Toll-Vent, where nothing is printed to cut (bench run, 13 Nov 2026).
+  else L.push(`Nothing at this site can be cut for yield: it prints no harvest. Here harvest is only ever for a destroyed creature, with its id. Do not call harvest with no creature, and do not look for a panel, a gland or a seam to carve.`);
   {
     // The Pays prose often names the per-creature harvest Codon; the Engine pays that itself,
     // and a Director reading the prose alone tries to award it (bench, 12 Nov 2026).
     const auto = Object.entries(site.harvestPays || {}).map(([b, p]) => `${p.codon} Codon for each harvested ${String(b).replace(/-/g, ' ')}`).filter((x) => x);
-    if (auto.length) L.push(`The Engine pays these at the cut: ${auto.join('; ')}. It adds them itself the moment a harvest of that creature succeeds, and awards it to the whole Cohort. Never call award for a harvest amount, even though the Pays line names the same figure; award refuses it. You pay only what the Pays line prints that is NOT a harvest amount.`);
+    if (auto.length) L.push(`The Engine pays these at the cut: ${auto.join('; ')}. It adds them itself the moment a harvest of that creature succeeds, and pays it to the whole Cohort. Killing one pays nothing: the amount exists only once somebody cuts the body, and the Engine does the paying. Never call award for these amounts, even though the Pays line names the same figure; award refuses it. You pay only what the Pays line prints that is NOT a harvest amount.`);
   }
   if (site.post) {
     const offer = (state.posts || {})[site.id];

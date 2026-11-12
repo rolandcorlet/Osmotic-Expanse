@@ -941,7 +941,21 @@ test('the briefing says the Engine pays the printed harvest Codon itself, so it 
   // pay what the Engine had already paid at the cut.
   const b = briefing(seated(), scenario, bestiary, {});
   assert.match(b, /The Engine pays these at the cut: 1.5 Codon for each harvested gnaw swarm; 3 Codon for each harvested fold sentinel/);
-  assert.match(b, /Never call award for a harvest amount/);
+  assert.match(b, /Never call award for these amounts/);
+  assert.match(b, /Killing one pays nothing/);
+});
+
+test('a site that prints nothing to cut is told so, instead of being left to try', () => {
+  // Bench run of 13 Nov: at the Toll-Vent the Director called harvest with no creature, because
+  // the briefing only ever said where a site CAN be cut.
+  const b = briefing(seated(), scenario, bestiary, {});
+  assert.match(b, /Nothing at this site can be cut for yield/);
+  assert.match(b, /harvest is only ever for a destroyed creature/);
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('change_site', { site: 'soft-field' });
+  const there = briefing(T.state, scenario, bestiary, {});
+  assert.match(there, /This site can be cut: the hanging lipid panels/);
+  assert.ok(!/Nothing at this site can be cut/.test(there), 'the negative line belongs to sites that print no harvest');
 });
 
 test('every creature printed for a site pays the Codon its Bestiary page prints', () => {
