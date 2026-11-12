@@ -85,7 +85,7 @@ const sites = [
     exits: ['Inward: the cut-lane down to the Soft Field', 'Back out to the Toll Reach and its queue of skiffs'],
     encounter: [{ blockId: 'gnaw-swarm', count: 2 }, { blockId: 'fold-sentinel', count: 1 }],
     // Paid by the Engine when one of these is harvested, never by the Director's award.
-    harvestPays: { 'gnaw-swarm': { codon: 1.5 } },
+    harvestPays: { 'gnaw-swarm': { codon: 1.5 }, 'fold-sentinel': { codon: 3 } },
     host: {
       cite: 'Vector §8.1',
       play: 'The wound is legal only with a Guild stamp, a drone licence, or a toll paid: 2 C Specimens per body, 15 S per body, or a promise (an Oath box, witnessed by an Order II fold). Refusing and fighting is a decision: it costs TOLL a segment.',
@@ -124,6 +124,8 @@ const sites = [
     ],
     exits: ['Onward: the cut-lane to the stomach (the Render Hall)', 'Out: the sled-cable back to the surface', 'Back: up the cut-lane to the Toll-Vent'],
     encounter: [{ blockId: 'glaze-medusa', count: 2 }, { blockId: 'hijack-mite', count: 2 }],
+    // Paid by the Engine when one of these is harvested, never by the Director's award.
+    harvestPays: { 'glaze-medusa': { codon: 3 }, 'hijack-mite': { codon: 1.5 } },
     host: {
       cite: 'Vector §8.2, §7.2',
       play: 'Nothing carried out of this Vector is worth anything unless it passed a post. Say it out loud here. The post\'s ledger has the first crew\'s last entry: CLAIM VOID - SEE NETH. When they reach the post, roll the d12 priced choice (§8.2).',
@@ -150,6 +152,8 @@ const sites = [
     ],
     exits: ['Onward: the pyloric channels (warm, sweet, going up)', 'Out: the pump shaft', 'Back: the cut-lane to the Soft Field'],
     encounter: [{ blockId: 'cytoplasmic-bleeder', count: 3 }, { blockId: 'detritus-feeder', count: 2 }],
+    // Paid by the Engine when one of these is harvested, never by the Director's award.
+    harvestPays: { 'cytoplasmic-bleeder': { codon: 3 }, 'detritus-feeder': { codon: 1.5 } },
     host: {
       cite: 'Vector §8.3',
       play: 'The Pulse War room: terrain is the main character. The pump is the best object in the Vector: seizing or opening it drains a chamber (CARCASS -1, the Enzyme Field dies) but it is loud (HUNGER +1, and TOLL +1 if the Guild sees it).',
@@ -175,6 +179,8 @@ const sites = [
     ],
     exits: ['Onward: the pyloric duct to the Gut Stone', 'Back: out the way you came'],
     encounter: [{ blockId: 'receptor-lurker', count: 2 }, { blockId: 'drifter-shoal', count: 3 }],
+    // Paid by the Engine when one of these is harvested, never by the Director's award.
+    harvestPays: { 'receptor-lurker': { codon: 3 }, 'drifter-shoal': { codon: 1.5 } },
     host: {
       cite: 'Vector §8.4',
       play: 'Nothing here wants to fight. What is here wants to be legal. Run the room as Lesson 5: three exchanges, Stakes Ladder visible, and state what success buys first. The drone elder is Nine-Folds.',
@@ -200,6 +206,8 @@ const sites = [
     ],
     exits: ['Out: the exit shaft up to the pump', 'Back: the pyloric duct to the Brood'],
     encounter: [{ blockId: 'protease-warden', count: 1 }, { blockId: 'cytoplasmic-bleeder', count: 2 }, { blockId: 'antigen-gnat', count: 4 }],
+    // Paid by the Engine when one of these is harvested, never by the Director's award.
+    harvestPays: { 'protease-warden': { codon: 14 }, 'cytoplasmic-bleeder': { codon: 3 }, 'antigen-gnat': { codon: 1.5 } },
     host: {
       cite: 'Vector §8.5',
       play: 'Two things claim this room and neither is evil: a Lattice Guardian folded around the print job, and a Hegemony recovery team under a Protease Warden. Announce E5 as Deadly before it starts. The exit is the scene: if TOLL hits 5 the Render Charge fires and the last ten minutes are a chase.',

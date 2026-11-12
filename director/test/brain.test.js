@@ -940,8 +940,22 @@ test('the briefing says the Engine pays the printed harvest Codon itself, so it 
   // The site's Pays prose names "1.5 Codon each", and twice in the bench the Director tried to
   // pay what the Engine had already paid at the cut.
   const b = briefing(seated(), scenario, bestiary, {});
-  assert.match(b, /The Engine pays these at the cut: 1.5 Codon for each harvested gnaw swarm/);
+  assert.match(b, /The Engine pays these at the cut: 1.5 Codon for each harvested gnaw swarm; 3 Codon for each harvested fold sentinel/);
   assert.match(b, /Never call award for a harvest amount/);
+});
+
+test('every creature printed for a site pays the Codon its Bestiary page prints', () => {
+  // The Engine pays harvest Codon from the site's harvestPays and `award` refuses any amount the
+  // site does not print, so a creature missing from harvestPays simply never gets paid its Codon.
+  for (const s of scenario.sites) {
+    for (const block of new Set((s.encounter || []).map((x) => x.blockId))) {
+      const m = String((bestiary[block] || {}).harvest || '').match(/Codon ([0-9.]+)/);
+      if (!m) continue;
+      const want = Number(m[1]);
+      assert.equal(((s.harvestPays || {})[block] || {}).codon, want,
+        `${s.name}: harvesting ${block} must pay the printed ${want} Codon`);
+    }
+  }
 });
 
 test('while a throw is in the air, the briefing holds the beat and the narration is pulled back to it', () => {
@@ -982,6 +996,36 @@ test('harvest: naming the site where a creature belongs is a slip, not a refusal
   assert.match(T.run('harvest', { organism: 'eyes', creature: 'no-such-thing' }).refused, /No creature called/);
   const r = T.run('harvest', { organism: 'eyes' });
   assert.ok(!r.refused, 'cutting the site is harvest with no creature');
+});
+
+test('hazards are held to the page: the printed Trigger clause and the printed Effect number', () => {
+  // The Toll-Vent prints: Trigger: a Kinetic hit, a Strike, Momentum. Effect: 6 Kinetic, Jostled.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  assert.match(T.run('hazard_damage', { organism: 'wall', amount: 9, trigger: 'a Strike', why: 'the pocket' }).refused, /does 6 Kinetic, not 9/);
+  assert.match(T.run('hazard_damage', { organism: 'wall', amount: 6, trigger: 'the flail swung wide', why: 'the pocket' }).refused, /is not a printed trigger[\s\S]*a Kinetic hit, a Strike, Momentum/);
+  assert.match(T.run('hazard_damage', { organism: 'wall', amount: 6, why: 'the pocket' }).refused, /Name what set the hazard off/);
+  assert.equal(T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'a Strike under the lip sets the pocket off' }).organism, 'Bresk of the Sixth Choir');
+});
+
+test('a hazard may be the Cost of a throw that failed, but never the price of one that landed', () => {
+  const failed = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  failed.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', threshold: 16, what_for: 'Taste the outflow' });
+  const q = failed.state.requests[0];
+  failed.state = apply(failed.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(1) }, ctx('player', 'p2'));
+  assert.equal(failed.state.rolls[failed.state.rolls.length - 1].success, false, 'the stand-in throw misses');
+  assert.ok(!failed.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'failed roll', why: 'the Cost: the pocket goes off' }).refused);
+
+  const landed = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  landed.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', threshold: 12, what_for: 'Taste the outflow' });
+  const q2 = landed.state.requests[0];
+  landed.state = apply(landed.state, { type: 'roll', requestId: q2.id, dice: Array(q2.pool.dice).fill(6) }, ctx('player', 'p2'));
+  assert.match(landed.run('hazard_damage', { organism: 'eyes', amount: 6, trigger: 'failed roll', why: 'the pocket' }).refused, /succeeded[\s\S]*a hazard is not its price/);
+});
+
+test('a site that prints no hazard cannot hurt anyone by hazard', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.state = apply(T.state, { type: 'scene.set', siteId: 'brood' }, ctx('host', null));
+  assert.match(T.run('hazard_damage', { organism: 'wall', amount: 6, trigger: 'a Strike', why: 'x' }).refused, /No hazard is printed for The Brood of the Not-Whale/);
 });
 
 test('while a throw is in the air, a beat that only holds it needs no question', () => {

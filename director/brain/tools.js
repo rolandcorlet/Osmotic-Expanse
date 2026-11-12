@@ -30,6 +30,17 @@ export function printedPays(site) {
   return { codon, substrate };
 }
 
+// Every site's Hazard note is written with a Trigger clause and an Effect clause ("Trigger: a
+// Kinetic hit, a Strike, Momentum. Effect: 6 Kinetic, Jostled..."), so the Engine can hold a
+// hazard to the page instead of trusting the Director's word. A site that prints "None" has no
+// hazard at all; a hazard with no Trigger clause runs on its own notes or a Clock.
+export function hazardSpec(site) {
+  const text = String(((site || {}).host || {}).hazard || '');
+  const tr = text.match(/Trigger:\s*([^.]*)/i);
+  const eff = text.match(/Effect:\s*(\d+)\s*([A-Za-z]+)/i);
+  return { text, none: !text || /^\s*none\b/i.test(text), trigger: tr ? tr[1].trim() : '', amount: eff ? Number(eff[1]) : null, type: eff ? eff[2] : '' };
+}
+
 // Some models send a list as JSON text: read it if it parses, otherwise ignore it.
 function listOf(v) {
   if (Array.isArray(v)) return v;
@@ -215,13 +226,30 @@ export const TOOLS = [
   },
   {
     name: 'hazard_damage',
-    description: 'A printed hazard or a Cost hurts an organism. Soak applies. Use the damage printed in the site notes. A hazard goes off only on its printed trigger or as the cost of a FAILED roll: never after a roll that succeeded, and never twice.',
-    parameters: obj({ organism: S('Organism id.'), amount: I('Printed damage.'), type: S('Damage type, for example Kinetic or Lytic.'), why: S('What caused it.') }, ['organism', 'amount', 'why']),
+    description: 'A printed hazard or a Cost hurts an organism. Soak applies. Use the damage printed in the site notes. A hazard goes off only on its printed trigger or as the cost of a FAILED roll: never after a roll that succeeded, and never twice. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
+    parameters: obj({ organism: S('Organism id.'), amount: I('Printed damage.'), type: S('Damage type, for example Kinetic or Lytic.'), trigger: S('What set the hazard off: the words printed in the site\'s Trigger line (for example "a Strike"), or "failed roll" when this is the Cost of the roll that just failed.'), why: S('What caused it, in a line the players can hear.') }, ['organism', 'amount', 'trigger', 'why']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism);
       const amount = Math.trunc(Number(a.amount));
       if (!(amount >= 1 && amount <= 20)) return { refused: 'Hazard damage is between 1 and 20: use the printed number.' };
+      // The Engine keeps the hazard to what the page prints: the Trigger and Effect clauses are
+      // written in every site's Hazard note, so the Director cannot invent either. (Bench 12 Nov:
+      // hazards are the one place the Engine was letting an unprinted ruling through.)
+      const spec = hazardSpec(T.site());
+      if (spec.none) return { refused: `No hazard is printed for ${T.site().name}. Nothing here hurts an organism on its own.` };
+      if (spec.amount != null && amount !== spec.amount) return { refused: `The hazard printed for ${T.site().name} does ${spec.amount}${spec.type ? ` ${spec.type}` : ''}, not ${amount}. It reads: "${spec.text}"` };
+      const trig = lower(a.trigger);
+      if (!trig) return { refused: `Name what set the hazard off: "failed roll", or the words printed in the Trigger line here (${spec.trigger || 'this site prints no Trigger clause: it runs on its own notes or a Clock'}).` };
+      if (trig === 'failed roll' || trig === 'failed-roll') {
+        const last = T.state.rolls[T.state.rolls.length - 1];
+        if (!last) return { refused: 'There is no roll for this to be the cost of.' };
+        if (last.success) return { refused: `${last.who}'s throw succeeded (${last.total} against ${last.at}), so a hazard is not its price. The printed trigger here is: ${spec.trigger || 'see the site notes'}.` };
+      } else if (spec.trigger) {
+        const words = trig.split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+        const miss = words.filter((w) => !lower(spec.trigger).includes(w));
+        if (miss.length) return { refused: `"${a.trigger}" is not a printed trigger for the hazard at ${T.site().name}. The page prints: ${spec.trigger}.` };
+      }
       const no = T.do({ type: 'damage', target: { kind: 'org', id: o.id }, amount, dtype: a.type || '' });
       if (no) return { refused: no };
       const t = T.state.organisms[o.id];
