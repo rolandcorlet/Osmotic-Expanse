@@ -4,7 +4,7 @@ Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, 
 
 Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the 13 Nov hazard-budget stack: re-checked 13 Nov at 09:44, `HEAD` and `origin/main` both sat at `6b0eed7`. Since then `cbb2e52`, `1e2c7c7` and `5eee166` have landed; Roly has pushed the first two. Roly pushes.
 
-## Starting a new session (as at 13 Nov, HEAD `5eee166`)
+## Starting a new session (as at 13 Nov, 11:00 — HEAD `5eee166` plus this file)
 
 Today landed five: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
@@ -18,6 +18,30 @@ Director in are held to the same leak rule as its narration). Roly has pushed th
 **126 green**. The working tree shows
 ~83 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
 insert/delete counts before believing a dirty tree.
+
+### For the session starting 11:00 on 13 Nov — start here
+
+Nothing is broken and waiting. 126 tests green; the last two commits (`5eee166` and this file) are
+the saved gate's two fixes; the gate itself needs re-running on Windows, not in the sandbox. What is
+queued are **decisions**, in the order I would take them:
+
+1. **Who pays a Clock when a panel is opened by a roll rather than a harvest** (Open item 5). Three
+   routes are written out there; pick one and it is a small change with a test.
+2. **Hold the briefing to the leak rule?** Every tool string is now held by a test, but the site
+   briefing still speaks in machinery words in Director-only text ("the Engine refuses
+   `hazard_damage` until…"). It is the likeliest source of the next leak. Bigger pass than one
+   sitting — worth starting, worth doing in one piece.
+3. **The band shift** — the other half of queued item 1: how the Engine prices "1 band shift to all
+   in the chamber", the Gut Stone's "2-band shift" and the slough's "-1 Drift per Move". Needs
+   Roly's ruling before anything is built.
+4. **Housekeeping, if wanted:** `*.log` in `director/.gitignore` (two bench logs sit untracked), and
+   a `--log <file>` flag in `tools/bench.mjs` so the harness writes its own UTF-8 file instead of
+   fighting PowerShell's UTF-16.
+5. **In the next gate run, look for:** zero refusals and zero leaks, and **no `set_condition` at all**
+   after a hazard firing — the firing pays Jostled by itself now. If a run shows one `set_condition`
+   per body, something regressed.
+
+Then Phase 4 with a real group: the scripted bench is rehearsal, not the gate.
 
 Read in order: this file, then the bench findings above, then `README.md` "Not built yet". Rulings that
 are settled and must not be reopened: creature arithmetic never spoken aloud ([[never-creature-dice]]
