@@ -1,10 +1,14 @@
-# The AI Director · prototype (Phase 1)
+# The AI Director · prototype (Phases 1-3 passed)
 
 A rules Engine, a shared Ledger and three prototype screens for *The Osmotic Expanse*,
 running on one computer and joined by every phone, tablet and laptop on the same network.
 
-A person can run the table from the host console, or the AI Director (Google Gemini) can
-take that seat: see "The AI Director" below. Either way the Engine does the arithmetic.
+A person can run the table from the host console, or an AI Director can take that seat —
+online through an API key, or on your own machine with no key at all: see "The AI Director"
+below. Either way the Engine does the arithmetic.
+
+**Running a session tonight?** `HOST-GUIDE.md` is the one page to keep beside you: setup,
+session zero, approving turns, and what to do when the AI goes wrong.
 
 ## Run it
 
@@ -50,38 +54,80 @@ the connection is not encrypted.
 table code, which is printed when the host starts and is already part of the online link.
 Devices on your own network do not need it. The host console always needs the host key.
 
-## The AI Director (Phase 3)
+## The AI Director (Phase 3 — gate passed)
 
-The host console has a **Director** tab. With it, Google Gemini can sit in the host's seat.
+The host console has a **Director** tab. With it, a language model sits in the host's seat.
 
-1. Create an API key at [aistudio.google.com](https://aistudio.google.com) (Google account needed;
-   Google sets the price and any free allowance).
-2. On the Director tab, paste the key and press **Save key**. Your models load into the list;
-   the newest Flash model is chosen for you.
-3. Choose who runs the table:
-   * **Off** — a person runs everything from the Run tab.
-   * **Co-pilot** — the Director prepares each turn; you see what it did with the Engine and
-     what it will say, edit it if you like, and nothing reaches the table until you approve.
-   * **Auto** — it answers the players by itself. A turn that fails the leak check is still
-     held for you.
-4. Press **Take a turn** to open the scene. After that it takes a turn whenever a player
-   speaks (the "What does … do?" box on their phone), rolls, or ends a turn.
+**Choosing a brain.** Online, with an API key: Google Gemini, Anthropic Claude, OpenAI,
+OpenRouter, Groq, Mistral, DeepSeek, xAI Grok. On your own machine, no key needed: Ollama,
+LM Studio, llama.cpp, or any other OpenAI-compatible address. Each one remembers its own key,
+address and model. Press **Test** to check the chosen model really calls a tool — many small
+models cannot, and the Director needs them.
 
-The key is saved in `saves/director.json` on the host computer. It is never sent to players
-and the `saves` folder is never committed to GitHub.
+Keys are saved in `saves/director.json` on the host computer. They are never sent to a player
+screen, and `saves` is never committed to GitHub.
+
+**Thinking (local models only).** How much the model reasons before each reply: Model default,
+Medium, Low, or Off. Less thinking is faster but leans harder on the Engine's guard rails. On
+the benched local model: Off ran 5.6 seconds a turn and made three rule errors; Low ran 11.0
+seconds clean, which is faster than the cloud. Cloud providers keep their own default.
+
+**Who runs the table.**
+
+* **Off** — a person runs everything from the Run tab.
+* **Co-pilot** — the Director prepares each turn; you see what it did with the Engine and
+  what it will say, edit it if you like, and nothing reaches the table until you approve.
+* **Auto** — it answers the players by itself. A turn that fails the leak check is still
+  held for you.
+
+Press **Take a turn** to open the scene. After that it takes a turn whenever a player speaks
+(the "What does ... do?" box on their phone), rolls, or ends a turn.
 
 **How it is kept honest.** Each turn the model is sent a fresh briefing built from data: the
-current site's card and Director notes, the organisms, the creatures, the Clocks, the latest
-rolls and the recent story. It can change the table only through tools, and the Engine checks
-each one: it cannot bring a creature that is not printed for the site, skip a site, pick a
-Threshold off the ladder, advance a Clock twice in a session, or hand out more than the page
-pays. It works on a copy of the Ledger, so a refused or discarded turn leaves no trace. Its
-standing instructions are plain text in `brain/instructions.md`: edit them to change how it
-runs the table.
+site card and Director notes, the organisms, the creatures actually in the scene, what can be
+harvested, what the page pays and has not paid yet, which Oaths are still open, the Clocks,
+the latest rolls and the recent story. In a Pulse War it also gets creature Pulse Point costs,
+whether the creature on turn can Strike and why not, and who is still fighting.
+
+It can change the table only through tools, and the Engine checks every call. It cannot bring
+a creature that is not printed for the site, skip a site, pick a Threshold off the ladder,
+advance a Clock twice in a session, hand out more than the page pays, or act for a creature
+that has stood down. It works on a copy of the Ledger, so a refused or discarded turn leaves
+no trace.
+
+**What it writes is checked too.** A reply that leaks a creature's numbers, names the
+machinery, runs past 170 words, or ends without a question gets one rewrite, and the rewrite
+is used only if it is better. A leak that survives is held for the host even in Auto.
+
+Its standing instructions are plain text in `brain/instructions.md`: edit them to change how
+it runs the table.
+
+**Session zero.** Before anyone takes an organism they read the session-zero card and press one
+button. It carries the pause word (say it and the scene stops, no explanation owed), a tone
+line the host sets, and the table's "off the page" list. Anyone can add to that list, during
+play as well as before it; the list is shared, the name is not. The Director is told the
+table's own words outrank the page.
+
+**Oaths.** An organism with Oath boxes can swear a promise, and the Engine spends the box and
+records it. An open Oath is a promise the table is owed an answer to: the briefing will not let
+the Cohort leave a site with one hanging. Settle it kept (the table gains a Cohesion) or broken
+(two Lysis Countdown boxes, a scar, and the witness drops a rung). Oath-breaking is a plot, not
+a punishment. The host sheets have **Kept** and **Broken** buttons.
+
+**Harvest and stamping.** A destroyed creature, or a site the page says can be cut, is
+harvested through the Engine: it sets the Threshold, builds the pool, charges the Bulk, and
+lists the Specimens. Nothing carried out is worth anything until a Tally Post weighs, grades
+and stamps it — and where the post's offer takes a share, the Engine takes it.
+
+**Stand down.** A creature that yields, flees, or was never fighting is stood down with a
+reason. It stays in the scene, takes no turns, cannot strike, and no longer holds the Pulse War
+open. A player who strikes it brings it back. Players see it as "standing down".
 
 **Testing a model.** `node tools/bench.mjs` plays a scripted Toll-Vent through the real model
 and counts Engine refusals, leak flags and style slips. A model passes the gate with no
-refusals and no leaks. `--runs 3` repeats it; `--model <id>` tries another model.
+refusals and no leaks in three runs. `--runs 3` repeats it; `--model <id>` tries another model;
+`--sites 2` plays on into the Soft Field; `--players 4` seats a full Cohort; `--thinking low`
+sets the thinking for a local model.
 
 Players type what they do. The Director cannot hear the room yet; speech comes in Phase 5.
 
@@ -94,14 +140,16 @@ Players type what they do. The Director cannot hear the room yet; speech comes i
 | `engine/ledger.js` | The Ledger: the one shared record of a session. Only this file changes it. Player screens are sent a view with creature numbers and Director notes removed. |
 | `data/first-carve.js` | *The First Carve* as data: the Four Hands, the three Clocks, the five sites. Each site has a "where you are" card for everyone and Director notes for the host only. |
 | `data/bestiary.json` | All 68 blocks, read from the Lytic Bestiary by `tools/build-bestiary.mjs`. |
-| `brain/instructions.md` | The Director's standing instructions (v0.2), in plain English. |
+| `brain/instructions.md` | The Director's standing instructions, in plain English. Edit them to change how it runs the table. |
 | `brain/director.js` | One Director turn: the briefing, the tool loop on a copy of the Ledger, and the checks on what it wrote. |
 | `brain/tools.js` | The Director's tools: checked doorways into the Ledger. |
-| `brain/gemini.js` | The connection to Google Gemini. Other providers will sit beside it. |
+| `brain/providers.js` | Every brain behind one surface: eight online providers and four ways to reach a model on your own machine. |
+| `brain/openai.js`, `brain/ollama.js`, `brain/gemini.js` | The three shapes of connection the providers are built from. |
 | `brain/manager.js` | Settings, when it takes a turn, and the Co-pilot proposal. |
 | `server.js` | The host: serves the screens, pushes live updates, saves the session. |
 | `public/` | The screens. Every colour is a variable; the Colours tab edits them. |
-| `test/` | The Phase 1 gate and the Ledger tests. |
+| `test/` | The Phase 1 gate, the Ledger tests and the Director tests. |
+| `tools/bench.mjs` | The Phase 3 gate: a scripted session played through a real model. |
 
 ## Check it
 
@@ -181,10 +229,12 @@ says so here, so it can be changed in one place.
 
 ## Not built yet
 
-* The Director's voice and face (Phase 5). A local model and other providers.
+* The Director's voice and face (Phase 5).
 * Discord sign-in (Phase 2). Outside players join by link and table code for now.
 * The Detection Phase as a guided step, Bursts with their effects, Momentum checks, hazards as
-  timed objects, harvest and Specimens, Cohesion, Oaths, and Growth.
+  timed objects, and Growth.
+* The separate note-taker and leak-checker models from the design: the leak check is
+  pattern-based.
 * Encounter budgets scaled for a Cohort of two to six.
 
 ## Rulings confirmed by Roly on 12 November 2026
