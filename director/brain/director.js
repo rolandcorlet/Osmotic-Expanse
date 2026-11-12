@@ -26,10 +26,21 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
   if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} (harvest tool with no creature). The grade depends on CARCASS, not on the roll.`);
+  {
+    // The Pays prose often names the per-creature harvest Codon; the Engine pays that itself,
+    // and a Director reading the prose alone tries to award it (bench, 12 Nov 2026).
+    const auto = Object.entries(site.harvestPays || {}).map(([b, p]) => `${p.codon} Codon for each harvested ${String(b).replace(/-/g, ' ')}`).filter((x) => x);
+    if (auto.length) L.push(`The Engine pays these at the cut: ${auto.join('; ')}. It adds them itself the moment a harvest of that creature succeeds, and awards it to the whole Cohort. Never call award for a harvest amount, even though the Pays line names the same figure; award refuses it. You pay only what the Pays line prints that is NOT a harvest amount.`);
+  }
   if (site.post) {
     const offer = (state.posts || {})[site.id];
     L.push('A Tally Post stands here: stamp_cut weighs, grades and stamps what the Cohort carries.');
     if (site.pricedChoice) L.push(offer ? `The post's priced choice was rolled (d12 = ${offer.roll}): the clerk offers "${offer.offer}". Price: ${offer.price}.` : 'The post\'s priced choice has not been rolled. When the Cohort reaches the post, call tally_post_offer before anything is stamped. Do not invent the clerk\'s offer.');
+  } else {
+    L.push('No Tally Post at this site: no scale, no weighing, no buyer, no priced choice. Do not call tally_post_offer or stamp_cut here: both are refused, and asking for one is how the Cohort learns the stamp is elsewhere.');
+    const near = scenario.sites.filter((x) => x.post).sort((a, b) => Math.abs(a.n - site.n) - Math.abs(b.n - site.n))[0];
+    if (near) L.push(`The nearest Tally Post is ${near.name} (site ${near.n} of ${scenario.sites.length}).`);
+    L.push('Say plainly that an unstamped cut is worth nothing outside until a weighing house takes it, grades it and stamps it.');
   }
   L.push('');
   L.push('## Director-only notes for this site (never read these out)');
@@ -178,6 +189,12 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   L.push('# ROLLS WAITING');
   if (!state.requests.length) L.push('None.');
   for (const q of state.requests) L.push(`- ${q.actor.name}: ${q.label} — ${q.pool.dice} dice against ${q.at ?? 'no Threshold'}${q.kind === 'incoming' ? ' (waiting on the target\'s reaction)' : ' (waiting for the player to roll)'}`);
+  if (state.requests.length) {
+    // The table was moving on past a throw that had not landed (Roly at the table, 12 Nov 2026).
+    const waiting = [...new Set(state.requests.map((q) => ((q.kind === 'incoming' ? q.target : q.actor) || {}).name).filter((n) => n))];
+    L.push(`# NOTHING HAS BEEN THROWN YET: ${waiting.join(' and ')} still has dice in the air. You do not know how it turns out, so nothing that throw decides has happened. Do not describe what follows it, do not offer the table a fresh choice, and do not put a question to another organism. Hold the beat on the throw: say only what hangs on it, and put your one question to ${waiting[0]} about that throw.`);
+    if (state.fight) L.push('In a Pulse War nobody acts while a roll is waiting: not the other organisms, not the creatures.');
+  }
 
   const rolls = state.rolls.filter((r) => r.kind !== 'frequency').slice(-3);
   if (rolls.length) {
@@ -280,9 +297,22 @@ export function checkNarration(text, state, { moved = false } = {}) {
     flags.push({ kind: 'style', text: 'Reads out dice counts outside a Pulse War.' });
   }
   if (/Director-only|site notes|briefing|tool\b|ask_for_roll|the Engine/i.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools).' });
+  // Someone still has dice in the air: putting the next choice to a different organism moves the
+  // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).
+  const pend = (state.requests || []).map((rq) => (rq.kind === 'incoming' ? rq.target : rq.actor)).filter((a) => a && a.kind === 'org');
   const q = (text.match(/\?/g) || []).length;
-  if (q === 0 && !moved) flags.push({ kind: 'style', text: 'Does not end on a question.' });
+  // With a throw in the air the table is already waiting on one screen, so a beat that only holds
+  // ("nothing else moves until it lands") needs no question of its own.
+  if (q === 0 && !moved && !pend.length) flags.push({ kind: 'style', text: 'Does not end on a question.' });
   if (q > 1) flags.push({ kind: 'style', text: `Asks ${q} questions; it should ask one.` });
+  if (pend.length) {
+    const first = (n) => String(n).split(/\s+/)[0];
+    const firstName = (n) => first(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const waiters = pend.map((a) => first(a.name).toLowerCase());
+    const lastQ = (text.match(/[^?]*\?/g) || []).pop() || '';
+    const other = Object.values(state.organisms || {}).find((o) => o.playerId && !waiters.includes(first(o.name).toLowerCase()) && new RegExp(`\\b${firstName(o.name)}\\b`, 'i').test(lastQ));
+    if (other) flags.push({ kind: 'style', text: `Puts a new question to ${other.name} while ${pend.map((a) => a.name).join(' and ')} still has a throw in the air.` });
+  }
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 170) flags.push({ kind: 'style', text: `Long: ${words} words.` });
   if (asksRollInWords(text, state)) flags.push({ kind: 'style', text: 'Asks for a roll in words, but no roll is waiting on a screen.' });
@@ -352,13 +382,17 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // does not end on a question. A better rewrite replaces the draft; otherwise the draft and its
   // flags stand (and a leak is held for the host).
   const isLeak = (f) => f.kind === 'leak';
-  const fixable = (f) => f.kind === 'style' && /^(Long|Does not end|Reads out dice)/.test(f.text);
+  const fixable = (f) => f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text);
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, notes or tools; describe what the organisms can see or sense instead.`);
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
+    if (flags.some((f) => /^Puts a new question/.test(f.text))) {
+      const w = [...new Set((T.state.requests || []).map((r) => ((r.kind === 'incoming' ? r.target : r.actor) || {}).name).filter(Boolean))];
+      asks.push(`A throw is still in the air (${w.join(', ')}), so nobody else's turn has come and you do not know the outcome. Do not put a choice to anyone else, and do not describe what happens next. Keep the beat on the throw and end on one question for ${w[0]} about it.`);
+    }
     try {
       const fix = await chat.send(`Rewrite your whole reply. ${asks.join(' ')} Keep the same events and any roll you asked for, in plain text, ending on one question. Do not call any tools.`);
       usage.in += fix.usage.in;
@@ -367,7 +401,9 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved }) : null;
       const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style').length;
       if (again && !again.some(isLeak) && bad(again) < bad(flags)) {
-        const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery' : 'the first draft ran long, read out dice, or did not end on a question';
+        const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery'
+          : flags.some((f) => /^Puts a new question/.test(f.text)) ? 'the first draft moved the table on while a throw was still in the air'
+            : 'the first draft ran long, read out dice, or did not end on a question';
         narration = text;
         flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
       }

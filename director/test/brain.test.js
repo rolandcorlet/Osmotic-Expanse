@@ -916,3 +916,76 @@ test('a standing choice answers in turn: "take every C that comes to me" never t
   assert.equal(s.loot.auto.wall.C, undefined);
   assert.throws(() => apply(s, { type: 'loot.auto', grade: 'C', rule: 'take' }, { ...ctx('host', null), ai: true }), /players choose/);
 });
+
+// ---- faults seen at the table and in the 12 Nov bench run -----------------------
+
+test('the thinking setting and the "thinking right now" flag are different things on the host screen', async () => {
+  // Both used to be spelled `thinking` in the same object, so the setting was silently replaced by
+  // the busy flag and the host's Thinking buttons always showed "Model default".
+  const d = createDirector({ getState: () => seated(), commit: () => {}, scenario, bestiary, rng, saveDir: mkdtempSync(join(tmpdir(), 'oxd-')), onChange: () => {} });
+  await d.op({ op: 'config', thinking: 'low' });
+  const v = d.view('host');
+  assert.equal(v.thinkingLevel, 'low', 'the button the host pressed is the one that comes back lit');
+  assert.equal(v.thinking, false, 'the mid-turn flag is not the setting');
+});
+
+test('the briefing says there is no Tally Post at the Toll-Vent, and names where the nearest one is', () => {
+  const b = briefing(seated(), scenario, bestiary, {});
+  assert.match(b, /No Tally Post at this site/);
+  assert.match(b, /nearest Tally Post is The Soft Field \(site 2 of 5\)/);
+  assert.ok(!/A Tally Post stands here/.test(b), 'no post line where there is no post');
+});
+
+test('the briefing says the Engine pays the printed harvest Codon itself, so it is never an award', () => {
+  // The site's Pays prose names "1.5 Codon each", and twice in the bench the Director tried to
+  // pay what the Engine had already paid at the cut.
+  const b = briefing(seated(), scenario, bestiary, {});
+  assert.match(b, /The Engine pays these at the cut: 1.5 Codon for each harvested gnaw swarm/);
+  assert.match(b, /Never call award for a harvest amount/);
+});
+
+test('while a throw is in the air, the briefing holds the beat and the narration is pulled back to it', () => {
+  const s = apply(seated(), { type: 'request.check', organismId: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', at: 12, label: 'Taste the outflow' }, ctx('host', null));
+  assert.equal(s.requests.length, 1);
+  const b = briefing(s, scenario, bestiary, {});
+  assert.match(b, /NOTHING HAS BEEN THROWN YET: Brost of the Third Current still has dice in the air/);
+  const movedOn = checkNarration('The outflow thickens against your receptors. Bresk of the Sixth Choir, do you push for the gate?', s);
+  assert.match((movedOn.find((f) => f.kind === 'style') || {}).text || '', /Puts a new question to Bresk of the Sixth Choir while Brost of the Third Current still has a throw in the air/);
+  const held = checkNarration('The outflow thickens against your receptors. Brost, do you let it run over you?', s);
+  assert.ok(!held.some((f) => /throw in the air/.test(f.text)), 'a question put to whoever is throwing is not a fault');
+});
+
+test('the rewrite for a moved-past throw keeps the question with the thrower', async () => {
+  const script = [
+    { calls: [['ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Taste the outflow' }]] },
+    { text: 'The current combs across his receptors. Bresk of the Sixth Choir, do you push for the gate?' },
+    { text: 'The current combs across his receptors, and the taste is already gathering. Brost, do you let it run over you?' },
+  ];
+  const m = managed('auto', script);
+  await m.d.op({ op: 'config', mode: 'auto', apiKey: 'k' });
+  await m.d.op({ op: 'run' });
+  await settle(m.d);
+  const last = m.d.view('host').last;
+  assert.ok(last, 'the turn completed');
+  assert.match(last.narration, /Brost, do you let it run over you\?/, 'the draft that moved on was rewritten');
+  assert.ok(last.flags.some((f) => /Rewritten once/.test(f.text)), 'the rewrite is noted for the host');
+});
+
+test('harvest: naming the site where a creature belongs is a slip, not a refusal', () => {
+  // Run 2 of the bench: harvest was called with creature: "soft-field", the site's own id.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('change_site', { site: 'soft-field' });
+  const slip = T.run('harvest', { organism: 'eyes', creature: 'soft-field' });
+  assert.match(slip.note, /the site, not a creature/);
+  assert.equal(slip.refused, undefined, 'a wrong argument shape is not an illegal act');
+  assert.equal(T.refusals, 0, 'and it does not count against the gate');
+  assert.match(T.run('harvest', { organism: 'eyes', creature: 'no-such-thing' }).refused, /No creature called/);
+  const r = T.run('harvest', { organism: 'eyes' });
+  assert.ok(!r.refused, 'cutting the site is harvest with no creature');
+});
+
+test('while a throw is in the air, a beat that only holds it needs no question', () => {
+  const s = apply(seated(), { type: 'request.check', organismId: 'eyes', baseline: 'OSM', at: 12, label: 'Taste the outflow' }, ctx('host', null));
+  assert.deepEqual(checkNarration('Hold still on the cut, Brost. Nothing else moves until it lands.', s), []);
+  assert.deepEqual(checkNarration('The current slackens and the lane waits.', seated()).map((f) => f.kind), ['style'], 'with nobody waiting, one question is still required');
+});

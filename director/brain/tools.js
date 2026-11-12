@@ -276,12 +276,23 @@ export const TOOLS = [
   {
     name: 'harvest',
     description: 'An organism harvests a destroyed creature, or (where the briefing says the site can be cut) the site itself. The Specimens do not go to the harvester: each is offered round the Cohort\'s picking order, and the players take or pass on their own screens. The Engine sets the Threshold (tier x 4 + 8), builds the pool (OSM or RTC with Synthesis, +2 with a Harvest Claw), charges 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
-    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a creature the briefing lists under "Can be harvested now". A creature still up, or stood down, cannot be harvested: kill it first or leave it.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
+    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a creature the briefing lists under "Can be harvested now". A creature still up, or stood down, cannot be harvested: kill it first or leave it. To cut the site itself, leave this out entirely: a site id or name never belongs here.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism);
       let cid = null;
-      if (a.creature) { const c = findCre(T.state, a.creature); if (!c) return noCre(a.creature); cid = c.cid; }
+      if (a.creature) {
+        const here = T.site();
+        const want = lower(a.creature);
+        // The site itself is not a creature. Naming it is a slip of the hand, not an illegal act:
+        // say so without a refusal, and let the next call cut the site (bench, 12 Nov 2026).
+        if (want && [here.id, here.name, here.short].some((n) => want === lower(n))) {
+          return { note: `The ${here.name} is the site, not a creature. To cut the site itself, call harvest with no creature.` };
+        }
+        const c = findCre(T.state, a.creature);
+        if (!c) return noCre(a.creature);
+        cid = c.cid;
+      }
       const before = T.state.rolls.length;
       const no = T.do({ type: 'harvest', organismId: o.id, cid, baseline: a.baseline });
       if (no) return { refused: no };
