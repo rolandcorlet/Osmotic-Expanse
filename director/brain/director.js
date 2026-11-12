@@ -80,6 +80,9 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   if (downNow.length && !here.some((c) => !c.down && !c.stoodDown) && !here.some((c) => c.stoodDown)) L.push('Every creature here is destroyed. Do not describe any of them as alive, standing or holding a line.');
 
   L.push('');
+  const cutnow = here.filter((c) => c.down && !c.harvested).map((c) => c.name);
+  if (cutnow.length) L.push(`Can be harvested now (destroyed, not yet cut): ${cutnow.join(', ')}. Nothing else can: a creature that is still up, or that has stood down, cannot be harvested.`);
+
   const paidHere = (state.paid || []).filter((p) => p.site === site.id);
   if (paidHere.length) {
     const byWhy = {};

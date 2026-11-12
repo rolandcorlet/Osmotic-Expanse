@@ -720,3 +720,15 @@ test('thinking setting: sent to local servers only, and dropped if the server ob
   await build({ provider: 'ollama', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
   assert.equal(r.sent[0].body.think, false);
 });
+
+test('the briefing lists what can be harvested now, and nothing else', () => {
+  let s = seated();
+  s = apply(s, { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 2, band: 'near' }] }, ctx('host', null));
+  const [a, b] = Object.keys(s.creatures);
+  assert.ok(!/Can be harvested now/.test(briefing(s, scenario, bestiary, {})), 'nothing while both are up');
+  s = apply(s, { type: 'damage', target: { kind: 'cre', id: a }, amount: 40 }, ctx('host', null));
+  s = apply(s, { type: 'creature.standDown', cid: b }, ctx('host', null));
+  const text = briefing(s, scenario, bestiary, {});
+  assert.match(text, /Can be harvested now \(destroyed, not yet cut\): Gnaw Swarm A\./);
+  assert.ok(!text.includes('Gnaw Swarm B.'), 'a stood-down creature is not offered');
+});

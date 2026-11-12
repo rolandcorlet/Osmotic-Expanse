@@ -269,7 +269,7 @@ export const TOOLS = [
   {
     name: 'harvest',
     description: 'An organism harvests a destroyed creature, or (where the briefing says the site can be cut) the site itself. The Engine sets the Threshold (tier x 4 + 8), builds the pool (OSM or RTC with Synthesis, +2 with a Harvest Claw), charges 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
-    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a DESTROYED creature to harvest. Leave out to cut the site itself.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
+    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a creature the briefing lists under "Can be harvested now". A creature still up, or stood down, cannot be harvested: kill it first or leave it.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism);
