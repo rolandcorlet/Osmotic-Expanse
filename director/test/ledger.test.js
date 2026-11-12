@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { newSession, apply, viewFor, RuleError, orgMT, creMT } from '../engine/ledger.js';
+import { newSession, restart, apply, viewFor, RuleError, orgMT, creMT } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario, publicScenario } from '../data/first-carve.js';
@@ -370,4 +370,47 @@ test('session zero: a player agrees before taking an organism, and the lines are
   assert.deepEqual(t.s.zero.lines, []);
   // Players see all of it.
   assert.equal(viewFor(t.s, 'player', 'p1').zero.pauseWord, 'Slack Water');
+});
+
+test('a new game: everything fresh, and the table can stay seated', () => {
+  const t = table();
+  t.as('p1', { type: 'join', name: 'Roly' });
+  t.as('p1', { type: 'zero.line', text: 'Drowning' });
+  t.host({ type: 'zero.set', pauseWord: 'Slack Water', tone: 'Body horror is in.' });
+  t.as('p1', { type: 'zero.agree' });
+  t.as('p1', { type: 'claim', organismId: 'wall', name: 'Bresk' });
+  t.as('p2', { type: 'join', name: 'Sam' }); // joined, not yet agreed or seated
+  t.host({ type: 'award', codon: 5, why: 'test' });
+  const old = t.s;
+  assert.equal(old.organisms.wall.codon, 5);
+
+  // Seated: same people, same terms, same organism and name, fresh sheet.
+  const kept = restart(old, scenario, { keepPlayers: true });
+  assert.equal(kept.players.p1.name, 'Roly');
+  assert.equal(kept.players.p1.organismId, 'wall');
+  assert.equal(kept.players.p1.agreed, true);
+  assert.equal(kept.players.p2.agreed, false, 'nobody is agreed on their behalf');
+  assert.equal(kept.organisms.wall.playerId, 'p1');
+  assert.equal(kept.organisms.wall.name, 'Bresk');
+  assert.equal(kept.organisms.wall.codon, 0, 'the sheet is fresh');
+  assert.deepEqual(kept.zero.lines, ['Drowning']);
+  assert.equal(kept.zero.pauseWord, 'Slack Water');
+  assert.equal(kept.scene.siteId, scenario.sites[0].id);
+  assert.match(kept.log.at(-1).text, /A new game of The First Carve begins, with 2 at the table/);
+  assert.ok(!kept.log.some((l) => /Bresk/.test(l.text)), 'the old story is gone');
+  kept.zero.lines.push('changed'); // carried over as a copy, not shared with the old game
+  assert.deepEqual(old.zero.lines, ['Drowning']);
+
+  // Not seated: nobody, and session zero back to its defaults.
+  const clean = restart(old, scenario, { keepPlayers: false });
+  assert.deepEqual(clean.players, {});
+  assert.deepEqual(clean.zero.lines, []);
+  assert.ok(!clean.organisms.wall.playerId);
+
+  // Another Vector: people stay, organisms do not carry across.
+  const other = { ...scenario, id: 'another-vector', title: 'Another Vector' };
+  const moved = restart(old, other, { keepPlayers: true });
+  assert.equal(moved.players.p1.name, 'Roly');
+  assert.equal(moved.players.p1.organismId, null);
+  assert.equal(moved.scenarioId, 'another-vector');
 });

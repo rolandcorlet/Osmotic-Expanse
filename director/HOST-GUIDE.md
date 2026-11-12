@@ -16,7 +16,9 @@ Keep this beside you. Nothing here needs the code open.
    * Leave the mode on **Co-pilot** for the first session.
 5. **Run tab, Session zero card:** set the pause word (default *SLACK WATER*) and a one-line
    tone note, for example *body horror is in, cruelty to animals is out*.
-6. Starting a brand-new game over an old one: `node server.js --new`.
+6. Starting over: **New game…** on the clocks card. Choose the Vector, and whether the players
+   stay seated (same people, same organisms, fresh sheets, same session-zero terms). Undo brings
+   the old game back if you press it by mistake.
 
 ## As they sit down
 
@@ -72,7 +74,29 @@ you.
   Cohesion; breaking marks two Lysis boxes and a scar. Play the consequence, do not scold.
 * **Move a clock** by hand with the + and − buttons.
 
+## The Memory tab
+
+Everything said at the table is kept. The **Memory** tab shows:
+
+* **The chronicle:** a paragraph for each site the Cohort left. The Director reads the latest
+  three every turn, so if one is wrong, press its **x** and it will not be used.
+* **People, places and threads:** who the table has met, and what is known about each. A
+  "players not told" chip marks facts the Director knows that the players do not. A chip saying
+  **made up by the Director** means it invented that person: it is canon now. If you would
+  rather it were not, press **x** to forget it.
+* **Search:** ask it anything, like *what did the clerk say about Neth*, before you answer a
+  player yourself.
+
+**Callbacks / Page only:** with Callbacks, the Director may bring back people from earlier sites
+in conversation. Page only keeps it to what each site prints.
+
 ## At the end
 
+Press **End the night** on the Memory tab first. It writes the night's chapter, so next time the
+Director remembers where you left off.
+
 The session saves itself after every change. Close the window. Next time, start the same way
-and it carries on where you left off.
+and it carries on where you left off — in whichever Vector you were playing.
+
+To play the same Vector again with the same group, **New game…** with *Keep the players seated*
+ticked: everyone is straight back in, on fresh sheets, without rejoining.

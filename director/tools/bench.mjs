@@ -10,13 +10,16 @@
 //
 // The gate for a model: no Engine refusals, no leak flags, and every reply ends
 // on exactly one question. Nothing here touches a saved session.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { newSession, apply } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { directorTurn } from '../brain/director.js';
+import { createMemory } from '../brain/memory.js';
+import { plainChapter } from '../brain/chronicle.js';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -65,24 +68,42 @@ const SCRIPT2 = [
   ['p3', 'What is this cut worth if I sell it outside?'],
   ['p1', 'We carry the cut to the Tally Post and ask for it to be weighed and stamped.'],
   ['p4', 'I leave the nest alone. Is anything stopping us going on?'],
+  ['p1', 'Remind me: who witnessed my oath back at the gate, and what exactly did I promise?'],
   ['p2', 'We take the lane onward to the Render Hall.'],
 ];
 const SEATS = [['p1', 'Roly', 'wall', 'Bresk of the Sixth Choir'], ['p2', 'Sam', 'eyes', 'Brost of the Third Current'], ['p3', 'Ana', 'ledger', 'Ilm of the Open Hand'], ['p4', 'Kit', 'rider', 'Vash of the Long Reach']];
 
 async function once(n) {
   let s = newSession(scenario);
-  const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
+  // The table's memory, as the host keeps it: every change observed, a chapter on leaving a site.
+  const mem = createMemory({ dir: mkdtempSync(join(tmpdir(), 'oxd-bench-')) });
+  mem.observe(null, s);
+  const moved = (prev) => {
+    mem.observe(prev, s);
+    if (prev.scene.siteId !== s.scene.siteId) {
+      const done = mem.chapters(s.gameId);
+      const lines = mem.linesSince(s.gameId, done.length ? done[done.length - 1].toSeq : 0);
+      const name = scenario.sites.find((x) => x.id === prev.scene.siteId).name;
+      const text = plainChapter({ siteName: name, lines });
+      if (text) mem.addChapter(s.gameId, { t: Date.now(), siteId: prev.scene.siteId, site: name, why: 'left', toSeq: Math.max(0, ...lines.map((l) => l.seq || 0)), text, by: 'engine' });
+    }
+  };
+  const memoryFor = () => ({ chapters: mem.chapters(s.gameId).slice(-3), search: (q, o = {}) => mem.search(s.gameId, q, { ...o, cast: s.cast || {} }) });
+  const act = (role, pid, a) => { const prev = s; s = apply(s, a, ctx(role, pid)); moved(prev); };
   for (const [pid, who, hand, name] of SEATS.slice(0, players)) {
     act('player', pid, { type: 'join', name: who });
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
-  const tally = { turns: 0, refusals: 0, leaks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0 };
+  const tally = { turns: 0, refusals: 0, leaks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
 
   async function director(reason) {
     const t0 = Date.now();
-    const r = await directorTurn({ state: s, scenario, bestiary, provider: makeProvider(), rng, now: Date.now(), reason });
+    const r = await directorTurn({ state: s, scenario, bestiary, provider: makeProvider(), rng, now: Date.now(), reason, memory: memoryFor() });
+    const prev = s;
     s = r.state;
+    moved(prev);
+    for (const c of r.calls) { if (c.name === 'recall') tally.recalls += 1; if (c.name === 'remember') tally.remembers += 1; }
     tally.turns += 1;
     tally.ms += Date.now() - t0;
     tally.refusals += r.refusals;
@@ -152,6 +173,8 @@ async function once(n) {
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Style flags (questions, length, formatting): ${tally.style}`);
   console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled}`);
+  const cards = Object.values(s.cast || {});
+  console.log(`  Memory: ${tally.recalls} recall, ${tally.remembers} remember; ${cards.length} on record${cards.length ? ` (${cards.map((c) => `${c.name} [${c.origin}]`).join(', ')})` : ''}; ${mem.chapters(s.gameId).length} chapter(s)`);
   const g = (x) => ['C', 'G', 'P', 'T'].filter((k) => x && x[k]).map((k) => `${x[k]} ${k}`).join(', ') || 'none';
   for (const o of Object.values(s.organisms).filter((x) => x.playerId)) console.log(`  ${o.name}: MI ${o.mi}/${o.miMax}, Stress ${o.stress}, Codon ${o.codon}, ${o.substrate} S, cut unstamped ${g(o.specimens)}, stamped ${g(o.stamped)}, Bulk ${o.bulk || 0}${o.oath != null ? `, Oath boxes ${o.oath}/${o.oathMax}` : ''}`);
   return tally;

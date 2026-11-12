@@ -9,7 +9,10 @@ import { directorTurn } from './director.js';
 
 const MODES = ['off', 'copilot', 'auto'];
 
-export function createDirector({ getState, commit, scenario, bestiary, saveDir, rng, onChange, makeProvider = build }) {
+import { CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, plainChapter } from './chronicle.js';
+
+export function createDirector({ getState, commit, act = null, memory = null, scenario, getScenario, bestiary, saveDir, rng, onChange, makeProvider = build }) {
+  const scenarioNow = getScenario || (() => scenario); // the Vector can change when the host starts a new game
   const file = join(saveDir, 'director.json');
   // Each provider keeps its own key, address and chosen model, so switching loses nothing.
   const cfg = { mode: 'off', provider: 'gemini', keys: {}, urls: {}, models: {}, numCtx: 16384, thinking: 'default' };
@@ -72,7 +75,7 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
       let result = null;
       for (let tries = 0; tries < 3; tries++) {
         const base = getState();
-        result = await directorTurn({ state: base, scenario, bestiary, provider: provider(), rng, now: Date.now(), reason, hostNote });
+        result = await directorTurn({ state: base, scenario: scenarioNow(), bestiary, memory: memoryFor(base), provider: provider(), rng, now: Date.now(), reason, hostNote });
         result.baseSeq = base.seq;
         if (getState().seq === base.seq) break; // the table did not move while it was thinking
         result = null;
@@ -95,12 +98,71 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
       fail(e);
     }
     onChange();
+    pump();
     if (again && st.phase !== 'proposal') {
       const a = again;
       again = null;
       schedule(a.reason, a.hostNote);
     }
     again = null;
+  }
+
+  // ---- the table's memory
+  // What a turn may see of the game's history: the latest chapters and a search.
+  function memoryFor(state) {
+    if (!memory || !state.gameId) return null;
+    return {
+      chapters: memory.chapters(state.gameId).slice(-3),
+      search: (q, opts = {}) => memory.search(state.gameId, q, { ...opts, cast: state.cast || {} }),
+    };
+  }
+
+  // Chapters are written one at a time, never while the Director is mid-turn (a local server
+  // answers one request at a time, and the table's turn comes first).
+  const chapterQueue = [];
+  let writing = false;
+  async function pump() {
+    if (writing || st.phase === 'thinking' || !chapterQueue.length) return;
+    writing = true;
+    const job = chapterQueue.shift();
+    try { await writeChapter(job); } catch (e) { console.log(`The chronicle could not be written: ${e.message}`); }
+    writing = false;
+    onChange();
+    pump();
+  }
+
+  async function writeChapter({ siteId, why }) {
+    if (!memory) return;
+    const state = getState();
+    const gameId = state.gameId;
+    if (!gameId) return;
+    const done = memory.chapters(gameId);
+    const from = done.length ? done[done.length - 1].toSeq || 0 : 0;
+    const lines = memory.linesSince(gameId, from);
+    if (!lines.some((l) => l.kind === 'say' || l.kind === 'narration')) return; // nothing was said: no chapter
+    const sc = scenarioNow();
+    const site = (sc.sites || []).find((x) => x.id === siteId) || {};
+    const siteName = site.name || siteId || 'the Vector';
+    const toSeq = Math.max(...lines.map((l) => l.seq || 0));
+    let text = '';
+    let cast = [];
+    let by = 'engine';
+    if (cfg.mode !== 'off' && ready()) {
+      try {
+        const known = Object.values(state.cast || {}).map((c) => c.name);
+        const chat = provider().start({ system: CHRONICLE_INSTRUCTIONS, tools: [] });
+        const reply = await chat.send(chronicleRequest({ siteName, lines, known }));
+        ({ chapter: text, cast } = parseChronicle(reply.text));
+        if (reply.usage) { st.totals.in += reply.usage.in || 0; st.totals.out += reply.usage.out || 0; }
+        by = 'ai';
+      } catch (e) { text = ''; }
+    }
+    if (!text) { text = plainChapter({ siteName, lines }); by = 'engine'; }
+    if (!text) return;
+    memory.addChapter(gameId, { t: Date.now(), siteId, site: siteName, why, fromSeq: from, toSeq, text, by });
+    if (cast.length && act && getState().gameId === gameId) {
+      try { act({ type: 'cast.remember', entries: cast.map((c) => ({ ...c, origin: 'table' })) }); } catch (e) { /* the chapter stands without them */ }
+    }
   }
 
   const summary = (c) => ({ name: c.name, args: c.args, refused: c.result && c.result.refused ? c.result.refused : '', result: c.result && !c.result.refused ? c.result : null });
@@ -131,6 +193,24 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
     },
     async op(body) {
       switch (body.op) {
+        // The host ends the night: close a chapter for where the Cohort is now.
+        case 'chapter': {
+          const s0 = getState();
+          chapterQueue.push({ siteId: s0.scene.siteId, why: 'night' });
+          pump();
+          break;
+        }
+        // The host searches the game's history from the Memory tab.
+        case 'recall': {
+          const s0 = getState();
+          const q = String(body.query || '').slice(0, 200);
+          st.recall = memory && s0.gameId && q.trim() ? { q, ...memory.search(s0.gameId, q, { cast: s0.cast || {}, limit: 12 }) } : null;
+          break;
+        }
+        case 'chapter.drop': {
+          if (memory && body.id) memory.dropChapter(getState().gameId, String(body.id));
+          break;
+        }
         case 'config': {
           if (body.mode && MODES.includes(body.mode)) cfg.mode = body.mode;
           let reload = false;
@@ -234,8 +314,17 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
         url: urlOf(), numCtx: cfg.numCtx, thinking: cfg.thinking, models: st.modelsBy[cfg.provider] || [], test: st.test,
         phase: st.phase, error: st.error, thinking: st.phase === 'thinking', last: st.last, totals: st.totals,
         proposal: p ? { id: p.id, narration: p.narration, calls: p.calls, flags: p.flags, held: p.held, stale: getState().seq !== p.baseSeq } : null,
+        chronicle: memory && getState().gameId ? memory.chapters(getState().gameId).slice(-30).map(({ id, t, site, why, text, by }) => ({ id, t, site, why, text, by })) : [],
+        kept: memory && getState().gameId ? memory.size(getState().gameId) : null,
+        writing: writing || chapterQueue.length > 0,
+        recall: st.recall || null,
       };
     },
+    // A new game: whatever the Director was holding belongs to the old one.
+    busy() { return st.phase === 'thinking'; },
+    // Close a chapter of the chronicle: the Cohort left a site, or the host ended the night.
+    chapter(job) { chapterQueue.push(job); pump(); },
+    reset() { st.proposal = null; st.recall = null; again = null; st.error = ''; if (st.phase !== 'thinking') st.phase = 'idle'; onChange(); },
     init() { if (usable() && (info().group === 'cloud' || cfg.urls[cfg.provider] || cfg.models[cfg.provider])) refreshModels().then(onChange).catch(() => {}); },
   };
 }

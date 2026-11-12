@@ -19,9 +19,10 @@ import { dirname, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 
-import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
+import { newSession, newGameId, restart, apply, viewFor, RuleError } from './engine/ledger.js';
+import { createMemory } from './brain/memory.js';
 import { systemRng } from './engine/dice.js';
-import { scenario, publicScenario } from './data/first-carve.js';
+import { vectorById, vectorList, DEFAULT_VECTOR } from './data/vectors.js';
 import { createDirector } from './brain/manager.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,8 @@ const PORT = Number(opt('--port', process.env.PORT || 8787));
 const SAVE_DIR = opt('--saves', join(here, 'saves'));
 const SAVE = join(SAVE_DIR, 'session.json');
 const bestiary = JSON.parse(readFileSync(join(here, 'data', 'bestiary.json'), 'utf8'));
+// Everything said in each game, kept on disk and searched (brain/memory.js).
+const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
 const rng = systemRng();
 
 // ---------------------------------------------------------------- the session
@@ -41,12 +44,18 @@ let tableCode = opt('--table-code', '').toUpperCase(); // asked of anyone joinin
 let publicUrl = opt('--public-url', '').replace(/\/+$/, '');
 let state = null;
 const history = []; // earlier Ledgers, for the host's Undo
+// The Vector being played. A saved session brings its own; --vector chooses one for a fresh start.
+let vector = vectorById(opt('--vector', DEFAULT_VECTOR)) || vectorById(DEFAULT_VECTOR);
+let scenario = vector.scenario;
+function useVector(v) { vector = v; scenario = v.scenario; }
 
 function load() {
   if (!flag('--new') && existsSync(SAVE)) {
     try {
       const saved = JSON.parse(readFileSync(SAVE, 'utf8'));
-      if (saved.state && saved.state.scenarioId === scenario.id) {
+      const was = saved.state && vectorById(saved.state.scenarioId);
+      if (was) {
+        useVector(was);
         state = saved.state;
         hostKey = hostKey || saved.hostKey || '';
         tableCode = tableCode || saved.tableCode || '';
@@ -56,6 +65,10 @@ function load() {
     }
   }
   if (!state) state = newSession(scenario);
+  if (!state.gameId) state.gameId = newGameId(); // a game saved before games had their own history
+  if (!state.cast) state.cast = {};
+  if (!state.improv) state.improv = 'callbacks';
+  memory.observe(null, state);
   if (!hostKey) hostKey = randomBytes(3).toString('hex').toUpperCase();
   if (!tableCode) tableCode = Array.from(randomBytes(4), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
   save();
@@ -165,29 +178,52 @@ function act(role, pid, action) {
     if (role !== 'host') throw new RuleError('Only the host can undo.');
     if (!history.length) throw new RuleError('Nothing to undo.');
     const seq = state.seq;
+    const was = state;
     state = history.pop();
+    const undoneAfter = state.seq;
     state.seq = seq + 1; // screens must see a newer Ledger, never an older one
+    useVector(vectorById(state.scenarioId) || vector); // undoing a new game brings its Vector back
+    changed(was, state, { undoneAfter });
     return;
   }
   if (action.type === 'session.new') {
-    if (role !== 'host') throw new RuleError('Only the host can start a new session.');
+    if (role !== 'host') throw new RuleError('Only the host can start a new game.');
+    const next = action.vectorId ? vectorById(action.vectorId) : vector;
+    if (!next) throw new RuleError(`There is no Vector called "${action.vectorId}".`);
+    if (director && director.busy && director.busy()) throw new RuleError('The Director is in the middle of a turn. Wait for it, or set it to Off, then start the new game.');
     history.push(state);
     const seq = state.seq;
-    state = newSession(scenario);
+    const old = state;
+    useVector(next);
+    state = restart(old, scenario, { keepPlayers: !!action.keepPlayers });
     state.seq = seq + 1;
+    if (director) director.reset();
+    changed(old, state);
     return;
   }
   const next = apply(state, action, { role, pid, rng, now: Date.now(), scenario, bestiary });
   history.push(state);
   if (history.length > 60) history.shift();
+  const prev = state;
   state = next;
+  changed(prev, state);
+}
+
+// Every change to the Ledger goes into the game's history. Leaving a site closes a chapter.
+function changed(prev, next, opts = {}) {
+  memory.observe(prev, next, opts);
+  if (opts.undoneAfter == null && prev && director && prev.gameId === next.gameId && prev.scene.siteId !== next.scene.siteId) {
+    director.chapter({ siteId: prev.scene.siteId, why: 'left' });
+  }
 }
 
 // The Director's finished turn becomes the live Ledger.
 function commit(next) {
   history.push(state);
   if (history.length > 60) history.shift();
+  const prev = state;
   state = next.seq > state.seq ? next : { ...next, seq: state.seq + 1 };
+  changed(prev, state);
   save();
   broadcast();
 }
@@ -227,9 +263,9 @@ const server = http.createServer(async (req, res) => {
           id: b.id, name: b.name, order: b.order, cls: b.cls, tier: b.tier, statLine: b.statLine, traits: b.traits,
           special: b.special, weakness: b.weakness, harvest: b.harvest, tactics: b.tactics, segments: b.segments,
         }));
-        json(res, 200, { ...scenario, bestiary: blocks });
+        json(res, 200, { ...scenario, bestiary: blocks, vectors: vectorList() });
       } else {
-        json(res, 200, publicScenario());
+        json(res, 200, vector.publicScenario(scenario));
       }
       return;
     }
@@ -318,7 +354,7 @@ function startTunnel() {
 }
 
 load();
-director = createDirector({ getState: () => state, commit, scenario, bestiary, saveDir: SAVE_DIR, rng, onChange: broadcast });
+director = createDirector({ getState: () => state, commit, act: (a) => { act('host', null, a); save(); broadcast(); }, memory, getScenario: () => scenario, bestiary, saveDir: SAVE_DIR, rng, onChange: broadcast });
 director.init();
 server.listen(PORT, '0.0.0.0', () => {
   const ips = addresses();

@@ -204,6 +204,54 @@ with sync_playwright() as p:
     table.click('#head .tab:has-text("Rolls")')
     ok = measure(table, "table Rolls") and ok
 
+    # --- the table's memory: a narrated line, a card, a search, and the end of the night
+    host.set_viewport_size({"width": 1536, "height": 864})
+    host.click('#head .tab:has-text("Director")')
+    host.fill('[data-k="dir.narrate"]', "The drone clerk Nine-Folds files the oath and says Neth still owes the post.")
+    host.press('[data-k="dir.narrate"]', "Enter")
+    time.sleep(0.4)
+    host.click('#head .tab:has-text("Memory")')
+    host.wait_for_selector("text=The chronicle")
+    host.fill('[data-k="m.name"]', "Nine-Folds")
+    host.fill('[data-k="m.fact"]', "Filed the Cohort's oath at the Toll-Vent")
+    host.click('[data-act="m.add"]')
+    host.wait_for_selector('.cre:has-text("Nine-Folds")')
+    host.fill('[data-k="m.q"]', "what does Neth owe")
+    host.click('[data-act="m.search"]')
+    host.wait_for_selector('.receipt:has-text("Neth still owes")')
+    host.click('[data-act="m.night"]')
+    host.wait_for_selector('.note:has-text("end of a night")')
+    print("memory: card kept, search found the line, chapter written:",
+          host.locator('.cre:has-text("Nine-Folds")').count() == 1,
+          host.locator('.receipt:has-text("Neth still owes")').count() > 0,
+          host.locator('.note:has-text("end of a night")').count() == 1)
+    for w, h in [(1366, 768), (1536, 864), (1920, 1080)]:
+        host.set_viewport_size({"width": w, "height": h})
+        time.sleep(0.3)
+        ok = measure(host, f"host Memory {w}x{h}") and ok
+    shot(host, "host-memory")
+
+    # --- a new game, keeping the table seated
+    host.set_viewport_size({"width": 1366, "height": 768})
+    host.click('#head .tab:has-text("Run")')
+    host.click('button:has-text("New game")')
+    host.wait_for_selector('.card:has-text("Keep the players seated")')
+    ok = measure(host, "host New game panel 1366x768") and ok
+    shot(host, "host-new-game")
+    host.click('button:has-text("Start the new game")')
+    host.wait_for_selector("text=Clocks, rest and rewards")
+    p1.wait_for_selector("text=Where you are")  # still seated: straight back into play, no rejoin
+    time.sleep(0.5)
+    fresh = host.locator('.card:has-text("Clocks, rest and rewards") .segs i.on').count() == 0
+    p1.click('#nav .tab:has-text("Sheet")')
+    named = p1.locator("text=Bresk of the Sixth Choir").count() > 0
+    p1.click('#nav .tab:has-text("Play")')
+    p1.wait_for_selector('[data-act="p.show"][data-what="scene"]')
+    print("new game: phone still in play:", p1.locator('[data-act="p.show"][data-what="scene"]').count() > 0,
+          "| organism and name kept:", named, "| clocks fresh:", fresh,
+          "| no session-zero gate:", p1.locator('button:has-text("I have read this")').count() == 0)
+    shot(p1, "phone-after-new-game")
+
     # the secrets firewall, checked on the wire
     leak = p1.evaluate("fetch('/api/scenario?role=player').then(r => r.text())")
     print("player scenario has Director notes:", ("BSP" in leak) or ("Weakness" in leak))

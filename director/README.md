@@ -29,7 +29,16 @@ Players must be on the same Wi-Fi or network as the host computer. The first tim
 may ask whether Node.js may accept connections: allow it on private networks.
 
 The session is saved after every change (`saves/session.json`) and carries on when you start
-again. `node server.js --new` starts fresh. `--port 9000` changes the port.
+again, in the Vector it was playing. To start over, press **New game…** on the host's clocks
+card: choose the Vector, and whether the players stay seated (same people and organisms on
+fresh sheets, and the same session-zero terms). Undo brings the old game back.
+
+From the command line: `node server.js --new` starts fresh, `--vector <id>` chooses the Vector
+for a fresh start, and `--port 9000` changes the port.
+
+**Adding a Vector.** Write its data file in the shape of `data/first-carve.js` (an exported
+`scenario` and `publicScenario`), then add one entry to `data/vectors.js`. It appears in the
+New game picker.
 
 ## Players outside your home network
 
@@ -123,6 +132,23 @@ and stamps it — and where the post's offer takes a share, the Engine takes it.
 reason. It stays in the scene, takes no turns, cannot strike, and no longer holds the Pulse War
 open. A player who strikes it brings it back. Players see it as "standing down".
 
+**The table's memory.** Everything said and done in a game is kept on the host computer, in
+`saves/games/<game>/`: a transcript of every line, and a chronicle with a paragraph for each
+site the Cohort leaves and each night you end. The Director is never sent all of it. Each turn
+it gets the last three chapters and the people, places and threads the table has met; when it
+needs more, it searches with `recall`. When a player asks what happened or who someone was, it
+searches only what the table was actually told, and answers from that or says the organism does
+not remember. Whenever it names someone, it writes them down with `remember`, marked as from the
+page, from play, or made up by the Director, so a made-up name becomes canon and stays
+consistent.
+
+By default the Director may bring people and threads back at any site, in conversation and
+scene-dressing (**Callbacks**). Fights still use only the creatures printed for the site. **Page
+only** keeps it to what each site prints. The **Memory** tab on the host console shows the
+chronicle and the cast, lets you search the whole game, add or remove a card or a chapter, and
+**End the night**. Ad-libbing new people and encounters is the planned next step: the cast
+already records what was improvised.
+
 **Testing a model.** `node tools/bench.mjs` plays a scripted Toll-Vent through the real model
 and counts Engine refusals, leak flags and style slips. A model passes the gate with no
 refusals and no leaks in three runs. `--runs 3` repeats it; `--model <id>` tries another model;
@@ -138,17 +164,20 @@ Players type what they do. The Director cannot hear the room yet; speech comes i
 | `engine/rules.js` | The Catalytic Engine as code: pools, the Threshold ladder, reading dice, Baseline, attacks, damage, soak, swarms, Stress, Pulse Points. Each rule cites its section. |
 | `engine/odds.js` | Exact odds for any pool against any Threshold, counted from every outcome. |
 | `engine/ledger.js` | The Ledger: the one shared record of a session. Only this file changes it. Player screens are sent a view with creature numbers and Director notes removed. |
+| `data/vectors.js` | Every Vector the table can play; the New game picker reads this list. |
 | `data/first-carve.js` | *The First Carve* as data: the Four Hands, the three Clocks, the five sites. Each site has a "where you are" card for everyone and Director notes for the host only. |
 | `data/bestiary.json` | All 68 blocks, read from the Lytic Bestiary by `tools/build-bestiary.mjs`. |
 | `brain/instructions.md` | The Director's standing instructions, in plain English. Edit them to change how it runs the table. |
 | `brain/director.js` | One Director turn: the briefing, the tool loop on a copy of the Ledger, and the checks on what it wrote. |
+| `brain/memory.js` | The table's memory: every game's transcript on disk, and the search over it. |
+| `brain/chronicle.js` | The chronicle: a chapter per site and per night, written by the model or plainly by the Engine. |
 | `brain/tools.js` | The Director's tools: checked doorways into the Ledger. |
 | `brain/providers.js` | Every brain behind one surface: eight online providers and four ways to reach a model on your own machine. |
 | `brain/openai.js`, `brain/ollama.js`, `brain/gemini.js` | The three shapes of connection the providers are built from. |
 | `brain/manager.js` | Settings, when it takes a turn, and the Co-pilot proposal. |
 | `server.js` | The host: serves the screens, pushes live updates, saves the session. |
 | `public/` | The screens. Every colour is a variable; the Colours tab edits them. |
-| `test/` | The Phase 1 gate, the Ledger tests and the Director tests. |
+| `test/` | The Phase 1 gate, the Ledger tests, the Director tests and the memory tests. |
 | `tools/bench.mjs` | The Phase 3 gate: a scripted session played through a real model. |
 
 ## Check it

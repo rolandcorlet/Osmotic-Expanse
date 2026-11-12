@@ -16,12 +16,18 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const key = (kind, id) => `${kind}:${id}`;
 
 // ---------------------------------------------------------------- new session
+export function newGameId() {
+  return `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 export function newSession(scenario) {
   const s = {
     v: 1,
     seq: 0,
     scenarioId: scenario.id,
     title: scenario.title,
+    // One game, from New game to New game. Its history is kept under saves/games/<gameId>.
+    gameId: newGameId(),
     scene: { siteId: scenario.sites[0].id },
     players: {},
     organisms: {},
@@ -35,10 +41,40 @@ export function newSession(scenario) {
     // Session zero: agreed before play. The pause word stops the scene at once.
     zero: { pauseWord: 'SLACK WATER', tone: '', lines: [], open: true },
     cohesion: 0, // the table's shared trust; an Oath kept pays one (CORE 11.4)
+    // The table's memory: people, factions, places and threads met in play, so the Director
+    // keeps them consistent and can bring them back. Host and Director only.
+    cast: {},
+    // How far the Director may go beyond the page: 'page' (nothing it was not given),
+    // 'callbacks' (people and threads from earlier may return; the default), and later
+    // 'adlib' (it may also invent people and encounters, written down as canon).
+    improv: 'callbacks',
     nextId: 1,
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
   for (const c of scenario.clocks) s.clocks[c.id] = { id: c.id, name: c.name, segments: c.segments, filled: 0, says: c.says };
+  return s;
+}
+
+// A new game. With keepPlayers the table stays seated: the same people and the same session-zero
+// terms, and, in the same Vector, the same organisms under the names they gave them, on fresh
+// sheets. A different Vector has different organisms, so everyone chooses again.
+export function restart(old, scenario, { keepPlayers = false } = {}) {
+  const s = newSession(scenario);
+  if (keepPlayers && old) {
+    const same = old.scenarioId === scenario.id;
+    s.zero = { ...s.zero, ...clone(old.zero || {}) };
+    for (const [pid, p] of Object.entries(old.players || {})) {
+      const oid = same && p.organismId && s.organisms[p.organismId] ? p.organismId : null;
+      s.players[pid] = { name: p.name, organismId: oid, agreed: !!p.agreed };
+      if (oid) {
+        const was = (old.organisms || {})[oid] || {};
+        s.organisms[oid].playerId = pid;
+        if (was.named) { s.organisms[oid].name = was.name; s.organisms[oid].named = true; }
+      }
+    }
+  }
+  const seated = Object.keys(s.players).length;
+  say(s, { now: 0 }, `A new game of ${scenario.title} begins${seated ? `, with ${seated} at the table` : ''}.`, 'scene');
   return s;
 }
 
@@ -131,6 +167,19 @@ export function apply(state, action, ctx) {
 }
 
 // ------------------------------------------------------------------- helpers
+const CAST_KINDS = ['person', 'faction', 'place', 'thread'];
+const MAX_CAST = 400;
+const MAX_FACTS = 16;
+function castKey(name) { return 'k-' + String(name).toLowerCase().replace(/^(the|a|an) /, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48); }
+// A name the Vector prints is from the page; otherwise the Director made it up, or the host or
+// the chronicle wrote down something that came up in play.
+function castOrigin(name, ctx, asked) {
+  const n = String(name).toLowerCase().replace(/^(the|a|an) /, '');
+  const text = JSON.stringify((ctx.scenario || {}).sites || []).toLowerCase();
+  if (n.length >= 3 && text.includes(n)) return 'page';
+  if (['page', 'table', 'improvised'].includes(asked)) return asked;
+  return ctx.ai ? 'improvised' : 'table';
+}
 function say(s, ctx, text, kind = 'info') {
   s.log.push({ seq: s.seq, t: ctx.now || 0, text, kind });
 }
@@ -783,7 +832,7 @@ const HANDLERS = {
         o = p.organismId ? s.organisms[p.organismId] : null;
         if (!o) throw new RuleError('Choose your organism first.');
       }
-      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, kind: 'say', who: o ? o.name : 'The host', orgId: o ? o.id : null, text });
+      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'say', who: o ? o.name : 'The host', orgId: o ? o.id : null, text });
     },
   },
   narrate: {
@@ -791,7 +840,7 @@ const HANDLERS = {
     run(s, a, ctx) {
       const text = String(a.text || '').trim().slice(0, 2400);
       if (!text) throw new RuleError('There is nothing to narrate.');
-      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text });
+      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text });
     },
   },
 
@@ -1294,6 +1343,53 @@ const HANDLERS = {
       }
     },
   },
+  // The table's memory. One card per person, faction, place or thread, found again by name.
+  // origin says where it came from: the page, the table (it came up in play), or improvised.
+  'cast.remember': {
+    host: true,
+    run(s, a, ctx) {
+      s.cast = s.cast || {};
+      const list = Array.isArray(a.entries) ? a.entries : [a];
+      let any = false;
+      for (const e of list.slice(0, 20)) {
+        const name = String(e.name || '').trim().slice(0, 60);
+        if (!name) continue;
+        const kind = CAST_KINDS.includes(e.kind) ? e.kind : 'person';
+        const key = castKey(name);
+        let c = s.cast[key];
+        if (!c) {
+          if (Object.keys(s.cast).length >= MAX_CAST) throw new RuleError(`The table's memory holds ${MAX_CAST} cards. Ask the host to clear some first.`);
+          c = s.cast[key] = { id: key, name, kind, siteId: s.scene.siteId, origin: castOrigin(name, ctx, e.origin), firstSeq: s.seq, lastSeq: s.seq, facts: [] };
+        }
+        c.lastSeq = s.seq;
+        if (e.kind && CAST_KINDS.includes(e.kind)) c.kind = e.kind;
+        const fact = String(e.fact || '').trim().slice(0, 240);
+        if (fact && !c.facts.some((f) => f.text.toLowerCase() === fact.toLowerCase())) {
+          c.facts.push({ text: fact, seen: e.seen !== false, seq: s.seq, siteId: s.scene.siteId });
+          if (c.facts.length > MAX_FACTS) c.facts = c.facts.slice(-MAX_FACTS);
+        }
+        any = true;
+      }
+      if (!any) throw new RuleError('Give a name to remember.');
+    },
+  },
+  'cast.forget': {
+    host: true,
+    run(s, a) {
+      const c = (s.cast || {})[a.id];
+      if (!c) throw new RuleError('That card is not in the table\'s memory.');
+      if (a.fact != null) c.facts = c.facts.filter((f, i) => i !== Number(a.fact));
+      else delete s.cast[a.id];
+    },
+  },
+  'improv.set': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('Only the host decides how far the Director may go beyond the page.');
+      if (!['page', 'callbacks'].includes(a.improv)) throw new RuleError('Choose "page" or "callbacks". Ad-libbing is not built yet.');
+      s.improv = a.improv;
+    },
+  },
   // A creature yields, flees, or was never part of the fight. It takes no more turns and no
   // longer holds the Pulse War open. A player who strikes it brings it back.
   'creature.standDown': {
@@ -1641,6 +1737,7 @@ export function viewFor(state, role, pid) {
   s.requests = s.requests.filter((q) => !(q.actor.kind === 'cre' && q.actor.id && !pub[q.actor.id]));
   for (const q of s.requests) { delete q.bd; }
   s.log = s.log.filter((l) => l.kind !== 'note-host');
+  delete s.cast; // the Director's memory, which may hold what the players have not been told
   s.me = pid && s.players[pid] ? { pid, ...s.players[pid] } : null;
   return s;
 }

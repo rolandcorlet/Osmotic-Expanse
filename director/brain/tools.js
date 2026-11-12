@@ -320,6 +320,28 @@ export const TOOLS = [
     },
   },
   {
+    name: 'recall',
+    description: 'Search everything said and done in this game, the chronicle of earlier sites and nights, and the people, places and threads the table has met. Use it before you bring someone back, and whenever a player asks what happened, what someone said, or who someone is. Set for_players true when you are answering a player: then only what the table was actually told comes back. Answer only from what it returns; if nothing comes back, the organism does not remember it clearly. Never invent a past.',
+    parameters: obj({ query: S('A few words: names, places, things. For example "drone clerk claim" or "who witnessed Bresk oath".'), for_players: B('True when answering a player\'s question: only what the table was told.') }, ['query']),
+    run(a, T) {
+      if (!T.memory) return { hits: [], note: 'This game has no history yet.' };
+      const forPlayers = a.for_players === true || a.for_players === 'true';
+      const r = T.memory.search(String(a.query || ''), { forPlayers });
+      return r.hits.length ? r : { hits: [], note: 'Nothing on record matches. Do not invent it: say the organism does not remember it clearly, or ask what they mean.' };
+    },
+  },
+  {
+    name: 'remember',
+    description: 'Write a person, faction, place or thread into the table\'s memory so it stays consistent for the rest of the game: when you give someone a name, a player names something, or a fact about someone is settled at the table (a debt, a grudge, a promise, what they want). One short fact in plain words. Calling it again with the same name adds a fact to the same card. Set seen false only for a fact the players have not been told.',
+    parameters: obj({ name: S('The name the table uses, for example "the drone clerk" or "Reader-Behind-Nine-Urn".'), kind: S('What it is.', { enum: ['person', 'faction', 'place', 'thread'] }), fact: S('One short fact worth remembering.'), seen: B('False only when the players have not been told this.') }, ['name', 'fact']),
+    run(a, T) {
+      const no = T.do({ type: 'cast.remember', name: a.name, kind: a.kind, fact: a.fact, seen: !(a.seen === false || a.seen === 'false') });
+      if (no) return { refused: no };
+      const k = Object.values(T.state.cast || {}).find((c) => c.name.toLowerCase() === String(a.name).trim().toLowerCase());
+      return { remembered: true, card: k ? { name: k.name, origin: k.origin, facts: k.facts.length } : null };
+    },
+  },
+  {
     name: 'settle_oath',
     description: 'Close an Oath the briefing lists as OPEN: kept when the organism did the thing it promised, broken when it walked away from it or the moment to keep it has passed. The Engine writes the price: keeping pays the table a Cohesion, breaking marks two Lysis Countdown boxes and a scar, and the witness drops a rung. Settle before the Cohort leaves the site where the Oath was sworn. Never state Cohesion, Lysis boxes or a scar yourself: this tool returns them. Oath-breaking is a plot, not a punishment: narrate what it costs in the fiction, do not scold the player.',
     parameters: obj({ organism: S('Organism id.'), kept: B('True when the promise was met, false when it was broken.'), oath: S('The Oath id from the briefing. Leave out when only one is open.'), why: S('One short line on what met or broke it.') }, ['organism', 'kept']),
@@ -360,12 +382,13 @@ export const TOOLS = [
 ];
 
 // ---- running a tool against a sandbox copy of the Ledger -------------------------
-export function toolbox({ state, scenario, bestiary, rng, now }) {
+export function toolbox({ state, scenario, bestiary, rng, now, memory = null }) {
   // The Director acts as the host, but the Engine must know it is the Director (ai: true).
   const ctx = { role: 'host', pid: null, rng, now, scenario, bestiary, ai: true };
   const T = {
     state,
     scenario,
+    memory,
     refusals: 0,
     do(action) {
       try {

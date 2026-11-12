@@ -36,7 +36,7 @@ let codeBad = false;
 const TABS = {
   player: [['play', 'Play'], ['sheet', 'Sheet'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['memory', 'Memory'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -46,6 +46,8 @@ const ui = {
   claim: { hand: null, name: '' },
   oath: { text: '' },
   zero: { line: '', pauseWord: '', tone: '' },
+  newGame: { open: false, vectorId: '', keep: true }, // host: the New game panel
+  mem: { q: '', name: '', kind: 'person', fact: '' }, // host: the Memory tab
   show: { scene: false, quick: false, harvest: false, zero: false }, // player page: panels opened with the buttons at the top
   own: null,
   seenReq: {},
@@ -157,11 +159,25 @@ async function sendDirector(body) {
   }
 }
 
+// The host started a new game in another Vector: this screen's scenario is out of date.
+let reloading = false;
+async function reloadScenario() {
+  if (reloading) return;
+  reloading = true;
+  try {
+    const res = await fetch(`/api/scenario?${auth()}`);
+    if (res.ok) sc = await res.json();
+  } catch (e) { /* the next update tries again */ }
+  reloading = false;
+  render();
+}
+
 function connect() {
   const es = new EventSource(`/api/events?${auth()}`);
   es.addEventListener('state', (ev) => {
     state = JSON.parse(ev.data);
     online = true;
+    if (sc && state.scenarioId && state.scenarioId !== sc.id) { reloadScenario(); return; }
     const last = lastRoll();
     if (last && last.id !== ui.lastRollId) {
       if (ui.lastRollId !== null) {
@@ -811,6 +827,7 @@ function hostHtml() {
   if (ui.tab === 'sheets') return `<div class="sheets">${Object.values(state.organisms).map((o) => sheetCard(o, { edit: true })).join('')}</div>`;
   if (ui.tab === 'bestiary') return bestiaryHtml();
   if (ui.tab === 'director') return directorHtml();
+  if (ui.tab === 'memory') return memoryHtml();
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}</div>
     <div class="col">${hostAskCard()}${hostWaitingCard()}</div>
@@ -960,7 +977,28 @@ function hostFightCard() {
     <div class="scroll" data-scroll="hfight" style="display:flex;flex-direction:column;gap:8px">${here.map(hostCreature).join('') || '<div class="empty">No creatures here. Bring in this site\'s creatures from the Scene card, or add any block from the Bestiary tab.</div>'}</div></section>`;
 }
 
+// A new game: choose the Vector, and whether the table stays seated. It takes the clocks
+// card's place while it is open, so the Run tab keeps its size.
+function newGameCard() {
+  const N = ui.newGame;
+  const vs = sc.vectors || [{ id: sc.id, title: sc.title, blurb: '' }];
+  const pick = vs.find((v) => v.id === (N.vectorId || state.scenarioId)) || vs[0];
+  const same = pick.id === state.scenarioId;
+  const seated = Object.values(state.players || {});
+  const keepNote = !seated.length ? 'Nobody is at the table yet.'
+    : same ? `${seated.length} stay${seated.length === 1 ? 's' : ''} seated, with the same organisms on fresh sheets, and the session-zero terms carry over.`
+      : `${seated.length} stay${seated.length === 1 ? 's' : ''} at the table and the session-zero terms carry over. A different Vector has different organisms, so everyone chooses again.`;
+  return `<section class="card"><h3>New game<span class="right"><button class="btn sm" data-act="h.new.cancel">Cancel</button></span></h3>
+    <label class="fld"><span class="fl">Vector</span><select data-k="ng.v" data-bind="newGame.vectorId">${vs.map((v) => `<option value="${esc(v.id)}" ${v.id === pick.id ? 'selected' : ''}>${esc(v.title)}${v.id === state.scenarioId ? ' (playing now)' : ''}</option>`).join('')}</select></label>
+    ${pick.blurb ? `<p class="small dim">${esc(pick.blurb)}</p>` : ''}
+    <label class="chip${N.keep ? ' on' : ''}"><input type="checkbox" data-bind="newGame.keep" ${N.keep ? 'checked' : ''}> Keep the players seated</label>
+    <p class="small dim">${N.keep ? esc(keepNote) : 'Everyone joins again from the start, through session zero.'}</p>
+    <div class="row"><span class="small dim grow">Clocks, sheets, creatures, rolls and the story start fresh. Undo brings this game back.</span><button class="btn danger" data-act="h.new.go">Start the new game</button></div>
+  </section>`;
+}
+
 function hostToolsCard() {
+  if (ui.newGame.open) return newGameCard();
   const A = ui.host.award;
   const clocks = Object.values(state.clocks).map((c) => `<div class="row"><b style="width:74px;font-size:13px">${esc(c.name)}</b><div class="segs grow">${Array.from({ length: c.segments }, (_, i) => `<i class="${i < c.filled ? 'on' : ''}"></i>`).join('')}</div><span class="small dim">${c.filled}/${c.segments}</span>
     <button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="-1">−</button><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="1">+</button></div>`).join('');
@@ -969,7 +1007,7 @@ function hostToolsCard() {
     <div class="row"><input type="number" style="width:86px" data-k="aw.c" data-bind="host.award.codon" value="${esc(A.codon)}" placeholder="Codon"><input type="number" style="width:86px" data-k="aw.s" data-bind="host.award.substrate" value="${esc(A.substrate)}" placeholder="S">
       <input type="text" class="grow" data-k="aw.w" data-bind="host.award.why" value="${esc(A.why)}" placeholder="What for"><button class="btn sm" data-act="h.award">Award each</button></div>
     ${info && info.online ? `<div class="row"><span class="small dim">Outside link</span><span class="small grow" style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</span><button class="btn sm" data-act="link.copy" data-v="${esc(info.online)}">Copy</button></div>` : ''}
-    <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval. In this Vector it costs a CARCASS segment.">Reconstitution (CARCASS +1)</button><button class="btn sm danger" data-act="h.new">New session</button></div>
+    <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval. In this Vector it costs a CARCASS segment.">Reconstitution (CARCASS +1)</button><button class="btn sm danger" data-act="h.new">New game…</button></div>
   </section>`;
 }
 
@@ -1027,6 +1065,38 @@ function directorHtml() {
       ${d.totals && d.totals.turns ? `<div class="small faint">This session: ${d.totals.turns} turns, ${d.totals.in} tokens in, ${d.totals.out} tokens out.</div>` : ''}
     </div></section>`;
   return `<div class="lay-two"><div style="display:flex;flex-direction:column;gap:12px;min-height:0">${proposal}${story}</div>${settings}</div>`;
+}
+
+// The table's memory: the chronicle of what happened, and the people, places and threads met.
+function memoryHtml() {
+  const d = state.director || {};
+  const M = ui.mem;
+  const chapters = (d.chronicle || []).slice().reverse();
+  const siteName = (id) => ((sc.sites || []).find((x) => x.id === id) || {}).name || id;
+  const ORIGIN = { page: ['from the page', ''], table: ['came up in play', ' ok'], improvised: ['made up by the Director', ' warn'] };
+  const cards = Object.values(state.cast || {}).sort((a, b) => b.lastSeq - a.lastSeq);
+  const chron = `<section class="card fill"><h3>The chronicle<span class="right">${d.writing ? '<span class="chip on">Writing…</span>' : ''}<button class="btn sm" data-act="m.night" title="Write a chapter for everything since the last one">End the night</button></span></h3>
+    <div class="small dim">A paragraph is written each time the Cohort leaves a site, and when you end the night. The Director reads the latest three every turn.${d.kept ? ` Kept so far: ${d.kept.lines} line${d.kept.lines === 1 ? '' : 's'}, ${d.kept.chapters} chapter${d.kept.chapters === 1 ? '' : 's'}.` : ''}</div>
+    <div class="fld"><span class="fl">How far the Director may go beyond the page</span>
+      <div class="seg">${[['page', 'Page only'], ['callbacks', 'Callbacks']].map(([id, name]) => `<button class="${(state.improv || 'callbacks') === id ? 'on' : ''}" data-act="m.improv" data-id="${id}">${name}</button>`).join('')}</div>
+      <span class="small dim">${(state.improv || 'callbacks') === 'page' ? 'It uses only what this site prints.' : 'People and threads from earlier may come back, in conversation and scene-dressing. Fights still use only the creatures printed for the site.'}</span></div>
+    <div class="scroll" data-scroll="chron" style="display:flex;flex-direction:column;gap:10px">
+      ${chapters.length ? chapters.map((c) => `<div class="note"><div class="row small"><b>${esc(c.site)}</b><span class="dim">${c.why === 'night' ? 'end of a night' : 'left'}${c.t ? ` · ${esc(new Date(c.t).toLocaleDateString())}` : ''}${c.by === 'engine' ? ' · written plainly' : ''}</span><span class="grow"></span><button class="btn sm" data-act="m.chdrop" data-id="${esc(c.id)}" title="Remove this chapter">x</button></div><div>${esc(c.text)}</div></div>`).join('')
+        : '<p class="small dim">Nothing yet. The first chapter is written when the Cohort leaves its first site.</p>'}
+    </div></section>`;
+  const R = d.recall;
+  const found = R ? `<div class="receipt">${R.hits.length ? R.hits.map((h) => `<div class="ln"><b>${esc(h.who || '')}</b><span>${esc(h.text)} <span class="faint">· ${esc(siteName(h.site) || '')}${h.when ? ` · ${esc(h.when)}` : ''}${h.seen ? '' : ' · host only'}</span></span></div>`).join('') : '<div class="ln"><span>Nothing on record matches.</span></div>'}</div>` : '';
+  const castCard = `<section class="card fill"><h3>People, places and threads<span class="right dim small">${cards.length} on record</span></h3>
+    <div class="row"><input type="text" class="grow" data-k="m.q" data-bind="mem.q" value="${esc(M.q)}" placeholder="Search the whole game: what did the clerk say about Neth?"><button class="btn" data-act="m.search">Search</button></div>
+    ${found}
+    <div class="scroll" data-scroll="cast" style="display:flex;flex-direction:column;gap:8px">
+      ${cards.length ? cards.map((c) => `<div class="cre"><div class="row"><b>${esc(c.name)}</b><span class="chip">${esc(c.kind)}</span><span class="chip${(ORIGIN[c.origin] || ['', ''])[1]}">${esc((ORIGIN[c.origin] || [c.origin])[0])}</span><span class="small faint">${esc(siteName(c.siteId))}</span><span class="grow"></span><button class="btn sm" data-act="m.forget" data-id="${esc(c.id)}" title="Forget this card">x</button></div>
+        ${c.facts.map((f, i) => `<div class="small row"><span class="grow">${esc(f.text)}${f.seen ? '' : ' <span class="chip warn">players not told</span>'}</span><button class="btn sm" data-act="m.forget" data-id="${esc(c.id)}" data-fact="${i}" title="Forget this fact">x</button></div>`).join('')}</div>`).join('')
+        : '<p class="small dim">Nobody yet. The Director writes people down as it names them, and each chapter adds who the table met.</p>'}
+    </div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 120px minmax(0,2fr) auto;gap:8px;align-items:center"><input type="text" data-k="m.name" data-bind="mem.name" value="${esc(M.name)}" placeholder="Name"><select data-k="m.kind" data-bind="mem.kind">${['person', 'faction', 'place', 'thread'].map((k) => `<option ${M.kind === k ? 'selected' : ''}>${k}</option>`).join('')}</select><input type="text" data-k="m.fact" data-bind="mem.fact" value="${esc(M.fact)}" placeholder="A fact to remember"><button class="btn" data-act="m.add">Add</button></div>
+  </section>`;
+  return `<div class="lay-two">${chron}${castCard}</div>`;
 }
 
 function bestiaryHtml() {
@@ -1229,7 +1299,15 @@ const ACT = {
   },
   'h.rest': () => send({ type: 'rest' }),
   'h.undo': () => send({ type: 'undo' }),
-  'h.new': () => { if (confirm('Start a new session? The current one is replaced (Undo brings it back).')) return send({ type: 'session.new' }); return null; },
+  'm.night': () => sendDirector({ op: 'chapter' }),
+  'm.chdrop': (d) => sendDirector({ op: 'chapter.drop', id: d.id }),
+  'm.search': () => sendDirector({ op: 'recall', query: ui.mem.q }),
+  'm.improv': (d) => send({ type: 'improv.set', improv: d.id }),
+  'm.forget': (d) => send({ type: 'cast.forget', id: d.id, fact: d.fact != null && d.fact !== '' ? Number(d.fact) : undefined }),
+  'm.add': () => { const M = ui.mem; if (!M.name.trim()) return null; const r = send({ type: 'cast.remember', name: M.name, kind: M.kind, fact: M.fact }); ui.mem = { ...M, name: '', fact: '' }; return r; },
+  'h.new': () => { ui.newGame = { open: true, vectorId: state.scenarioId, keep: true }; },
+  'h.new.cancel': () => { ui.newGame.open = false; },
+  'h.new.go': () => { const N = ui.newGame; ui.newGame = { open: false, vectorId: '', keep: true }; return send({ type: 'session.new', vectorId: N.vectorId || state.scenarioId, keepPlayers: !!N.keep }); },
 };
 
 document.addEventListener('click', async (e) => {
@@ -1276,7 +1354,7 @@ document.addEventListener('input', onField);
 document.addEventListener('change', onField);
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-  const more = { say: 'say', 'dir.narrate': 'd.narrate', 'dir.note': 'd.run', 'dir.key': 'd.key', 'dir.url': 'd.url' }[e.target.getAttribute('data-k')];
+  const more = { say: 'say', 'dir.narrate': 'd.narrate', 'dir.note': 'd.run', 'dir.key': 'd.key', 'dir.url': 'd.url', 'm.q': 'm.search', 'm.fact': 'm.add' }[e.target.getAttribute('data-k')];
   if (more) { e.preventDefault(); Promise.resolve(ACT[more]({})).then(render); return; }
   const k = e.target.getAttribute('data-k');
   const map = { 'join.name': 'join', 'claim.name': 'claim.go', keyTry: codeBad ? 'code.go' : 'key.go', 'h.label': 'h.ask', rename: 'rename' };

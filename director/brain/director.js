@@ -12,7 +12,7 @@ export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.met
 const MAX_STEPS = 10;
 
 // ---- the briefing: everything the model may know, rebuilt from data every turn ----
-export function briefing(state, scenario, bestiary, { reason = '', hostNote = '' } = {}) {
+export function briefing(state, scenario, bestiary, { reason = '', hostNote = '', chapters = [] } = {}) {
   const site = scenario.sites.find((x) => x.id === state.scene.siteId) || scenario.sites[0];
   const L = [];
   const h = site.host || {};
@@ -178,6 +178,31 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   }
 
   L.push('');
+  // ---- the table's memory: what happened before the last few lines, and who is who
+  if (chapters.length) {
+    L.push('# EARLIER IN THIS GAME (the chronicle, most recent last)');
+    for (const ch of chapters) L.push(`- ${ch.site}${ch.why === 'night' ? ' (end of a night)' : ''}: ${ch.text}`);
+    L.push('');
+  }
+  {
+    const cards = Object.values(state.cast || {});
+    if (cards.length) {
+      const here = cards.filter((c) => c.siteId === site.id);
+      const recent = cards.filter((c) => c.siteId !== site.id).sort((a, b) => b.lastSeq - a.lastSeq).slice(0, 6);
+      const origin = { page: 'from the page', table: 'came up at the table', improvised: 'you made this up: it is canon now' };
+      const line = (c) => `- ${c.name} (${c.kind}, first met at ${(scenario.sites.find((x) => x.id === c.siteId) || {}).name || c.siteId}; ${origin[c.origin] || c.origin}): ${c.facts.slice(-3).map((f) => `${f.text}${f.seen ? '' : ' [players not told]'}`).join('; ') || 'no facts yet'}`;
+      L.push(`# PEOPLE, PLACES AND THREADS THE TABLE HAS MET (${cards.length} on record; keep them consistent)`);
+      for (const c of here) L.push(line(c));
+      if (recent.length) { if (here.length) L.push('From earlier:'); for (const c of recent) L.push(line(c)); }
+      const rest = cards.length - here.length - recent.length;
+      if (rest > 0) L.push(`${rest} more on record: use recall to look anyone up before you bring them back.`);
+      L.push(state.improv === 'page'
+        ? 'The host has kept this game on the page: do not bring anyone back from another site.'
+        : 'You may bring these people and threads back in conversation and scene-dressing, at any site. They are people, not encounters: anything that fights still comes only from the creatures printed for this site.');
+      L.push('');
+    }
+  }
+
   L.push('# THE STORY SO FAR (most recent last)');
   const story = (state.story || []).slice(-16);
   if (!story.length) L.push('Nothing yet. This is the opening: set the scene for the Cohort.');
@@ -272,12 +297,12 @@ export async function directorTurn(args) {
 }
 
 // Returns null when the model never narrated, so the caller can try again.
-async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, reason = '', hostNote = '' }) {
-  const T = toolbox({ state, scenario, bestiary, rng, now });
+async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, reason = '', hostNote = '', memory = null }) {
+  const T = toolbox({ state, scenario, bestiary, rng, now, memory });
   const chat = provider.start({ system: INSTRUCTIONS, tools: TOOLS });
   const calls = [];
   const usage = { in: 0, out: 0 };
-  let reply = await chat.send(briefing(state, scenario, bestiary, { reason, hostNote }));
+  let reply = await chat.send(briefing(state, scenario, bestiary, { reason, hostNote, chapters: memory ? memory.chapters : [] }));
   let narration = '';
   let nudged = false;
   let rollNudged = false;
