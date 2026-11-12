@@ -237,6 +237,53 @@ test('MT follows conditions', () => {
   assert.equal(orgMT(t.s.organisms.wall), 11);
 });
 
+test('an area condition covers every body the Cohort has here, in one action', () => {
+  // The Toll-Vent pocket prints "Effect: 6 Kinetic, Jostled, 1 band shift to all in the chamber":
+  // the condition is the chamber's, so one action pays it to everyone and says so once.
+  const t = seated();
+  const before = { wall: orgMT(t.s.organisms.wall), eyes: orgMT(t.s.organisms.eyes) };
+  t.host({ type: 'condition', area: true, name: 'Jostled' });
+  for (const id of ['wall', 'eyes']) {
+    assert.ok(t.s.organisms[id].conditions.some((c) => c.name === 'Jostled'), `${id} carries it from one call`);
+  }
+  assert.equal(t.s.log.filter((l) => /are Jostled/.test(l.text)).length, 1, 'the table hears it once, not once per body');
+  for (const id of ['wall', 'eyes']) {
+    assert.equal(orgMT(t.s.organisms[id]), before[id] - 2, `${id} pays the printed -2 off its own MT`);
+  }
+  // Repeating the call changes nothing: the Engine already has it on them.
+  t.host({ type: 'condition', area: true, name: 'Jostled' });
+  assert.equal(t.s.organisms.wall.conditions.filter((c) => c.name === 'Jostled').length, 1, 'no stack');
+  // The same call lifts it off everyone.
+  t.host({ type: 'condition', area: true, name: 'Jostled', on: false });
+  assert.equal(t.s.organisms.eyes.conditions.filter((c) => c.name === 'Jostled').length, 0);
+  assert.match(t.s.log[t.s.log.length - 1].text, /are no longer Jostled/);
+  // One body at the site reads as one body, not as a crowd.
+  const alone = table();
+  alone.as('p1', { type: 'join', name: 'Roly' });
+  alone.as('p1', { type: 'zero.agree' });
+  alone.as('p1', { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' });
+  alone.host({ type: 'condition', area: true, name: 'Jostled' });
+  assert.match(alone.s.log[alone.s.log.length - 1].text, /^Bresk of the Sixth Choir is Jostled/);
+  // And with nobody seated there is nothing for it to land on.
+  const empty = table();
+  empty.host({ type: 'condition', area: true, name: 'Jostled' });
+  assert.equal(empty.s.log.filter((l) => /Jostled/.test(l.text)).length, 0);
+});
+
+test('an area condition is timed like a single-target one inside a Pulse War', () => {
+  const t = seated();
+  t.host({ type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1 }], ownDice: { wall: 5, eyes: 6, 'Order I: Lytic Swarms': 1 } });
+  const cycle = t.s.fight.cycle;
+  t.host({ type: 'condition', area: true, name: 'Jostled' });
+  for (const id of ['wall', 'eyes']) {
+    const c = t.s.organisms[id].conditions.find((x) => x.name === 'Jostled');
+    assert.equal(c.until, cycle + 1, 'Jostled ends at the end of the next Cycle (CORE 4.7) for every body');
+  }
+  // A creature not in the Cohort is not swept up by an area call.
+  const swarm = Object.values(t.s.creatures)[0];
+  assert.ok(!swarm.conditions.some((x) => x.name === 'Jostled'));
+});
+
 test('Split Frequency: hold PP, step back in later, and the Cycle turns over by itself', () => {
   const t = seated();
   t.host({ type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1 }], ownDice: { wall: 5, eyes: 6, 'Order I: Lytic Swarms': 1 } });

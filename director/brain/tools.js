@@ -63,6 +63,10 @@ export function hazardSpec(site) {
     area: /\ball (?:in|around) the chamber\b|\bthe whole (?:chamber|field|carcass)\b|\bto all\b|\beveryone in it\b/i.test(text),
     // A Clock-gated hazard may not go off before the Clock reaches the printed segment.
     clockGate: gate ? { clock: gate[1].toUpperCase(), at: Number(gate[2]) } : null,
+    // Conditions the same note prices alongside the damage — the Toll-Vent prints "Effect: 6
+    // Kinetic, Jostled, 1 band shift to all in the chamber", so Jostled is the chamber's too.
+    // Cut at "Counter:" so the page's advice ("Brace and ride it") cannot read as a price.
+    conditions: Object.keys(R.CONDITIONS).filter((n) => new RegExp(`\\b${n}\\b`, 'i').test(String(text).split(/\bCounter:/i)[0])),
   };
 }
 
@@ -298,12 +302,23 @@ export const TOOLS = [
   },
   {
     name: 'set_condition',
-    description: 'Put a printed condition on an organism or a creature, or take it off.',
-    parameters: obj({ target: S('Organism id or creature id.'), condition: S('The condition.', { enum: Object.keys(R.CONDITIONS) }), on: B('True to apply, false to remove.') }, ['target', 'condition', 'on']),
+    description: 'Put a printed condition on an organism or a creature, or take it off. Where the page prices the condition for the whole chamber ("Jostled ... to all in the chamber"), set all_bodies: one call covers every body the Cohort has here, so never call it once per organism.',
+    parameters: obj({ target: S('Organism id or creature id. Name the one the effect started on; when all_bodies is true the Engine covers the rest.'), condition: S('The condition.', { enum: Object.keys(R.CONDITIONS) }), on: B('True to apply, false to remove.'), all_bodies: B('True when the page prices this condition for every body at the site, not for one of them.') }, ['target', 'condition', 'on']),
     run(a, T) {
+      // An area condition is the page's, so the Engine pays the chamber once. HANDOFF's open
+      // item 6: after the gas pocket went off, Jostled had to be applied one body at a time -
+      // four calls for the one price the Effect clause writes as one.
+      if (a.all_bodies === true) {
+        const no = T.do({ type: 'condition', area: true, name: a.condition, on: a.on !== false });
+        if (no) return { refused: no };
+        const carrying = a.on !== false;
+        const bodies = Object.values(T.state.organisms).filter((x) => x.playerId)
+          .map((x) => `${x.name}: ${carrying ? (x.conditions.some((c) => c.name === a.condition) ? a.condition : `not ${a.condition}`) : (x.conditions.some((c) => c.name === a.condition) ? `still ${a.condition}` : 'clear')}`);
+        return bodies.length ? { done: true, area: true, bodies } : { done: true, note: 'No Cohort body is here, so the condition landed on no one.' };
+      }
       const o = findOrg(T.state, a.target);
       const c = o ? null : findCre(T.state, a.target);
-      if (!o && !c) return { refused: `Nothing called "${a.target}" is here.` };
+      if (!o && !c) return { refused: `Nothing called "${a.target}" is here. If the page prices this for the whole chamber, set all_bodies instead of naming bodies one at a time.` };
       const no = T.do({ type: 'condition', target: o ? { kind: 'org', id: o.id } : { kind: 'cre', id: c.cid }, name: a.condition, on: a.on !== false });
       return no ? { refused: no } : { done: true };
     },

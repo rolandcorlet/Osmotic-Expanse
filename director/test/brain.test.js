@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { newSession, apply, restart, hazardBudget } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
-import { toolbox, TOOLS } from '../brain/tools.js';
+import { toolbox, TOOLS, hazardSpec } from '../brain/tools.js';
 import { directorTurn, briefing, checkNarration, asksRollInWords } from '../brain/director.js';
 import { createDirector } from '../brain/manager.js';
 import { gemini, pickDefaultModel } from '../brain/gemini.js';
@@ -1086,6 +1086,38 @@ test('a hazard the page prices for the chamber pays every body in one firing', (
   const again = T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket again' });
   assert.match(again.refused, /already gone off in this scene[\s\S]*one call pays every body/);
   assert.equal(T.refusals, 1, 'the second firing is one refusal, not one per body');
+});
+
+test('a condition the page prices for the chamber is one set_condition, not one per body', () => {
+  // Bench 13 Nov: after the pocket went off, the Director put Jostled on one player at a time.
+  // The same Effect clause prices it for the chamber, so one call covers the chamber.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  const r = T.run('set_condition', { target: 'wall', condition: 'Jostled', on: true, all_bodies: true });
+  assert.equal(r.refused, undefined);
+  assert.equal(r.area, true, 'the tool says it was an area call');
+  assert.match((r.bodies || []).join(' '), /Bresk of the Sixth Choir: Jostled/, 'the body it was named for');
+  assert.match((r.bodies || []).join(' '), /Brost of the Third Current: Jostled/, 'and the other one, in the same call');
+  assert.equal(T.refusals, 0, 'one call, nothing refused');
+  assert.equal(T.state.organisms.wall.conditions.filter((c) => c.name === 'Jostled').length, 1, 'no body is double-stacked');
+  // The same call lifts it off the chamber, and says so in terms the Director can read out.
+  const off = T.run('set_condition', { target: 'wall', condition: 'Jostled', on: false, all_bodies: true });
+  assert.match((off.bodies || []).join(' '), /Brost of the Third Current: clear/);
+  assert.equal(T.state.organisms.eyes.conditions.filter((c) => c.name === 'Jostled').length, 0);
+  // And it is the page's doing, not a rule the Director chose: only the Toll-Vent prices a
+  // condition in its Hazard note, and its Counter clause ("Brace and ride it") is not a price.
+  assert.deepEqual(hazardSpec(scenario.sites.find((x) => x.id === 'toll-vent')).conditions, ['Jostled']);
+  assert.deepEqual(hazardSpec(scenario.sites.find((x) => x.id === 'soft-field')).conditions, [], 'the slough prints damage and Drift, no condition');
+  // A body name that matches nothing still points at the area form rather than a dead end.
+  const solo = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  assert.match(solo.run('set_condition', { target: 'no-one-here', condition: 'Jostled', on: true }).refused, /set all_bodies/);
+});
+
+test('the briefing tells the Director the hazard prices Jostled on every body here', () => {
+  const text = briefing(seated(), scenario, bestiary, {});
+  assert.match(text, /ALSO PRICES JOSTLED ON THE BODIES AT THIS SITE/, 'the site that prints it says so');
+  assert.match(text, /all_bodies/);
+  const away = apply(seated(), { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
+  assert.ok(!/ALSO PRICES/.test(briefing(away, scenario, bestiary, {})), 'and a site that prints no condition says nothing');
 });
 
 test('the Engine budgets a hazard per Cycle inside a Pulse War, and per scene outside one', () => {

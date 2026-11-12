@@ -1336,9 +1336,29 @@ const HANDLERS = {
   condition: {
     host: true,
     run(s, a, ctx) {
+      if (!R.CONDITIONS[a.name]) throw new RuleError('That is not a printed condition.');
+      // An area condition is one the page prices for the whole chamber. The Toll-Vent pocket
+      // prints "Effect: 6 Kinetic, Jostled, 1 band shift to all in the chamber", so Jostled is
+      // every body's, not one target's (bench 13 Nov: the Director put it on a single organism,
+      // then had to call it again for the next one). Same set of bodies hazard_damage pays.
+      if (a.area) {
+        const bodies = Object.values(s.organisms).filter((o) => o.playerId);
+        if (!bodies.length) return;
+        const on = a.on !== false;
+        for (const body of bodies) {
+          if (!on) { body.conditions = body.conditions.filter((c) => c.name !== a.name); continue; }
+          if (hasCond(body, a.name)) continue;
+          const c = { name: a.name };
+          if (R.CONDITIONS[a.name].timed && s.fight) c.until = s.fight.cycle + 1;
+          body.conditions.push(c);
+        }
+        const who = bodies.map((x) => x.name).join(', ');
+        const verb = bodies.length === 1 ? 'is' : 'are';
+        say(s, ctx, on ? `${who} ${verb} ${a.name}: ${R.CONDITIONS[a.name].effect}` : `${who} ${verb} no longer ${a.name}.`, 'info');
+        return;
+      }
       const t = a.target || {};
       const body = t.kind === 'org' ? org(s, t.id) : cre(s, t.id);
-      if (!R.CONDITIONS[a.name]) throw new RuleError('That is not a printed condition.');
       if (a.on === false) {
         body.conditions = body.conditions.filter((c) => c.name !== a.name);
         say(s, ctx, `${body.name} is no longer ${a.name}.`, 'info');
