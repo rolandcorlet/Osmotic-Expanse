@@ -333,7 +333,7 @@ export const TOOLS = [
   {
     name: 'remember',
     description: 'Write a person, faction, place or thread into the table\'s memory so it stays consistent for the rest of the game: when you give someone a name, a player names something, or a fact about someone is settled at the table (a debt, a grudge, a promise, what they want). One short fact in plain words. Calling it again with the same name adds a fact to the same card. Set seen false only for a fact the players have not been told.',
-    parameters: obj({ name: S('The name the table uses, for example "the drone clerk" or "Reader-Behind-Nine-Urn".'), kind: S('What it is.', { enum: ['person', 'faction', 'place', 'thread'] }), fact: S('One short fact worth remembering.'), seen: B('False only when the players have not been told this.') }, ['name', 'fact']),
+    parameters: obj({ name: S('The name the table uses, for example "the drone clerk" or "Reader-Behind-Nine-Urn".'), kind: S('What it is: a person, a faction, a place, or a thread (a debt, a grudge, a promise, a claim: something unresolved).', { enum: ['person', 'faction', 'place', 'thread'] }), fact: S('One short fact worth remembering.'), seen: B('False only when the players have not been told this.') }, ['name', 'kind', 'fact']),
     run(a, T) {
       const no = T.do({ type: 'cast.remember', name: a.name, kind: a.kind, fact: a.fact, seen: !(a.seen === false || a.seen === 'false') });
       if (no) return { refused: no };

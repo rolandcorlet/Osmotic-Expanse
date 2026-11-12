@@ -19,12 +19,13 @@ import { systemRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { directorTurn } from '../brain/director.js';
 import { createMemory } from '../brain/memory.js';
-import { plainChapter } from '../brain/chronicle.js';
+import { plainChapter, CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle } from '../brain/chronicle.js';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const opt = (n, d) => { const i = args.indexOf(n); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
+const flag = (n) => args.includes(n);
 const cfgFile = join(here, '..', 'saves', 'director.json');
 const cfg = existsSync(cfgFile) ? JSON.parse(readFileSync(cfgFile, 'utf8')) : {};
 const provider = opt('--provider', cfg.provider || 'gemini');
@@ -78,16 +79,39 @@ async function once(n) {
   // The table's memory, as the host keeps it: every change observed, a chapter on leaving a site.
   const mem = createMemory({ dir: mkdtempSync(join(tmpdir(), 'oxd-bench-')) });
   mem.observe(null, s);
+  // Leaving a site closes a chapter, written by the model as the host's Director would
+  // (or plainly with --plain-chronicle). Its cast goes into the Ledger, as on the host.
+  const pendingChapters = [];
   const moved = (prev) => {
     mem.observe(prev, s);
-    if (prev.scene.siteId !== s.scene.siteId) {
+    if (prev.scene.siteId !== s.scene.siteId) pendingChapters.push(prev.scene.siteId);
+  };
+  async function writeChapters() {
+    while (pendingChapters.length) {
+      const siteId = pendingChapters.shift();
       const done = mem.chapters(s.gameId);
       const lines = mem.linesSince(s.gameId, done.length ? done[done.length - 1].toSeq : 0);
-      const name = scenario.sites.find((x) => x.id === prev.scene.siteId).name;
-      const text = plainChapter({ siteName: name, lines });
-      if (text) mem.addChapter(s.gameId, { t: Date.now(), siteId: prev.scene.siteId, site: name, why: 'left', toSeq: Math.max(0, ...lines.map((l) => l.seq || 0)), text, by: 'engine' });
+      if (!lines.some((l) => l.kind === 'say' || l.kind === 'narration')) continue;
+      const name = scenario.sites.find((x) => x.id === siteId).name;
+      let text = '';
+      let cast = [];
+      let by = 'engine';
+      if (!flag('--plain-chronicle')) {
+        try {
+          const t0 = Date.now();
+          const reply = await makeProvider().start({ system: CHRONICLE_INSTRUCTIONS, tools: [] }).send(chronicleRequest({ siteName: name, lines, known: Object.values(s.cast || {}).map((c) => c.name) }));
+          ({ chapter: text, cast } = parseChronicle(reply.text));
+          by = 'ai';
+          console.log(`  (chronicle for ${name}, ${((Date.now() - t0) / 1000).toFixed(1)} s) ${text}`);
+          if (cast.length) console.log(`  (chronicle remembers) ${cast.map((c) => `${c.name} [${c.kind}]: ${c.fact}`).join(' | ')}`);
+        } catch (e) { console.log(`  (chronicle failed: ${e.message})`); }
+      }
+      if (!text) { text = plainChapter({ siteName: name, lines }); by = 'engine'; }
+      if (!text) continue;
+      mem.addChapter(s.gameId, { t: Date.now(), siteId, site: name, why: 'left', toSeq: Math.max(0, ...lines.map((l) => l.seq || 0)), text, by });
+      if (cast.length) { try { const prev = s; s = apply(s, { type: 'cast.remember', entries: cast.map((c) => ({ ...c, origin: 'table' })) }, ctx('host', null)); mem.observe(prev, s); } catch (e) { /* the chapter stands */ } }
     }
-  };
+  }
   const memoryFor = () => ({ chapters: mem.chapters(s.gameId).slice(-3), search: (q, o = {}) => mem.search(s.gameId, q, { ...o, cast: s.cast || {} }) });
   const act = (role, pid, a) => { const prev = s; s = apply(s, a, ctx(role, pid)); moved(prev); };
   for (const [pid, who, hand, name] of SEATS.slice(0, players)) {
@@ -103,6 +127,7 @@ async function once(n) {
     const prev = s;
     s = r.state;
     moved(prev);
+    await writeChapters();
     for (const c of r.calls) { if (c.name === 'recall') tally.recalls += 1; if (c.name === 'remember') tally.remembers += 1; }
     tally.turns += 1;
     tally.ms += Date.now() - t0;
