@@ -279,3 +279,29 @@ details>summary{cursor:pointer;color:var(--dim);font-size:13px}
    they do not fit, and every row fills the width. Never clipped. */
 .showbar{flex-wrap:wrap}
 .showbar .btn{flex:1 1 auto;white-space:nowrap}
+
+/* The living-organism face on the table screen */
+.face-slot{display:flex;justify-content:center;margin-bottom:6px}
+.face{flex:none;width:min(110px,16vh);height:min(110px,16vh);--ph:0s}
+.face svg{width:100%;height:100%;overflow:visible}
+.face .mem{fill:color-mix(in srgb,var(--accent) 22%,var(--panel2));stroke:var(--accent);stroke-width:2.5;transform-origin:60px 60px}
+.face .cil line{stroke:color-mix(in srgb,var(--accent) 70%,transparent);stroke-width:2;stroke-linecap:round}
+.face .cil{transform-origin:60px 60px}
+.face .nuc{fill:color-mix(in srgb,var(--ok) 55%,var(--panel));stroke:var(--ok);stroke-width:2}
+.face .v{fill:color-mix(in srgb,var(--accent) 45%,var(--panel));stroke:var(--line);stroke-width:1}
+.face .inner{transform-origin:60px 60px}
+.face .mem,.face .inner,.face .cil{animation-delay:var(--ph);animation-timing-function:ease-in-out;animation-iteration-count:infinite}
+.face.rest .mem{animation:fbreathe 6s}
+.face.rest .cil{animation:fsway 6s}
+.face.think .mem{animation:fbreathe 2.4s}
+.face.think .inner{animation:fchurn 3s linear infinite;animation-delay:var(--ph)}
+.face.think .cil{animation:fsway 1.6s}
+.face.speak .mem{animation:fpulse .55s}
+.face.speak .cil{animation:fpulse .55s}
+.face.speak .nuc{fill:color-mix(in srgb,var(--ok) 80%,var(--panel))}
+@keyframes fbreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+@keyframes fsway{0%,100%{transform:rotate(-2deg) scale(1)}50%{transform:rotate(2deg) scale(1.03)}}
+@keyframes fchurn{to{transform:rotate(360deg)}}
+@keyframes fpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+@media (prefers-reduced-motion:reduce){.face .mem,.face .inner,.face .cil{animation:none!important}}
+@media (max-height:700px){.face{width:80px}}

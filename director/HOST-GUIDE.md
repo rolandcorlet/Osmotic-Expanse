@@ -99,6 +99,10 @@ Everything said at the table is kept. The **Memory** tab shows:
 **Callbacks / Page only:** with Callbacks, the Director may bring back people from earlier sites
 in conversation. Page only keeps it to what each site prints.
 
+## The Voice tab
+
+The table screen reads the Director's narration aloud and shows a small living face that breathes, churns when the Director is thinking and pulses when it speaks. Each screen has its own **Voice on / Voice off** switch on the story card. By default every screen uses its own device voice. If you run a speech server (for example Kokoro on this PC), put its address on the **Voice** tab and everyone hears one steady voice. Phones also get a **Talk** button; each player agrees to it at session zero, and a player who says No simply types.
+
 ## At the end
 
 Press **End the night** on the Memory tab first. It writes the night's chapter, so next time the

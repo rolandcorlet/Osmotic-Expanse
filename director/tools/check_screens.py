@@ -273,6 +273,41 @@ with sync_playwright() as p:
         ok = measure(host, f"host Memory {w}x{h}") and ok
     shot(host, "host-memory")
 
+    # --- voice: the face and Voice switch on the table, the Voice tab for the host, the Talk consent on a phone
+    table.set_viewport_size({"width": 1920, "height": 1080})
+    table.click('#head .tab:has-text("Table")')
+    table.wait_for_selector(".face-slot .face")
+    print("voice: face on the table:", table.locator(".face-slot .face.rest, .face-slot .face.think").count() == 1,
+          "| voice switch on the table:", table.locator('button:has-text("Voice o")').count() == 1)
+    table.click('button:has-text("Voice o")')
+    time.sleep(0.2)
+    flipped = table.locator('button:has-text("Voice o")').first.inner_text()
+    print("voice: switch flips:", flipped)
+    shot(table, "table-face")
+    host.click('#head .tab:has-text("Voice")')
+    host.wait_for_selector("text=Save voice settings")
+    for w, h in [(1366, 768), (1536, 864), (1920, 1080)]:
+        host.set_viewport_size({"width": w, "height": h})
+        time.sleep(0.3)
+        ok = measure(host, f"host Voice {w}x{h}") and ok
+    host.click('[data-act="v.out"][data-id="server"]')
+    host.wait_for_selector('[data-k="voice.outUrl"]')
+    shot(host, "host-voice")
+    host.click('[data-act="v.out"][data-id="browser"]')
+    spoken = host.evaluate("fetch('/api/voice/say', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify({role:'host', key:'%s', text:'Buy my product'})}).then(r => r.headers.get('content-type'))" % KEY)
+    print("voice: a screen cannot make the server speak (json refusal):", "json" in spoken)
+    p1.click('#nav .tab:has-text("Play")')
+    talk = p1.locator('[data-act="talk"]')
+    if talk.count():
+        talk.click()
+        p1.wait_for_selector("text=Talk instead of typing")
+        shot(p1, "phone-talk-consent")
+        p1.click('[data-act="hear.no"]')
+        time.sleep(0.4)
+        print("voice: after No the Talk button is gone:", p1.locator('[data-act="talk"]').count() == 0)
+    else:
+        print("voice: no Talk button here (recognition not offered in this browser)")
+
     # --- a new game, keeping the table seated
     host.set_viewport_size({"width": 1366, "height": 768})
     host.click('#head .tab:has-text("Run")')

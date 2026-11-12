@@ -155,7 +155,14 @@ refusals and no leaks in three runs. `--runs 3` repeats it; `--model <id>` tries
 `--sites 2` plays on into the Soft Field; `--players 4` seats a full Cohort; `--thinking low`
 sets the thinking for a local model.
 
-Players type what they do. The Director cannot hear the room yet; speech comes in Phase 5.
+Players type what they do, or tap Talk and speak (see Voice and face below).
+
+## Voice and face (Phase 5)
+
+* **The Director speaks.** Each screen has a Voice switch on the story card; the table screen starts with it on, phones and the host start off. The narration is read sentence by sentence, so the first sound comes as soon as the first sentence is ready, not when the whole paragraph is. What was said before a screen joined is not read out. A browser will not make a sound until the page has been touched once, so the switch says "Tap to start the voice" until then.
+* **Whose voice.** By default each screen uses its own device voice. On the host's **Voice** tab you can instead point at an OpenAI-compatible speech server (`/v1/audio/speech`, for example Kokoro on the host PC or a cloud key): one steady voice on every screen, and it works on a phone that has no voice installed. The server only ever speaks lines the Director actually narrated (the host refuses any other text), results are cached, and keys are kept in `saves/voice.json` and never sent to screens.
+* **Players talk.** Phones have a Talk button beside Say: tap to start, tap to stop; the words appear in the text box to check before Say. It is optional and per device. Session zero asks first and says where the voice goes (the phone's own recognition: Google or Apple; or the host's speech-to-text server, `/v1/audio/transcriptions`, for example Whisper on the PC). Choosing No hides the button; nothing else changes. Audio is never stored.
+* **The face.** The table screen shows a small living organism: it breathes at rest, churns while the Director is thinking, and pulses while it speaks. It is drawn from the theme colours, so the Colours tab re-themes it.
 
 ## What is here
 
@@ -258,7 +265,7 @@ says so here, so it can be changed in one place.
 
 ## Not built yet
 
-* The Director's voice and face (Phase 5).
+* Phase 5 still open: measuring narration-to-first-sound on real hardware, and a speech server bench (Kokoro, Whisper). Discord sign-in is deferred.
 * Discord sign-in (Phase 2). Outside players join by link and table code for now.
 * The Detection Phase as a guided step, Bursts with their effects, Momentum checks, hazards as
   timed objects, and Growth.

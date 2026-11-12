@@ -24,6 +24,7 @@ import { createMemory } from './brain/memory.js';
 import { systemRng } from './engine/dice.js';
 import { vectorById, vectorList, DEFAULT_VECTOR } from './data/vectors.js';
 import { createDirector } from './brain/manager.js';
+import { createVoice } from './brain/voice.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -36,6 +37,7 @@ const SAVE = join(SAVE_DIR, 'session.json');
 const bestiary = JSON.parse(readFileSync(join(here, 'data', 'bestiary.json'), 'utf8'));
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
+const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state });
 const rng = systemRng();
 
 // ---------------------------------------------------------------- the session
@@ -173,6 +175,21 @@ function readBody(req) {
   });
 }
 
+// Raw bytes (a clip from the talk button), capped.
+function readBytes(req, max) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > max) { reject(new Error('too large')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 function act(role, pid, action) {
   if (action.type === 'undo') {
     if (role !== 'host') throw new RuleError('Only the host can undo.');
@@ -248,7 +265,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/info') {
-      const out = { title: scenario.title, port: PORT, addresses: addresses() };
+      const out = { title: scenario.title, port: PORT, addresses: addresses(), voice: voice.publicView() };
       const trusted = isLocal(req) || codeOk(q) || (q.key && String(q.key).toUpperCase() === hostKey);
       if (trusted && publicUrl) out.online = `${publicUrl}/play?t=${tableCode}`;
       json(res, 200, out);
@@ -263,7 +280,7 @@ const server = http.createServer(async (req, res) => {
           id: b.id, name: b.name, order: b.order, cls: b.cls, tier: b.tier, statLine: b.statLine, traits: b.traits,
           special: b.special, weakness: b.weakness, harvest: b.harvest, tactics: b.tactics, segments: b.segments,
         }));
-        json(res, 200, { ...scenario, bestiary: blocks, vectors: vectorList() });
+        json(res, 200, { ...scenario, bestiary: blocks, vectors: vectorList(), voice: voice.hostView() });
       } else {
         json(res, 200, vector.publicScenario(scenario));
       }
@@ -298,10 +315,29 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, { ok: true, seq: state.seq });
       return;
     }
+    if (req.method === 'POST' && url.pathname === '/api/voice/say') {
+      const body = await readBody(req);
+      const who = access(req, body);
+      if (!who.role) { json(res, 403, who); return; }
+      const out = await voice.say(body.text);
+      if (!out.ok) { json(res, 200, out); return; }
+      res.writeHead(200, { 'content-type': out.type, 'cache-control': 'no-store' });
+      res.end(out.bytes);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/voice/hear') {
+      const who = access(req, q);
+      if (who.role !== 'player') { json(res, 403, who.role ? { error: 'Only a seated player can talk.' } : who); return; }
+      let bytes;
+      try { bytes = await readBytes(req, voice.limits.MAX_CLIP); } catch (e) { json(res, 200, { ok: false, error: 'That was too long. Keep it under about a minute.' }); return; }
+      json(res, 200, await voice.hear(bytes, String(req.headers['content-type'] || 'audio/webm').split(';')[0]));
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/api/director') {
       const body = await readBody(req);
       const who = access(req, { ...body, role: 'host' });
       if (!who.role) { json(res, 403, who); return; }
+      if (body.op === 'voice') { voice.configure(body); json(res, 200, { ok: true }); return; }
       await director.op(body);
       json(res, 200, { ok: true });
       return;

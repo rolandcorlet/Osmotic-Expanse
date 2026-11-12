@@ -36,7 +36,7 @@ let codeBad = false;
 const TABS = {
   player: [['play', 'Play'], ['sheet', 'Sheet'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['memory', 'Memory'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['memory', 'Memory'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -47,6 +47,8 @@ const ui = {
   oath: { text: '' },
   zero: { line: '', pauseWord: '', tone: '' },
   newGame: { open: false, vectorId: '', keep: true }, // host: the New game panel
+  talk: 'idle', talkAsk: false, // player: the Talk button
+  voice: { outUrl: '', outKey: '', outModel: '', outVoice: '', outSpeed: '', inUrl: '', inKey: '', inModel: '', inLang: '', loaded: false }, // host: speech settings
   mem: { q: '', name: '', kind: 'person', fact: '' }, // host: the Memory tab
   show: { scene: false, quick: false, harvest: false, zero: false }, // player page: panels opened with the buttons at the top
   own: null,
@@ -197,6 +199,7 @@ function connect() {
     const prop = state.director && state.director.proposal;
     if (prop && prop.id !== ui.dir.editId) { ui.dir.edit = prop.narration; ui.dir.editId = prop.id; }
     if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
+    voiceFollows();
     render();
   });
   es.onerror = () => { online = false; render(); };
@@ -276,6 +279,7 @@ function render() {
     <div class="tabs">${tabs}</div>`);
   patch($('#nav'), role === 'player' && state && me() ? tabs : '');
   patch($('#main'), mainHtml());
+  if (role === 'table') placeFace();
   if (ui.jumpTop) {
     ui.jumpTop = false;
     const stack = $('#main .stack');
@@ -414,7 +418,7 @@ function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {
   const rows = (state.story || []).slice(-n).reverse().map((e) => (e.kind === 'narration'
     ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
     : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
-  return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${d.on ? `<span class="chip${d.thinking ? ' on' : ''}">${d.thinking ? 'The Director is thinking…' : 'AI Director'}</span>` : ''}</span></h3>
+  return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${(d.on || (state.story || []).some((e) => e.kind === 'narration')) && (canSpeakLocal() || serverVoice()) ? `<button class="chip${speakOn() ? ' on' : ''}" data-act="speak" title="Read the Director's narration aloud on this screen">${V.blocked ? 'Tap to start the voice' : speakOn() ? 'Voice on' : 'Voice off'}</button>` : ''}${d.on ? `<span class="chip${d.thinking ? ' on' : ''}">${d.thinking ? 'The Director is thinking…' : 'AI Director'}</span>` : ''}</span></h3>
     <div class="story${fill ? ' scroll' : ' scroll short'}" data-scroll="story">${rows || '<div class="empty">Nothing has been said yet.</div>'}</div>
     ${input}</section>`;
 }
@@ -617,6 +621,7 @@ function zeroHtml() {
   return `<div class="stack">${zeroCard()}
     <section class="card"><h3>Ready?</h3>
       <p class="small dim">Add anything you want left out first: the list is shared with the table, your name is not. You can add more at any time during play.</p>
+      ${canHear() ? `<div class="fl">Talking to the Director</div>${hearConsentHtml()}` : ''}
       <button class="btn primary big grow" data-act="zero.agree">I have read this, and I am ready to play</button>
       ${waiting > 1 ? `<p class="small dim">${waiting - 1} other${waiting > 2 ? 's have' : ' has'} not answered yet.</p>` : ''}
     </section></div>`;
@@ -748,7 +753,7 @@ function playHtml(o) {
     </section>`);
   }
   if (ui.show.quick && !state.fight) out.push(quietCard(o));
-  out.push(storyCard({ n: 12, input: `<div class="row"><input type="text" class="grow" data-k="say" data-bind="say.text" value="${esc(ui.say.text)}" maxlength="600" placeholder="What does ${esc(o.name.split(' ')[0])} do?" autocomplete="off"><button class="btn primary" data-act="say">Say</button></div>` }));
+  out.push(storyCard({ n: 12, input: `<div class="row"><input type="text" class="grow" data-k="say" data-bind="say.text" value="${esc(ui.say.text)}" maxlength="600" placeholder="What does ${esc(o.name.split(' ')[0])} do?" autocomplete="off">${talkButtonHtml()}<button class="btn primary" data-act="say">Say</button></div>${ui.talkAsk && !hearOk() && canHear() ? hearConsentHtml() : ''}` }));
   if (ui.own && ui.own.mode === 'quick') out.push(`<section class="card ask"><h3>Your own dice</h3><div><b>${esc(ui.own.label)}</b></div>${ownPad(ui.own.n)}</section>`);
   // In a fight everyone watches every roll; outside one, show your own latest.
   // A roll that has only just landed goes on top; an older one sits under the fight.
@@ -853,7 +858,7 @@ function tableHtml() {
     ${(state.story || []).length || (state.director || {}).on ? storyCard({ fill: true }) : `<section class="card fill"><h3>What happened</h3><div class="scroll" data-scroll="log">${logHtml(30)}</div></section>`}`;
   return `<div class="lay-table">
     <div class="col" style="grid-template-rows:minmax(0,1fr) auto">${sceneCard({ full: true })}
-      <section class="card"><div class="row"><span class="dim small">Players join at</span><b style="font-family:var(--mono)">${esc(join)}</b></div>
+      <section class="card"><div class="face-slot"></div><div class="row"><span class="dim small">Players join at</span><b style="font-family:var(--mono)">${esc(join)}</b></div>
         ${info && info.online ? `<div class="row"><span class="dim small">From outside this network</span><b style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</b></div>` : ''}</section></div>
     <div class="col" style="grid-template-rows:auto minmax(0,1fr)">${bandMap()}
       <div class="scroll" data-scroll="mid" style="display:flex;flex-direction:column;gap:12px">${waiting ? `<section class="card ask"><h3>Waiting for dice</h3>${waiting}</section>` : ''}${last ? resultCard(last, { big: true }) : '<section class="card"><h3>Last roll</h3><div class="empty">No dice yet.</div></section>'}</div></div>
@@ -872,6 +877,7 @@ function hostHtml() {
   if (ui.tab === 'bestiary') return bestiaryHtml();
   if (ui.tab === 'director') return directorHtml();
   if (ui.tab === 'memory') return memoryHtml();
+  if (ui.tab === 'voice') return `<div class="stack" style="max-width:760px">${voiceCard()}</div>`;
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}</div>
     <div class="col">${hostAskCard()}${hostWaitingCard()}</div>
@@ -1121,6 +1127,30 @@ function directorHtml() {
   return `<div class="lay-two"><div style="display:flex;flex-direction:column;gap:12px;min-height:0">${proposal}${story}</div>${settings}</div>`;
 }
 
+// Where the Director's voice and the players' Talk buttons get their speech from.
+function voiceCard() {
+  const hv = (sc && sc.voice) || null;
+  if (!hv) return '';
+  const v = ui.voice;
+  if (!v.loaded) {
+    Object.assign(v, { outEngine: hv.out.engine, outUrl: hv.out.url, outModel: hv.out.model, outVoice: hv.out.voice, outSpeed: String(hv.out.speed), inEngine: hv.in.engine, inUrl: hv.in.url, inModel: hv.in.model, inLang: hv.in.language, loaded: true });
+  }
+  const seg = (act, cur, opts) => `<div class="seg">${opts.map(([id, name]) => `<button class="${cur === id ? 'on' : ''}" data-act="${act}" data-id="${id}">${name}</button>`).join('')}</div>`;
+  const f = (label, bind, val, ph = '', type = 'text') => `<label class="fld"><span class="fl">${label}</span><input type="${type}" data-k="${bind}" data-bind="${bind}" value="${esc(val)}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false"></label>`;
+  return `<section class="card"><h3>Voice<span class="right"><span class="chip">${hv.out.engine === 'server' ? 'Speech server' : 'Each screen\'s own voice'}</span></span></h3>
+    <div class="stack-in" style="display:flex;flex-direction:column;gap:10px">
+      <div class="fld"><span class="fl">The Director speaks with</span>${seg('v.out', v.outEngine, [['browser', 'Each screen\'s own voice'], ['server', 'A speech server']])}
+        <span class="small dim">The table screen reads the narration aloud; phones and this screen have a Voice switch of their own. A speech server (for example Kokoro on this computer) gives one steady voice everywhere and keeps working on a phone with no voice installed. Only the Director's narration is ever sent to it.</span></div>
+      ${v.outEngine === 'server' ? `${f('Speech server address', 'voice.outUrl', v.outUrl, 'http://localhost:8880/v1')}${f(hv.out.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.outKey', v.outKey, hv.out.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
+      <div class="row">${f('Model', 'voice.outModel', v.outModel)}${f('Voice', 'voice.outVoice', v.outVoice)}${f('Speed', 'voice.outSpeed', v.outSpeed)}</div>` : ''}
+      <div class="fld"><span class="fl">Players' Talk button listens with</span>${seg('v.in', v.inEngine, [['browser', 'The phone\'s own recognition'], ['server', 'A speech server']])}
+        <span class="small dim">Each player agrees to this at session zero, and the screen tells them where their voice goes. A phone's own recognition is done by Google or Apple. A speech server (for example Whisper on this computer) keeps it on your own network.</span></div>
+      ${v.inEngine === 'server' ? `${f('Speech-to-text address', 'voice.inUrl', v.inUrl, 'http://localhost:8000/v1')}${f(hv.in.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.inKey', v.inKey, hv.in.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
+      <div class="row">${f('Model', 'voice.inModel', v.inModel)}${f('Language', 'voice.inLang', v.inLang)}</div>` : ''}
+      <div class="row"><button class="btn primary" data-act="v.save">Save voice settings</button></div>
+    </div></section>`;
+}
+
 // The table's memory: the chronicle of what happened, and the people, places and threads met.
 function memoryHtml() {
   const d = state.director || {};
@@ -1186,6 +1216,24 @@ const ACT = {
   'h.zero': () => send({ type: 'zero.set', pauseWord: ui.zero.pauseWord || undefined, tone: ui.zero.tone }),
   'p.harvest': (d) => send({ type: 'harvest', organismId: d.org, cid: d.id || null }),
   'rolls.mine': () => { ui.rollsMine = !ui.rollsMine; },
+  speak: () => {
+    const was = speakOn();
+    store.set(speechOutKey, was ? '0' : '1');
+    if (was) stopVoice();
+    else { V.seen = V.seen || new Set(); V.blocked = false; try { if (canSpeakLocal()) speechSynthesis.resume(); } catch (e) { /* fine */ } }
+  },
+  talk,
+  'hear.yes': () => { store.set('oxd.hear', 'yes'); ui.talkAsk = false; },
+  'hear.no': () => { store.set('oxd.hear', 'no'); ui.talkAsk = false; if (T.rec && ui.talk === 'listening') { try { T.rec.stop(); } catch (e) { /* idle */ } } },
+  'v.save': async () => {
+    const v = ui.voice;
+    const body = { op: 'voice', out: { engine: v.outEngine, url: v.outUrl, model: v.outModel, voice: v.outVoice, speed: v.outSpeed }, in: { engine: v.inEngine, url: v.inUrl, model: v.inModel, language: v.inLang } };
+    if (v.outKey.trim()) body.out.key = v.outKey.trim();
+    if (v.inKey.trim()) body.in.key = v.inKey.trim();
+    if (await sendDirector(body)) { v.outKey = ''; v.inKey = ''; v.loaded = false; await reloadScenario(); toast('Voice settings saved.', true); }
+  },
+  'v.out': (d) => { ui.voice.outEngine = d.id; },
+  'v.in': (d) => { ui.voice.inEngine = d.id; },
   say: async () => {
     const text = ui.say.text.trim();
     if (!text) return;
@@ -1419,5 +1467,173 @@ document.addEventListener('keydown', (e) => {
   const map = { 'join.name': 'join', 'claim.name': 'claim.go', keyTry: codeBad ? 'code.go' : 'key.go', 'h.label': 'h.ask', rename: 'rename' };
   if (map[k]) { e.preventDefault(); Promise.resolve(ACT[map[k]]({})).then(render); }
 });
+
+// -------------------------------------------------------------------- voice
+// The Director speaks what it narrates (per screen, the table on by default), and a player can
+// talk instead of typing. Speech comes from this device's own voice, or from the host's speech
+// server when it has one (info.voice says which).
+const V = { seen: null, q: [], playing: false, blocked: false, audio: null, face: 'rest' };
+const speechOutKey = `oxd.speak.${role}`;
+const canSpeakLocal = () => 'speechSynthesis' in window;
+const speakOn = () => {
+  const v = store.get(speechOutKey);
+  return (v == null ? role === 'table' : v === '1') && (canSpeakLocal() || serverVoice());
+};
+const serverVoice = () => !!(info && info.voice && info.voice.out === 'server');
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const canHear = () => role === 'player' && !!(info && info.voice && (info.voice.in === 'server' ? (navigator.mediaDevices && window.MediaRecorder) : SR));
+
+// Narration split into sentences small enough that the first sound comes quickly.
+function splitSentences(text) {
+  const parts = String(text || '').replace(/\s+/g, ' ').trim().match(/[^.!?…]+(?:[.!?…]+["')\]]*|$)/g) || [];
+  const out = [];
+  for (const raw of parts) {
+    const t = raw.trim();
+    if (!t) continue;
+    if (out.length && (out[out.length - 1].length < 40 || t.length < 40) && out[out.length - 1].length + t.length < 240) out[out.length - 1] += ` ${t}`;
+    else out.push(t);
+  }
+  return out;
+}
+
+function setFace(f) {
+  if (V.face === f) return;
+  V.face = f;
+  faceEl.className = `face ${f}`;
+}
+const faceEl = (() => {
+  const el = document.createElement('div');
+  el.className = 'face rest';
+  const cil = Array.from({ length: 18 }, (_, i) => {
+    const a = (i / 18) * Math.PI * 2;
+    return `<line x1="${(60 + Math.cos(a) * 44).toFixed(1)}" y1="${(60 + Math.sin(a) * 44).toFixed(1)}" x2="${(60 + Math.cos(a) * 54).toFixed(1)}" y2="${(60 + Math.sin(a) * 54).toFixed(1)}"/>`;
+  }).join('');
+  el.innerHTML = `<svg viewBox="0 0 120 120" aria-hidden="true"><g class="cil">${cil}</g>
+    <path class="mem" d="M60 14c22 0 42 16 42 40s-14 52-42 52S16 84 18 56 38 14 60 14z"/>
+    <g class="inner"><circle class="nuc" cx="60" cy="58" r="13"/><circle class="v v1" cx="40" cy="48" r="5"/><circle class="v v2" cx="82" cy="70" r="6"/><circle class="v v3" cx="72" cy="40" r="3.5"/></g></svg>`;
+  return el;
+})();
+function placeFace() {
+  const slot = $('.face-slot');
+  if (!slot || faceEl.parentNode === slot) return;
+  faceEl.style.setProperty('--ph', `${-((performance.now() / 1000) % 6).toFixed(2)}s`); // keep the breathing in step after a redraw
+  slot.appendChild(faceEl);
+}
+function faceFollows() {
+  if (V.playing || V.q.length) return;
+  setFace(state && state.director && state.director.thinking ? 'think' : 'rest');
+}
+
+function speakBrowser(text, done) {
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0;
+    u.onend = done;
+    u.onerror = (e) => { if (e.error === 'not-allowed') { V.blocked = true; V.playing = false; V.q.unshift({ text }); render(); return; } done(); };
+    speechSynthesis.speak(u);
+  } catch (e) { done(); }
+}
+async function fetchClip(text) {
+  const res = await fetch('/api/voice/say', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role, pid, key, t: tcode, text }) });
+  if (!res.ok || /json/.test(res.headers.get('content-type') || '')) throw new Error('no audio');
+  return URL.createObjectURL(await res.blob());
+}
+function playClip(item, done) {
+  item.clip.then((url) => {
+    const a = new Audio(url);
+    V.audio = a;
+    const fin = () => { URL.revokeObjectURL(url); V.audio = null; done(); };
+    a.onended = fin;
+    a.onerror = fin;
+    a.play().catch((e) => { URL.revokeObjectURL(url); V.audio = null; if (e && e.name === 'NotAllowedError') { V.blocked = true; V.playing = false; item.clip = fetchClip(item.text); V.q.unshift(item); render(); } else done(); });
+  }).catch(() => (canSpeakLocal() ? speakBrowser(item.text, done) : done()));
+}
+function pumpVoice() {
+  if (V.playing || V.blocked) return;
+  const item = V.q.shift();
+  if (!item) { faceFollows(); return; }
+  V.playing = true;
+  setFace('speak');
+  const done = () => { V.playing = false; pumpVoice(); };
+  if (item.clip) playClip(item, done); else speakBrowser(item.text, done);
+}
+function stopVoice() {
+  V.q = [];
+  V.playing = false;
+  try { if (canSpeakLocal()) speechSynthesis.cancel(); } catch (e) { /* nothing to stop */ }
+  if (V.audio) { try { V.audio.pause(); } catch (e) { /* gone */ } V.audio = null; }
+  faceFollows();
+}
+function voiceFollows() {
+  const lines = (state.story || []).filter((e) => e.kind === 'narration');
+  if (!V.seen) { V.seen = new Set(lines.map((e) => e.id)); faceFollows(); return; } // what was said before this screen joined is not read out
+  const fresh = lines.filter((e) => !V.seen.has(e.id));
+  for (const e of fresh) V.seen.add(e.id);
+  if (fresh.length && speakOn()) {
+    for (const e of fresh) for (const text of splitSentences(e.text)) V.q.push({ text, clip: serverVoice() ? fetchClip(text) : null });
+    pumpVoice();
+  }
+  faceFollows();
+}
+// A browser will not make a sound until the person has touched the page once.
+document.addEventListener('pointerdown', () => { if (V.blocked) { V.blocked = false; pumpVoice(); render(); } }, true);
+
+// Talk button: one tap to start, one to stop. The words land in the text box to check before Say.
+const T = { rec: null, chunks: [], busy: false };
+const hearOk = () => store.get('oxd.hear') === 'yes';
+function hearConsentHtml() {
+  const where = info && info.voice ? info.voice.hearWhere : 'your phone\'s own speech service';
+  return `<div class="note"><b>Talk instead of typing?</b> When you use the Talk button, your voice is sent to ${esc(where)} and turned into words that appear in your text box for you to check. It is not kept as a recording. Nobody has to: if you would rather not, you type and tap and nothing else changes.
+    <div class="row" style="margin-top:8px"><button class="btn${store.get('oxd.hear') === 'yes' ? ' primary' : ''}" data-act="hear.yes">Yes, let me talk</button><button class="btn${store.get('oxd.hear') === 'no' ? ' primary' : ''}" data-act="hear.no">No, I will type</button></div></div>`;
+}
+function talkButtonHtml() {
+  if (!canHear() || store.get('oxd.hear') === 'no') return '';
+  return `<button class="btn${ui.talk === 'listening' ? ' primary' : ''}" data-act="talk" ${ui.talk === 'sending' ? 'disabled' : ''}>${ui.talk === 'listening' ? 'Stop' : ui.talk === 'sending' ? '…' : 'Talk'}</button>`;
+}
+function addToSay(text) {
+  const t = String(text || '').trim();
+  if (!t) { toast('Nothing was heard. Try again, or type.'); return; }
+  ui.say.text = `${ui.say.text ? `${ui.say.text} ` : ''}${t}`.slice(0, 600);
+  render();
+}
+async function talk() {
+  if (!hearOk()) { ui.talkAsk = !ui.talkAsk; return; }
+  if (ui.talk === 'listening') { if (T.rec) T.rec.stop(); return; }
+  stopVoice(); // the Director stops talking while you do
+  if (info.voice.in === 'server') {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      T.rec = rec; T.chunks = [];
+      rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) T.chunks.push(ev.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((tr) => tr.stop());
+        ui.talk = 'sending'; render();
+        const blob = new Blob(T.chunks, { type: rec.mimeType || 'audio/webm' });
+        try {
+          const res = await fetch(`/api/voice/hear?${auth()}`, { method: 'POST', headers: { 'content-type': blob.type }, body: blob });
+          const out = await res.json();
+          if (out.ok) addToSay(out.text); else toast(out.error || 'Could not hear that.');
+        } catch (e) { toast('Cannot reach the Director host. Is it still running?'); }
+        ui.talk = 'idle'; render();
+      };
+      rec.start();
+      ui.talk = 'listening';
+    } catch (e) { toast('This phone would not let the page use its microphone.'); ui.talk = 'idle'; }
+    return;
+  }
+  try {
+    const r = new SR();
+    r.lang = navigator.language || 'en-US';
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+    r.onresult = (ev) => addToSay(Array.from(ev.results).map((x) => x[0].transcript).join(' '));
+    r.onerror = (ev) => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('This phone would not let the page use its microphone.'); else if (ev.error !== 'no-speech' && ev.error !== 'aborted') toast('Could not hear that. Try again, or type.'); };
+    r.onend = () => { ui.talk = 'idle'; T.rec = null; render(); };
+    T.rec = r;
+    r.start();
+    ui.talk = 'listening';
+  } catch (e) { toast('Talking is not available on this phone. Type and tap instead.'); ui.talk = 'idle'; }
+}
 
 boot();
