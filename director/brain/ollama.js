@@ -31,7 +31,7 @@ export function ollama({ baseUrl, model, apiKey = '', numCtx = 16384, fetchImpl 
       const body = { model, messages, stream: false, options: { temperature, num_ctx: Number(numCtx) || 16384 } };
       if (fns.length) body.tools = fns;
       if (thinking === 'off') body.think = false;
-      if (thinking === 'low') body.think = 'low';
+      if (thinking === 'low' || thinking === 'medium') body.think = thinking;
       let r = await call('chat', body);
       // A model that cannot switch thinking says so: ask again without the setting.
       if (!r.ok && body.think !== undefined && /think/i.test(errorText(r.data, r.status))) { delete body.think; r = await call('chat', body); }

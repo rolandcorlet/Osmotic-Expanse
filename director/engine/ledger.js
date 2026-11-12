@@ -34,6 +34,7 @@ export function newSession(scenario) {
     story: [],
     // Session zero: agreed before play. The pause word stops the scene at once.
     zero: { pauseWord: 'SLACK WATER', tone: '', lines: [], open: true },
+    cohesion: 0, // the table's shared trust; an Oath kept pays one (CORE 11.4)
     nextId: 1,
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
@@ -1084,13 +1085,18 @@ const HANDLERS = {
       // "why" at the same site is the same payment twice (a toll paid at the gate and again at the cut-lane).
       const why = String(a.why || '').trim().toLowerCase();
       s.paid = s.paid || [];
-      if (ctx.ai && why) {
-        for (const id of ids) {
-          if (s.paid.some((p) => p.org === id && p.site === s.scene.siteId && p.why === why)) {
-            throw new RuleError(`${org(s, id).name} has already been paid for that at this site. Pay a printed reward once.`);
+      if (why) {
+        // The Director may pay a printed reward once per organism per site. The host is not
+        // held to that, but what the host pays is still recorded, so the briefing stays honest
+        // about what the page still owes.
+        if (ctx.ai) {
+          for (const id of ids) {
+            if (s.paid.some((p) => p.org === id && p.site === s.scene.siteId && p.why === why)) {
+              throw new RuleError(`${org(s, id).name} has already been paid for that at this site. Pay a printed reward once.`);
+            }
           }
         }
-        for (const id of ids) s.paid.push({ org: id, site: s.scene.siteId, why });
+        for (const id of ids) s.paid.push({ org: id, site: s.scene.siteId, why, codon, substrate: sub });
       }
       for (const id of ids) {
         const o = org(s, id);
@@ -1257,8 +1263,35 @@ const HANDLERS = {
       const witness = String(a.witness || '').trim().slice(0, 60);
       o.oath -= 1;
       o.oaths = o.oaths || [];
-      o.oaths.push({ promise, witness, siteId: s.scene.siteId });
+      o.oaths.push({ id: `v${s.nextId++}`, promise, witness, siteId: s.scene.siteId, open: true });
       say(s, ctx, `${o.name} swears an Oath${witness ? `, witnessed by ${witness}` : ''}: "${promise}". Oath boxes left: ${o.oath} of ${o.oathMax}.`, 'award');
+    },
+  },
+  // An Oath is kept or broken (CORE 11.4, FIRST CARVE p.329). Keeping one that cost something
+  // real pays the table a Cohesion. Breaking one marks 2 Countdown boxes and leaves a scar, and
+  // the witness drops a rung: oath-breaking is a plot, not a punishment, so the Engine only
+  // writes the price and leaves the plot to the table.
+  'oath.settle': {
+    host: true,
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      const open = (o.oaths || []).filter((v) => v.open);
+      if (!open.length) throw new RuleError(`${o.name} has no Oath open.`);
+      const v = a.oathId ? open.find((x) => x.id === a.oathId) : (open.length === 1 ? open[0] : null);
+      if (!v) throw new RuleError(`Say which Oath: ${open.map((x) => `${x.id} ("${x.promise.slice(0, 40)}")`).join(', ')}.`);
+      const why = String(a.why || '').trim().slice(0, 160);
+      v.open = false;
+      v.kept = !!a.kept;
+      v.why = why;
+      if (a.kept) {
+        s.cohesion = (s.cohesion || 0) + 1;
+        say(s, ctx, `${o.name} keeps the Oath: "${v.promise}"${why ? ` — ${why}` : ''}. Cohesion ${s.cohesion}.`, 'award');
+      } else {
+        o.countdown = clamp(o.countdown + 2, 0, o.countdownMax);
+        o.conditions = o.conditions || [];
+        o.conditions.push({ name: 'Oath-scar', why: v.promise.slice(0, 60) });
+        say(s, ctx, `${o.name} breaks the Oath: "${v.promise}"${why ? ` — ${why}` : ''}. Two Lysis Countdown boxes marked (${o.countdown} of ${o.countdownMax}), and a scar.${v.witness ? ` ${v.witness} drops a rung.` : ''}`, 'danger');
+      }
     },
   },
   // A creature yields, flees, or was never part of the fight. It takes no more turns and no

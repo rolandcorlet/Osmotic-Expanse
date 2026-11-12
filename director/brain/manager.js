@@ -143,7 +143,7 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
             reload = usable() && !(st.modelsBy[cfg.provider] || []).length;
           }
           if (typeof body.model === 'string' && body.model) { cfg.models[cfg.provider] = body.model; st.test = null; }
-          if (['default', 'low', 'off'].includes(body.thinking)) { cfg.thinking = body.thinking; st.test = null; }
+          if (['default', 'medium', 'low', 'off'].includes(body.thinking)) { cfg.thinking = body.thinking; st.test = null; }
           if (body.numCtx != null) cfg.numCtx = Math.min(262144, Math.max(4096, Math.round(Number(body.numCtx)) || 16384));
           if (typeof body.baseUrl === 'string' && info().url) {
             const u = body.baseUrl.trim();

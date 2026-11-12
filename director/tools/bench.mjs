@@ -31,7 +31,7 @@ const apiKey = (cfg.keys || {})[provider] || (provider === 'gemini' && cfg.apiKe
 const baseUrl = opt('--url', (cfg.urls || {})[provider] || '');
 const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemini' && cfg.model) || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
-const thinking = opt('--thinking', cfg.thinking || 'default'); // default | low | off (local models)
+const thinking = opt('--thinking', cfg.thinking || 'default'); // default | medium | low | off (local models)
 const runs = Number(opt('--runs', 1));
 const sites = Number(opt('--sites', 1)); // 2 plays on through the Soft Field: harvest, the Tally Post, and out
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));

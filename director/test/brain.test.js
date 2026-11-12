@@ -558,7 +558,7 @@ test('an Oath spends a box and records the promise; Hands without boxes cannot s
   const r = T.run('swear_oath', { organism: 'wall', promise: 'We will carry the last cargo out under stamp', witness: 'the Order II fold' });
   assert.deepEqual(r, { sworn: true, oath_boxes_left: '4/5' });
   assert.equal(T.state.organisms.wall.oaths[0].promise, 'We will carry the last cargo out under stamp');
-  assert.match(briefing(T.state, scenario, bestiary, {}), /Oath sworn: "We will carry the last cargo out under stamp" \(witnessed by the Order II fold\)/);
+  assert.match(briefing(T.state, scenario, bestiary, {}), /Oath OPEN \(id "v\d+"\): "We will carry the last cargo out under stamp" \(witnessed by the Order II fold\)/);
   assert.match(T.run('swear_oath', { organism: 'eyes', promise: 'x' }).refused, /no Oath boxes printed/);
   assert.match(T.run('swear_oath', { organism: 'wall', promise: '' }).refused, /what is promised/);
 });
@@ -716,10 +716,29 @@ test('thinking setting: sent to local servers only, and dropped if the server ob
   r = recorder([ok]);
   await build({ provider: 'openai', apiKey: 'K', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
   assert.equal(r.sent[0].body.chat_template_kwargs, undefined);
-  // Ollama uses its own switch.
+  // Medium: the middle setting, sent the same way as low.
+  r = recorder([ok]);
+  await build({ provider: 'lmstudio', model: 'm', thinking: 'medium', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.reasoning_effort, 'medium');
+  assert.equal(r.sent[0].body.chat_template_kwargs, undefined);
+  // Default: nothing is sent, and the model keeps its own.
+  r = recorder([ok]);
+  await build({ provider: 'lmstudio', model: 'm', thinking: 'default', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.reasoning_effort, undefined);
+  assert.equal(r.sent[0].body.chat_template_kwargs, undefined);
+  // Cloud providers never get it.
+  r = recorder([ok]);
+  await build({ provider: 'openai', apiKey: 'K', model: 'm', thinking: 'medium', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.reasoning_effort, undefined);
+  // Ollama uses its own switch, for every setting that is not the model's default.
+  for (const [set, want] of [['off', false], ['low', 'low'], ['medium', 'medium']]) {
+    r = recorder([{ message: { role: 'assistant', content: 'Ready. What now?' } }]);
+    await build({ provider: 'ollama', model: 'm', thinking: set, fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+    assert.equal(r.sent[0].body.think, want, `ollama think for ${set}`);
+  }
   r = recorder([{ message: { role: 'assistant', content: 'Ready. What now?' } }]);
-  await build({ provider: 'ollama', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
-  assert.equal(r.sent[0].body.think, false);
+  await build({ provider: 'ollama', model: 'm', thinking: 'default', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.think, undefined);
 });
 
 test('the briefing lists what can be harvested now, and nothing else', () => {
@@ -744,4 +763,45 @@ test('the briefing carries session zero, and it outranks the page', () => {
   assert.match(text, /Body horror is in; cruelty to animals is out\./);
   assert.match(text, /Off the page, never put these in a scene[^\n]*Drowning/);
   assert.match(text, /pause word \(Slack Water\), stop at once/);
+});
+
+test('an open Oath is settled kept or broken, and the briefing will not let it be forgotten', () => {
+  let s = seated();
+  s = apply(s, { type: 'oath.swear', organismId: 'wall', promise: 'I shoulder through before the flap closes', witness: 'the Order II fold' }, ctx('host', null));
+  const before = briefing(s, scenario, bestiary, {});
+  assert.match(before, /# OATHS STILL OPEN: Bresk[^\n]*shoulder through before the flap closes/);
+  assert.match(before, /Oath-breaking is a plot, not a punishment/);
+  const boxes = s.organisms.wall.oath;
+
+  // Broken: two Lysis boxes and a scar. The box is not handed back.
+  let b = apply(s, { type: 'oath.settle', organismId: 'wall', kept: false, why: 'the Cohort took the lane and left it' }, ctx('host', null));
+  assert.equal(b.organisms.wall.countdown, 2);
+  assert.ok(b.organisms.wall.conditions.some((c) => c.name === 'Oath-scar'));
+  assert.equal(b.organisms.wall.oath, boxes);
+  assert.ok(!/# OATHS STILL OPEN/.test(briefing(b, scenario, bestiary, {})));
+  assert.match(briefing(b, scenario, bestiary, {}), /Oath BROKEN/);
+  assert.throws(() => apply(b, { type: 'oath.settle', organismId: 'wall', kept: true }, ctx('host', null)), /no Oath open/);
+
+  // Kept: the table gains a Cohesion, and nothing is marked.
+  const k = apply(s, { type: 'oath.settle', organismId: 'wall', kept: true, why: 'he went through first' }, ctx('host', null));
+  assert.equal(k.cohesion, 1);
+  assert.equal(k.organisms.wall.countdown, 0);
+  assert.match(briefing(k, scenario, bestiary, {}), /Oath kept/);
+});
+
+test('the briefing says what the page pays here and nobody has been given, and names creatures not in the scene', () => {
+  let s = seated();
+  // The Toll-Vent prints 1.5 Codon a swarm and 15 for getting inside without an enemy of Order II.
+  assert.match(briefing(s, scenario, bestiary, {}), /# PRINTED AND NOT YET PAID AT THIS SITE: 1\.5 Codon, 15 Codon/);
+  s = apply(s, { type: 'award', codon: 15, why: 'inside without an enemy of Order II' }, ctx('host', null));
+  const after = briefing(s, scenario, bestiary, {});
+  assert.match(after, /# PRINTED AND NOT YET PAID AT THIS SITE: 1\.5 Codon\./);
+  assert.ok(!/NOT YET PAID[^\n]*15 Codon/.test(after), 'what has been paid drops off the list');
+
+  // The Danger line names a Fold Sentinel; until it is brought in it cannot act.
+  const text = briefing(s, scenario, bestiary, {});
+  assert.match(text, /NOT IN THE SCENE[^\n]*Fold Sentinel/);
+  assert.match(text, /do not describe a creature acting, blocking or watching unless it is listed above/);
+  const withIt = apply(s, { type: 'creature.add', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
+  assert.ok(!/NOT IN THE SCENE[^\n]*Fold Sentinel/.test(briefing(withIt, scenario, bestiary, {})));
 });

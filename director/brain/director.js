@@ -4,7 +4,7 @@
 // commit the result (Auto) or show it to the host first (Co-pilot).
 
 import { readFileSync } from 'node:fs';
-import { TOOLS, toolbox, orgMT } from './tools.js';
+import { TOOLS, toolbox, orgMT, printedPays } from './tools.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
 
@@ -63,7 +63,17 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     L.push(`  Carries: ${weps || 'nothing'}; ${o.kit.join('; ')} | Substrate ${o.substrate} S | Codon ${o.codon}${o.oath != null ? ` | Oath boxes ${o.oath}/${o.oathMax}` : ''}${o.conditions.length ? ` | Conditions: ${o.conditions.map((c) => c.name).join(', ')}` : ''}`);
     L.push(`  Tie: ${o.tie}`);
     { const g = (x) => ['C', 'G', 'P', 'T'].filter((k) => x && x[k]).map((k) => `${x[k]} ${k}`).join(', ') || 'none'; if (o.bulk || o.specimens || o.stamped) L.push(`  Specimens unstamped: ${g(o.specimens)}; stamped: ${g(o.stamped)}; Bulk carried ${o.bulk || 0} of ${(o.base.VSC || 0) * 5}`); }
-    for (const v of o.oaths || []) L.push(`  Oath sworn: "${v.promise}"${v.witness ? ` (witnessed by ${v.witness})` : ''}`);
+    for (const v of o.oaths || []) L.push(`  Oath ${v.open ? 'OPEN' : (v.kept ? 'kept' : 'BROKEN')} (id "${v.id}"): "${v.promise}"${v.witness ? ` (witnessed by ${v.witness})` : ''}`);
+  }
+
+  {
+    const open = [];
+    for (const o of Object.values(state.organisms)) for (const v of (o.oaths || [])) if (v.open) open.push(`${o.name} ("${v.promise}", id "${v.id}")`);
+    if (open.length) {
+      L.push('');
+      L.push(`# OATHS STILL OPEN: ${open.join('; ')}`);
+      L.push('An Oath is a promise the table is owed an answer to. When the promise is met, settle it kept; when the Cohort walks away from it, settle it broken. Do not let the Cohort leave this site with an Oath hanging: settle it with settle_oath, or say in the scene what is still owed. Keeping one pays Cohesion; breaking one marks two Lysis boxes and a scar, and the witness drops a rung. Oath-breaking is a plot, not a punishment: play the consequence, do not scold.');
+    }
   }
 
   L.push('');
@@ -79,6 +89,18 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const downNow = here.filter((c) => c.down);
   if (downNow.length && !here.some((c) => !c.down && !c.stoodDown) && !here.some((c) => c.stoodDown)) L.push('Every creature here is destroyed. Do not describe any of them as alive, standing or holding a line.');
 
+  {
+    // The Danger line names what lives here; only what has been brought in can act.
+    const inScene = new Set(here.map((c) => String(c.blockId || c.block || '').toLowerCase()));
+    const danger = String((site.host || {}).danger || '');
+    const named = Object.entries(bestiary || {})
+      .filter(([id, b]) => b && b.name && danger.includes(b.name) && !inScene.has(String(id).toLowerCase()))
+      .map(([, b]) => b.name);
+    if (named.length) {
+      L.push(`NOT IN THE SCENE (the Danger line names them, the Ledger does not hold them): ${named.join(', ')}. They have no Pulse Points, take no turns and cannot be struck. Either bring one in with bring_creatures, or leave it out of the narration: do not describe a creature acting, blocking or watching unless it is listed above.`);
+    }
+  }
+
   L.push('');
   const cutnow = here.filter((c) => c.down && !c.harvested).map((c) => c.name);
   if (cutnow.length) L.push(`Can be harvested now (destroyed, not yet cut): ${cutnow.join(', ')}. Nothing else can: a creature that is still up, or that has stood down, cannot be harvested.`);
@@ -89,6 +111,17 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     for (const p of paidHere) (byWhy[p.why] = byWhy[p.why] || []).push((state.organisms[p.org] || {}).name || p.org);
     L.push(`# ALREADY PAID AT THIS SITE (do not pay these again): ${Object.entries(byWhy).map(([w, who]) => `"${w}" to ${who.join(' and ')}`).join('; ')}`);
     L.push('');
+  }
+  {
+    // What the page pays here and nobody has been given yet. Saying a reward in the narration
+    // is not paying it: the Ledger only changes when award is called.
+    const printed = printedPays(site);
+    const gotC = new Set(paidHere.map((p) => p.codon).filter(Boolean));
+    const owed = printed.codon.filter((n) => !gotC.has(n));
+    if (owed.length) {
+      L.push(`# PRINTED AND NOT YET PAID AT THIS SITE: ${owed.map((n) => `${n} Codon`).join(', ')}. Read the Pays line for what each is for. When the Cohort has done that thing, call award with the printed amount; do not say a reward out loud without paying it, and do not invent an amount.`);
+      L.push('');
+    }
   }
   L.push(`# CLOCKS (the players can see these): ${Object.values(state.clocks).map((c) => `${c.name} ${c.filled}/${c.segments}${c.aiAdvanced ? ' (already advanced this session)' : ''}`).join(' · ')}`);
   L.push('CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.');

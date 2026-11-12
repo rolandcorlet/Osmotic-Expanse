@@ -320,6 +320,22 @@ export const TOOLS = [
     },
   },
   {
+    name: 'settle_oath',
+    description: 'Close an Oath the briefing lists as OPEN: kept when the organism did the thing it promised, broken when it walked away from it or the moment to keep it has passed. The Engine writes the price: keeping pays the table a Cohesion, breaking marks two Lysis Countdown boxes and a scar, and the witness drops a rung. Settle before the Cohort leaves the site where the Oath was sworn. Never state Cohesion, Lysis boxes or a scar yourself: this tool returns them. Oath-breaking is a plot, not a punishment: narrate what it costs in the fiction, do not scold the player.',
+    parameters: obj({ organism: S('Organism id.'), kept: B('True when the promise was met, false when it was broken.'), oath: S('The Oath id from the briefing. Leave out when only one is open.'), why: S('One short line on what met or broke it.') }, ['organism', 'kept']),
+    run(a, T) {
+      const o = findOrg(T.state, a.organism);
+      if (!o) return noOrg(a.organism);
+      const kept = a.kept === true || a.kept === 'true';
+      const no = T.do({ type: 'oath.settle', organismId: o.id, oathId: a.oath, kept, why: a.why || '' });
+      if (no) return { refused: no };
+      const t = T.state.organisms[o.id];
+      return kept
+        ? { settled: 'kept', cohesion: T.state.cohesion }
+        : { settled: 'broken', lysis_boxes: `${t.countdown}/${t.countdownMax}`, scar: true };
+    },
+  },
+  {
     name: 'rest',
     description: 'The Cohort takes a Reconstitution: about an hour. Full ATP, Stress cleared, some MI healed. In this Vector it costs a CARCASS segment: say so before they choose.',
     parameters: obj({}),

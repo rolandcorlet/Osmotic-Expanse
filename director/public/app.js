@@ -329,7 +329,7 @@ function sceneCard({ full = false } = {}) {
   const s = site();
   const zones = s.zones.map((z) => `<div class="z"><span class="zb">${esc(z.band || '·')}</span><span><b>${esc(z.name)}</b>${z.note ? ` <span class="dim">— ${esc(z.note)}</span>` : ''}</span></div>`).join('');
   return `<section class="card scene${full ? ' fill' : ''}">
-    <h3>Where you are<span class="right"><span class="chip">${esc(s.tonic)}</span><span class="chip">Viscosity ${s.visc}</span><span class="chip">Flow ${s.flow}</span></span></h3>
+    <h3>Where you are<span class="right">${state.cohesion ? `<span class="chip ok" title="The table's shared trust: an Oath kept pays one">Cohesion ${state.cohesion}</span>` : ''}<span class="chip">${esc(s.tonic)}</span><span class="chip">Viscosity ${s.visc}</span><span class="chip">Flow ${s.flow}</span></span></h3>
     <div class="${full ? 'scroll' : ''}" data-scroll="scene" style="display:flex;flex-direction:column;gap:10px">
       <div><div class="n">SITE ${s.n} OF ${sc.sites.length}</div><h2>${esc(s.name)}</h2><div class="dim">${esc(s.inWhale)}</div></div>
       <p class="tale">${esc(s.where)}</p>
@@ -553,7 +553,7 @@ function sheetCard(o, { own = false, edit = false } = {}) {
       <div class="tiles">${tile('PP / Cycle', o.ppMax)}${tile('MT', o.mt)}${tile('Flow', o.flow)}${tile('Soak', o.soak)}</div>
       <div class="tiles">${tile('Substrate', `${o.substrate}<small> S</small>`, '', adj('substrate', o.substrate))}${tile('Codon', o.codon, '', adj('codon', o.codon))}${tile('Oath', o.oath == null ? '<small>not printed</small>' : `${o.oath}<small>/${o.oathMax}</small>`, '', o.oath == null ? '' : adj('oath', o.oath))}</div>
       ${o.bulk || o.specimens || o.stamped ? `<div class="small"><span class="dim">Cut carried:</span> ${['C', 'G', 'P', 'T'].filter((k) => (o.specimens || {})[k]).map((k) => `${o.specimens[k]} ${k}`).join(', ') || 'none'} unstamped · ${['C', 'G', 'P', 'T'].filter((k) => (o.stamped || {})[k]).map((k) => `${o.stamped[k]} ${k}`).join(', ') || 'none'} stamped · <span class="dim">Bulk</span> ${o.bulk || 0}/${(o.base.VSC || 0) * 5}</div>` : ''}
-      ${(o.oaths || []).length ? `<div class="small"><span class="dim">Oaths sworn:</span> ${o.oaths.map((v) => `“${esc(v.promise)}”${v.witness ? ` <span class="dim">(${esc(v.witness)})</span>` : ''}`).join(' · ')}</div>` : ''}
+      ${(o.oaths || []).map((v) => `<div class="small row"><span>${v.open ? '<span class="chip warn">open</span>' : `<span class="chip${v.kept ? ' ok' : ' no'}">${v.kept ? 'kept' : 'broken'}</span>`} “${esc(v.promise)}”${v.witness ? ` <span class="dim">(${esc(v.witness)})</span>` : ''}</span>${edit && v.open ? `<span class="right"><button class="btn sm" data-act="h.oath.settle" data-id="${o.id}" data-oath="${v.id}" data-kept="1" title="Keeping it pays the table a Cohesion">Kept</button> <button class="btn sm no" data-act="h.oath.settle" data-id="${o.id}" data-oath="${v.id}" title="Breaking it marks two Lysis boxes and a scar">Broken</button></span>` : ''}</div>`).join('')}
       ${edit && o.oath ? `<div class="row"><input type="text" class="grow" data-k="oath.${o.id}" data-bind="oath.text" value="${esc(ui.oath.text)}" maxlength="200" placeholder="Swear an Oath: what is promised"><button class="btn sm" data-act="h.oath" data-id="${o.id}">Swear</button></div>` : ''}
       <div class="tiles">${R.BASELINES.map((b) => tile(b, o.base[b])).join('')}</div>
       ${o.conditions.length ? `<div class="row">${o.conditions.map((c) => `<span class="chip warn" title="${esc((R.CONDITIONS[c.name] || {}).effect || '')}">${esc(c.name)}</span>`).join('')}</div>` : ''}
@@ -964,7 +964,7 @@ function hostToolsCard() {
   const A = ui.host.award;
   const clocks = Object.values(state.clocks).map((c) => `<div class="row"><b style="width:74px;font-size:13px">${esc(c.name)}</b><div class="segs grow">${Array.from({ length: c.segments }, (_, i) => `<i class="${i < c.filled ? 'on' : ''}"></i>`).join('')}</div><span class="small dim">${c.filled}/${c.segments}</span>
     <button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="-1">−</button><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="1">+</button></div>`).join('');
-  return `<section class="card"><h3>Clocks, rest and rewards<span class="right"><button class="btn sm" data-act="h.undo" title="Take back the last change">Undo</button></span></h3>
+  return `<section class="card"><h3>Clocks, rest and rewards<span class="right">${state.cohesion ? `<span class="chip ok" title="The table's shared trust: an Oath kept pays one">Cohesion ${state.cohesion}</span> ` : ''}<button class="btn sm" data-act="h.undo" title="Take back the last change">Undo</button></span></h3>
     ${clocks}
     <div class="row"><input type="number" style="width:86px" data-k="aw.c" data-bind="host.award.codon" value="${esc(A.codon)}" placeholder="Codon"><input type="number" style="width:86px" data-k="aw.s" data-bind="host.award.substrate" value="${esc(A.substrate)}" placeholder="S">
       <input type="text" class="grow" data-k="aw.w" data-bind="host.award.why" value="${esc(A.why)}" placeholder="What for"><button class="btn sm" data-act="h.award">Award each</button></div>
@@ -1014,8 +1014,8 @@ function directorHtml() {
       ${pv.ctx ? `<div class="fld"><span class="fl">Context size (how much the model can read at once)</span>
         <select data-k="dir.ctx" data-dctx="1">${[8192, 16384, 32768, 65536].map((n) => `<option value="${n}" ${Number(d.numCtx) === n ? 'selected' : ''}>${n.toLocaleString()} tokens${n === 16384 ? ' (recommended)' : n === 8192 ? ' (tight: long scenes may be cut off)' : ''}</option>`).join('')}</select>
         <span class="small dim">Bigger needs more video memory. If the Director forgets the scene or stops using its tools, raise this.</span></div>` : ''}
-      ${pv.group === 'local' ? `<div class="fld"><span class="fl">Thinking before each reply</span>
-        <div class="seg">${[['default', 'Model default'], ['low', 'Low'], ['off', 'Off']].map(([id, name]) => `<button class="${(d.thinking || 'default') === id ? 'on' : ''}" data-act="d.think" data-id="${id}">${name}</button>`).join('')}</div>
+      ${pv.group === 'local' ? `<div class="fld"><span class="fl">Thinking before each reply <span class="i" title="Less thinking is faster but leans harder on the Engine's guard rails. Low has benched clean and quick; Off was quickest and made rule errors.">&#9432;</span></span>
+        <div class="seg">${[['default', 'Model default'], ['medium', 'Medium'], ['low', 'Low'], ['off', 'Off']].map(([id, name]) => `<button class="${(d.thinking || 'default') === id ? 'on' : ''}" data-act="d.think" data-id="${id}">${name}</button>`).join('')}</div>
         <span class="small dim">Some local models reason silently before answering, which costs seconds on every turn. Off is fastest and may cost some accuracy. If your server does not know the setting, it is ignored.</span></div>` : ''}
       <hr class="sep">
       <div class="fld"><span class="fl">Ask for a turn now</span>
@@ -1213,6 +1213,7 @@ const ACT = {
   'h.cre.act': (d) => send({ type: 'creature.act', cid: d.id, what: d.what, cost: Number(d.cost) }),
   'h.cre.end': (d) => send({ type: 'turn.end', cid: d.id }),
   'h.cre.stand': (d) => send({ type: 'creature.standDown', cid: d.id, off: !!d.off }),
+  'h.oath.settle': (d) => send({ type: 'oath.settle', organismId: d.id, oathId: d.oath, kept: d.kept === '1', why: '' }),
   'h.oath': (d) => { const t = (ui.oath.text || '').trim(); if (!t) return; send({ type: 'oath.swear', organismId: d.id, promise: t, witness: '' }); ui.oath.text = ''; },
   'h.cre.dmg': (d) => send({ type: 'damage', target: { kind: 'cre', id: d.id }, amount: Number(d.n), ignoreSoak: true }),
   'h.cre.cond': (d) => {

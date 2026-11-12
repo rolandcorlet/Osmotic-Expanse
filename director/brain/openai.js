@@ -33,16 +33,18 @@ export function openaiLike({ id = 'openai', name = 'OpenAI', baseUrl, apiKey = '
     const messages = [{ role: 'system', content: system }];
     const fns = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }));
     let useTemp = true;
-    // Thinking: 'off' asks the model's chat template not to reason first; 'low' asks for the least.
-    // Not every server knows these fields, so they are dropped if the server objects.
-    let useThinking = thinking === 'off' || thinking === 'low';
+    // Thinking: 'off' asks the model's chat template not to reason first; 'low' and 'medium'
+    // ask for that much reasoning effort. Not every server knows these fields, so they are
+    // dropped if the server objects.
+    const EFFORT = ['low', 'medium'];
+    let useThinking = thinking === 'off' || EFFORT.includes(thinking);
 
     async function turn() {
       const body = { model, messages };
       if (fns.length) body.tools = fns;
       if (useTemp) body.temperature = temperature;
       if (useThinking && thinking === 'off') body.chat_template_kwargs = { enable_thinking: false };
-      if (useThinking && thinking === 'low') body.reasoning_effort = 'low';
+      if (useThinking && EFFORT.includes(thinking)) body.reasoning_effort = thinking;
       let r = await call('chat/completions', body);
       if (!r.ok && r.status === 400 && useThinking && /chat_template_kwargs|enable_thinking|reasoning_effort|unknown|unrecognized|extra/i.test(errorText(r.data, r.status))) {
         useThinking = false;
