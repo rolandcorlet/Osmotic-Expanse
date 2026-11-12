@@ -25,6 +25,8 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   L.push(`Exits: ${site.exits.join(' | ')}`);
   const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
+  if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} (harvest tool with no creature). The grade depends on CARCASS, not on the roll.`);
+  if (site.post) L.push('A Tally Post stands here: stamp_cut weighs, grades and stamps what the Cohort carries.');
   L.push('');
   L.push('## Director-only notes for this site (never read these out)');
   for (const [k, label] of [['play', 'Play'], ['danger', 'Danger'], ['wants', 'Wants'], ['weakness', 'Weakness'], ['hazard', 'Hazard'], ['pays', 'Pays'], ['tells', 'Tells'], ['lesson', 'Lesson']]) {
@@ -56,6 +58,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     L.push(`  MI ${o.mi}/${o.miMax} | ATP ${o.atp}/${o.atpMax} | Stress ${o.stress} (${R.stressNote(o.stress)}) | MT ${orgMT(o)} | soak ${o.soak} | Lysis boxes ${o.countdown}/${o.countdownMax}${o.dormant ? ' | DORMANT' : ''}`);
     L.push(`  Carries: ${weps || 'nothing'}; ${o.kit.join('; ')} | Substrate ${o.substrate} S | Codon ${o.codon}${o.oath != null ? ` | Oath boxes ${o.oath}/${o.oathMax}` : ''}${o.conditions.length ? ` | Conditions: ${o.conditions.map((c) => c.name).join(', ')}` : ''}`);
     L.push(`  Tie: ${o.tie}`);
+    { const g = (x) => ['C', 'G', 'P', 'T'].filter((k) => x && x[k]).map((k) => `${x[k]} ${k}`).join(', ') || 'none'; if (o.bulk || o.specimens || o.stamped) L.push(`  Specimens unstamped: ${g(o.specimens)}; stamped: ${g(o.stamped)}; Bulk carried ${o.bulk || 0} of ${(o.base.VSC || 0) * 5}`); }
     for (const v of o.oaths || []) L.push(`  Oath sworn: "${v.promise}"${v.witness ? ` (witnessed by ${v.witness})` : ''}`);
   }
 
@@ -65,7 +68,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   if (!here.length) L.push('None are present yet.');
   for (const c of here) {
     const health = c.segments != null ? `Segments ${c.segments}/${c.segMax}` : `MI ${c.mi}/${c.miMax}`;
-    if (c.down) { L.push(`- ${c.name} (id "${c.cid}"): DESTROYED. It is out of the scene: it cannot act, block the way or be struck. Describe it only as wreckage.`); continue; }
+    if (c.down) { L.push(`- ${c.name} (id "${c.cid}"): DESTROYED. It is out of the scene: it cannot act, block the way or be struck. Describe it only as wreckage. ${c.harvested ? 'Already harvested.' : 'Not yet harvested: an organism may harvest it (harvest tool).'}`); continue; }
     if (c.stoodDown) { L.push(`- ${c.name} (id "${c.cid}"): STOOD DOWN (${c.stoodDown.why}). It is present but not fighting: it takes no turns and does not block the way. If a player strikes it, it rejoins the fight.`); continue; }
     L.push(`- ${c.name} (id "${c.cid}", block ${c.blockId}): ${health}; band ${c.band}${c.conditions.length ? `; ${c.conditions.map((x) => x.name).join(', ')}` : ''}`);
   }
@@ -130,7 +133,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       const res = r.source === 'baseline' ? 'no roll needed: passed on Baseline (no Overflow)'
         : r.at == null ? `dice ${r.dice.join(',')} total ${r.total}`
           : `dice ${r.dice.join(',')} = ${r.total} against ${r.at}: ${r.success ? `SUCCESS, Overflow ${r.overflow}` : `FAILED, short by ${r.shortBy}`}`;
-      L.push(`- ${r.who} — ${r.label}: ${res}${r.runaway ? ' — RUNAWAY CATALYSIS (say so)' : ''}${r.stressMarked ? ` — marked ${r.stressMarked} Stress, now ${r.stressNow}` : ''}${r.damage != null && r.segments == null ? ` — ${r.damage} damage` : ''}${r.segments != null ? ` — ${r.segments} Segments removed` : ''}${r.targetName ? (r.targetDown ? ` — ${r.targetName} is DESTROYED by this` : ` — ${r.targetName} is STILL UP after this: describe it hurt, never destroyed`) : ''}${r.kind === 'attack' && r.whoKind === 'org' && r.at != null && !r.success ? ' — a miss: the target is unharmed' : ''}`);
+      L.push(`- ${r.who} — ${r.label}: ${res}${r.runaway ? ' — RUNAWAY CATALYSIS (say so)' : ''}${r.stressMarked ? ` — marked ${r.stressMarked} Stress, now ${r.stressNow}` : ''}${r.damage != null && r.segments == null ? ` — ${r.damage} damage` : ''}${r.segments != null ? ` — ${r.segments} Segments removed` : ''}${r.harvest ? (r.harvest.got ? ` — harvested ${['C', 'G', 'P', 'T'].filter((k) => r.harvest.got[k]).map((k) => `${r.harvest.got[k]} ${k}`).join(', ')} (unstamped)` : ` — the cut was ruined: ${r.harvest.substrate} S instead`) : ''}${r.targetName ? (r.targetDown ? ` — ${r.targetName} is DESTROYED by this` : ` — ${r.targetName} is STILL UP after this: describe it hurt, never destroyed`) : ''}${r.kind === 'attack' && r.whoKind === 'org' && r.at != null && !r.success ? ' — a miss: the target is unharmed' : ''}`);
     }
   }
 

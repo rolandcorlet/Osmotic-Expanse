@@ -98,6 +98,7 @@ const sites = [
   },
   {
     id: 'soft-field', n: 2, name: 'The Soft Field', short: 'the licensed cut-ground, and the Tally Post',
+    harvest: { tier: 1, what: 'the hanging lipid panels' }, post: true,
     inWhale: 'Inside the flank, just in from the wound.',
     where: 'The good part of the whale: hanging sheets of lipid and connective tissue, cut lanes marked with Guild claim-line pheromone, and tally-sleds on a cable line. At the centre stands the Tally Post, where a cut is weighed, graded and stamped. Tools are stacked, unblooded. The sleds are empty.',
     front: 'The hanging panels and the cut lanes between them, with the Tally Post in the middle of the field.',

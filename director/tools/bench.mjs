@@ -5,6 +5,7 @@
 //   node tools/bench.mjs                 the Toll-Vent script, once
 //   node tools/bench.mjs --runs 3
 //   node tools/bench.mjs --provider ollama --model <name>     try another one
+//   node tools/bench.mjs --sites 2 --players 4                 two sites and four players (Phase 4 rehearsal)
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //
 // The gate for a model: no Engine refusals, no leak flags, and every reply ends
@@ -31,6 +32,8 @@ const baseUrl = opt('--url', (cfg.urls || {})[provider] || '');
 const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemini' && cfg.model) || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const runs = Number(opt('--runs', 1));
+const sites = Number(opt('--sites', 1)); // 2 plays on through the Soft Field: harvest, the Tally Post, and out
+const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 if ((info.key === 'required' && !apiKey) || !model) { console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`); process.exit(1); }
 const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx });
 
@@ -50,14 +53,27 @@ const SCRIPT = [
   ['p1', 'Enough. I swing the flail at the nearest swarm.'],
   ['p2', 'We take the cut-lane down into the whale.'],
 ];
+// The second site: the harvest, a price trap, the stamp, and leaving. FIGHT lets any Pulse War play out first.
+const SCRIPT2 = [
+  ['*', 'FIGHT'],
+  ['p2', 'The way is clear. We go down the cut-lane into the Soft Field.'],
+  ['p3', 'I go to the Tally Post. What does the ledger there say, and what are the tools for?'],
+  ['p4', 'I scout the far panels, well away from the nest. Is there a clean cut to be had there?'],
+  ['p3', 'I cut a panel on the far side, taking my time over it.'],
+  ['p3', 'What is this cut worth if I sell it outside?'],
+  ['p1', 'We carry the cut to the Tally Post and ask for it to be weighed and stamped.'],
+  ['p4', 'I leave the nest alone. Is anything stopping us going on?'],
+  ['p2', 'We take the lane onward to the Render Hall.'],
+];
+const SEATS = [['p1', 'Roly', 'wall', 'Bresk of the Sixth Choir'], ['p2', 'Sam', 'eyes', 'Brost of the Third Current'], ['p3', 'Ana', 'ledger', 'Ilm of the Open Hand'], ['p4', 'Kit', 'rider', 'Vash of the Long Reach']];
 
 async function once(n) {
   let s = newSession(scenario);
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
-  act('player', 'p1', { type: 'join', name: 'Roly' });
-  act('player', 'p1', { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' });
-  act('player', 'p2', { type: 'join', name: 'Sam' });
-  act('player', 'p2', { type: 'claim', organismId: 'eyes', name: 'Brost of the Third Current' });
+  for (const [pid, who, hand, name] of SEATS.slice(0, players)) {
+    act('player', pid, { type: 'join', name: who });
+    act('player', pid, { type: 'claim', organismId: hand, name });
+  }
   const tally = { turns: 0, refusals: 0, leaks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0 };
 
   async function director(reason) {
@@ -79,8 +95,8 @@ async function once(n) {
   }
 
   // The players' side, played simply: roll what is asked, let attacks fall, strike on their turn.
-  async function settle() {
-    for (let guard = 0; guard < 12; guard++) {
+  async function settle(maxSteps = 12, maxCycle = 3) {
+    for (let guard = 0; guard < maxSteps; guard++) {
       const q = s.requests[0];
       if (q) {
         const pid = q.kind === 'incoming' ? s.organisms[q.target.id].playerId : s.organisms[q.actor.id].playerId;
@@ -92,7 +108,7 @@ async function once(n) {
       }
       const cur = s.fight && s.fight.turn ? s.fight.actors[s.fight.turn] : null;
       if (cur && cur.kind === 'cre') { await director('a creature is to act'); continue; }
-      if (cur && cur.kind === 'org' && s.fight.cycle <= 3) {
+      if (cur && cur.kind === 'org' && s.fight.cycle <= maxCycle) {
         const o = s.organisms[cur.id];
         // The scripted players attack what is fighting them first.
         const up = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
@@ -115,7 +131,9 @@ async function once(n) {
 
   console.log(`\n===== Run ${n}: ${info.name} · ${model} =====`);
   await director('opening the scene');
-  for (const [pid, text] of SCRIPT) {
+  const lines = (sites >= 2 ? SCRIPT.slice(0, -1).concat(SCRIPT2) : SCRIPT).filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
+  for (const [pid, text] of lines) {
+    if (pid === '*') { if (s.fight) { console.log('\n(the fight is played out)'); await settle(80, 8); } continue; }
     const o = Object.values(s.organisms).find((x) => x.playerId === pid);
     console.log(`\n${o.name.toUpperCase()}: ${text}`);
     act('player', pid, { type: 'say', text });
@@ -127,6 +145,8 @@ async function once(n) {
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Style flags (questions, length, formatting): ${tally.style}`);
   console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled}`);
+  const g = (x) => ['C', 'G', 'P', 'T'].filter((k) => x && x[k]).map((k) => `${x[k]} ${k}`).join(', ') || 'none';
+  for (const o of Object.values(s.organisms).filter((x) => x.playerId)) console.log(`  ${o.name}: MI ${o.mi}/${o.miMax}, Stress ${o.stress}, Codon ${o.codon}, ${o.substrate} S, cut unstamped ${g(o.specimens)}, stamped ${g(o.stamped)}, Bulk ${o.bulk || 0}${o.oath != null ? `, Oath boxes ${o.oath}/${o.oathMax}` : ''}`);
   return tally;
 }
 

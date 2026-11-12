@@ -255,6 +255,33 @@ export const TOOLS = [
     },
   },
   {
+    name: 'harvest',
+    description: 'An organism harvests a destroyed creature, or (where the briefing says the site can be cut) the site itself. The Engine sets the Threshold (tier x 4 + 8), builds the pool (OSM or RTC with Synthesis, +2 with a Harvest Claw), charges 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
+    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a DESTROYED creature to harvest. Leave out to cut the site itself.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
+    run(a, T) {
+      const o = findOrg(T.state, a.organism);
+      if (!o) return noOrg(a.organism);
+      let cid = null;
+      if (a.creature) { const c = findCre(T.state, a.creature); if (!c) return noCre(a.creature); cid = c.cid; }
+      const before = T.state.rolls.length;
+      const no = T.do({ type: 'harvest', organismId: o.id, cid, baseline: a.baseline });
+      if (no) return { refused: no };
+      if (T.state.rolls.length > before) { const r = T.state.rolls[T.state.rolls.length - 1]; return { no_roll_needed: true, result: r.harvest, note: (r.notes || []).join(' ') }; }
+      const q = T.state.requests[T.state.requests.length - 1];
+      return { waiting_for: o.name, dice: q.pool.dice, threshold: q.at, note: 'The roll is on their screen. Narrate the cut beginning, and end your turn.' };
+    },
+  },
+  {
+    name: 'stamp_cut',
+    description: 'At a Tally Post: the cut the Cohort carries is weighed, graded and stamped, which makes it property. Use only when the players bring their cut to the post and the claim stands.',
+    parameters: obj({ organisms: { type: 'array', items: { type: 'string' }, description: 'Organism ids. Leave out for everyone carrying a cut.' } }),
+    run(a, T) {
+      const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
+      const no = T.do({ type: 'harvest.stamp', organismIds: ids });
+      return no ? { refused: no } : { stamped: true };
+    },
+  },
+  {
     name: 'swear_oath',
     description: 'An organism swears a promise into one of its Oath boxes (for example to pay a toll). The Engine spends the box and records the promise on its sheet. Use the player\'s own words for the promise. Only an organism whose briefing line shows Oath boxes can swear. Never state an Oath-box count yourself: this tool returns it.',
     parameters: obj({ organism: S('Organism id.'), promise: S('What is promised, in the player\'s words. If the player has not said, ask them first.'), witness: S('Who witnesses it, for example "the Order II fold at the Toll-Vent".') }, ['organism', 'promise']),

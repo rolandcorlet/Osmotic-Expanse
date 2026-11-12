@@ -409,6 +409,9 @@ function resolve(s, ctx, req, ownDice) {
     resolveAttack(s, ctx, req, read, entry, notes);
   } else if (req.kind === 'incoming') {
     resolveIncoming(s, ctx, req, read, entry, notes);
+  } else if (req.kind === 'harvest') {
+    const o = s.organisms[req.actor.id];
+    if (o) entry.harvest = applyHarvest(s, ctx, o, req.harvest, { success: read.success, overflow: read.overflow || 0 }, notes);
   } else if (req.kind === 'stabilise') {
     const t = s.organisms[req.target.id];
     if (read.success && t) {
@@ -426,6 +429,44 @@ function resolve(s, ctx, req, ownDice) {
   const verdict = req.at == null ? `total ${read.total}` : read.success ? `success, Overflow ${read.overflow}` : `short by ${read.shortBy}`;
   say(s, ctx, `${req.actor.name} rolls ${req.label}: ${read.dice.join(', ')} = ${read.total}${req.at != null ? ` against ${req.at}` : ''}: ${verdict}.`, 'roll');
   return entry;
+}
+
+// ------------------------------------------------------------------ harvest
+// CORE 2.4: a Synthesise action (or ten minutes outside a fight), 1 Bulk, an OSM or RTC check
+// at tier x 4 + 8. Success: the printed Specimens. Failure ruins the sample: Substrate instead.
+const GRADES = ['C', 'G', 'P', 'T'];
+export function parseHarvest(text) {
+  const out = { C: 0, G: 0, P: 0, T: 0 };
+  const head = String(text || '').split('·')[0];
+  for (const m of head.matchAll(/\b([CGPT])(\d+)\b/g)) out[m[1]] += Number(m[2]);
+  return out;
+}
+export const bulkCap = (o) => (o.base.VSC || 0) * 5;
+const gradeText = (g) => GRADES.filter((k) => g[k]).map((k) => `${g[k]} ${k}`).join(', ') || 'nothing';
+
+function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
+  o.specimens = o.specimens || { C: 0, G: 0, P: 0, T: 0 };
+  o.bulk = (o.bulk || 0) + 1;
+  let got = null;
+  let sub = 0;
+  if (h.cid) {
+    const c = s.creatures[h.cid];
+    if (c) { c.harvested = true; c.harvestPending = false; }
+    if (success) got = { ...h.yield };
+    else sub = 5 * (h.yield.C || 0);
+  } else {
+    const carcass = (s.clocks.CARCASS || {}).filled || 0;
+    if (success) got = carcass <= 1 && overflow >= 4 ? { C: 3, G: 1, P: 0, T: 0 } : { C: 4, G: 0, P: 0, T: 0 };
+    else sub = 10;
+    s.scene.cuts = (s.scene.cuts || 0) + 1;
+  }
+  if (got) for (const k of GRADES) o.specimens[k] += got[k] || 0;
+  if (sub) o.substrate += sub;
+  const over = o.bulk > bulkCap(o);
+  const line = success ? `${o.name} harvests ${h.what}: ${gradeText(got)} Specimens, unstamped.` : `${o.name} ruins the cut of ${h.what}: ${sub} S of Substrate instead.`;
+  notes.push(`${line} Bulk carried ${o.bulk} of ${bulkCap(o)}${over ? ' (over: -2 DFF and Stress when moving fast)' : ''}.`);
+  say(s, ctx, line, 'award');
+  return { got, substrate: sub };
 }
 
 function resolveAttack(s, ctx, req, read, entry, notes) {
@@ -1063,6 +1104,81 @@ const HANDLERS = {
       s.fight = null;
       s.requests = [];
       say(s, ctx, `The Pulse War is over after ${cycles} Cycle${cycles > 1 ? 's' : ''}. Pulse Points exist only inside a fight; the next fight starts with a full set.`, 'turn');
+    },
+  },
+  // Harvest a downed creature (cid) or, where the site allows it, the site itself.
+  harvest: {
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      needControl(s, ctx, o.id);
+      if (o.dormant) throw new RuleError(`${o.name} is Dormant and cannot act.`);
+      if (s.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) throw new RuleError(`${o.name} already has a roll waiting.`);
+      const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
+      let h;
+      let tier;
+      if (a.cid) {
+        const c = cre(s, a.cid);
+        if (c.siteId !== s.scene.siteId) throw new RuleError(`${c.name} is not at this site.`);
+        if (!c.down) throw new RuleError(`${c.name} is still up. Only a destroyed creature can be harvested.`);
+        if (c.harvested) throw new RuleError(`${c.name} has already been harvested.`);
+        if (c.harvestPending) throw new RuleError(`Someone is already harvesting ${c.name}.`);
+        const block = (ctx.bestiary || {})[c.blockId] || {};
+        tier = Number(block.tier) || 1;
+        h = { cid: c.cid, what: c.name, yield: parseHarvest(block.harvest) };
+        c.harvestPending = true;
+      } else {
+        if (!site.harvest) throw new RuleError('Nothing is printed to cut at this site. Harvest a destroyed creature instead.');
+        const carcass = (s.clocks.CARCASS || {}).filled || 0;
+        if (carcass >= 6) throw new RuleError('CARCASS is full: there is nothing left worth cutting.');
+        tier = site.harvest.tier || 1;
+        h = { what: site.harvest.what || 'the site', site: site.id, carcass };
+      }
+      const baseline = ['OSM', 'RTC'].includes(a.baseline) ? a.baseline : (o.base.RTC >= o.base.OSM ? 'RTC' : 'OSM');
+      const claw = o.weapons.some((w) => w.id === 'harvest-claw' && w.carried !== false);
+      const carcassNow = (s.clocks.CARCASS || {}).filled || 0;
+      const at = R.harvestAT(tier) + (!a.cid && carcassNow >= 3 ? 2 : 0);
+      const pool = poolForCheck(o, { baseline, pathway: 'Synthesis', mods: claw ? [{ label: 'Harvest Claw', dice: 2 }] : [] });
+      const label = `Harvest ${h.what}`.slice(0, 60);
+      if (s.fight) {
+        // A Synthesise action: 2 PP. The Harvest Claw gives one free Harvest per Pulse War.
+        const act = actorOf(s, 'org', o.id);
+        if (!act) throw new RuleError(`${o.name} is not in this fight.`);
+        s.fight.freeHarvest = s.fight.freeHarvest || {};
+        if (claw && !s.fight.freeHarvest[o.id]) { spendPP(s, act, 0, 'Harvest'); s.fight.freeHarvest[o.id] = true; }
+        else spendPP(s, act, 2, 'Harvest (a Synthesise action)');
+      } else {
+        const base = R.homeostatic(pool.dice);
+        if (base >= at) {
+          // Ten unhurried minutes and the Baseline meets the Threshold: no dice (a Baseline pass has no Overflow).
+          const notes = [`No roll: unhurried, and the Homeostatic Baseline (${pool.dice} dice x 3 = ${base}) meets Threshold ${at}.`];
+          const out = applyHarvest(s, ctx, o, h, { success: true, overflow: 0 }, notes);
+          recordRoll(s, ctx, { who: o.name, whoKind: 'org', whoId: o.id, label, kind: 'harvest', n: pool.dice, parts: pool.parts, dice: [], inhibitors: 0, total: base, at, success: true, overflow: 0, runaway: false, source: 'baseline', by: 'host', notes, harvest: out });
+          return;
+        }
+      }
+      pushRequest(s, { kind: 'harvest', actor: { kind: 'org', id: o.id, name: o.name }, label, pool, at, harvest: h, extra: [] });
+      say(s, ctx, `${o.name} sets to harvesting ${h.what}: ${pool.dice} dice against Threshold ${at}.`, 'ask');
+    },
+  },
+  // The Tally Post weighs, grades and stamps a cut. Stamped Specimens are property; unstamped are not.
+  'harvest.stamp': {
+    host: true,
+    run(s, a, ctx) {
+      const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
+      if (!site.post) throw new RuleError('There is no Tally Post at this site.');
+      const ids = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms).filter((id) => s.organisms[id].playerId));
+      let any = false;
+      for (const id of ids) {
+        const o = org(s, id);
+        const sp = o.specimens || { C: 0, G: 0, P: 0, T: 0 };
+        if (!GRADES.some((k) => sp[k])) continue;
+        o.stamped = o.stamped || { C: 0, G: 0, P: 0, T: 0 };
+        for (const k of GRADES) { o.stamped[k] += sp[k]; sp[k] = 0; }
+        o.specimens = sp;
+        any = true;
+        say(s, ctx, `${o.name}'s cut is weighed, graded and stamped: now holding ${gradeText(o.stamped)} stamped.`, 'award');
+      }
+      if (!any) throw new RuleError('Nobody is carrying an unstamped cut.');
     },
   },
   // An organism swears a promise into one of its Oath boxes. The box is spent and the

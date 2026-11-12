@@ -593,3 +593,58 @@ test('modifiers sent as JSON text are read', () => {
   base.run('ask_for_roll', { organism: 'eyes', baseline: 'DFF', threshold: 12, what_for: 'Cross' });
   assert.equal(T.state.requests[0].pool.dice, base.state.requests[0].pool.dice + 1);
 });
+
+test('harvest: a destroyed creature yields its printed Specimens, costs Bulk, and only once', () => {
+  let s = seated();
+  s = apply(s, { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.match(T.run('harvest', { organism: 'eyes', creature: cid }).refused, /still up/);
+  T.state.creatures[cid].down = true;
+  assert.match(briefing(T.state, scenario, bestiary, {}), /Not yet harvested/);
+  const r = T.run('harvest', { organism: 'eyes', creature: cid });
+  if (r.waiting_for) {
+    const q = T.state.requests[0];
+    assert.equal(q.at, 12); // tier 1 x 4 + 8
+    T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2'));
+  }
+  const o = T.state.organisms.eyes;
+  assert.deepEqual(o.specimens, { C: 3, G: 1, P: 0, T: 0 }); // Bestiary: C3 / G1
+  assert.equal(o.bulk, 1);
+  assert.equal(T.state.creatures[cid].harvested, true);
+  assert.match(T.run('harvest', { organism: 'wall', creature: cid }).refused, /already been harvested/);
+  assert.match(briefing(T.state, scenario, bestiary, {}), /Specimens unstamped: 3 C, 1 G; stamped: none; Bulk carried 1 of/);
+});
+
+test('harvest: a failed roll ruins the sample and gives Substrate instead', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  s.creatures[cid].down = true;
+  for (let i = 0; i < 20 && s.fight.turn !== 'org:eyes'; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
+  const pp = s.fight.actors['org:eyes'].pp;
+  const before = s.organisms.eyes.substrate;
+  s = apply(s, { type: 'harvest', organismId: 'eyes', cid }, ctx('player', 'p2'));
+  assert.equal(s.fight.actors['org:eyes'].pp, pp - 2, 'a Synthesise action costs 2 Pulse Points');
+  const q = s.requests[0];
+  s = apply(s, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(1) }, ctx('player', 'p2'));
+  assert.equal(s.organisms.eyes.substrate, before + 15); // 5 S for each of the 3 printed C
+  assert.deepEqual(s.organisms.eyes.specimens, { C: 0, G: 0, P: 0, T: 0 });
+  assert.equal(s.creatures[cid].harvested, true);
+});
+
+test('harvest: the Soft Field can be cut, the Toll-Vent cannot; the Tally Post stamps the cut', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  assert.match(T.run('harvest', { organism: 'eyes' }).refused, /Nothing is printed to cut/);
+  assert.match(T.run('stamp_cut', {}).refused, /no Tally Post/);
+  T.run('change_site', { site: 'soft-field' });
+  assert.match(briefing(T.state, scenario, bestiary, {}), /This site can be cut[\s\S]*A Tally Post stands here/);
+  const r = T.run('harvest', { organism: 'eyes' });
+  if (r.waiting_for) { const q = T.state.requests[0]; T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2')); }
+  const sp = T.state.organisms.eyes.specimens;
+  assert.equal(sp.C + sp.G, 4);
+  assert.deepEqual(T.run('stamp_cut', {}), { stamped: true });
+  assert.equal(T.state.organisms.eyes.stamped.C + T.state.organisms.eyes.stamped.G, 4);
+  assert.deepEqual(T.state.organisms.eyes.specimens, { C: 0, G: 0, P: 0, T: 0 });
+  assert.match(T.run('stamp_cut', {}).refused, /unstamped cut/);
+});
