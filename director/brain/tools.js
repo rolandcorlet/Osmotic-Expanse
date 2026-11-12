@@ -20,6 +20,13 @@ function findOrg(s, ref) {
   return list.find((o) => o.id === k) || list.find((o) => lower(o.name) === k) || list.find((o) => lower(o.hand) === k || lower(o.hand) === `the ${k}`)
     || list.find((o) => k && lower(o.name).startsWith(k)) || null;
 }
+// Some models send a list as JSON text: read it if it parses, otherwise ignore it.
+function listOf(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === 'string') { try { const p = JSON.parse(v.replace(/:\s*\+(\d)/g, ': $1')); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
+  return [];
+}
+
 function findCre(s, ref) {
   const k = lower(ref);
   const list = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId);
@@ -59,7 +66,7 @@ export const TOOLS = [
       if (!(at >= 8 && at <= 28)) return { refused: 'A Threshold is between 8 and 28: use the ladder (8, 12, 16, 20) or a number printed in the site notes.' };
       if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { refused: `${o.name} already has a roll waiting. Wait for it.` };
       const before = T.state.rolls.length;
-      const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: a.modifiers || [], unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
+      const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: listOf(a.modifiers), unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
       if (no) return { refused: no };
       if (T.state.rolls.length > before) return { no_roll_needed: true, note: `Unhurried, and ${o.name}'s Homeostatic Baseline meets ${at}. It simply succeeds. There is no Overflow.` };
       const q = T.state.requests[T.state.requests.length - 1];
@@ -245,6 +252,19 @@ export const TOOLS = [
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
       const no = T.do({ type: 'award', codon, substrate: sub, why: a.why, organismIds: ids });
       return no ? { refused: no } : { paid: true };
+    },
+  },
+  {
+    name: 'swear_oath',
+    description: 'An organism swears a promise into one of its Oath boxes (for example to pay a toll). The Engine spends the box and records the promise on its sheet. Use the player\'s own words for the promise. Only an organism whose briefing line shows Oath boxes can swear. Never state an Oath-box count yourself: this tool returns it.',
+    parameters: obj({ organism: S('Organism id.'), promise: S('What is promised, in the player\'s words. If the player has not said, ask them first.'), witness: S('Who witnesses it, for example "the Order II fold at the Toll-Vent".') }, ['organism', 'promise']),
+    run(a, T) {
+      const o = findOrg(T.state, a.organism);
+      if (!o) return noOrg(a.organism);
+      const no = T.do({ type: 'oath.swear', organismId: o.id, promise: a.promise, witness: a.witness || '' });
+      if (no) return { refused: no };
+      const t = T.state.organisms[o.id];
+      return { sworn: true, oath_boxes_left: `${t.oath}/${t.oathMax}` };
     },
   },
   {

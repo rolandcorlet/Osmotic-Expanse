@@ -44,6 +44,8 @@ const ui = {
   tab: (TABS[role][0] || [''])[0],
   join: { name: store.get('oxd.name') || '' },
   claim: { hand: null, name: '' },
+  oath: { text: '' },
+  show: { scene: false, quick: false }, // player page: panels opened with the buttons at the top
   own: null,
   seenReq: {},
   jumpTop: false,
@@ -549,6 +551,8 @@ function sheetCard(o, { own = false, edit = false } = {}) {
       <div class="small dim">Stress ${o.stress}: ${R.stressNote(o.stress)}.</div>
       <div class="tiles">${tile('PP / Cycle', o.ppMax)}${tile('MT', o.mt)}${tile('Flow', o.flow)}${tile('Soak', o.soak)}</div>
       <div class="tiles">${tile('Substrate', `${o.substrate}<small> S</small>`, '', adj('substrate', o.substrate))}${tile('Codon', o.codon, '', adj('codon', o.codon))}${tile('Oath', o.oath == null ? '<small>not printed</small>' : `${o.oath}<small>/${o.oathMax}</small>`, '', o.oath == null ? '' : adj('oath', o.oath))}</div>
+      ${(o.oaths || []).length ? `<div class="small"><span class="dim">Oaths sworn:</span> ${o.oaths.map((v) => `“${esc(v.promise)}”${v.witness ? ` <span class="dim">(${esc(v.witness)})</span>` : ''}`).join(' · ')}</div>` : ''}
+      ${edit && o.oath ? `<div class="row"><input type="text" class="grow" data-k="oath.${o.id}" data-bind="oath.text" value="${esc(ui.oath.text)}" maxlength="200" placeholder="Swear an Oath: what is promised"><button class="btn sm" data-act="h.oath" data-id="${o.id}">Swear</button></div>` : ''}
       <div class="tiles">${R.BASELINES.map((b) => tile(b, o.base[b])).join('')}</div>
       ${o.conditions.length ? `<div class="row">${o.conditions.map((c) => `<span class="chip warn" title="${esc((R.CONDITIONS[c.name] || {}).effect || '')}">${esc(c.name)}</span>`).join('')}</div>` : ''}
       <div><div class="fl dim small">PATHWAYS</div><div class="receipt">${paths}</div></div>
@@ -643,6 +647,11 @@ function playHtml(o) {
   const incoming = state.requests.filter((q) => q.kind === 'incoming' && q.target && q.target.id === o.id);
   for (const q of incoming) out.push(incomingCard(q, o));
   for (const q of myAsks) out.push(askCard(q));
+  // Two panels stay folded away until asked for, so the story and the last roll stay in view.
+  const sw = (what, label) => `<button class="btn grow${ui.show[what] ? ' primary' : ''}" data-act="p.show" data-what="${what}" aria-pressed="${ui.show[what] ? 'true' : 'false'}">${ui.show[what] ? 'Hide: ' : ''}${label}</button>`;
+  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}</div>`);
+  if (ui.show.scene) out.push(sceneCard());
+  if (ui.show.quick && !state.fight) out.push(quietCard(o));
   out.push(storyCard({ n: 12, input: `<div class="row"><input type="text" class="grow" data-k="say" data-bind="say.text" value="${esc(ui.say.text)}" maxlength="600" placeholder="What does ${esc(o.name.split(' ')[0])} do?" autocomplete="off"><button class="btn primary" data-act="say">Say</button></div>` }));
   if (ui.own && ui.own.mode === 'quick') out.push(`<section class="card ask"><h3>Your own dice</h3><div><b>${esc(ui.own.label)}</b></div>${ownPad(ui.own.n)}</section>`);
   // In a fight everyone watches every roll; outside one, show your own latest.
@@ -654,8 +663,6 @@ function playHtml(o) {
   if (card && (justNow || !state.fight)) out.push(card);
   if (state.fight) out.push(fightCard(o));
   if (card && !justNow && state.fight) out.push(card);
-  out.push(sceneCard());
-  if (!state.fight) out.push(quietCard(o));
   return out.join('');
 }
 
@@ -855,7 +862,7 @@ function hostCreature(c) {
   const health = c.segments != null ? `Segments ${c.segments}/${c.segMax}` : `MI ${c.mi}/${c.miMax}`;
   const myTurn = a && (a.status === 'acting' || a.status === 'holding');
   return `<div class="cre${f && f.turn === `cre:${c.cid}` ? ' now' : ''}${c.down ? ' down' : ''}">
-    <div class="row"><b>${esc(c.name)}</b>${a ? `${pips(a.pp, a.ppMax)}<span class="small dim">${a.status}</span>${a.reserve ? '<span class="chip on">Reserve</span>' : ''}` : ''}<span class="grow"></span>
+    <div class="row"><b>${esc(c.name)}</b>${a ? `${pips(a.pp, a.ppMax)}<span class="small dim">${a.status}</span>${a.reserve ? '<span class="chip on">Reserve</span>' : ''}` : ''}${c.stoodDown ? `<span class="chip" title="${esc(c.stoodDown.why || '')}">Stood down</span>` : ''}<span class="grow"></span>
       <select style="width:96px" data-cre-band="${c.cid}" data-k="band.${c.cid}">${R.BANDS.map((x) => `<option value="${x.id}" ${c.band === x.id ? 'selected' : ''}>${x.name}</option>`).join('')}</select></div>
     <div class="stat">MT ${c.mt} · ${health} · soak ${c.soak}${c.bracedSoak ? ` (+${c.bracedSoak} braced)` : ''} · ${c.pool}d · BD ${c.bd} ${esc(c.type)}${c.conditions.length ? ` · ${c.conditions.map((x) => x.name).join(', ')}` : ''}</div>
     ${c.down ? '' : `<div class="row">
@@ -867,6 +874,7 @@ function hostCreature(c) {
       <button class="btn sm" data-act="h.cre.act" data-id="${c.cid}" data-what="Reserve" data-cost="1" title="It will Deflect the next attack against it this Cycle (+4 MT)" ${myTurn && !(a && a.reserve) ? '' : 'disabled'}>Reserve <span class="cost">1</span></button>
       <button class="btn sm" data-act="h.cre.act" data-id="${c.cid}" data-what="Special" data-cost="2" ${myTurn ? '' : 'disabled'}>Special <span class="cost">2</span></button>
       <button class="btn sm" data-act="h.cre.end" data-id="${c.cid}" ${myTurn ? '' : 'disabled'}>End turn</button>` : ''}
+      <button class="btn sm" data-act="h.cre.stand" data-id="${c.cid}" data-off="${c.stoodDown ? '1' : ''}" title="${c.stoodDown ? 'Put it back into the fight' : 'It has yielded, fled or was never fighting: it takes no more turns and no longer holds the Pulse War open'}">${c.stoodDown ? 'Back in the fight' : 'Stand down'}</button>
     </div>`}
     <div class="row"><button class="btn sm" data-act="h.cre.dmg" data-id="${c.cid}" data-n="1">${c.segments != null ? '−1 Segment' : '1 damage'}</button><button class="btn sm" data-act="h.cre.dmg" data-id="${c.cid}" data-n="5">${c.segments != null ? '−5' : '5 damage'}</button>
       <button class="btn sm" data-act="h.cre.cond" data-id="${c.cid}" data-name="Jostled">Jostled</button><button class="btn sm" data-act="h.cre.cond" data-id="${c.cid}" data-name="Marked">Marked</button>
@@ -989,6 +997,7 @@ function hostWho() {
 
 const ACT = {
   tab: (d) => { ui.tab = d.t; },
+  'p.show': (d) => { ui.show[d.what] = !ui.show[d.what]; },
   'rolls.mine': () => { ui.rollsMine = !ui.rollsMine; },
   say: async () => {
     const text = ui.say.text.trim();
@@ -1139,6 +1148,8 @@ const ACT = {
   },
   'h.cre.act': (d) => send({ type: 'creature.act', cid: d.id, what: d.what, cost: Number(d.cost) }),
   'h.cre.end': (d) => send({ type: 'turn.end', cid: d.id }),
+  'h.cre.stand': (d) => send({ type: 'creature.standDown', cid: d.id, off: !!d.off }),
+  'h.oath': (d) => { const t = (ui.oath.text || '').trim(); if (!t) return; send({ type: 'oath.swear', organismId: d.id, promise: t, witness: '' }); ui.oath.text = ''; },
   'h.cre.dmg': (d) => send({ type: 'damage', target: { kind: 'cre', id: d.id }, amount: Number(d.n), ignoreSoak: true }),
   'h.cre.cond': (d) => {
     const c = state.creatures[d.id];

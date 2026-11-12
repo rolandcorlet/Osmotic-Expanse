@@ -1065,6 +1065,23 @@ const HANDLERS = {
       say(s, ctx, `The Pulse War is over after ${cycles} Cycle${cycles > 1 ? 's' : ''}. Pulse Points exist only inside a fight; the next fight starts with a full set.`, 'turn');
     },
   },
+  // An organism swears a promise into one of its Oath boxes. The box is spent and the
+  // promise is kept on its sheet, with who witnessed it and where.
+  'oath.swear': {
+    host: true,
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      if (o.oath == null) throw new RuleError(`${o.name} has no Oath boxes printed for its Hand. An organism with Oath boxes must swear.`);
+      if (o.oath <= 0) throw new RuleError(`${o.name} has no Oath boxes left.`);
+      const promise = String(a.promise || '').trim().slice(0, 200);
+      if (!promise) throw new RuleError('Say what is promised, in the player\'s own words.');
+      const witness = String(a.witness || '').trim().slice(0, 60);
+      o.oath -= 1;
+      o.oaths = o.oaths || [];
+      o.oaths.push({ promise, witness, siteId: s.scene.siteId });
+      say(s, ctx, `${o.name} swears an Oath${witness ? `, witnessed by ${witness}` : ''}: "${promise}". Oath boxes left: ${o.oath} of ${o.oathMax}.`, 'award');
+    },
+  },
   // A creature yields, flees, or was never part of the fight. It takes no more turns and no
   // longer holds the Pulse War open. A player who strikes it brings it back.
   'creature.standDown': {
@@ -1072,8 +1089,15 @@ const HANDLERS = {
     run(s, a, ctx) {
       const c = cre(s, a.cid);
       if (c.down) throw new RuleError(`${c.name} is down.`);
+      if (a.off) {
+        // The host may put a stood-down creature back into the fight.
+        if (!c.stoodDown) return;
+        c.stoodDown = null;
+        say(s, ctx, `${c.name} is back in the fight.`, 'turn');
+        return;
+      }
       if (c.stoodDown) throw new RuleError(`${c.name} has already stood down.`);
-      const why = String(a.why || '').trim().slice(0, 120);
+      const why = String(a.why || '').trim().slice(0, 120) || (ctx.ai ? '' : 'it is not fighting');
       if (!why) throw new RuleError('Say why it stands down: it yielded, it fled, or it was never fighting.');
       c.stoodDown = { why };
       say(s, ctx, `${c.name} stands down: ${why}.`, 'turn');

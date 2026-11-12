@@ -8,7 +8,7 @@ import { newSession, apply } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS } from '../brain/tools.js';
-import { directorTurn, briefing, checkNarration } from '../brain/director.js';
+import { directorTurn, briefing, checkNarration, asksRollInWords } from '../brain/director.js';
 import { createDirector } from '../brain/manager.js';
 import { gemini, pickDefaultModel } from '../brain/gemini.js';
 
@@ -320,9 +320,14 @@ test('the leak check catches a creature\'s numbers in words, as the Run 3 bench 
   const s = seated();
   const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
   assert.deepEqual(kinds('They test with a pool of three dice against a Membrane Threshold of 12. Bresk, what now?'), ['leak']);
-  assert.deepEqual(kinds('The mites roll three dice against a tough shell. Bresk, what now?'), ['leak']);
+  const f = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const fk = (t) => checkNarration(t, f).map((x) => x.kind);
+  assert.ok(fk('The swarm rolls three dice against a tough shell. Bresk, what now?').includes('leak'));
+  // The player's own dice are not a leak; outside a fight they are a style flag.
+  assert.ok(!fk('Brost, the crossing itself: four dice against twelve. Do you cross?').includes('leak'));
+  assert.deepEqual(kinds('Brost, the crossing itself: four dice against twelve. Do you cross?'), ['style']);
   // The player's own Threshold, as the Director asks for a roll, is not a leak.
-  assert.deepEqual(kinds('Roll Osmosis against Threshold 12, Brost. How deep do you cast?'), []);
+  assert.ok(!kinds('Roll Osmosis against Threshold 12, Brost. How deep do you cast?').includes('leak'));
 });
 
 test('the Engine pays a printed reward once per organism per site, for the Director only', () => {
@@ -454,7 +459,7 @@ test('a reply that runs long or has no question gets one rewrite', async () => {
   const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
   assert.match(r.narration, /salt and old fat/);
   assert.ok(!r.flags.some((f) => f.kind === 'style'));
-  assert.match(r.flags.find((f) => f.kind === 'note').text, /ran long or did not end on a question/);
+  assert.match(r.flags.find((f) => f.kind === 'note').text, /ran long, read out dice, or did not end on a question/);
   // A rewrite that is no better is not used.
   const make2 = scripted([{ text: 'The brine drifts.' }, { text: 'The brine still drifts.' }]);
   const r2 = await directorTurn({ state: s, scenario, bestiary, provider: make2(), rng, reason: 'test' });
@@ -544,4 +549,47 @@ test('after a hit the briefing says whether the target is still up or destroyed'
   s = apply(s, { type: 'roll', requestId: s.requests[0].id, dice: Array(m).fill(6) }, ctx('player', 'p2'));
   assert.equal(s.creatures[cid].down, true);
   assert.match(briefing(s, scenario, bestiary, {}), /Fold Sentinel is DESTROYED by this/);
+});
+
+test('an Oath spends a box and records the promise; Hands without boxes cannot swear', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  const r = T.run('swear_oath', { organism: 'wall', promise: 'We will carry the last cargo out under stamp', witness: 'the Order II fold' });
+  assert.deepEqual(r, { sworn: true, oath_boxes_left: '4/5' });
+  assert.equal(T.state.organisms.wall.oaths[0].promise, 'We will carry the last cargo out under stamp');
+  assert.match(briefing(T.state, scenario, bestiary, {}), /Oath sworn: "We will carry the last cargo out under stamp" \(witnessed by the Order II fold\)/);
+  assert.match(T.run('swear_oath', { organism: 'eyes', promise: 'x' }).refused, /no Oath boxes printed/);
+  assert.match(T.run('swear_oath', { organism: 'wall', promise: '' }).refused, /what is promised/);
+});
+
+test('a roll asked for in words is sent back once to use the roll tool', async () => {
+  const s = apply(seated(), { type: 'say', text: 'I taste the water.' }, ctx('player', 'p2'));
+  assert.equal(asksRollInWords('Brost, roll OSM and Chemoreception against Threshold 12. What do you look for?', s), true);
+  assert.equal(asksRollInWords('The swarm rolls over itself in the current. Brost, what now?', s), false);
+  const make = scripted([
+    { text: 'Brost, roll OSM and Chemoreception against Threshold 12. What do you look for?' },
+    { calls: [['ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Taste the water' }]] },
+    { text: 'The water is thick with it. Brost, roll it on your screen: what are you hoping to find?' },
+  ]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.equal(r.state.requests.length, 1, 'the roll is now waiting on a screen');
+  assert.ok(!r.flags.some((f) => /in words/.test(f.text)));
+  assert.match(String(make.seen[1]), /did not call ask_for_roll/);
+});
+
+test('the host can stand a creature down and put it back', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  s = apply(s, { type: 'creature.standDown', cid }, ctx('host', null));
+  assert.equal(s.creatures[cid].stoodDown.why, 'it is not fighting');
+  s = apply(s, { type: 'creature.standDown', cid, off: true }, ctx('host', null));
+  assert.equal(s.creatures[cid].stoodDown, null);
+});
+
+test('modifiers sent as JSON text are read', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('ask_for_roll', { organism: 'eyes', baseline: 'DFF', threshold: 12, what_for: 'Cross', modifiers: '[{"label": "current", "dice": -1}, {"label": "read the water", "dice": +1}, {"label": "help", "dice": 1}]' });
+  const base = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  base.run('ask_for_roll', { organism: 'eyes', baseline: 'DFF', threshold: 12, what_for: 'Cross' });
+  assert.equal(T.state.requests[0].pool.dice, base.state.requests[0].pool.dice + 1);
 });

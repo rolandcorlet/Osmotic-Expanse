@@ -102,6 +102,13 @@ with sync_playwright() as p:
     host.fill('[data-k="h.label"]', "typing while the table changes")
     host.focus('[data-k="h.label"]')
     p2.click('#nav .tab:has-text("Play")')
+    p2.screenshot(path=f"{OUT}/phone-folded-{int(__import__('time').time())}.png")
+    # The "Where you are" and "Roll something" panels are folded away until asked for.
+    assert p2.locator('section.scene').count() == 0, "the scene card should start hidden on a phone"
+    p2.click('[data-act="p.show"][data-what="scene"]')
+    p2.wait_for_selector('section.scene')
+    p2.click('[data-act="p.show"][data-what="scene"]')
+    p2.click('[data-act="p.show"][data-what="quick"]')
     p2.select_option('[data-k="q.p"]', "Chemoreception")
     p2.click('button:has-text("Roll 7 dice")')
     host.wait_for_function("document.querySelectorAll('.rolls .r, .result').length > 0")

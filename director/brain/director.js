@@ -56,6 +56,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     L.push(`  MI ${o.mi}/${o.miMax} | ATP ${o.atp}/${o.atpMax} | Stress ${o.stress} (${R.stressNote(o.stress)}) | MT ${orgMT(o)} | soak ${o.soak} | Lysis boxes ${o.countdown}/${o.countdownMax}${o.dormant ? ' | DORMANT' : ''}`);
     L.push(`  Carries: ${weps || 'nothing'}; ${o.kit.join('; ')} | Substrate ${o.substrate} S | Codon ${o.codon}${o.oath != null ? ` | Oath boxes ${o.oath}/${o.oathMax}` : ''}${o.conditions.length ? ` | Conditions: ${o.conditions.map((c) => c.name).join(', ')}` : ''}`);
     L.push(`  Tie: ${o.tie}`);
+    for (const v of o.oaths || []) L.push(`  Oath sworn: "${v.promise}"${v.witness ? ` (witnessed by ${v.witness})` : ''}`);
   }
 
   L.push('');
@@ -153,6 +154,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 
 // ---- checks on what the Director wrote, before anyone sees it --------------------
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|zero|a single point)';
+const NDICE = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat|at)\b/i;
 const HEALTH = new RegExp(`\\b(?:integrity|MI)\\b[^.?!]{0,30}\\b${NUM}\\b|\\b${NUM}\\b[^.?!]{0,12}\\b(?:Membrane )?(?:Integrity|MI)\\b`, 'i');
 
 // moved: the Cohort changed site this turn, so the narration is one sentence of travel.
@@ -162,12 +164,14 @@ export function checkNarration(text, state, { moved = false } = {}) {
   const kinds = [...new Set(Object.values(state.creatures || {}).map((c) => String(c.name).replace(/\s+[A-Z]$/, '').split(/\s+/).pop().toLowerCase()).filter((w) => w.length > 2))];
   const people = Object.values(state.organisms || {}).filter((o) => o.playerId).map((o) => String(o.name).split(/\s+/)[0].toLowerCase());
   // Whoever is named last before the number owns it: "bites Bresk, down to 34 MI" is Bresk's.
-  const creatureOwns = (sn) => {
-    const m = sn.match(HEALTH);
-    if (!m) return false;
+  const ownedByCreature = (sn, m) => {
     const before = sn.slice(0, m.index + m[0].length).toLowerCase();
     const last = (words) => Math.max(-1, ...words.map((w) => before.lastIndexOf(w)));
     return last(kinds) > last(people);
+  };
+  const creatureOwns = (sn) => {
+    const m = sn.match(HEALTH);
+    return !!m && ownedByCreature(sn, m);
   };
   const sentences = text.split(/(?<=[.?!])\s+/);
   if (kinds.length && sentences.some(creatureOwns)) {
@@ -175,8 +179,12 @@ export function checkNarration(text, state, { moved = false } = {}) {
   }
   if (/\bBSP\b|\bMT\s*\d|\bsoak\s*\d|\bpool\s*\d|\b\d+d\b|\bSegments?\s+\d+\s*\/|\bstat[- ]block\b/i.test(text)
     // A creature's own numbers in words: "a pool of three dice", "its Membrane Threshold of 12".
-    || /Membrane Threshold|\bpool of (?:\w+ )?dice\b|\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat)\b/i.test(text)) {
+    || /Membrane Threshold|\bpool of (?:\w+ )?dice\b/i.test(text)
+    // "three dice against ...": a leak when it is a creature's dice, not when it is the player's own.
+    || sentences.some((sn) => { const m = sn.match(NDICE); return m && ownedByCreature(sn, m); })) {
     flags.push({ kind: 'leak', text: 'May be reading out a creature\'s block or numbers.' });
+  } else if (!state.fight && NDICE.test(text)) {
+    flags.push({ kind: 'style', text: 'Reads out dice counts outside a Pulse War.' });
   }
   if (/Director-only|site notes|briefing|tool\b|ask_for_roll|the Engine/i.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools).' });
   const q = (text.match(/\?/g) || []).length;
@@ -184,9 +192,16 @@ export function checkNarration(text, state, { moved = false } = {}) {
   if (q > 1) flags.push({ kind: 'style', text: `Asks ${q} questions; it should ask one.` });
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 170) flags.push({ kind: 'style', text: `Long: ${words} words.` });
+  if (asksRollInWords(text, state)) flags.push({ kind: 'style', text: 'Asks for a roll in words, but no roll is waiting on a screen.' });
   if (!state.fight && /\bPulse Points?\b|\bPP\b/.test(text)) flags.push({ kind: 'style', text: 'Mentions Pulse Points outside a Pulse War.' });
   if (/[*_#]{2,}|^\s*[-*]\s/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; it should be plain text.' });
   return flags;
+}
+
+// The Director told a player to roll, in words, but no roll is waiting on anyone's screen.
+const ROLL_WORDS = /\broll\b[^.?!]{0,90}\b(?:against|Threshold|on your screen)\b|\b(?:roll|test) (?:your |his |her |their |its )?(?:raw )?(?:VSC|DFF|RTC|OSM|AFF|Viscosity|Diffusion|Reactivity|Osmo\w*|Affinity|reflex|Chemoreception|Baseline)\b|\bBaseline [A-Z]{3} against\b|\bgive me an? [^.?!]{0,40}\broll\b/i;
+export function asksRollInWords(text, state) {
+  return ROLL_WORDS.test(text) && !(state.requests || []).length;
 }
 
 // ---- one turn -------------------------------------------------------------------
@@ -211,6 +226,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   let reply = await chat.send(briefing(state, scenario, bestiary, { reason, hostNote }));
   let narration = '';
   let nudged = false;
+  let rollNudged = false;
   for (let step = 0; step < MAX_STEPS; step++) {
     usage.in += reply.usage.in;
     usage.out += reply.usage.out;
@@ -224,6 +240,13 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       continue;
     }
     narration = reply.text;
+    // A roll asked for in words reaches nobody's screen: send it back once to use the tool.
+    if (narration && !rollNudged && asksRollInWords(narration, T.state)) {
+      rollNudged = true;
+      narration = '';
+      reply = await chat.send('You told a player to roll, but you did not call ask_for_roll, so nothing is on their screen. Call ask_for_roll now for that roll (or swear_oath if it was an oath), then give your narration again, ending on one question. If no roll is needed, narrate again without asking for one.');
+      continue;
+    }
     if (narration || nudged) break;
     nudged = true;
     reply = await chat.send('You have not said anything to the table yet. Narrate now, in plain text, and end on one question.');
@@ -236,11 +259,12 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // does not end on a question. A better rewrite replaces the draft; otherwise the draft and its
   // flags stand (and a leak is held for the host).
   const isLeak = (f) => f.kind === 'leak';
-  const fixable = (f) => f.kind === 'style' && /^(Long|Does not end)/.test(f.text);
+  const fixable = (f) => f.kind === 'style' && /^(Long|Does not end|Reads out dice)/.test(f.text);
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, notes or tools; describe what the organisms can see or sense instead.`);
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
+    if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
     try {
       const fix = await chat.send(`Rewrite your whole reply. ${asks.join(' ')} Keep the same events and any roll you asked for, in plain text, ending on one question. Do not call any tools.`);
@@ -250,7 +274,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved }) : null;
       const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style').length;
       if (again && !again.some(isLeak) && bad(again) < bad(flags)) {
-        const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery' : 'the first draft ran long or did not end on a question';
+        const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery' : 'the first draft ran long, read out dice, or did not end on a question';
         narration = text;
         flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
       }

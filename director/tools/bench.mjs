@@ -94,8 +94,10 @@ async function once(n) {
       if (cur && cur.kind === 'cre') { await director('a creature is to act'); continue; }
       if (cur && cur.kind === 'org' && s.fight.cycle <= 3) {
         const o = s.organisms[cur.id];
-        // The scripted players attack what is fighting them, not a creature that has stood down.
-        const target = Object.values(s.creatures).find((c) => c.siteId === s.scene.siteId && !c.down && !c.stoodDown);
+        // The scripted players attack what is fighting them first.
+        const up = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
+        // If nothing is fighting, the scripted player still attacks: that is what they said they would do.
+        const target = up.find((c) => !c.stoodDown) || up[0];
         const w = o.weapons.find((x) => x.carried !== false);
         const cost = 2 + (w.props.includes('Heavy') ? 1 : 0);
         if (target && cur.pp >= cost) {
