@@ -2,19 +2,20 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the 13 Nov hazard-budget stack: re-checked 13 Nov at 09:44, `HEAD` and `origin/main` both sat at `6b0eed7`. Since then only `cbb2e52` (the area condition) is committed and unpushed. Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the 13 Nov hazard-budget stack: re-checked 13 Nov at 09:44, `HEAD` and `origin/main` both sat at `6b0eed7`. Since then `cbb2e52`, `1e2c7c7` and `5eee166` have landed; Roly has pushed the first two. Roly pushes.
 
-## Starting a new session (as at 13 Nov, HEAD `cbb2e52`)
+## Starting a new session (as at 13 Nov, HEAD `5eee166`)
 
-Today landed four commits: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+Today landed five: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
 ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
 `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
-table never said), and `cbb2e52` (an area condition: the `condition` action takes `area` and
-`set_condition` takes `all_bodies`, so the Jostled the Toll-Vent prices for the chamber lands on
-every body in one call rather than one call per body). Roly pushed through `6b0eed7` at 09:40 —
-checked: `HEAD` and `origin/main` both sat at `6b0eed7`, nothing of yesterday's work was unpushed —
-so **`cbb2e52` is the one unpushed commit.** `node --test` is **124 green**. The working tree shows
+table never said), `cbb2e52` (an area condition: the `condition` action takes `area` and
+`set_condition` takes `all_bodies`, so a chamber-wide Jostled lands on every body in one call), and
+`5eee166` (a hazard pays the condition its own Effect clause prints, and the words we address the
+Director in are held to the same leak rule as its narration). Roly has pushed through `1e2c7c7` —
+`origin/main` sits there — so `5eee166` and this file are what is not. `node --test` is
+**126 green**. The working tree shows
 ~83 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
 insert/delete counts before believing a dirty tree.
 
@@ -36,18 +37,17 @@ the narrated countdowns; **(3)** the run-1 Oath loop, still latent; **(4)** only
 applied by the Engine; **(5)** `harvestPays` covers 12 creatures but the shipped-haul, salted-panel and
 Gut-Stone-serial rows in 3.1-3.3 are still prose.
 
-First job, before any of that: re-run the gate on Windows (`node tools/bench.mjs --runs 3 --sites 2
---players 4 --thinking medium`) and read the new **Unpaid damage in narration** line. Give the log a real
-name (`> bench_13nov_am.log`) — the only log on disk is 12 Nov's, so yesterday's medium-thinking gate was
-never saved. Expect the three hazard refusals of run 3 to be gone and the leaks to be down, and expect the
-Jostled after the pocket to be **one** `set_condition` with `all_bodies`, not one per body. Then Phase 4
-with a real group — the scripted bench is rehearsal, not the gate.
+That gate ran on 13 Nov (Roly) and is saved as `director/bench_13nov_am.log` — the numbers are in the
+findings below. It cleared the hazards and proved the area condition works at the table; the two things
+it exposed are fixed at `5eee166`. **Next job is Phase 4 with a real group** — the scripted bench is
+rehearsal, not the gate — plus one ruling listed under Open items: who pays a Clock when a panel is
+opened by a roll rather than by a harvest.
 
 ## What this is
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**124 tests**, all green at the 13 Nov area-condition commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**126 tests**, all green at the 13 Nov vocabulary-and-Effect commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -101,6 +101,27 @@ which is the same missing family as the Cycle outside a Pulse War and the printe
 
 **A condition the page prices for the chamber is one call (13 Nov, `cbb2e52`).** The Toll-Vent's Effect clause prices three things at once: "6 Kinetic, Jostled, 1 band shift to all in the chamber." The 6 Kinetic was made one firing that pays every body; the Jostled still had no area form, so one detonation meant four `set_condition` calls, one per body. Legal, but four turns and four log lines for what the page writes as one price. Now the `condition` action in `engine/ledger.js` takes `area` and pays every body the Cohort has at the site — the same set `hazard_damage` pays — stamps a `timed` condition with the same end-of-next-Cycle expiry, and writes one line to the log ("Bresk…, Brost… are Jostled: -1 PP; MT -2"). Re-applying is a no-op, not a stack; `on: false` clears the chamber in one call. `set_condition` exposes it as `all_bodies` and returns who carries what. Which conditions those are stays on the page: `hazardSpec().conditions` reads them from the site's own Hazard note and cuts at "Counter:" so "Brace and ride it" cannot read as a price — only the Toll-Vent prints one, and the briefing line appears only where the note does. The band shift in the same clause is deliberately **not** built: pricing one is Roly's call.
 
+**The 13 Nov gate at thinking medium, saved (`bench_13nov_am.log`, `--runs 3 --sites 2 --players 4`).**
+GATE NOT PASSED, on run 1 alone, and it is the cleanest set yet. Run 1: 23 turns, 18.7 s each, 708,167
+tokens in / 18,811 out, 2 refusals, 1 leak, **0 unpaid damage**, 2 style, ended at The Render Hall.
+Run 2: 26 turns, 16.8 s, 0 refusals, 0 leaks, 0 unpaid, 0 style. Run 3: 32 turns, 16.3 s, 0/0/0,
+1 style, ended at The Soft Field. About 2.16 M tokens in for the three, all three left the Toll-Vent,
+5 chapters across the set. **Unpaid damage is 0 across ~81 turns** — that is the check that failed the
+previous gate, and it holds now. What the flags were: the 2 refusals were Pulse War bookkeeping (a
+`creature_stand_down` on something already stood down, then `end_pulse_war` while the Fold Sentinel was
+still up) and the refusals corrected it on the next calls; the 1 leak was **"Next briefing will carry
+the Soft Field" said to the players** — the `change_site` description quoted back. So the vocabulary we
+address the Director in is now held to the same rule as its narration, and a test walks every tool
+description, parameter and refusal path against `MACHINERY` (`5eee166`). What it also caught: run 3's
+**second** hazard firing had no `set_condition` after it, so the Jostled that same Effect clause prints
+landed on nobody with no flag for it — the firing pays the condition now. Two things to know for the
+next run: 20 of ~81 turns needed the one-shot rewrite and 17 of those were style ("ran long, read out
+dice, or did not end on a question"), so style, not rules, is the main turn cost; and HUNGER stayed 0
+everywhere because `bodyLeft` only pays for a body that is down and uncut when the Cohort walks out,
+which none of these runs did. **Windows note:** PowerShell's `>` writes the log as **UTF-16LE** and
+double-mangles em dashes and curly quotes, so it is ungreppable until converted
+(`iconv -f UTF-16LE -t UTF-8`). Better: let `bench.mjs` write its own file.
+
 **The Director may only swear words the table said (13 Nov).** Bench run 3 swore
 `"Bresk's own words: \"We have no stamp. We offer a promise, witnessed and filed.\" — to be asked what is
 promised."` The Engine wrote that into the Oath, `recall` later read it back to Bresk as his own promise, and a
@@ -133,10 +154,15 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 
 ## Open items
 1. Measure narration-to-first-sound with Kokoro (speech) and `Systran/faster-whisper-small` (listening) on the PC. Target: speech starts within about 2 s.
-2. Bench coverage: the `--thinking medium` three-run gate ran on 13 Nov (numbers above), so what is missing now is a clean pass of it, and Qwen3.8-27B Q4_K_M. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
+2. Bench coverage: the saved `--thinking medium` gate ran 13 Nov (`bench_13nov_am.log`, numbers above). Its only faults are fixed at `5eee166`, so **a clean pass of it is still outstanding** — and Qwen3.8-27B Q4_K_M is untried. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
 3. Not built: save slots and Supabase copy (plan: rules and Vectors stay in GitHub; saves local first, Supabase as a copy; free plan pauses after 7 days idle and has no backups); ad-libbing (`improv: 'adlib'` is refused until built); Discord sign-in (deferred).
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
-5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). Still unbuilt: the **Beat**
+5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Ruling needed:**
+   a panel opened by a successful roll rather than by a `harvest` pays nothing — `panelOpens` is only wired
+   into the harvest path (`engine/ledger.js` ~690), and in the 13 Nov gate the Director spent its one
+   discretionary `move_clock` doing the Vector's job (log line 584). Options: a small "open a panel" action
+   that pays CARCASS itself, or pay it from the roll that opened it, or leave it to the Director's advance.
+   Also unbuilt: the **Beat**
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
    (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, and the Gut Stone's serial turned in at a
    Warden register arch.
