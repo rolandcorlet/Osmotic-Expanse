@@ -314,7 +314,10 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
       const p = st.proposal;
       return {
         on, mode: cfg.mode, provider: cfg.provider, providers: publicProviders(), model: modelOf(), keySet: !!keyOf(), usable: usable(),
-        url: urlOf(), numCtx: cfg.numCtx, thinking: cfg.thinking, models: st.modelsBy[cfg.provider] || [], test: st.test,
+        // `thinkingLevel` is the host's setting; `thinking` is whether the Director is mid-turn right
+        // now. They are different things and must not share a name: when both were spelled `thinking`,
+        // the second silently replaced the first and the Thinking buttons could never show a choice.
+        url: urlOf(), numCtx: cfg.numCtx, thinkingLevel: cfg.thinking, models: st.modelsBy[cfg.provider] || [], test: st.test,
         phase: st.phase, error: st.error, thinking: st.phase === 'thinking', last: st.last, totals: st.totals,
         proposal: p ? { id: p.id, narration: p.narration, calls: p.calls, flags: p.flags, held: p.held, stale: getState().seq !== p.baseSeq } : null,
         chronicle: memory && getState().gameId ? memory.chapters(getState().gameId).slice(-30).map(({ id, t, site, why, text, by }) => ({ id, t, site, why, text, by })) : [],

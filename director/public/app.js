@@ -1113,7 +1113,7 @@ function directorHtml() {
         <select data-k="dir.ctx" data-dctx="1">${[8192, 16384, 32768, 65536].map((n) => `<option value="${n}" ${Number(d.numCtx) === n ? 'selected' : ''}>${n.toLocaleString()} tokens${n === 16384 ? ' (recommended)' : n === 8192 ? ' (tight: long scenes may be cut off)' : ''}</option>`).join('')}</select>
         <span class="small dim">Bigger needs more video memory. If the Director forgets the scene or stops using its tools, raise this.</span></div>` : ''}
       ${pv.group === 'local' ? `<div class="fld"><span class="fl">Thinking before each reply <span class="i" title="Less thinking is faster but leans harder on the Engine's guard rails. Low has benched clean and quick; Off was quickest and made rule errors.">&#9432;</span></span>
-        <div class="seg">${[['default', 'Model default'], ['medium', 'Medium'], ['low', 'Low'], ['off', 'Off']].map(([id, name]) => `<button class="${(d.thinking || 'default') === id ? 'on' : ''}" data-act="d.think" data-id="${id}">${name}</button>`).join('')}</div>
+        <div class="seg">${[['default', 'Model default'], ['medium', 'Medium'], ['low', 'Low'], ['off', 'Off']].map(([id, name]) => `<button class="${(d.thinkingLevel || 'default') === id ? 'on' : ''}" data-act="d.think" data-id="${id}" aria-pressed="${(d.thinkingLevel || 'default') === id}">${name}</button>`).join('')}</div>
         <span class="small dim">Some local models reason silently before answering, which costs seconds on every turn. Off is fastest and may cost some accuracy. If your server does not know the setting, it is ignored.</span></div>` : ''}
       <hr class="sep">
       <div class="fld"><span class="fl">Ask for a turn now</span>
