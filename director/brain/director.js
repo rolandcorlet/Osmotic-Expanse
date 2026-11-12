@@ -316,7 +316,10 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   } else if (!state.fight && (NDICE.test(text) || OUTSIDE_NUMBERS.test(text))) {
     flags.push({ kind: 'style', text: 'Reads out dice counts outside a Pulse War.' });
   }
-  if (/Director-only|site notes|briefing|tool\b|ask_for_roll|the Engine/i.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools).' });
+  // Roly, 13 Nov: "the page has nothing printed for that" is the sanctioned way to say no (see
+  // instructions.md), so it is not a leak. Naming what does the arithmetic is. The Tally Post has a
+  // physical ledger in the fiction, so "the Ledger" only leaks when it is doing Engine verbs.
+  if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).
   const pend = (state.requests || []).map((rq) => (rq.kind === 'incoming' ? rq.target : rq.actor)).filter((a) => a && a.kind === 'org');
@@ -346,6 +349,10 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (!paid && UNPAID_DAMAGE.test(text)) flags.push({ kind: 'rule', text: 'Says someone took damage the Engine never paid.' });
   return flags;
 }
+
+// The machinery, as the table must not hear it. Deliberately not "the page": instructions.md tells
+// the Director to use that sentence when the players want something off the page.
+const MACHINERY = /Director-only|site notes|\bthe notes\b|briefing|\btool\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
 
 // A number attached to a damage type, or "takes N damage". Deliberately narrow: the check only
 // fires when no tool hurt anyone this turn, so a paid blow or a hazard is never flagged.
@@ -417,7 +424,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const fixable = (f) => unpaid(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
-    if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, notes or tools; describe what the organisms can see or sense instead.`);
+    if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead. "The page has nothing printed for that" is allowed.`);
     if (flags.some(unpaid)) asks.push('It describes harm that no tool paid for this turn: the Engine hurt nobody. Say only what the tools actually did, and put no damage number in the scene.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');

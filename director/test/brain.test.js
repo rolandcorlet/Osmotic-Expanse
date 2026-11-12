@@ -1109,6 +1109,18 @@ test('the Render Charge at the Gut Stone is the printed 20 Kinetic and waits for
   assert.ok(r.mi.split('/')[0] < 27, `20 Kinetic through the Eyes: MI ${r.mi}`);
 });
 
+test('naming the Engine or the Ledger is a leak; saying "the page prints nothing for that" is not', () => {
+  // Roly's ruling, 13 Nov, on the four leak flags those three runs produced. Every sentence here is
+  // quoted from the bench transcript, including the Tally Post's own physical ledger, which is a
+  // thing in the world and must not be mistaken for the Engine.
+  const s = seated();
+  const kinds = (t) => checkNarration(t, s, { moved: true }).map((f) => f.kind);
+  assert.ok(kinds('Neither, in numbers. The Ledger keeps the rest to itself, and it stays kept.').includes('leak'));
+  assert.ok(kinds('You did exactly that before the flap closed, and the Engine has it written as kept.').includes('leak'));
+  assert.deepEqual(kinds('The page has nothing printed for buying a harpoon gun: there is no seller at the Toll-Vent. Ilm, what do you do?'), []);
+  assert.deepEqual(kinds("The Ledger's stylus hovers over the cradle, and unstamped this cut is worth nothing outside. Ilm, what do you do?"), []);
+});
+
 test('narration about damage the Engine never paid is flagged, and paid damage is not', () => {
   // Bench 13 Nov, run 2: the pocket was described going off a second time — "six kinetic punch
   // back up through Bresk's leading membrane" — with no tool behind it. The table heard a
