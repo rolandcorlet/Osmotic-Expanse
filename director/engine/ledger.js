@@ -1172,7 +1172,7 @@ const HANDLERS = {
       if (own != null && (own < 1 || own > 12)) throw new RuleError('The priced choice is a d12: 1 to 12.');
       const roll = own != null ? own : 1 + Math.floor(ctx.rng() * 12);
       const row = site.pricedChoice.find((r) => roll >= r.lo && roll <= r.hi);
-      s.posts[site.id] = { roll, offer: row.offer, price: row.price };
+      s.posts[site.id] = { roll, offer: row.offer, price: row.price, takeOneIn: row.takeOneIn || 0 };
       say(s, ctx, `At the Tally Post (d12 = ${roll}): ${row.offer}. The price: ${row.price}.`, 'info');
     },
   },
@@ -1190,6 +1190,11 @@ const HANDLERS = {
         const sp = o.specimens || { C: 0, G: 0, P: 0, T: 0 };
         if (!GRADES.some((k) => sp[k])) continue;
         o.stamped = o.stamped || { C: 0, G: 0, P: 0, T: 0 };
+        // Where the post's offer takes a share (the Guild's third), it comes off the cut as it is stamped.
+        const share = ((s.posts || {})[site.id] || {}).takeOneIn || 0;
+        const taken = { C: 0, G: 0, P: 0, T: 0 };
+        if (share && !a.noShare) for (const k of GRADES) { taken[k] = Math.floor(sp[k] / share); sp[k] -= taken[k]; }
+        if (GRADES.some((k) => taken[k])) say(s, ctx, `The post keeps its share of ${o.name}'s cut: ${gradeText(taken)}.`, 'award');
         for (const k of GRADES) { o.stamped[k] += sp[k]; sp[k] = 0; }
         o.specimens = sp;
         any = true;

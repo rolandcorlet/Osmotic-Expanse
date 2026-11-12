@@ -162,6 +162,8 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 // ---- checks on what the Director wrote, before anyone sees it --------------------
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|zero|a single point)';
 const NDICE = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat|at)\b/i;
+// Outside a fight the player sees their dice and Threshold on their own screen: the Director does not read them out.
+const OUTSIDE_NUMBERS = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice\b|\bAT\s*\d+\b|\bThreshold (?:of )?\d+\b|\bagainst (?:a |an )?(?:\d+|twelve|fourteen|sixteen|eight)\b/i;
 const HEALTH = new RegExp(`\\b(?:integrity|MI)\\b[^.?!]{0,30}\\b${NUM}\\b|\\b${NUM}\\b[^.?!]{0,12}\\b(?:Membrane )?(?:Integrity|MI)\\b`, 'i');
 
 // moved: the Cohort changed site this turn, so the narration is one sentence of travel.
@@ -190,7 +192,7 @@ export function checkNarration(text, state, { moved = false } = {}) {
     // "three dice against ...": a leak when it is a creature's dice, not when it is the player's own.
     || sentences.some((sn) => { const m = sn.match(NDICE); return m && ownedByCreature(sn, m); })) {
     flags.push({ kind: 'leak', text: 'May be reading out a creature\'s block or numbers.' });
-  } else if (!state.fight && NDICE.test(text)) {
+  } else if (!state.fight && (NDICE.test(text) || OUTSIDE_NUMBERS.test(text))) {
     flags.push({ kind: 'style', text: 'Reads out dice counts outside a Pulse War.' });
   }
   if (/Director-only|site notes|briefing|tool\b|ask_for_roll|the Engine/i.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools).' });

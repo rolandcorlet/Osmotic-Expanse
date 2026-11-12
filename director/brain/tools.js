@@ -210,7 +210,7 @@ export const TOOLS = [
   },
   {
     name: 'hazard_damage',
-    description: 'A printed hazard or a Cost hurts an organism. Soak applies. Use the damage printed in the site notes.',
+    description: 'A printed hazard or a Cost hurts an organism. Soak applies. Use the damage printed in the site notes. A hazard goes off only on its printed trigger or as the cost of a FAILED roll: never after a roll that succeeded, and never twice.',
     parameters: obj({ organism: S('Organism id.'), amount: I('Printed damage.'), type: S('Damage type, for example Kinetic or Lytic.'), why: S('What caused it.') }, ['organism', 'amount', 'why']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
@@ -300,7 +300,10 @@ export const TOOLS = [
     run(a, T) {
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
       const no = T.do({ type: 'harvest.stamp', organismIds: ids });
-      return no ? { refused: no } : { stamped: true };
+      if (no) return { refused: no };
+      const g = (x) => ['C', 'G', 'P', 'T'].filter((k) => x && x[k]).map((k) => `${x[k]} ${k}`).join(', ') || 'none';
+      const holding = Object.values(T.state.organisms).filter((o) => o.playerId && o.stamped).map((o) => `${o.name}: ${g(o.stamped)} stamped`);
+      return { stamped: true, now_holding: holding, note: 'Any share the post took is already off these counts. Say only these numbers.' };
     },
   },
   {

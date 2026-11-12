@@ -103,7 +103,7 @@ const sites = [
     pricedChoice: [
       { lo: 1, hi: 2, offer: 'stamp your cut under the first crew\'s void claim', price: 'the Ash will call it a grave-robbing; the Guild will not notice for two Beats' },
       { lo: 3, hi: 4, offer: 'stamp it under Tallow Ring\'s second sale', price: 'free, and the first buyer\'s crew will come to collect' },
-      { lo: 5, hi: 6, offer: 'a Guild tally-stamp', price: 'the Guild takes a third of the haul, and TOLL -1' },
+      { lo: 5, hi: 6, offer: 'a Guild tally-stamp', price: 'the Guild takes a third of the haul, and TOLL -1', takeOneIn: 3 },
       { lo: 7, hi: 8, offer: 'an Ash Unwasted seal over the panel you are cutting', price: 'the cut is slower (CARCASS -1 for that panel only) and worth one grade more' },
       { lo: 9, hi: 9, offer: 'drone licence: Order II stamps it', price: 'TOLL -1, and the drones now consider you registered, including for what the brood needs' },
       { lo: 10, hi: 10, offer: 'no stamp: the clerk is a client of Neth, and refuses', price: 'the cut is worth nothing legally; a contest or a Bribery in samples (10 to 30 S) fixes it' },

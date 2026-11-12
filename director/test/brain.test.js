@@ -644,8 +644,8 @@ test('harvest: the Soft Field can be cut, the Toll-Vent cannot; the Tally Post s
   if (r.waiting_for) { const q = T.state.requests[0]; T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2')); }
   const sp = T.state.organisms.eyes.specimens;
   assert.equal(sp.C + sp.G, 4);
-  T.run('tally_post_offer', {});
-  assert.deepEqual(T.run('stamp_cut', {}), { stamped: true });
+  T.state = apply(T.state, { type: 'post.offer', roll: 9 }, ctx('host', null)); // a row with no share taken
+  assert.equal(T.run('stamp_cut', {}).stamped, true);
   assert.equal(T.state.organisms.eyes.stamped.C + T.state.organisms.eyes.stamped.G, 4);
   assert.deepEqual(T.state.organisms.eyes.specimens, { C: 0, G: 0, P: 0, T: 0 });
   assert.match(T.run('stamp_cut', {}).refused, /unstamped cut/);
@@ -673,8 +673,25 @@ test('the Tally Post\'s priced choice is rolled once, from the printed table, be
   assert.ok(offer.roll >= 1 && offer.roll <= 12 && offer.offer && offer.price);
   assert.deepEqual(T.run('tally_post_offer', {}), offer, 'the offer does not change');
   assert.match(briefing(T.state, scenario, bestiary, {}), /priced choice was rolled \(d12 = \d+\): the clerk offers/);
-  assert.deepEqual(T.run('stamp_cut', {}), { stamped: true });
+  assert.equal(T.run('stamp_cut', {}).stamped, true);
   // Every face of the d12 has a row.
   const site = scenario.sites.find((x) => x.id === 'soft-field');
   for (let n = 1; n <= 12; n++) assert.ok(site.pricedChoice.some((row) => n >= row.lo && n <= row.hi), `d12 = ${n}`);
+});
+
+test('a Guild tally-stamp takes its third off the cut as it is stamped', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('change_site', { site: 'soft-field' });
+  T.state.organisms.eyes.specimens = { C: 10, G: 2, P: 0, T: 0 };
+  T.state = apply(T.state, { type: 'post.offer', roll: 5 }, ctx('host', null));
+  const r = T.run('stamp_cut', {});
+  assert.deepEqual(T.state.organisms.eyes.stamped, { C: 7, G: 2, P: 0, T: 0 }); // a third of 10 C, rounded down, is 3; a third of 2 G is 0
+  assert.deepEqual(r.now_holding, ['Brost of the Third Current: 7 C, 2 G stamped']);
+});
+
+test('outside a fight, reading out dice or a Threshold is a style flag, not a leak', () => {
+  const s = apply(seated(), { type: 'request.check', organismId: 'wall', baseline: 'RTC', at: 12, label: 'Cross' }, ctx('host', null));
+  const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
+  assert.deepEqual(kinds('Pressure Tolerance, three dice, AT 12. Do you go straight through?'), ['style']);
+  assert.deepEqual(kinds('The lip hums under your shoulder. Do you go straight through?'), []);
 });
