@@ -229,7 +229,14 @@ export const scenario = {
   hands,
   clocks,
   sites,
-  rules: { reconstitutionCostsClock: 'CARCASS' },
+  rules: {
+    reconstitutionCostsClock: 'CARCASS',
+    // 3.1-3.3 print what the place pays on its own, so the Ledger pays them when the event happens
+    // in play. 3.4's cap on the Director's discretionary advance (one segment per Clock per
+    // session) is untouched: these are the carcass reacting, not the host choosing. A Clock named
+    // here is a claim this Vector makes.
+    clockTriggers: { panelOpens: 'CARCASS', bodyCut: 'HUNGER', bodyLeft: 'HUNGER', loud: 'TOLL', oathKept: 'TOLL' },
+  },
 };
 
 // The half of the scenario that player screens may load: no Director notes.

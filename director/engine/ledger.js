@@ -383,6 +383,38 @@ function checkLysis(s, ctx, o) {
   if (o.countdown >= o.countdownMax) say(s, ctx, `${o.name}'s Lysis Countdown is full: Total Lysis (CORE 5.6).`, 'danger');
 }
 
+// THE FIRST CARVE 3.1-3.3 print what the *place* pays on its own: "Advance +1 when: ... the Cohort
+// opens a new panel", "-1 when the Cohort harvests what it kills (each body harvested: -1, never
+// below 0)", "Advance +1 when: the Cohort is loud in the channels (a Pulse War...)". Those are not
+// the Director's discretionary advance, so 3.4's cap (one segment per Clock per session, held by
+// `aiAdvanced`) stays exactly as printed and untouched. `scenario.rules.clockTriggers` names which
+// Clock each event moves, so another Vector hangs its own clocks on the same events. Rewinds clamp
+// at 0 because the page says never below 0.
+const clockTrigger = (ctx, name) => (((((ctx || {}).scenario || {}).rules) || {}).clockTriggers || {})[name] || '';
+// The promise has to be words the table said: quotes, asterisks and case off, and the promise must
+// sit inside something a seated player has said recently (the Cohort promises together). Framing it
+// as "X's own words: ..." is not their words, so a promise that merely *contains* a player's
+// sentence does not pass.
+const oathNorm = (t) => String(t || '').toLowerCase().replace(/[*"_\u201c\u201d]/g, '').replace(/\s+/g, ' ').trim();
+function spokenAtTable(s, promise) {
+  const p = oathNorm(promise);
+  if (!p) return false;
+  return (s.story || []).filter((e) => e.kind === 'say').slice(-40).some((e) => {
+    const t = oathNorm(e.text);
+    return !!t && (t === p || (p.length >= 12 && t.includes(p)));
+  });
+}
+
+function payClock(s, ctx, id, delta, why) {
+  const c = s.clocks[id];
+  if (!c || !delta) return null;
+  const before = c.filled;
+  c.filled = clamp(c.filled + delta, 0, c.segments);
+  if (c.filled === before) return null;
+  say(s, ctx, `${c.name} moves to ${c.filled} of ${c.segments}: ${why}.`, 'clock');
+  return `${c.name} is now ${c.filled} of ${c.segments} (${why})`;
+}
+
 // When a site's hazard may go off again, so the Engine, the briefing and the tools all read the
 // same budget. CORE 8.1: a Cycle is six seconds of combat, so inside a Pulse War a hazard is
 // budgeted per Cycle; outside one there are no Cycles and the unit is the scene (sceneNo, which
@@ -647,6 +679,10 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
   if (h.cid) {
     const c = s.creatures[h.cid];
     if (c) { c.harvested = true; c.harvestPending = false; }
+    // 3.3: "Rewind -1 when: the Cohort harvests what it kills (each body harvested: -1, never
+    // below 0)". The body is out of the water whether the sample came away clean or ruined.
+    const back = payClock(s, ctx, clockTrigger(ctx, 'bodyCut'), -1, `the body of ${c ? c.name : h.what} is cut and out of the water`);
+    if (back) notes.push(back);
     if (success) got = { ...h.yield };
     else sub = 5 * (h.yield.C || 0);
   } else {
@@ -654,6 +690,9 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
     if (success) got = carcass <= 1 && overflow >= 4 ? { C: 3, G: 1, P: 0, T: 0 } : { C: 4, G: 0, P: 0, T: 0 };
     else sub = 10;
     s.scene.cuts = (s.scene.cuts || 0) + 1;
+    // 3.1: "Advance +1 when: ... the Cohort opens a new panel (oxygen gets in; the job has a cost)."
+    const cost = payClock(s, ctx, clockTrigger(ctx, 'panelOpens'), 1, `${h.what} is open to the oxygen`);
+    if (cost) notes.push(cost);
   }
   if (got) queueLoot(s, ctx, got, h.what);
   if (sub) o.substrate += sub;
@@ -1099,6 +1138,14 @@ const HANDLERS = {
       const site = ctx.scenario.sites.find((x) => x.id === a.siteId);
       if (!site) throw new RuleError('That site is not in this Vector.');
       if (s.fight) throw new RuleError('End the Pulse War before changing the scene.');
+      // 3.3: "Advance +1 when: the Cohort kills and leaves a body unharvested". The moment of
+      // leaving is now: each broken, uncut body at the site being walked out of is a Feeder that
+      // was not killed (8.3: "in a long fight, a Feeder becomes four Feeders").
+      for (const c of Object.values(s.creatures)) {
+        if (c.siteId === s.scene.siteId && c.down && !c.harvested && !c.stoodDown) {
+          payClock(s, ctx, clockTrigger(ctx, 'bodyLeft'), 1, `${c.name} was left uncut in the water`);
+        }
+      }
       s.scene = { siteId: site.id };
       // A new scene re-arms the site hazards (CORE 8.1: "once per scene" resets when the place,
       // the purpose or the people change).
@@ -1349,6 +1396,12 @@ const HANDLERS = {
       if (!orgIds.length) throw new RuleError('No organisms are in play yet. Players must join and choose a Hand first.');
       const here = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
       s.fight = { cycle: 1, order: [], actors: {}, turn: null, startedSeq: s.seq };
+      // 3.2: "Advance +1 when: ... the Cohort is loud in the channels (a Pulse War, a collapsed
+      // panel, a corpse left in the water)". Once per scene: the law clock notices the noise, not
+      // every swing inside it.
+      const loudId = clockTrigger(ctx, 'loud');
+      const loud = s.clocks[loudId];
+      if (loud && loud.loudScene !== s.sceneNo) { loud.loudScene = s.sceneNo; payClock(s, ctx, loudId, 1, 'a Pulse War in the open: the channels are loud'); }
       for (const id of orgIds) {
         const o = org(s, id);
         const mod = o.base.DFF + condBase(o, 'DFF') + (o.pathways['Pulse Discipline'] || 0);
@@ -1490,6 +1543,12 @@ const HANDLERS = {
       if (o.oath <= 0) throw new RuleError(`${o.name} has no Oath boxes left.`);
       const promise = String(a.promise || '').trim().slice(0, 200);
       if (!promise) throw new RuleError('Say what is promised, in the player\'s own words.');
+      if (/\bto be asked\b|ask (?:them|the player) first|own words:?\s*$/i.test(promise)) throw new RuleError('That is the Director asking itself, not a player promising. Ask what they swear, then call swear_oath with what they say.');
+      // Bench run 3 of 13 Nov: the Director swore `Bresk's own words: "..." - to be asked what is
+      // promised.`, the Engine wrote it into the record, and `recall` read that scaffolding back to
+      // Bresk later as his own oath. The Director may only swear words that reached the table; a
+      // human host may still phrase one freely (ctx.ai marks Director-only limits).
+      if (ctx.ai && !spokenAtTable(s, promise)) throw new RuleError(`No player said that, so it is not an Oath yet: nothing at the table matches "${promise.slice(0, 70)}". Ask what ${o.name} swears, then call swear_oath with exactly their words.`);
       const witness = String(a.witness || '').trim().slice(0, 60);
       o.oath -= 1;
       o.oaths = o.oaths || [];
@@ -1515,6 +1574,8 @@ const HANDLERS = {
       v.why = why;
       if (a.kept) {
         s.cohesion = (s.cohesion || 0) + 1;
+        // 3.2: "Rewind -1 when: ... the Cohort keeps an Oath in front of a faction that notices".
+        if (v.witness) payClock(s, ctx, clockTrigger(ctx, 'oathKept'), -1, `${o.name}'s Oath was kept in front of ${v.witness}`);
         say(s, ctx, `${o.name} keeps the Oath: "${v.promise}"${why ? ` — ${why}` : ''}. Cohesion ${s.cohesion}.`, 'award');
       } else {
         o.countdown = clamp(o.countdown + 2, 0, o.countdownMax);

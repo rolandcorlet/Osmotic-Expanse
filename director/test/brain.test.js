@@ -568,13 +568,31 @@ test('after a hit the briefing says whether the target is still up or destroyed'
 });
 
 test('an Oath spends a box and records the promise; Hands without boxes cannot swear', () => {
-  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  // The promise is Bresk's own words, said at the table first: swear_oath refuses a promise the
+  // Director made up (bench run 3 of 13 Nov swore `... - to be asked what is promised.`).
+  const s = apply(seated(), { type: 'say', text: 'We will carry the last cargo out under stamp' }, ctx('player', 'p1'));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
   const r = T.run('swear_oath', { organism: 'wall', promise: 'We will carry the last cargo out under stamp', witness: 'the Order II fold' });
   assert.deepEqual(r, { sworn: true, oath_boxes_left: '4/5' });
   assert.equal(T.state.organisms.wall.oaths[0].promise, 'We will carry the last cargo out under stamp');
   assert.match(briefing(T.state, scenario, bestiary, {}), /Oath OPEN \(id "v\d+"\): "We will carry the last cargo out under stamp" \(witnessed by the Order II fold\)/);
   assert.match(T.run('swear_oath', { organism: 'eyes', promise: 'x' }).refused, /no Oath boxes printed/);
   assert.match(T.run('swear_oath', { organism: 'wall', promise: '' }).refused, /what is promised/);
+});
+
+test('the Director may not swear an Oath the table never said', () => {
+  // Bench run 3 of 13 Nov: it swore `Bresk's own words: "..." - to be asked what is promised.`,
+  // the Oath went into the record with that in it, and `recall` later read it back to Bresk as his
+  // own promise. The words have to have reached the table.
+  const said = apply(seated(), { type: 'say', text: 'We have no stamp. We offer a promise, witnessed and filed.' }, ctx('player', 'p1'));
+  const T = toolbox({ state: said, scenario, bestiary, rng, now: 0 });
+  const scaffold = T.run('swear_oath', { organism: 'wall', promise: 'Bresk\'s own words: "We have no stamp. We offer a promise, witnessed and filed." \u2014 to be asked what is promised.', witness: 'the Order II fold' });
+  assert.match(scaffold.refused, /Director asking itself/);
+  const invented = T.run('swear_oath', { organism: 'wall', promise: 'We will pay the toll in Specimens at the gate', witness: 'the Order II fold' });
+  assert.match(invented.refused, /No player said that/);
+  const clean = T.run('swear_oath', { organism: 'wall', promise: 'We have no stamp. We offer a promise, witnessed and filed.', witness: 'the Order II fold' });
+  assert.equal(clean.sworn, true, 'their words, exactly, go in');
+  assert.equal(T.state.organisms.wall.oath, 4, 'and only the clean one spent a box');
 });
 
 test('a roll asked for in words is sent back once to use the roll tool', async () => {

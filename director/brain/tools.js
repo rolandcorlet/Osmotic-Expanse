@@ -310,7 +310,7 @@ export const TOOLS = [
   },
   {
     name: 'move_clock',
-    description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason printed in the notes. Never because a roll failed. Each Clock may advance at most once per session.',
+    description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason printed in the notes. Never because a roll failed. Each Clock may advance at most once per session. The Ledger pays the triggers the Vector prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
     parameters: obj({ clock: S('Which Clock.', { enum: ['CARCASS', 'TOLL', 'HUNGER'] }), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),
     run(a, T) {
       const d = Math.trunc(Number(a.change));

@@ -414,3 +414,103 @@ test('a new game: everything fresh, and the table can stay seated', () => {
   assert.equal(moved.players.p1.organismId, null);
   assert.equal(moved.scenarioId, 'another-vector');
 });
+
+// ---- the Vector's own Clock triggers (THE FIRST CARVE 3.1-3.3) -------------------------------
+// 3.4 caps the Director's discretionary advance at one segment per Clock per session, and that cap
+// stays. What the Engine now pays by itself is the other half of the same three sections: the lists
+// of "Advance +1 when" and "Rewind -1 when", which are the place reacting, not the host choosing.
+
+// One fresh swarm, already broken, harvested with a clean throw. Returns its id.
+function downOneSwarm(t) {
+  const before = Object.keys(t.s.creatures);
+  t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
+  const cid = Object.keys(t.s.creatures).find((k) => !before.includes(k));
+  t.host({ type: 'damage', target: { kind: 'cre', id: cid }, amount: 99 });
+  assert.equal(t.s.creatures[cid].down, true, 'a broken body is what can be cut');
+  return cid;
+}
+function harvestBody(t, cid, pid = 'p2', orgId = 'eyes') {
+  t.as(pid, { type: 'harvest', organismId: orgId, cid });
+  if (t.s.requests.length) t.as(pid, { type: 'roll', requestId: t.s.requests[0].id, dice: Array(t.s.requests[0].pool.dice).fill(6) });
+}
+
+test('each body harvested rewinds HUNGER by one, and never below zero (3.3)', () => {
+  const t = seated();
+  t.host({ type: 'clock', id: 'HUNGER', delta: 1 });
+  const first = downOneSwarm(t);
+  harvestBody(t, first);
+  assert.equal(t.s.creatures[first].harvested, true);
+  assert.equal(t.s.clocks.HUNGER.filled, 0, 'the body is out of the water');
+  const second = downOneSwarm(t);
+  harvestBody(t, second);
+  assert.equal(t.s.clocks.HUNGER.filled, 0, 'never below 0, as printed');
+  assert.ok(t.s.log.some((l) => l.kind === 'clock' && /HUNGER/.test(l.text)), 'and it says so in the log');
+});
+
+test('opening a panel at a cuttable site costs CARCASS a segment (3.1)', () => {
+  const t = seated();
+  t.host({ type: 'scene.set', siteId: 'soft-field' });
+  const before = t.s.clocks.CARCASS.filled;
+  t.as('p1', { type: 'harvest', organismId: 'wall' });
+  if (t.s.requests.length) t.as('p1', { type: 'roll', requestId: t.s.requests[0].id, dice: Array(t.s.requests[0].pool.dice).fill(6) });
+  assert.ok(t.s.loot.queue.length, 'the cut came away');
+  assert.equal(t.s.clocks.CARCASS.filled, before + 1, 'oxygen gets in; the job has a cost');
+});
+
+test('walking out and leaving a body uncut feeds the scavengers (3.3)', () => {
+  const t = seated();
+  downOneSwarm(t);
+  const before = t.s.clocks.HUNGER.filled;
+  t.host({ type: 'scene.set', siteId: 'soft-field' });
+  assert.equal(t.s.clocks.HUNGER.filled, before + 1, 'one body left in the water is one segment');
+  // A body that was cut, or one that was never killed, is not "left behind".
+  const t2 = seated();
+  const cid = downOneSwarm(t2);
+  harvestBody(t2, cid);
+  const mid = t2.s.clocks.HUNGER.filled;
+  t2.host({ type: 'scene.set', siteId: 'soft-field' });
+  assert.equal(t2.s.clocks.HUNGER.filled, mid, 'it was harvested: nothing was left in the water');
+});
+
+test('a Pulse War in the open moves TOLL once per scene (3.2)', () => {
+  const t = seated();
+  t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
+  t.host({ type: 'fight.start' });
+  assert.equal(t.s.clocks.TOLL.filled, 1, 'the channels are loud');
+  t.host({ type: 'fight.end' });
+  t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
+  t.host({ type: 'fight.start' });
+  assert.equal(t.s.clocks.TOLL.filled, 1, 'one loud thing per scene, not one per swing');
+  t.host({ type: 'fight.end' });
+  t.host({ type: 'scene.set', siteId: 'soft-field' });
+  t.host({ type: 'creature.add', creatures: [{ blockId: 'glaze-medusa', count: 1, band: 'near' }] });
+  t.host({ type: 'fight.start' });
+  assert.equal(t.s.clocks.TOLL.filled, 2, 'a new scene is loud again');
+  // And the Director still gets exactly one advance of its own for the whole session.
+  t.host({ type: 'clock', id: 'TOLL', delta: 1, by: 'ai' });
+  assert.equal(t.s.clocks.TOLL.filled, 3);
+  assert.throws(() => t.host({ type: 'clock', id: 'TOLL', delta: 1, by: 'ai' }), /at most one segment per session/);
+});
+
+test('keeping an Oath in front of a witness pays the law clock back (3.2)', () => {
+  const t = seated();
+  t.as('p1', { type: 'say', text: 'We will show the claim at the arm' });
+  t.host({ type: 'oath.swear', organismId: 'wall', promise: 'We will show the claim at the arm', witness: 'the Fold Sentinel at the chokepoint' });
+  t.host({ type: 'clock', id: 'TOLL', delta: 2 });
+  t.host({ type: 'oath.settle', organismId: 'wall', kept: true, why: 'the claim went into the water' });
+  assert.equal(t.s.clocks.TOLL.filled, 1);
+  // Sworn with nobody watching, it is not a faction taking notice.
+  const t2 = seated();
+  t2.as('p1', { type: 'say', text: 'We will salt the wound' });
+  t2.host({ type: 'oath.swear', organismId: 'wall', promise: 'We will salt the wound' });
+  t2.host({ type: 'clock', id: 'TOLL', delta: 2 });
+  t2.host({ type: 'oath.settle', organismId: 'wall', kept: true });
+  assert.equal(t2.s.clocks.TOLL.filled, 2);
+  // And a broken Oath is not paper.
+  const t3 = seated();
+  t3.as('p1', { type: 'say', text: 'We will salt the wound' });
+  t3.host({ type: 'oath.swear', organismId: 'wall', promise: 'We will salt the wound', witness: 'the drone clerk' });
+  t3.host({ type: 'clock', id: 'TOLL', delta: 2 });
+  t3.host({ type: 'oath.settle', organismId: 'wall', kept: false });
+  assert.equal(t3.s.clocks.TOLL.filled, 2);
+});

@@ -8,7 +8,7 @@ Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pus
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**112 tests**, all green at the 13 Nov hazard-budget commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**120 tests**, all green at the 13 Nov Clock-trigger commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -42,28 +42,31 @@ Since the 12 Nov draft: every site prices its printed creatures in `harvestPays`
 
 **Damage the table heard but no tool paid for.** Gate run 2's worst moment: the gas pocket was narrated going off a second time — "six kinetic punch back up through Bresk's leading membrane" — with no `hazard_damage` behind it, so the number was invented in prose and nobody's MI moved. `checkNarration` now flags it (`kind: 'rule'`, "Says someone took damage the Engine never paid"), sends it to the one-shot rewrite, and `tools/bench.mjs` tallies it as `Unpaid damage in narration` and fails the gate on it. The leak half of that sentence — naming "the Engine", "the Ledger", "the notes" out loud at the table — is still there: 4 leak flags across the three runs, all of them machinery words, several caught and rewritten. Roly ruled the same day (second ruling, 13 Nov): **"the page has nothing printed for that" stays legal table talk** — instructions.md already tells the Director to say it — and everything else in that family is a leak. `MACHINERY` in `brain/director.js` now flags "the Engine", "the notes", the briefing, tool names and "the Ledger" *when it is doing Engine verbs* ("the Ledger keeps the rest to itself"), because the Soft Field post has a physical ledger in the fiction ("The Ledger's stylus hovers") that must not be mistaken for the Engine.
 
-**Why the Clocks barely move (13 Nov) — the cap is printed, the triggers are not built.** It is not the Director
-failing to move them: `engine/ledger.js` enforces Vector 3.4's Clock discipline as `c.aiAdvanced`, one advance per
-Clock per session. Gate run 3 ended CARCASS 0 / TOLL 0 / HUNGER 0 because its one TOLL advance was rewound by the
-toll chit and CARCASS could not be touched twice. **THE FIRST CARVE 3.4 says the cap out loud** ("Advance at most one
-segment per session per clock... Never advance a clock because the players failed a roll — advance it because they
-succeeded at something loud... rewinding is a whole category of play, and in this Vector it is the *point*"), and the
-Engine reads it correctly. What the Engine has never built is the other half of the same three sections: 3.1 lists
-CARCASS "+1 when a Beat passes with no cut signed and no haul shipped, the Cohort opens a new panel, the Cohort is
-swept or stuck, a pump starts"; 3.2 lists TOLL "+1 when a Beat passes, the Cohort is loud in the channels (a Pulse
-War, a collapsed panel, a corpse left in the water), the Cohort obstructs the clearance legally"; 3.3 lists HUNGER
-"+1 when the Cohort kills and leaves a body unharvested, fights loudly, a panel is left open" and "-1 for *each body
-harvested*, never below 0". Those are the place paying its own price, and one of them ("-1 each body") cannot
-possibly mean once per session. So the cap is right as the Director's **discretionary** allowance, and the Vector's
-pacing is missing because the printed triggers live only in prose: run 1 spent the Cohort's entire one-time CARCASS
-advance on "a new panel has been opened", which is a printed trigger the Ledger should have paid during the harvest
-itself, and run 2's "harvested everything it killed: HUNGER -1" is a per-body reward the Engine can pay without the
-Director. Recommendation: keep `aiAdvanced` exactly as it is, and give the Engine the trigger lists (harvest pays
-HUNGER -1 per body; a body left uncut at fight end pays HUNGER +1; cutting the site itself pays CARCASS +1; a Pulse
-War in the open pays TOLL +1). The "+1 when a Beat passes" rows need the Beat, which the Engine does not track
-either — same missing family as the Cycle outside a Pulse War and the printed band shift.
+**Why the Clocks barely move (13 Nov), and what was built about it.** THE FIRST CARVE 3.4 prints the cap
+out loud — "Advance at most one segment per session per clock... Never advance a clock because the players
+failed a roll — advance it because they succeeded at something loud... rewinding is a whole category of play,
+and in this Vector it is the *point*" — and `engine/ledger.js` enforces it as `c.aiAdvanced` for moves made
+`by === 'ai'`. That cap is **correct and untouched**. What was missing is the other half of the same three
+sections: 3.1-3.3 list what the *place* pays ("Advance +1 when... the Cohort opens a new panel", "Rewind -1
+when... each body harvested: -1, never below 0", "the Cohort is loud in the channels (a Pulse War...)", "the
+Cohort kills and leaves a body unharvested", "the Cohort keeps an Oath in front of a faction that notices"),
+and none of it was a mechanic. So the Ledger pays those itself now: `scenario.rules.clockTriggers` in
+`data/first-carve.js` names the Clock for each event ({ panelOpens: CARCASS, bodyCut: HUNGER, bodyLeft: HUNGER,
+loud: TOLL, oathKept: TOLL }), and `payClock` writes the movement into the log so the players are told, the
+Director is told, and its one discretionary advance is not wasted on a Clock that already moved. Five tests in
+`test/ledger.test.js` hold each trigger, including that HUNGER never goes below 0 and that a second Pulse War
+in the same scene is not loud twice. What is still untracked is the **Beat** ("Advance +1 when a Beat passes"),
+which is the same missing family as the Cycle outside a Pulse War and the printed "1 band shift".
 
 **What is still not cleared.** The "1 band shift" and "-1 Drift per Move" a hazard prints have no mechanic, so the Director narrates them and the Engine does not: same shape as the narrated countdowns, which still have no mechanic either. The run-1 Oath loop is latent, not fixed. The Engine still applies only one priced-choice row. And `set_condition` (Jostled on all four) has no area form, so the Director calls it once per body — legal, but chatty.
+
+**The Director may only swear words the table said (13 Nov).** Bench run 3 swore
+`"Bresk's own words: \"We have no stamp. We offer a promise, witnessed and filed.\" — to be asked what is
+promised."` The Engine wrote that into the Oath, `recall` later read it back to Bresk as his own promise, and a
+second Oath went on top of it. `oath.swear` now refuses scaffolding outright ("to be asked", "ask first",
+"own words:"), and for the Director only (`ctx.ai`) refuses any promise that does not sit inside something a
+seated player has said in the last forty story lines — `spokenAtTable` in `engine/ledger.js`. A human host may
+still phrase an Oath freely. The refusal tells it to ask, then use their words.
 
 **An Oath sworn with the Director's own scaffolding in it (run 3, 13 Nov).** The player never said
 what they promised, so the Director called `swear_oath` with the promise `"Bresk's own words: \\"We
@@ -92,10 +95,10 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 2. Bench coverage: the `--thinking medium` three-run gate ran on 13 Nov (numbers above), so what is missing now is a clean pass of it, and Qwen3.8-27B Q4_K_M. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
 3. Not built: save slots and Supabase copy (plan: rules and Vectors stay in GitHub; saves local first, Supabase as a copy; free plan pauses after 7 days idle and has no backups); ad-libbing (`improv: 'adlib'` is refused until built); Discord sign-in (deferred).
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
-5. The Clocks: the cap is printed and correct (FIRST CARVE 3.4, one Director advance per Clock per session), but
-   the "Advance +1 when / Rewind -1 when" lists in 3.1-3.3 are not mechanics, so nothing else moves a Clock. Build
-   those into the Engine as Ledger rules rather than widening `aiAdvanced` (see the Clocks finding above). The Beat
-   is untracked too, and several of those rows hang on it.
+5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). Still unbuilt: the **Beat**
+   ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
+   (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, and the Gut Stone's serial turned in at a
+   Warden register arch.
 6. Area forms are missing where the page prints area: `set_condition` (Jostled on the whole chamber) is called once per body, and the "1 band shift"/"-1 Drift per Move" a hazard prints has no mechanic at all, so it is narrated rather than paid.
 
 ## Design decisions to preserve

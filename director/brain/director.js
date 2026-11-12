@@ -160,6 +160,10 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     }
   }
   L.push(`# CLOCKS (the players can see these): ${Object.values(state.clocks).map((c) => `${c.name} ${c.filled}/${c.segments}${c.aiAdvanced ? ' (already advanced this session)' : ''}`).join(' · ')}`);
+  // What the Ledger already paid for, from the Vector's own trigger lists: the players saw these
+  // lines, so the Director must not spend its one advance on the same Clock or narrate it again.
+  const paid = (state.log || []).filter((e) => e.kind === 'clock').slice(-4);
+  if (paid.length) L.push(`Clocks the Ledger moved itself (the players were told): ${paid.map((e) => e.text).join(' | ')}`);
   L.push('CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.');
 
   L.push('');

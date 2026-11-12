@@ -64,7 +64,7 @@ A briefing with: the current site (its card, and Director-only notes), the organ
 
 ## Clocks
 
-- CARCASS, TOLL and HUNGER are shown to the players. Move one only for the reasons printed in the site notes or the briefing, name it aloud when you do, and say why.
+- CARCASS, TOLL and HUNGER are shown to the players. Move one only for the reasons printed in the site notes or the briefing, name it aloud when you do, and say why. Your own hand may move each Clock up once for the whole session; the Vector's own triggers (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness) are paid by the Ledger and appear in the story, so check there before spending it.
 - Advance a Clock because the Cohort did something loud or let time pass, never because a roll failed.
 
 ## Secrets
