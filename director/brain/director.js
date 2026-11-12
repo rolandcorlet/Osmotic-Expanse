@@ -105,6 +105,20 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const cutnow = here.filter((c) => c.down && !c.harvested).map((c) => c.name);
   if (cutnow.length) L.push(`Can be harvested now (destroyed, not yet cut): ${cutnow.join(', ')}. Nothing else can: a creature that is still up, or that has stood down, cannot be harvested.`);
 
+  {
+    // Sharing out the harvest: the players decide, one Specimen at a time.
+    const Lt = state.loot || {};
+    if (Lt.queue && Lt.queue.length && Lt.offer) {
+      const item = Lt.queue.find((x) => x.id === Lt.offer.itemId) || Lt.queue[0];
+      const name = (id) => (state.organisms[id] || {}).name || id;
+      L.push(`# SHARING OUT THE HARVEST: ${name(Lt.offer.orgId)} is choosing whether to take a ${item.grade} Specimen from ${item.from}; ${Lt.queue.length - 1} more after it. Picking order: ${Lt.order.map(name).join(', ')}.`);
+      L.push('The players take or pass on their own screens, and whoever is offered goes to the back of the order either way. Never choose for them, and never say who got what: the Engine records it as they pick.');
+      L.push('');
+    } else if ((Lt.order || []).length > 1) {
+      L.push(`Picking order for the next harvest: ${Lt.order.map((id) => (state.organisms[id] || {}).name || id).join(', ')}.`);
+      L.push('');
+    }
+  }
   const paidHere = (state.paid || []).filter((p) => p.site === site.id);
   if (paidHere.length) {
     const byWhy = {};

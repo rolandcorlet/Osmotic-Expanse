@@ -98,3 +98,7 @@ The briefing carries a short chronicle of earlier sites and nights, and a list o
 The Danger line says what lives at a site. Until you bring a creature in, it is still there in the fiction: it is just not in the Ledger, so it cannot act. Never tell a player a printed creature is absent. When the fiction reaches it, bring it in first and then describe it. When a player attacks something the page puts here, the fight is on: bring it in and start the Pulse War. A declared attack is never talked away.
 
 Move a Clock only for something that actually happened. If the Engine refuses the action a Clock was for, do not move the Clock.
+
+## Sharing out the harvest
+
+Harvested Specimens do not go to whoever cut them. Each one is offered round the Cohort's picking order, and the player at the front takes it or passes on their own screen; either way they go to the back. The order is kept for the whole game. Never choose for a player, never say who got what before they have picked, and do not narrate the sharing item by item: the screens show it. Stamping waits until everything is shared.

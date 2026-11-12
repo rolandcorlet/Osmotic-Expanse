@@ -48,6 +48,9 @@ export function newSession(scenario) {
     // 'callbacks' (people and threads from earlier may return; the default), and later
     // 'adlib' (it may also invent people and encounters, written down as canon).
     improv: 'callbacks',
+    // Sharing out the harvest (Roly, 12 Nov 2026): every Specimen is offered in turn, by a picking
+    // order that rotates and is kept for the whole game. Take it or pass, you go to the back.
+    loot: { order: [], queue: [], offer: null, auto: {} }, // auto: a player's standing choice per grade
     nextId: 1,
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
@@ -72,6 +75,10 @@ export function restart(old, scenario, { keepPlayers = false } = {}) {
         if (was.named) { s.organisms[oid].name = was.name; s.organisms[oid].named = true; }
       }
     }
+  }
+  if (keepPlayers && old && old.scenarioId === scenario.id && old.loot) {
+    s.loot.order = (old.loot.order || []).filter((id) => s.organisms[id] && s.organisms[id].playerId);
+    s.loot.auto = clone(old.loot.auto || {});
   }
   const seated = Object.keys(s.players).length;
   say(s, { now: 0 }, `A new game of ${scenario.title} begins${seated ? `, with ${seated} at the table` : ''}.`, 'scene');
@@ -167,9 +174,104 @@ export function apply(state, action, ctx) {
 }
 
 // ------------------------------------------------------------------- helpers
+// The picking order: every seated organism, in the order kept; newcomers join at the back.
+function lootOrder(s) {
+  s.loot = s.loot || { order: [], queue: [], offer: null };
+  const seated = Object.keys(s.organisms).filter((id) => s.organisms[id].playerId);
+  s.loot.order = s.loot.order.filter((id) => seated.includes(id));
+  for (const id of seated) if (!s.loot.order.includes(id)) s.loot.order.push(id);
+  return s.loot.order;
+}
+function queueLoot(s, ctx, got, from) {
+  lootOrder(s);
+  for (const k of GRADES) for (let i = 0; i < (got[k] || 0); i++) s.loot.queue.push({ id: newId(s, 'i'), grade: k, from, siteId: s.scene.siteId });
+  if (!s.loot.offer) offerNext(s, ctx);
+}
+// The front of the order is offered the first item waiting.
+function offerNext(s, ctx) {
+  const order = lootOrder(s);
+  const item = s.loot.queue[0];
+  if (!item || !order.length) { s.loot.offer = null; return; }
+  s.loot.offer = { itemId: item.id, orgId: order[0], passes: 0 };
+  settleAuto(s, ctx);
+}
+// A player's standing choice ("take every C that comes to me") answers for them when their turn
+// comes. Items still go round in order; nobody takes out of turn.
+function settleAuto(s, ctx) {
+  for (let guard = 0; guard < 400 && s.loot.offer; guard++) {
+    const off = s.loot.offer;
+    const item = s.loot.queue.find((x) => x.id === off.itemId);
+    const rule = ((s.loot.auto || {})[off.orgId] || {})[item.grade];
+    if (rule !== 'take' && rule !== 'pass') return;
+    decide(s, ctx, rule === 'take', true);
+  }
+}
+// Whoever was offered goes to the back of the order, whether they took it or passed.
+function rotate(s, orgId) {
+  const o = s.loot.order;
+  const i = o.indexOf(orgId);
+  if (i >= 0) { o.splice(i, 1); o.push(orgId); }
+}
 const CAST_KINDS = ['person', 'faction', 'place', 'thread'];
 const MAX_CAST = 400;
 const MAX_FACTS = 16;
+function isCohort(s, name) {
+  const n = castKey(name);
+  return Object.values(s.organisms || {}).some((o) => [o.name, o.hand].some((v) => v && castKey(v) === n)
+    || String(o.name || '').split(/ of (?:the )?/i).some((part) => part.trim().length > 2 && castKey(part) === n));
+}
+function lootDecide(s, a, ctx, take) {
+  const L = s.loot || {};
+  const off = L.offer;
+  if (!off) throw new RuleError('Nothing is being shared out.');
+  if (ctx.ai) throw new RuleError('The players choose what they take. Wait for them.');
+  if (ctx.role !== 'host') {
+    const p = s.players[ctx.pid];
+    if (!p || p.organismId !== off.orgId) throw new RuleError(`It is ${s.organisms[off.orgId].name}'s choice.`);
+  }
+  if (a.itemId && a.itemId !== off.itemId) throw new RuleError('That item has already been decided.');
+  // "Take it, and every one of this grade after": the standing choice is set, then this item is taken.
+  if (a.always) {
+    const item = L.queue.find((x) => x.id === off.itemId);
+    setAuto(s, off.orgId, item.grade, take ? 'take' : 'pass');
+  }
+  decide(s, ctx, take, false);
+}
+function setAuto(s, orgId, grade, rule) {
+  s.loot.auto = s.loot.auto || {};
+  s.loot.auto[orgId] = { ...(s.loot.auto[orgId] || {}) };
+  if (rule) s.loot.auto[orgId][grade] = rule; else delete s.loot.auto[orgId][grade];
+}
+function decide(s, ctx, take, auto) {
+  const L = s.loot;
+  const off = L.offer;
+  const item = L.queue.find((x) => x.id === off.itemId);
+  const o = s.organisms[off.orgId];
+  rotate(s, off.orgId);
+  if (take) {
+    o.specimens = o.specimens || { C: 0, G: 0, P: 0, T: 0 };
+    o.specimens[item.grade] += 1;
+    L.queue = L.queue.filter((x) => x.id !== item.id);
+    say(s, ctx, `${o.name} takes a ${item.grade} Specimen from ${item.from}${auto ? ' (a standing choice)' : ''}.`, 'award');
+    if (!auto) offerNext(s, ctx); else nextQuiet(s);
+    return;
+  }
+  const passes = off.passes + 1;
+  if (passes >= L.order.length) {
+    L.queue = L.queue.filter((x) => x.id !== item.id);
+    say(s, ctx, `Nobody takes the ${item.grade} Specimen from ${item.from}: it is left in the water.`, 'table');
+    if (!auto) offerNext(s, ctx); else nextQuiet(s);
+    return;
+  }
+  say(s, ctx, `${o.name} passes on a ${item.grade} Specimen from ${item.from}${auto ? ' (a standing choice)' : ''}.`, 'table');
+  L.offer = { itemId: item.id, orgId: L.order[0], passes };
+  if (!auto) settleAuto(s, ctx);
+}
+// Inside settleAuto's loop: set the next offer without recursing back into it.
+function nextQuiet(s) {
+  const item = s.loot.queue[0];
+  s.loot.offer = item && s.loot.order.length ? { itemId: item.id, orgId: s.loot.order[0], passes: 0 } : null;
+}
 function castKey(name) { return 'k-' + String(name).toLowerCase().replace(/^(the|a|an) /, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48); }
 // A name the Vector prints is from the page; otherwise the Director made it up, or the host or
 // the chronicle wrote down something that came up in play.
@@ -512,10 +614,23 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
     else sub = 10;
     s.scene.cuts = (s.scene.cuts || 0) + 1;
   }
-  if (got) for (const k of GRADES) o.specimens[k] += got[k] || 0;
+  if (got) queueLoot(s, ctx, got, h.what);
   if (sub) o.substrate += sub;
+  // Codon the site prints per harvested creature (THE FIRST CARVE §8.1: 1.5 a swarm) is paid here,
+  // on a clean harvest, to each organism in the Cohort.
+  if (got && h.cid) {
+    const c = s.creatures[h.cid];
+    const site = ((ctx.scenario || {}).sites || []).find((x) => x.id === (c ? c.siteId : s.scene.siteId)) || {};
+    const pay = c && (site.harvestPays || {})[c.blockId];
+    if (pay && pay.codon) {
+      const ids = Object.keys(s.organisms).filter((id) => s.organisms[id].playerId);
+      for (const id of ids) s.organisms[id].codon = Math.round((s.organisms[id].codon + Number(pay.codon)) * 10) / 10;
+      say(s, ctx, `${pay.codon} Codon each for harvesting ${c.name}.`, 'award');
+      notes.push(`${pay.codon} Codon each for the Cohort, as printed for a harvested ${c.name.replace(/ [A-Z]$/, '')}.`);
+    }
+  }
   const over = o.bulk > bulkCap(o);
-  const line = success ? `${o.name} harvests ${h.what}: ${gradeText(got)} Specimens, unstamped.` : `${o.name} ruins the cut of ${h.what}: ${sub} S of Substrate instead.`;
+  const line = success ? `${o.name} harvests ${h.what}: ${gradeText(got)} Specimens, unstamped, to be shared out in the picking order.` : `${o.name} ruins the cut of ${h.what}: ${sub} S of Substrate instead.`;
   notes.push(`${line} Bulk carried ${o.bulk} of ${bulkCap(o)}${over ? ' (over: -2 DFF and Stress when moving fast)' : ''}.`);
   say(s, ctx, line, 'award');
   return { got, substrate: sub };
@@ -786,6 +901,7 @@ const HANDLERS = {
         o.name = nm;
         o.named = true;
       }
+      lootOrder(s);
       say(s, ctx, `${p.name} plays ${o.name} (${o.hand}).`, 'table');
     },
   },
@@ -1278,6 +1394,7 @@ const HANDLERS = {
     run(s, a, ctx) {
       const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
       if (!site.post) throw new RuleError('There is no Tally Post at this site.');
+      if (s.loot && s.loot.queue && s.loot.queue.length) throw new RuleError(`${s.loot.queue.length} harvested Specimen${s.loot.queue.length === 1 ? ' is' : 's are'} still being shared out. Finish sharing first.`);
       if (ctx.ai && Array.isArray(site.pricedChoice) && !(s.posts || {})[site.id]) throw new RuleError('Roll the post\'s priced choice first (tally_post_offer): the clerk\'s offer decides what stamp is on the table.');
       const ids = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms).filter((id) => s.organisms[id].playerId));
       let any = false;
@@ -1343,6 +1460,40 @@ const HANDLERS = {
       }
     },
   },
+  // Sharing out the harvest. The offered player (or the host for them) takes the item or passes.
+  'loot.take': {
+    run(s, a, ctx) { lootDecide(s, a, ctx, true); },
+  },
+  'loot.pass': {
+    run(s, a, ctx) { lootDecide(s, a, ctx, false); },
+  },
+  // A player's standing choice for a grade: 'take', 'pass', or cleared.
+  'loot.auto': {
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('The players choose what they take.');
+      lootOrder(s);
+      const orgId = ctx.role === 'host' ? a.organismId : (s.players[ctx.pid] || {}).organismId;
+      if (!orgId || !s.organisms[orgId]) throw new RuleError('Which organism?');
+      if (!GRADES.includes(a.grade)) throw new RuleError('Choose a grade: C, G, P or T.');
+      if (a.rule != null && !['take', 'pass'].includes(a.rule)) throw new RuleError('Choose take, pass, or nothing.');
+      setAuto(s, orgId, a.grade, a.rule || null);
+      say(s, ctx, a.rule ? `${s.organisms[orgId].name} will ${a.rule} every ${a.grade} Specimen offered.` : `${s.organisms[orgId].name} will choose each ${a.grade} Specimen again.`, 'table');
+      if (s.loot.offer) settleAuto(s, ctx);
+    },
+  },
+  // The host may set the picking order by hand (a new arrival, a correction).
+  'loot.order': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('The picking order is the table\'s, not the Director\'s.');
+      const cur = lootOrder(s);
+      const want = (Array.isArray(a.order) ? a.order : []).filter((id) => cur.includes(id));
+      if (want.length !== cur.length) throw new RuleError('Give the whole picking order, each organism once.');
+      s.loot.order = want;
+      if (s.loot.offer) s.loot.offer.orgId = want[0];
+      say(s, ctx, `The picking order is now ${want.map((id) => s.organisms[id].name).join(', ')}.`, 'table');
+    },
+  },
   // The table's memory. One card per person, faction, place or thread, found again by name.
   // origin says where it came from: the page, the table (it came up in play), or improvised.
   'cast.remember': {
@@ -1351,9 +1502,11 @@ const HANDLERS = {
       s.cast = s.cast || {};
       const list = Array.isArray(a.entries) ? a.entries : [a];
       let any = false;
+      let skipped = 0;
       for (const e of list.slice(0, 20)) {
         const name = String(e.name || '').trim().slice(0, 60);
         if (!name) continue;
+        if (isCohort(s, name)) { skipped += 1; continue; } // their sheet already keeps them
         const kind = CAST_KINDS.includes(e.kind) ? e.kind : 'person';
         const key = castKey(name);
         let c = s.cast[key];
@@ -1370,7 +1523,7 @@ const HANDLERS = {
         }
         any = true;
       }
-      if (!any) throw new RuleError('Give a name to remember.');
+      if (!any && !skipped) throw new RuleError('Give a name to remember.');
     },
   },
   'cast.forget': {

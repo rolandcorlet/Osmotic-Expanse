@@ -8,7 +8,7 @@ import { newSession, apply, viewFor } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { createMemory, tokens } from '../brain/memory.js';
-import { parseChronicle, plainChapter } from '../brain/chronicle.js';
+import { parseChronicle, plainChapter, filterCast } from '../brain/chronicle.js';
 import { briefing } from '../brain/director.js';
 import { toolbox, TOOLS } from '../brain/tools.js';
 import { createDirector } from '../brain/manager.js';
@@ -206,4 +206,24 @@ test('with the Director off, the chapter is written plainly and costs nothing', 
   assert.equal(ch[0].why, 'night');
   assert.match(ch[0].text, /^At The Toll-Vent: The drone clerk, a folded thing called Nine-Folds/);
   assert.ok(!/plays/.test(ch[0].text), 'seating is not story');
+});
+
+test('the chronicle files only what it met: never the organisms, their names, or the sites', () => {
+  const s = seated();
+  const named = apply(s, { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' }, ctx('player', 'p1'));
+  const cast = filterCast([
+    { name: 'Bresk of the Sixth Choir', kind: 'person', fact: 'Shouldered through' },
+    { name: 'The Sixth Choir', kind: 'faction', fact: 'Bresk\'s organisation' },
+    { name: 'Bresk', kind: 'person', fact: 'x' },
+    { name: 'The Wall', kind: 'person', fact: 'x' },
+    { name: 'The Soft Field', kind: 'place', fact: 'The next scene' },
+    { name: 'The drone clerk', kind: 'person', fact: 'Opened a filing for Bresk' },
+    { name: 'The favour owed at the Gut Stone', kind: 'thread', fact: 'Bresk owes the clerk' },
+  ], { organisms: Object.values(named.organisms), sites: scenario.sites });
+  assert.deepEqual(cast.map((c) => c.name), ['The drone clerk', 'The favour owed at the Gut Stone']);
+  // The Engine and the tool keep the organisms out too.
+  const r = apply(named, { type: 'cast.remember', entries: [{ name: 'Bresk', fact: 'x' }, { name: 'Nine-Folds', fact: 'Filed the oath' }] }, ctx('host', null));
+  assert.deepEqual(Object.values(r.cast).map((c) => c.name), ['Nine-Folds']);
+  const T = toolbox({ state: named, scenario, bestiary, rng, now: 0 });
+  assert.match(TOOLS.find((t) => t.name === 'remember').run({ name: 'Bresk of the Sixth Choir', kind: 'thread', fact: 'On the manifest' }, T).note, /player's organism/);
 });

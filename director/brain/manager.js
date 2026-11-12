@@ -9,7 +9,7 @@ import { directorTurn } from './director.js';
 
 const MODES = ['off', 'copilot', 'auto'];
 
-import { CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, plainChapter } from './chronicle.js';
+import { CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, plainChapter, filterCast } from './chronicle.js';
 
 export function createDirector({ getState, commit, act = null, memory = null, scenario, getScenario, bestiary, saveDir, rng, onChange, makeProvider = build }) {
   const scenarioNow = getScenario || (() => scenario); // the Vector can change when the host starts a new game
@@ -150,9 +150,12 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
     if (cfg.mode !== 'off' && ready()) {
       try {
         const known = Object.values(state.cast || {}).map((c) => c.name);
-        const chat = provider().start({ system: CHRONICLE_INSTRUCTIONS, tools: [] });
+        // A summary needs no reasoning, and on a local server it holds up the next turn: no thinking.
+        const quick = makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx, thinking: 'off' });
+        const chat = quick.start({ system: CHRONICLE_INSTRUCTIONS, tools: [] });
         const reply = await chat.send(chronicleRequest({ siteName, lines, known }));
         ({ chapter: text, cast } = parseChronicle(reply.text));
+        cast = filterCast(cast, { organisms: Object.values(state.organisms), sites: sc.sites || [] });
         if (reply.usage) { st.totals.in += reply.usage.in || 0; st.totals.out += reply.usage.out || 0; }
         by = 'ai';
       } catch (e) { text = ''; }

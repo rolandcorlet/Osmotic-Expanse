@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { newSession, apply } from '../engine/ledger.js';
+import { newSession, apply, restart } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS } from '../brain/tools.js';
@@ -15,6 +15,13 @@ import { gemini, pickDefaultModel } from '../brain/gemini.js';
 const bestiary = JSON.parse(readFileSync(new URL('../data/bestiary.json', import.meta.url), 'utf8'));
 const rng = makeRng(11);
 const ctx = (role, pid) => ({ role, pid, rng, now: 0, scenario, bestiary });
+
+// Share out the harvest the quick way: whoever is offered takes it.
+function shareAll(s) {
+  for (let i = 0; i < 60 && s.loot && s.loot.offer; i++) s = apply(s, { type: 'loot.take' }, ctx('host', null));
+  return s;
+}
+const held = (s, k) => Object.values(s.organisms).reduce((a, o) => a + ((o.specimens || {})[k] || 0), 0);
 
 function seated() {
   let s = newSession(scenario);
@@ -72,7 +79,11 @@ test('unhurried and within Baseline: the tool answers that no roll is needed', (
 test('the Engine refuses what is off the page', () => {
   const T = toolbox({ state: seated(), scenario, bestiary, rng });
   assert.match(T.run('bring_creatures', { block: 'protease-warden', count: 1 }).refused, /not printed for The Toll-Vent/);
-  assert.match(T.run('bring_creatures', { block: 'gnaw-swarm', count: 3 }).refused, /prints 2/);
+  // Asking for more than is printed brings what is printed; asking again changes nothing and is not an error.
+  T.run('bring_creatures', { block: 'gnaw-swarm', count: 3 });
+  assert.equal(Object.values(T.state.creatures).filter((c) => c.blockId === 'gnaw-swarm').length, 2);
+  assert.match(T.run('bring_creatures', { block: 'gnaw-swarm', count: 1 }).note, /already in the scene/);
+  assert.match(T.run('end_pulse_war', {}).note, /no Pulse War running/);
   assert.match(T.run('ask_for_roll', { organism: 'wall', baseline: 'VSC', threshold: 5, what_for: 'x' }).refused, /between 8 and 28/);
   assert.match(T.run('ask_for_roll', { organism: 'rider', baseline: 'DFF', threshold: 12, what_for: 'x' }).refused, /No organism/);
   assert.match(T.run('change_site', { site: 'gut-stone' }).refused, /cannot be reached/);
@@ -82,8 +93,8 @@ test('the Engine refuses what is off the page', () => {
   assert.match(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'again' }).refused, /at most one segment per session/);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: -1, why: 'a toll chit' }).now, '0/5');
   assert.match(T.run('rest', {}).rested ? 'ok' : 'no', /ok/);
-  assert.equal(T.refusals, 8);
-  assert.equal(Object.keys(T.state.creatures).length, 0);
+  assert.equal(T.refusals, 7, 'repeats of what is already true are notes, not refusals');
+  assert.equal(Object.keys(T.state.creatures).length, 2, 'only the printed two swarms came in');
 });
 
 test('a creature\'s turn: move, strike with real dice, bite within the swarm allowance, end turn', () => {
@@ -339,7 +350,8 @@ test('the Engine pays a printed reward once per organism per site, for the Direc
   assert.match(again.refused, /already been paid/);
   assert.equal(T.state.organisms.wall.codon, 15); // the refused payment did not happen
   // A different reason is a different payment, and the host may still pay by hand.
-  assert.deepEqual(T.run('award', { why: 'A harvested swarm', codon: 1.5, organisms: ['wall'] }), { paid: true });
+  // The per-swarm Codon is the Engine's to pay at harvest, never an award.
+  assert.match(T.run('award', { why: 'A swarm given water and gone', codon: 1.5, organisms: ['wall'] }).refused, /paid by the Engine when a gnaw swarm is harvested/);
   assert.match(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }).refused, /5 Codon is not printed for this site/);
   let h = apply(s, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
   h = apply(h, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
@@ -610,12 +622,22 @@ test('harvest: a destroyed creature yields its printed Specimens, costs Bulk, an
     assert.equal(q.at, 12); // tier 1 x 4 + 8
     T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2'));
   }
+  // The four Specimens wait to be shared out, offered first to the front of the picking order.
+  assert.equal(T.state.loot.queue.length, 4);
+  assert.equal(T.state.loot.offer.orgId, 'wall');
+  T.state = shareAll(T.state);
+  assert.equal(held(T.state, 'C'), 3); // Bestiary: C3 / G1
+  assert.equal(held(T.state, 'G'), 1);
+  assert.deepEqual(T.state.organisms.wall.specimens, { C: 2, G: 0, P: 0, T: 0 }, 'wall, eyes, wall, eyes: rotating');
+  assert.deepEqual(T.state.organisms.eyes.specimens, { C: 1, G: 1, P: 0, T: 0 });
   const o = T.state.organisms.eyes;
-  assert.deepEqual(o.specimens, { C: 3, G: 1, P: 0, T: 0 }); // Bestiary: C3 / G1
   assert.equal(o.bulk, 1);
   assert.equal(T.state.creatures[cid].harvested, true);
   assert.match(T.run('harvest', { organism: 'wall', creature: cid }).refused, /already been harvested/);
-  assert.match(briefing(T.state, scenario, bestiary, {}), /Specimens unstamped: 3 C, 1 G; stamped: none; Bulk carried 1 of/);
+  assert.match(briefing(T.state, scenario, bestiary, {}), /Specimens unstamped: 1 C, 1 G; stamped: none; Bulk carried 1 of/);
+  // The Toll-Vent prints 1.5 Codon a harvested swarm: the Engine pays it, to each in the Cohort.
+  for (const id of ['wall', 'eyes']) assert.equal(T.state.organisms[id].codon, 1.5);
+  assert.ok(T.state.log.some((l) => /1\.5 Codon each for harvesting Gnaw Swarm/.test(l.text)));
 });
 
 test('harvest: a failed roll ruins the sample and gives Substrate instead', () => {
@@ -643,12 +665,14 @@ test('harvest: the Soft Field can be cut, the Toll-Vent cannot; the Tally Post s
   assert.match(briefing(T.state, scenario, bestiary, {}), /This site can be cut[\s\S]*A Tally Post stands here/);
   const r = T.run('harvest', { organism: 'eyes' });
   if (r.waiting_for) { const q = T.state.requests[0]; T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2')); }
-  const sp = T.state.organisms.eyes.specimens;
-  assert.equal(sp.C + sp.G, 4);
   T.state = apply(T.state, { type: 'post.offer', roll: 9 }, ctx('host', null)); // a row with no share taken
+  assert.match(T.run('stamp_cut', {}).refused, /still being shared out/);
+  T.state = shareAll(T.state);
+  assert.equal(held(T.state, 'C') + held(T.state, 'G'), 4);
   assert.equal(T.run('stamp_cut', {}).stamped, true);
-  assert.equal(T.state.organisms.eyes.stamped.C + T.state.organisms.eyes.stamped.G, 4);
-  assert.deepEqual(T.state.organisms.eyes.specimens, { C: 0, G: 0, P: 0, T: 0 });
+  const stamped = Object.values(T.state.organisms).reduce((a, o) => a + ((o.stamped || {}).C || 0) + ((o.stamped || {}).G || 0), 0);
+  assert.equal(stamped, 4);
+  assert.equal(held(T.state, 'C') + held(T.state, 'G'), 0);
   assert.match(T.run('stamp_cut', {}).refused, /unstamped cut/);
 });
 
@@ -669,6 +693,7 @@ test('the Tally Post\'s priced choice is rolled once, from the printed table, be
   assert.match(briefing(T.state, scenario, bestiary, {}), /priced choice has not been rolled/);
   const r = T.run('harvest', { organism: 'eyes' });
   if (r.waiting_for) { const q = T.state.requests[0]; T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2')); }
+  T.state = shareAll(T.state);
   assert.match(T.run('stamp_cut', {}).refused, /priced choice first/);
   const offer = T.run('tally_post_offer', {});
   assert.ok(offer.roll >= 1 && offer.roll <= 12 && offer.offer && offer.price);
@@ -791,12 +816,12 @@ test('an open Oath is settled kept or broken, and the briefing will not let it b
 
 test('the briefing says what the page pays here and nobody has been given, and names creatures not in the scene', () => {
   let s = seated();
-  // The Toll-Vent prints 1.5 Codon a swarm and 15 for getting inside without an enemy of Order II.
-  assert.match(briefing(s, scenario, bestiary, {}), /# PRINTED AND NOT YET PAID AT THIS SITE: 1\.5 Codon, 15 Codon/);
+  // The Toll-Vent prints 15 Codon for getting inside without an enemy of Order II. Its 1.5 a swarm
+  // is paid by the Engine at harvest, so it is not the Director's to pay and is not listed.
+  assert.match(briefing(s, scenario, bestiary, {}), /# PRINTED AND NOT YET PAID AT THIS SITE: 15 Codon\./);
   s = apply(s, { type: 'award', codon: 15, why: 'inside without an enemy of Order II' }, ctx('host', null));
   const after = briefing(s, scenario, bestiary, {});
-  assert.match(after, /# PRINTED AND NOT YET PAID AT THIS SITE: 1\.5 Codon\./);
-  assert.ok(!/NOT YET PAID[^\n]*15 Codon/.test(after), 'what has been paid drops off the list');
+  assert.ok(!/NOT YET PAID/.test(after), 'what has been paid drops off the list');
 
   // The Danger line names a Fold Sentinel; until it is brought in it cannot act.
   const text = briefing(s, scenario, bestiary, {});
@@ -805,4 +830,89 @@ test('the briefing says what the page pays here and nobody has been given, and n
   assert.match(text, /A player who attacks one starts the Pulse War: bring it in, then start_pulse_war/);
   const withIt = apply(s, { type: 'creature.add', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
   assert.ok(!/NOT YET IN THE SCENE[^\n]*Fold Sentinel/.test(briefing(withIt, scenario, bestiary, {})));
+});
+
+test('sharing out the harvest: a rotating picking order, take or pass, kept for the game', () => {
+  let s = seated();
+  for (const [pid, who, hand] of [['p3', 'Ana', 'ledger']]) {
+    s = apply(s, { type: 'join', name: who }, ctx('player', pid));
+    s = apply(s, { type: 'zero.agree' }, ctx('player', pid));
+    s = apply(s, { type: 'claim', organismId: hand }, ctx('player', pid));
+  }
+  assert.deepEqual(s.loot.order, ['wall', 'eyes', 'ledger'], 'in the order they sat down');
+  s = apply(s, { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  s.creatures[cid].down = true;
+  s = apply(s, { type: 'harvest', organismId: 'ledger', cid }, ctx('player', 'p3'));
+  if (s.requests.length) s = apply(s, { type: 'roll', requestId: s.requests[0].id, dice: Array(s.requests[0].pool.dice).fill(5) }, ctx('player', 'p3'));
+  assert.equal(s.loot.queue.length, 4);
+  // Only the one offered may choose; the Director never chooses for anyone.
+  assert.equal(s.loot.offer.orgId, 'wall');
+  assert.throws(() => apply(s, { type: 'loot.take' }, ctx('player', 'p2')), /Bresk of the Sixth Choir's choice/);
+  assert.throws(() => apply(s, { type: 'loot.take' }, { ...ctx('host', null), ai: true }), /players choose/);
+  // Bresk takes: he goes to the back.
+  s = apply(s, { type: 'loot.take' }, ctx('player', 'p1'));
+  assert.deepEqual(s.loot.order, ['eyes', 'ledger', 'wall']);
+  // Brost passes: he loses his place too, and the same item goes to the next.
+  const item = s.loot.offer.itemId;
+  s = apply(s, { type: 'loot.pass' }, ctx('player', 'p2'));
+  assert.deepEqual(s.loot.order, ['ledger', 'wall', 'eyes']);
+  assert.equal(s.loot.offer.itemId, item);
+  assert.equal(s.loot.offer.orgId, 'ledger');
+  // Everyone passes the same item: it is left in the water.
+  s = apply(s, { type: 'loot.pass' }, ctx('player', 'p3'));
+  s = apply(s, { type: 'loot.pass' }, ctx('player', 'p1'));
+  assert.equal(s.loot.queue.length, 2);
+  assert.ok(s.log.some((l) => /left in the water/.test(l.text)));
+  assert.notEqual(s.loot.offer.itemId, item);
+  // The order is kept, and comes through a new game with the table seated.
+  const again = restart(s, scenario, { keepPlayers: true });
+  assert.deepEqual(again.loot.order, s.loot.order);
+  assert.deepEqual(again.loot.queue, []);
+  // The host can set it by hand; the Director cannot.
+  const h = apply(s, { type: 'loot.order', order: ['ledger', 'eyes', 'wall'] }, ctx('host', null));
+  assert.deepEqual(h.loot.order, ['ledger', 'eyes', 'wall']);
+  assert.throws(() => apply(s, { type: 'loot.order', order: ['ledger', 'eyes', 'wall'] }, { ...ctx('host', null), ai: true }), /not the Director's/);
+});
+
+test('a standing choice answers in turn: "take every C that comes to me" never takes out of turn', () => {
+  let s = seated(); // wall, eyes
+  const harvestSwarm = (st) => {
+    st = apply(st, { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+    const cid = Object.keys(st.creatures).find((k) => !st.creatures[k].down);
+    st.creatures[cid].down = true;
+    st = apply(st, { type: 'harvest', organismId: 'eyes', cid }, ctx('player', 'p2'));
+    if (st.requests.length) st = apply(st, { type: 'roll', requestId: st.requests[0].id, dice: Array(st.requests[0].pool.dice).fill(5) }, ctx('player', 'p2'));
+    return st;
+  };
+  // Bresk: "take it, and every C after". Brost will choose by hand.
+  s = harvestSwarm(s); // C C C G, Bresk first
+  s = apply(s, { type: 'loot.take', always: true }, ctx('player', 'p1'));
+  assert.equal(s.loot.auto.wall.C, 'take');
+  // Brost is offered the second C by hand: the standing choice did not jump the queue.
+  assert.equal(s.loot.offer.orgId, 'eyes');
+  s = apply(s, { type: 'loot.take' }, ctx('player', 'p2'));
+  // Third C comes to Bresk and is taken by his standing choice; the G then goes to Brost by hand.
+  assert.equal(s.organisms.wall.specimens.C, 2);
+  assert.equal(s.loot.offer.orgId, 'eyes');
+  assert.equal(s.loot.queue[0].grade, 'G');
+  s = apply(s, { type: 'loot.pass' }, ctx('player', 'p2'));
+  // Bresk has no rule for G: he is asked.
+  assert.equal(s.loot.offer.orgId, 'wall');
+  // Everyone passing by standing choice still ends: the item is left in the water.
+  s = apply(s, { type: 'loot.auto', grade: 'G', rule: 'pass' }, ctx('player', 'p1'));
+  assert.equal(s.loot.offer, null, 'Bresk passed by rule; Brost had passed already; it is left');
+  assert.ok(s.log.some((l) => /left in the water/.test(l.text)));
+  // A whole harvest with both on standing choices resolves at once, still in rotation.
+  s = apply(s, { type: 'loot.auto', grade: 'C', rule: 'take' }, ctx('player', 'p2'));
+  s = apply(s, { type: 'loot.auto', grade: 'G', rule: 'take' }, ctx('player', 'p2'));
+  const before = { w: s.organisms.wall.specimens.C, e: s.organisms.eyes.specimens.C };
+  s = harvestSwarm(s);
+  assert.equal(s.loot.offer, null);
+  assert.equal(s.organisms.wall.specimens.C - before.w + s.organisms.eyes.specimens.C - before.e, 3);
+  assert.ok(Math.abs((s.organisms.wall.specimens.C - before.w) - (s.organisms.eyes.specimens.C - before.e)) <= 1, 'still shared in turn');
+  // Cleared, and only the player (or the host) may set it.
+  s = apply(s, { type: 'loot.auto', grade: 'C', rule: null }, ctx('player', 'p1'));
+  assert.equal(s.loot.auto.wall.C, undefined);
+  assert.throws(() => apply(s, { type: 'loot.auto', grade: 'C', rule: 'take' }, { ...ctx('host', null), ai: true }), /players choose/);
 });

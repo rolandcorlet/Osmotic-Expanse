@@ -23,7 +23,9 @@ function findOrg(s, ref) {
 // The amounts a site prints under Pays: Codon values, and Substrate values or ranges.
 export function printedPays(site) {
   const text = String(((site || {}).host || {}).pays || '');
-  const codon = [...text.matchAll(/(\d+(?:\.\d+)?) Codon/g)].map((m) => Number(m[1]));
+  // Amounts the Engine pays itself at harvest are not the Director's to award.
+  const auto = Object.values((site || {}).harvestPays || {}).map((x) => Number(x.codon)).filter(Boolean);
+  const codon = [...text.matchAll(/(\d+(?:\.\d+)?) Codon/g)].map((m) => Number(m[1])).filter((n) => !auto.includes(n));
   const substrate = [...text.matchAll(/(\d+)(?: to (\d+))? S\b/g)].map((m) => [Number(m[1]), Number(m[2] || m[1])]);
   return { codon, substrate };
 }
@@ -99,8 +101,11 @@ export const TOOLS = [
       const printed = (site.encounter || []).find((e) => e.blockId === lower(a.block));
       if (!printed) return { refused: `"${a.block}" is not printed for ${site.name}. Printed here: ${(site.encounter || []).map((e) => `${e.count} ${e.blockId}`).join(', ') || 'nothing'}.` };
       const have = Object.values(T.state.creatures).filter((c) => c.siteId === site.id && c.blockId === printed.blockId).length;
-      const count = Math.trunc(Number(a.count) || 1);
-      if (count < 1 || have + count > printed.count) return { refused: `${site.name} prints ${printed.count} of these and ${have} are already here.` };
+      let count = Math.trunc(Number(a.count) || 1);
+      if (count < 1) return { refused: 'Bring at least one.' };
+      // Asking for what is already here changes nothing: say so, do not count it as an error.
+      if (have >= printed.count) return { note: `All ${printed.count} printed here ${printed.count === 1 ? 'is' : 'are'} already in the scene. Nothing more to bring.` };
+      if (have + count > printed.count) count = printed.count - have;
       const ids = new Set(Object.keys(T.state.creatures));
       const no = T.do({ type: 'creature.add', creatures: [{ blockId: printed.blockId, count, band: BAND_IDS.includes(a.band) ? a.band : 'near' }] });
       if (no) return { refused: no };
@@ -122,7 +127,7 @@ export const TOOLS = [
     description: 'End the Pulse War: one side can no longer fight, has fled, has yielded, or has what it wanted.',
     parameters: obj({}),
     run(a, T) {
-      if (!T.state.fight) return { refused: 'There is no Pulse War running.' };
+      if (!T.state.fight) return { note: 'There is no Pulse War running, so there is nothing to end.' };
       const no = T.do({ type: 'fight.end' });
       return no ? { refused: no } : { ended: true };
     },
@@ -259,6 +264,8 @@ export const TOOLS = [
       if (!codon && !sub) return { refused: 'Give a Codon or Substrate amount.' };
       // Ruling (12 Nov 2026): the Director pays only what this site prints under Pays.
       const printed = printedPays(T.site());
+      const auto = Object.entries(T.site().harvestPays || {}).find(([, x]) => Number(x.codon) === codon);
+      if (codon && auto) return { refused: `${codon} Codon is paid by the Engine when a ${auto[0].replace(/-/g, ' ')} is harvested: use the harvest tool on a destroyed one. It is not paid for one that left, was given water, or was not cut.` };
       if (codon && !printed.codon.includes(codon)) return { refused: `${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay a printed amount, or nothing.` };
       if (sub && !printed.substrate.some(([lo, hi]) => sub >= lo && sub <= hi)) return { refused: `${sub} S is not printed for this site. Printed here: ${printed.substrate.length ? printed.substrate.map(([lo, hi]) => (lo === hi ? `${lo} S` : `${lo} to ${hi} S`)).join(', ') : 'no Substrate'}. Pay a printed amount, or nothing.` };
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
@@ -268,7 +275,7 @@ export const TOOLS = [
   },
   {
     name: 'harvest',
-    description: 'An organism harvests a destroyed creature, or (where the briefing says the site can be cut) the site itself. The Engine sets the Threshold (tier x 4 + 8), builds the pool (OSM or RTC with Synthesis, +2 with a Harvest Claw), charges 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
+    description: 'An organism harvests a destroyed creature, or (where the briefing says the site can be cut) the site itself. The Specimens do not go to the harvester: each is offered round the Cohort\'s picking order, and the players take or pass on their own screens. The Engine sets the Threshold (tier x 4 + 8), builds the pool (OSM or RTC with Synthesis, +2 with a Harvest Claw), charges 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
     parameters: obj({ organism: S('Organism id.'), creature: S('Id of a creature the briefing lists under "Can be harvested now". A creature still up, or stood down, cannot be harvested: kill it first or leave it.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
@@ -278,7 +285,12 @@ export const TOOLS = [
       const before = T.state.rolls.length;
       const no = T.do({ type: 'harvest', organismId: o.id, cid, baseline: a.baseline });
       if (no) return { refused: no };
-      if (T.state.rolls.length > before) { const r = T.state.rolls[T.state.rolls.length - 1]; return { no_roll_needed: true, result: r.harvest, note: (r.notes || []).join(' ') }; }
+      if (T.state.rolls.length > before) {
+        const r = T.state.rolls[T.state.rolls.length - 1];
+        const L = T.state.loot || {};
+        const who = L.offer ? T.state.organisms[L.offer.orgId].name : null;
+        return { no_roll_needed: true, result: r.harvest, note: (r.notes || []).join(' '), sharing: L.queue && L.queue.length ? `${L.queue.length} Specimen${L.queue.length === 1 ? '' : 's'} now go round the picking order, one at a time; ${who} chooses first. The players take or pass on their own screens: do not say who gets what.` : undefined };
+      }
       const q = T.state.requests[T.state.requests.length - 1];
       return { waiting_for: o.name, dice: q.pool.dice, threshold: q.at, note: 'The roll is on their screen. Narrate the cut beginning, and end your turn.' };
     },
@@ -335,6 +347,9 @@ export const TOOLS = [
     description: 'Write a person, faction, place or thread into the table\'s memory so it stays consistent for the rest of the game: when you give someone a name, a player names something, or a fact about someone is settled at the table (a debt, a grudge, a promise, what they want). One short fact in plain words. Calling it again with the same name adds a fact to the same card. Set seen false only for a fact the players have not been told.',
     parameters: obj({ name: S('The name the table uses, for example "the drone clerk" or "Reader-Behind-Nine-Urn".'), kind: S('What it is: a person, a faction, a place, or a thread (a debt, a grudge, a promise, a claim: something unresolved).', { enum: ['person', 'faction', 'place', 'thread'] }), fact: S('One short fact worth remembering.'), seen: B('False only when the players have not been told this.') }, ['name', 'kind', 'fact']),
     run(a, T) {
+      const nm = String(a.name || '').trim().toLowerCase().replace(/^the /, '');
+      const own = Object.values(T.state.organisms).find((o) => [o.name, o.hand].some((v) => v && String(v).toLowerCase().replace(/^the /, '') === nm) || String(o.name).toLowerCase().split(/ of (?:the )?/).includes(nm));
+      if (own) return { note: `${own.name} is a player's organism: their sheet already keeps them. Remember the people and threads around them instead.` };
       const no = T.do({ type: 'cast.remember', name: a.name, kind: a.kind, fact: a.fact, seen: !(a.seen === false || a.seen === 'false') });
       if (no) return { refused: no };
       const k = Object.values(T.state.cast || {}).find((c) => c.name.toLowerCase() === String(a.name).trim().toLowerCase());

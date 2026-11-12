@@ -283,3 +283,5 @@ says so here, so it can be changed in one place.
 13. One cut of the Soft Field gives 4 C, or 3 C and 1 G on 4 or more Overflow while CARCASS is 0 or 1. A failed cut gives 10 S.
 14. A harvested creature gives the Specimens printed in the Bestiary (a Gnaw Swarm: C3 / G1), not the "2 C Specimens" in the Toll-Vent's notes.
 15. A successful harvest gives Specimens only, until an amount of Substrate is set.
+16. Codon a site prints for each harvested creature (the Toll-Vent: 1.5 a Gnaw Swarm) goes to each organism in the Cohort, paid by the Engine on a clean harvest. The Director cannot award it separately.
+17. Harvested Specimens are shared out one at a time by a picking order that rotates and is kept for the whole game. The organism at the front is offered the item and takes it or passes; either way it goes to the back of the order. If every organism passes an item, it is left in the water. The host can set the order by hand on the Sheets tab. A player may set a standing choice per grade ("take every C that comes to me", or "pass every C"); it answers for them only when their turn comes, so the rotation is unchanged.

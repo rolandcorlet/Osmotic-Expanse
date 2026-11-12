@@ -204,6 +204,48 @@ with sync_playwright() as p:
     table.click('#head .tab:has-text("Rolls")')
     ok = measure(table, "table Rolls") and ok
 
+    # --- sharing out a harvest: the fight ends, a body is cut, one phone passes and the next takes
+    host.set_viewport_size({"width": 1366, "height": 768})
+    host.click('#head .tab:has-text("Run")')
+    cid = host.get_attribute('.cre:has-text("Fold Sentinel") [data-act="h.cre.strike"], [data-act="h.cre.strike"]', "data-id")
+    host.evaluate("""async (cid) => {
+      const k = new URLSearchParams(location.search).get('key');
+      const post = (action) => fetch('/api/action', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role: 'host', key: k, action }) }).then((r) => r.json());
+      await post({ type: 'fight.end' });
+      await post({ type: 'set', target: { kind: 'cre', id: cid }, field: 'mi', value: 0 });
+      await post({ type: 'set', target: { kind: 'cre', id: cid }, field: 'segments', value: 0 });
+      return post({ type: 'harvest', organismId: 'eyes', cid });
+    }""", cid)
+    # The harvest may need a roll on Brost's phone first; wait for whichever comes.
+    for _ in range(40):
+        if p1.locator('text=Your pick').count():
+            break
+        if p2.locator('.card.ask button:has-text("Roll")').count():
+            p2.click('.card.ask button:has-text("Roll")')
+        time.sleep(0.25)
+    p1.wait_for_selector('text=Your pick', timeout=8000)
+    shot(p1, "phone-your-pick")
+    p2.wait_for_selector('text=Sharing out the harvest')
+    host.wait_for_selector('.card:has-text("Sharing out the harvest")')
+    ok = measure(host, "host Run while sharing 1366x768") and ok
+    shot(host, "host-sharing")
+    p1.click('button:has-text("Pass")')
+    p2.wait_for_selector('text=Your pick')
+    # Brost: take it, and every C that comes to him from now on.
+    p2.click('button:has-text("Take it, and every")')
+    p2.wait_for_selector('text=when it comes to you')
+    shot(p2, "phone-standing-choice")
+    for _ in range(20):
+        if not host.locator('button:has-text("Take for them")').count():
+            break
+        host.click('button:has-text("Take for them")')
+        time.sleep(0.25)
+    print("sharing: Bresk passed, Brost took, host finished it:", host.locator('.card:has-text("Sharing out the harvest")').count() == 0)
+    host.click('#head .tab:has-text("Sheets")')
+    time.sleep(0.3)
+    ok = measure(host, "host Sheets with the picking order") and ok
+    print("picking order shown on Sheets:", host.locator('text=Picking order for the harvest').count() == 1)
+
     # --- the table's memory: a narrated line, a card, a search, and the end of the night
     host.set_viewport_size({"width": 1536, "height": 864})
     host.click('#head .tab:has-text("Director")')

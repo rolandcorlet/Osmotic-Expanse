@@ -684,12 +684,51 @@ function incomingCard(q, o) {
   </section>`;
 }
 
+// Sharing out the harvest: one Specimen at a time, round the picking order.
+function shareItem() {
+  const L = state.loot || {};
+  if (!L.offer || !(L.queue || []).length) return null;
+  return { L, item: L.queue.find((x) => x.id === L.offer.itemId) || L.queue[0], who: state.organisms[L.offer.orgId] };
+}
+function shareOrder(L, mine) {
+  return L.order.map((id, i) => `<span class="chip${id === L.offer.orgId ? ' on' : ''}${id === mine ? ' ok' : ''}">${i + 1}. ${esc(state.organisms[id].name.replace(/ of .*$/, ''))}</span>`).join(' ');
+}
+function shareCard(o) {
+  const x = shareItem();
+  if (!x) return '';
+  const { L, item, who } = x;
+  const left = L.queue.length - 1;
+  if (who.id === o.id) {
+    return `<section class="card ask"><h3>Your pick<span class="right"><span class="chip">${left} more after this</span></span></h3>
+      <div class="tale">A <b>${item.grade} Specimen</b> from ${esc(item.from)}. Take it, or pass it to the next in line.</div>
+      <div class="small dim">Either way you go to the back of the picking order.</div>
+      <div class="row"><button class="btn primary big grow" data-act="loot.take" data-id="${esc(item.id)}">Take it</button><button class="btn big" data-act="loot.pass" data-id="${esc(item.id)}">Pass</button></div>
+      <div class="row"><button class="btn sm grow" data-act="loot.always" data-id="${esc(item.id)}" data-rule="take">Take it, and every ${item.grade} that comes to me</button><button class="btn sm" data-act="loot.always" data-id="${esc(item.id)}" data-rule="pass">Pass every ${item.grade}</button></div>
+      ${standingLine(L, o.id)}
+      <div class="row small">${shareOrder(L, o.id)}</div>
+    </section>`;
+  }
+  return `<section class="card"><h3>Sharing out the harvest<span class="right"><span class="chip">${L.queue.length} left</span></span></h3>
+    <div class="small"><b>${esc(who.name)}</b> is choosing whether to take a ${item.grade} Specimen from ${esc(item.from)}.</div>
+    ${standingLine(L, o.id)}
+    <div class="row small">${shareOrder(L, o.id)}</div>
+  </section>`;
+}
+// A player's standing choices, each with a way to stop it. They answer only when it is their turn.
+function standingLine(L, orgId) {
+  const rules = Object.entries((L.auto || {})[orgId] || {});
+  if (!rules.length) return '';
+  return `<div class="row small"><span class="dim">You will</span>${rules.map(([g, r]) => `<span class="chip${r === 'take' ? ' ok' : ''}">${r} every ${g} <button class="btn sm" data-act="loot.auto.off" data-grade="${g}" title="Choose each one again">x</button></span>`).join(' ')}<span class="dim">when it comes to you.</span></div>`;
+}
+
 function playHtml(o) {
   const out = [];
   const myAsks = state.requests.filter((q) => q.actor.kind === 'org' && q.actor.id === o.id);
   const incoming = state.requests.filter((q) => q.kind === 'incoming' && q.target && q.target.id === o.id);
   for (const q of incoming) out.push(incomingCard(q, o));
   for (const q of myAsks) out.push(askCard(q));
+  const share = shareCard(o);
+  if (share) out.push(share);
   // Two panels stay folded away until asked for, so the story and the last roll stay in view.
   const sw = (what, label) => `<button class="btn grow${ui.show[what] ? ' primary' : ''}" data-act="p.show" data-what="${what}" aria-pressed="${ui.show[what] ? 'true' : 'false'}">${ui.show[what] ? 'Hide: ' : ''}${label}</button>`;
   // Harvest: destroyed bodies not yet harvested, and the site itself where it can be cut.
@@ -824,18 +863,33 @@ function tableHtml() {
 
 // --------------------------------------------------------------------- host
 function hostHtml() {
-  if (ui.tab === 'sheets') return `<div class="sheets">${Object.values(state.organisms).map((o) => sheetCard(o, { edit: true })).join('')}</div>`;
+  if (ui.tab === 'sheets') {
+    const L = state.loot || {};
+    const order = (L.order || []).filter((id) => state.organisms[id]);
+    const bar = order.length > 1 ? `<div class="row small" style="margin-bottom:8px"><span class="dim">Picking order for the harvest (kept for the game):</span> ${order.map((id, i) => `<span class="chip">${i + 1}. ${esc(state.organisms[id].name.replace(/ of .*$/, ''))}${i ? ` <button class="btn sm" data-act="loot.up" data-id="${esc(id)}" title="Move up the order">↑</button>` : ''}</span>`).join(' ')}</div>` : '';
+    return `<div style="display:flex;flex-direction:column;height:100%;min-height:0">${bar}<div class="sheets" style="flex:1;height:auto">${Object.values(state.organisms).map((o) => sheetCard(o, { edit: true })).join('')}</div></div>`;
+  }
   if (ui.tab === 'bestiary') return bestiaryHtml();
   if (ui.tab === 'director') return directorHtml();
   if (ui.tab === 'memory') return memoryHtml();
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}</div>
     <div class="col">${hostAskCard()}${hostWaitingCard()}</div>
-    <div class="col">${hostFightCard()}${hostToolsCard()}${hostZeroCard()}</div>
+    <div class="col">${hostFightCard()}${hostToolsCard()}${shareItem() ? hostShareCard() : hostZeroCard()}</div>
   </div>`;
 }
 
 // Session zero on the host console: set the pause word and the tone, see who has agreed.
+// The host sees the sharing, can decide for a player who is away, and can set the order.
+function hostShareCard() {
+  const { L, item, who } = shareItem();
+  return `<section class="card"><h3>Sharing out the harvest<span class="right"><span class="chip">${L.queue.length} left</span></span></h3>
+    <div class="small"><b>${esc(who.name)}</b> is offered a ${item.grade} Specimen from ${esc(item.from)}.</div>
+    <div class="row"><button class="btn sm grow" data-act="loot.take" data-id="${esc(item.id)}">Take for them</button><button class="btn sm grow" data-act="loot.pass" data-id="${esc(item.id)}">Pass for them</button></div>
+    <div class="row small">${L.order.map((id, i) => `<span class="chip${id === L.offer.orgId ? ' on' : ''}">${i + 1}. ${esc(state.organisms[id].name.replace(/ of .*$/, ''))}${i ? ` <button class="btn sm" data-act="loot.up" data-id="${esc(id)}" title="Move up the order">↑</button>` : ''}</span>`).join(' ')}</div>
+  </section>`;
+}
+
 function hostZeroCard() {
   const z = state.zero || { pauseWord: '', tone: '', lines: [] };
   const ps = Object.values(state.players || {});
@@ -1299,6 +1353,11 @@ const ACT = {
   },
   'h.rest': () => send({ type: 'rest' }),
   'h.undo': () => send({ type: 'undo' }),
+  'loot.take': (d) => send({ type: 'loot.take', itemId: d.id }),
+  'loot.always': (d) => send({ type: d.rule === 'take' ? 'loot.take' : 'loot.pass', itemId: d.id, always: true }),
+  'loot.auto.off': (d) => send({ type: 'loot.auto', grade: d.grade, rule: null }),
+  'loot.pass': (d) => send({ type: 'loot.pass', itemId: d.id }),
+  'loot.up': (d) => { const o = state.loot.order.slice(); const i = o.indexOf(d.id); if (i > 0) { [o[i - 1], o[i]] = [o[i], o[i - 1]]; } return send({ type: 'loot.order', order: o }); },
   'm.night': () => sendDirector({ op: 'chapter' }),
   'm.chdrop': (d) => sendDirector({ op: 'chapter.drop', id: d.id }),
   'm.search': () => sendDirector({ op: 'recall', query: ui.mem.q }),

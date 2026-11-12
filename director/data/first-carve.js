@@ -84,6 +84,8 @@ const sites = [
     ],
     exits: ['Inward: the cut-lane down to the Soft Field', 'Back out to the Toll Reach and its queue of skiffs'],
     encounter: [{ blockId: 'gnaw-swarm', count: 2 }, { blockId: 'fold-sentinel', count: 1 }],
+    // Paid by the Engine when one of these is harvested, never by the Director's award.
+    harvestPays: { 'gnaw-swarm': { codon: 1.5 } },
     host: {
       cite: 'Vector §8.1',
       play: 'The wound is legal only with a Guild stamp, a drone licence, or a toll paid: 2 C Specimens per body, 15 S per body, or a promise (an Oath box, witnessed by an Order II fold). Refusing and fighting is a decision: it costs TOLL a segment.',

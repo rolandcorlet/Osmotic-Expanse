@@ -274,3 +274,8 @@ details>summary{cursor:pointer;color:var(--dim);font-size:13px}
 /* ---- the table screen is read from across a room: enlarge it on big displays ---- */
 @media (min-width:1700px) and (min-height:950px){ .role-table #main{zoom:1.3} }
 @media (min-width:2400px) and (min-height:1300px){ .role-table #main{zoom:1.7} }
+
+/* The player's fold buttons: each label on one line; whole buttons move to a second row when
+   they do not fit, and every row fills the width. Never clipped. */
+.showbar{flex-wrap:wrap}
+.showbar .btn{flex:1 1 auto;white-space:nowrap}

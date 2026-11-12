@@ -64,6 +64,15 @@ you.
 
 **Undo** on the clocks card takes back the last change to the Ledger.
 
+## Sharing out the harvest
+
+Harvested Specimens don't go to whoever cut them. Each one is offered in turn, by a picking
+order kept for the whole game: the player at the front gets **Take it / Pass** on their phone,
+and either way they go to the back. To save taps, a player can choose **Take it, and every C that comes to me** (or pass every C): it answers for them when their turn comes, never out of turn, and the x next to it stops it. While it's happening, a card on the Run tab shows who is
+choosing, with **Take for them / Pass for them** for anyone away from their phone. The order is
+also on the Sheets tab; the ↑ buttons move someone up. The Tally Post won't stamp until
+everything is shared.
+
 ## Things only you can do
 
 * **Call for a roll** — Run tab, pick who, the Baseline and Pathway, the Threshold, what for.

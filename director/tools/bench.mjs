@@ -19,7 +19,7 @@ import { systemRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { directorTurn } from '../brain/director.js';
 import { createMemory } from '../brain/memory.js';
-import { plainChapter, CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle } from '../brain/chronicle.js';
+import { plainChapter, CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, filterCast } from '../brain/chronicle.js';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -41,6 +41,7 @@ const sites = Number(opt('--sites', 1)); // 2 plays on through the Soft Field: h
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 if ((info.key === 'required' && !apiKey) || !model) { console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`); process.exit(1); }
 const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking });
+const makeQuick = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking: 'off' }); // the chronicle: no thinking
 
 const bestiary = JSON.parse(readFileSync(join(here, '..', 'data', 'bestiary.json'), 'utf8'));
 const rng = systemRng();
@@ -99,8 +100,9 @@ async function once(n) {
       if (!flag('--plain-chronicle')) {
         try {
           const t0 = Date.now();
-          const reply = await makeProvider().start({ system: CHRONICLE_INSTRUCTIONS, tools: [] }).send(chronicleRequest({ siteName: name, lines, known: Object.values(s.cast || {}).map((c) => c.name) }));
+          const reply = await makeQuick().start({ system: CHRONICLE_INSTRUCTIONS, tools: [] }).send(chronicleRequest({ siteName: name, lines, known: Object.values(s.cast || {}).map((c) => c.name) }));
           ({ chapter: text, cast } = parseChronicle(reply.text));
+          cast = filterCast(cast, { organisms: Object.values(s.organisms), sites: scenario.sites });
           by = 'ai';
           console.log(`  (chronicle for ${name}, ${((Date.now() - t0) / 1000).toFixed(1)} s) ${text}`);
           if (cast.length) console.log(`  (chronicle remembers) ${cast.map((c) => `${c.name} [${c.kind}]: ${c.fact}`).join(' | ')}`);
@@ -111,6 +113,17 @@ async function once(n) {
       mem.addChapter(s.gameId, { t: Date.now(), siteId, site: name, why: 'left', toSeq: Math.max(0, ...lines.map((l) => l.seq || 0)), text, by });
       if (cast.length) { try { const prev = s; s = apply(s, { type: 'cast.remember', entries: cast.map((c) => ({ ...c, origin: 'table' })) }, ctx('host', null)); mem.observe(prev, s); } catch (e) { /* the chapter stands */ } }
     }
+  }
+  // The scripted players take whatever they are offered, as a quick table would.
+  function shareOut() {
+    const got = [];
+    for (let i = 0; i < 80 && s.loot && s.loot.offer; i++) {
+      const o = s.organisms[s.loot.offer.orgId];
+      const item = s.loot.queue.find((x) => x.id === s.loot.offer.itemId);
+      act('player', o.playerId, { type: 'loot.take' });
+      got.push(`${o.name.replace(/ of .*$/, '')} ${item.grade}`);
+    }
+    if (got.length) console.log(`  (shared out in the picking order) ${got.join(', ')}`);
   }
   const memoryFor = () => ({ chapters: mem.chapters(s.gameId).slice(-3), search: (q, o = {}) => mem.search(s.gameId, q, { ...o, cast: s.cast || {} }) });
   const act = (role, pid, a) => { const prev = s; s = apply(s, a, ctx(role, pid)); moved(prev); };
@@ -128,6 +141,7 @@ async function once(n) {
     s = r.state;
     moved(prev);
     await writeChapters();
+    shareOut();
     for (const c of r.calls) { if (c.name === 'recall') tally.recalls += 1; if (c.name === 'remember') tally.remembers += 1; }
     tally.turns += 1;
     tally.ms += Date.now() - t0;
