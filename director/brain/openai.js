@@ -6,7 +6,7 @@ import { ProviderError, request, errorText, refusal, trimUrl } from './net.js';
 
 const NOT_CHAT = /embed|whisper|tts|dall-e|image|audio|realtime|moderation|transcri|sora|babbage|davinci|rerank|guard|speech|ocr/i;
 
-export function openaiLike({ id = 'openai', name = 'OpenAI', baseUrl, apiKey = '', model, local = false, fetchImpl = fetch, temperature = 0.8, timeoutMs }) {
+export function openaiLike({ id = 'openai', name = 'OpenAI', baseUrl, apiKey = '', model, local = false, fetchImpl = fetch, temperature = 0.8, timeoutMs, thinking = 'default' }) {
   const base = trimUrl(baseUrl);
   if (!base) throw new ProviderError(`No address has been entered for ${name} yet.`);
   const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
@@ -33,12 +33,23 @@ export function openaiLike({ id = 'openai', name = 'OpenAI', baseUrl, apiKey = '
     const messages = [{ role: 'system', content: system }];
     const fns = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }));
     let useTemp = true;
+    // Thinking: 'off' asks the model's chat template not to reason first; 'low' asks for the least.
+    // Not every server knows these fields, so they are dropped if the server objects.
+    let useThinking = thinking === 'off' || thinking === 'low';
 
     async function turn() {
       const body = { model, messages };
       if (fns.length) body.tools = fns;
       if (useTemp) body.temperature = temperature;
+      if (useThinking && thinking === 'off') body.chat_template_kwargs = { enable_thinking: false };
+      if (useThinking && thinking === 'low') body.reasoning_effort = 'low';
       let r = await call('chat/completions', body);
+      if (!r.ok && r.status === 400 && useThinking && /chat_template_kwargs|enable_thinking|reasoning_effort|unknown|unrecognized|extra/i.test(errorText(r.data, r.status))) {
+        useThinking = false;
+        delete body.chat_template_kwargs;
+        delete body.reasoning_effort;
+        r = await call('chat/completions', body);
+      }
       // Some reasoning models accept only their own temperature: ask again without it.
       if (!r.ok && r.status === 400 && useTemp && /temperature/i.test(errorText(r.data, r.status))) {
         useTemp = false;

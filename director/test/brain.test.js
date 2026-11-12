@@ -695,3 +695,28 @@ test('outside a fight, reading out dice or a Threshold is a style flag, not a le
   assert.deepEqual(kinds('Pressure Tolerance, three dice, AT 12. Do you go straight through?'), ['style']);
   assert.deepEqual(kinds('The lip hums under your shoulder. Do you go straight through?'), []);
 });
+
+test('thinking setting: sent to local servers only, and dropped if the server objects', async () => {
+  const ok = { choices: [{ message: { role: 'assistant', content: 'Ready. What now?' } }], usage: {} };
+  // Off: the chat template is told not to think.
+  let r = recorder([ok]);
+  await build({ provider: 'custom', baseUrl: 'http://box:8000/v1', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.deepEqual(r.sent[0].body.chat_template_kwargs, { enable_thinking: false });
+  // Low: the least effort.
+  r = recorder([ok]);
+  await build({ provider: 'lmstudio', model: 'm', thinking: 'low', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.reasoning_effort, 'low');
+  // A server that rejects the field gets the request again without it.
+  r = recorder([{ status: 400, body: { error: { message: 'Unrecognized request argument: chat_template_kwargs' } } }, ok]);
+  const reply = await build({ provider: 'custom', baseUrl: 'http://box:8000/v1', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(reply.text, 'Ready. What now?');
+  assert.equal(r.sent[1].body.chat_template_kwargs, undefined);
+  // Cloud providers never get it.
+  r = recorder([ok]);
+  await build({ provider: 'openai', apiKey: 'K', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.chat_template_kwargs, undefined);
+  // Ollama uses its own switch.
+  r = recorder([{ message: { role: 'assistant', content: 'Ready. What now?' } }]);
+  await build({ provider: 'ollama', model: 'm', thinking: 'off', fetchImpl: r.fetchImpl }).start({ system: 'S', tools: [] }).send('hi');
+  assert.equal(r.sent[0].body.think, false);
+});

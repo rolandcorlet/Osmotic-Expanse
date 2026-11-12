@@ -31,11 +31,12 @@ const apiKey = (cfg.keys || {})[provider] || (provider === 'gemini' && cfg.apiKe
 const baseUrl = opt('--url', (cfg.urls || {})[provider] || '');
 const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemini' && cfg.model) || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
+const thinking = opt('--thinking', cfg.thinking || 'default'); // default | low | off (local models)
 const runs = Number(opt('--runs', 1));
 const sites = Number(opt('--sites', 1)); // 2 plays on through the Soft Field: harvest, the Tally Post, and out
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 if ((info.key === 'required' && !apiKey) || !model) { console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`); process.exit(1); }
-const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx });
+const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking });
 
 const bestiary = JSON.parse(readFileSync(join(here, '..', 'data', 'bestiary.json'), 'utf8'));
 const rng = systemRng();
@@ -133,7 +134,7 @@ async function once(n) {
     }
   }
 
-  console.log(`\n===== Run ${n}: ${info.name} · ${model} =====`);
+  console.log(`\n===== Run ${n}: ${info.name} · ${model}${info.group === 'local' && thinking !== 'default' ? ` · thinking ${thinking}` : ''} =====`);
   await director('opening the scene');
   const lines = (sites >= 2 ? SCRIPT.slice(0, -1).concat(SCRIPT2) : SCRIPT).filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
   for (const [pid, text] of lines) {

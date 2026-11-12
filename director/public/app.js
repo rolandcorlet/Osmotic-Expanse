@@ -973,6 +973,9 @@ function directorHtml() {
       ${pv.ctx ? `<div class="fld"><span class="fl">Context size (how much the model can read at once)</span>
         <select data-k="dir.ctx" data-dctx="1">${[8192, 16384, 32768, 65536].map((n) => `<option value="${n}" ${Number(d.numCtx) === n ? 'selected' : ''}>${n.toLocaleString()} tokens${n === 16384 ? ' (recommended)' : n === 8192 ? ' (tight: long scenes may be cut off)' : ''}</option>`).join('')}</select>
         <span class="small dim">Bigger needs more video memory. If the Director forgets the scene or stops using its tools, raise this.</span></div>` : ''}
+      ${pv.group === 'local' ? `<div class="fld"><span class="fl">Thinking before each reply</span>
+        <div class="seg">${[['default', 'Model default'], ['low', 'Low'], ['off', 'Off']].map(([id, name]) => `<button class="${(d.thinking || 'default') === id ? 'on' : ''}" data-act="d.think" data-id="${id}">${name}</button>`).join('')}</div>
+        <span class="small dim">Some local models reason silently before answering, which costs seconds on every turn. Off is fastest and may cost some accuracy. If your server does not know the setting, it is ignored.</span></div>` : ''}
       <hr class="sep">
       <div class="fld"><span class="fl">Ask for a turn now</span>
         <div class="row"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" maxlength="400" placeholder="Optional note to the Director, for example: open the scene"><button class="btn primary" data-act="d.run" ${d.mode === 'off' || !d.usable || !d.model || d.thinking ? 'disabled' : ''}>Take a turn</button></div>
@@ -1020,6 +1023,7 @@ const ACT = {
     if (await send({ type: 'say', text })) ui.say.text = '';
   },
   'd.mode': (d) => sendDirector({ op: 'config', mode: d.id }),
+  'd.think': (d) => sendDirector({ op: 'config', thinking: d.id }),
   'd.key': async () => {
     if (!ui.dir.key.trim()) { toast('Paste the key first.'); return; }
     if (await sendDirector({ op: 'config', apiKey: ui.dir.key.trim() })) { ui.dir.key = ''; toast('Key saved. Loading your models…', true); }

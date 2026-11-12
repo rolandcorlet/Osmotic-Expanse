@@ -12,11 +12,11 @@ const MODES = ['off', 'copilot', 'auto'];
 export function createDirector({ getState, commit, scenario, bestiary, saveDir, rng, onChange, makeProvider = build }) {
   const file = join(saveDir, 'director.json');
   // Each provider keeps its own key, address and chosen model, so switching loses nothing.
-  const cfg = { mode: 'off', provider: 'gemini', keys: {}, urls: {}, models: {}, numCtx: 16384 };
+  const cfg = { mode: 'off', provider: 'gemini', keys: {}, urls: {}, models: {}, numCtx: 16384, thinking: 'default' };
   try {
     if (existsSync(file)) {
       const old = JSON.parse(readFileSync(file, 'utf8'));
-      for (const k of ['mode', 'provider', 'numCtx']) if (old[k] != null) cfg[k] = old[k];
+      for (const k of ['mode', 'provider', 'numCtx', 'thinking']) if (old[k] != null) cfg[k] = old[k];
       for (const k of ['keys', 'urls', 'models']) if (old[k] && typeof old[k] === 'object') Object.assign(cfg[k], old[k]);
       // Settings saved before there was a choice of provider were Gemini's.
       if (typeof old.apiKey === 'string' && old.apiKey && !cfg.keys.gemini) cfg.keys.gemini = old.apiKey;
@@ -43,7 +43,7 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
     try { mkdirSync(saveDir, { recursive: true }); writeFileSync(file, JSON.stringify(cfg, null, 1)); } catch (e) { /* settings stay in memory */ }
   };
   const ready = () => cfg.mode !== 'off' && usable() && !!modelOf();
-  const provider = () => makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx });
+  const provider = () => makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx, thinking: cfg.thinking });
   const fail = (e) => {
     st.phase = 'error';
     st.error = e instanceof ProviderError ? e.message : `The Director hit a problem: ${e.message}`;
@@ -143,6 +143,7 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
             reload = usable() && !(st.modelsBy[cfg.provider] || []).length;
           }
           if (typeof body.model === 'string' && body.model) { cfg.models[cfg.provider] = body.model; st.test = null; }
+          if (['default', 'low', 'off'].includes(body.thinking)) { cfg.thinking = body.thinking; st.test = null; }
           if (body.numCtx != null) cfg.numCtx = Math.min(262144, Math.max(4096, Math.round(Number(body.numCtx)) || 16384));
           if (typeof body.baseUrl === 'string' && info().url) {
             const u = body.baseUrl.trim();
@@ -230,7 +231,7 @@ export function createDirector({ getState, commit, scenario, bestiary, saveDir, 
       const p = st.proposal;
       return {
         on, mode: cfg.mode, provider: cfg.provider, providers: publicProviders(), model: modelOf(), keySet: !!keyOf(), usable: usable(),
-        url: urlOf(), numCtx: cfg.numCtx, models: st.modelsBy[cfg.provider] || [], test: st.test,
+        url: urlOf(), numCtx: cfg.numCtx, thinking: cfg.thinking, models: st.modelsBy[cfg.provider] || [], test: st.test,
         phase: st.phase, error: st.error, thinking: st.phase === 'thinking', last: st.last, totals: st.totals,
         proposal: p ? { id: p.id, narration: p.narration, calls: p.calls, flags: p.flags, held: p.held, stale: getState().seq !== p.baseSeq } : null,
       };

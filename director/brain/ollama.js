@@ -4,7 +4,7 @@
 
 import { ProviderError, request, errorText, trimUrl } from './net.js';
 
-export function ollama({ baseUrl, model, apiKey = '', numCtx = 16384, fetchImpl = fetch, temperature = 0.8 }) {
+export function ollama({ baseUrl, model, apiKey = '', numCtx = 16384, fetchImpl = fetch, temperature = 0.8, thinking = 'default' }) {
   // Accept the address with or without a trailing /v1 or /api.
   const base = trimUrl(baseUrl || 'http://localhost:11434').replace(/\/(v1|api)$/, '');
   const headers = apiKey ? { authorization: `Bearer ${apiKey}` } : {};
@@ -30,7 +30,11 @@ export function ollama({ baseUrl, model, apiKey = '', numCtx = 16384, fetchImpl 
     async function turn() {
       const body = { model, messages, stream: false, options: { temperature, num_ctx: Number(numCtx) || 16384 } };
       if (fns.length) body.tools = fns;
-      const r = await call('chat', body);
+      if (thinking === 'off') body.think = false;
+      if (thinking === 'low') body.think = 'low';
+      let r = await call('chat', body);
+      // A model that cannot switch thinking says so: ask again without the setting.
+      if (!r.ok && body.think !== undefined && /think/i.test(errorText(r.data, r.status))) { delete body.think; r = await call('chat', body); }
       if (!r.ok) {
         const msg = errorText(r.data, r.status);
         if (/does not support tools/i.test(msg)) throw new ProviderError(`Ollama: the model "${model}" cannot call tools, and the Director needs them. Choose a model that lists "tools" on ollama.com.`);

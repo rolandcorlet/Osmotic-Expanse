@@ -40,14 +40,16 @@ export const providerInfo = (id) => PROVIDERS.find((p) => p.id === id) || PROVID
 // What the screens may know: no keys, no secrets.
 export const publicProviders = () => PROVIDERS.map((p) => ({ id: p.id, name: p.name, group: p.group, key: p.key, keyFrom: p.keyFrom || '', url: !!p.url, ctx: !!p.ctx, base: p.base || '', hint: p.hint || '' }));
 
-export function build({ provider = 'gemini', apiKey = '', baseUrl = '', model = '', numCtx, fetchImpl }) {
+export function build({ provider = 'gemini', apiKey = '', baseUrl = '', model = '', numCtx, thinking = 'default', fetchImpl }) {
   const p = providerInfo(provider);
   const extra = fetchImpl ? { fetchImpl } : {};
   if (p.key === 'required' && !apiKey) throw new ProviderError(`No ${p.name} API key has been entered yet.`);
   if (p.kind === 'gemini') return gemini({ apiKey, model, ...extra });
   if (p.kind === 'anthropic') return anthropic({ apiKey, model, ...extra });
-  if (p.kind === 'ollama') return ollama({ baseUrl: baseUrl || p.base, model, apiKey, numCtx, ...extra });
-  return openaiLike({ id: p.id, name: p.name.replace(/ \(.*$/, ''), baseUrl: (p.url && baseUrl) || p.base, apiKey, model, local: p.group === 'local', ...extra });
+  // The thinking setting is for models on your own machine; cloud providers keep their own defaults.
+  const think = p.group === 'local' ? thinking : 'default';
+  if (p.kind === 'ollama') return ollama({ baseUrl: baseUrl || p.base, model, apiKey, numCtx, thinking: think, ...extra });
+  return openaiLike({ id: p.id, name: p.name.replace(/ \(.*$/, ''), baseUrl: (p.url && baseUrl) || p.base, apiKey, model, local: p.group === 'local', thinking: think, ...extra });
 }
 
 // A sensible first choice from the account's own list. Where no safe guess exists
