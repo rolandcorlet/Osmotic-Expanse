@@ -82,8 +82,13 @@ function findCre(s, ref) {
   const list = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId);
   return list.find((c) => c.cid === k) || list.find((c) => lower(c.name) === k) || list.find((c) => k && lower(c.name).startsWith(k)) || null;
 }
-const noOrg = (ref) => ({ refused: `No organism called "${ref}" is in play. Use an id from the briefing.` });
-const noCre = (ref) => ({ refused: `No creature called "${ref}" is in this scene. Use an id from the briefing.` });
+// The refusal names what is actually here, so the model never has to say where it read the list.
+// (13 Nov gate, run 1: the Director told the table "Next briefing will carry the Soft Field" - the
+// vocabulary came out of our own strings, and echoing it is a leak.)
+const whoIsHere = (s) => Object.values(s.organisms).filter((o) => o.playerId).map((o) => `${o.id} (${o.name})`).join(', ');
+const whatIsHere = (s) => Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId).map((c) => c.cid).join(', ');
+const noOrg = (ref, s) => ({ refused: `No organism called "${ref}" is in play. Here: ${whoIsHere(s) || 'nobody has claimed a body yet'}.` });
+const noCre = (ref, s) => ({ refused: `No creature called "${ref}" is in this scene. Here: ${whatIsHere(s) || 'nothing has been brought in at this site'}.` });
 
 function lastRoll(s) {
   const r = s.rolls[s.rolls.length - 1];
@@ -99,21 +104,21 @@ function lastRoll(s) {
 export const TOOLS = [
   {
     name: 'ask_for_roll',
-    description: 'Ask one organism to roll (or pass on its Baseline). Use for anything uncertain an organism attempts. The player rolls on their own screen; the result arrives in your next briefing. End your turn after calling this.',
+    description: 'Ask one organism to roll (or pass on its Baseline). Use for anything uncertain an organism attempts. The player rolls on their own screen; the result comes back to you on the turn after. End your turn after calling this.',
     parameters: obj({
-      organism: S('Organism id from the briefing, for example "wall".'),
+      organism: S('Organism id, for example "wall".'),
       baseline: S('Which Baseline.', { enum: R.BASELINES }),
       pathway: S('Which Pathway, or leave out for Baseline only.', { enum: R.PATHWAYS }),
-      threshold: I('The Activation Threshold: 8, 12, 16 or 20 from the ladder, or a number printed in the site notes.'),
+      threshold: I('The Activation Threshold: 8, 12, 16 or 20 from the ladder, or a number the page prints here.'),
       what_for: S('A few words the player will see, for example "Cross the wound lip".'),
-      modifiers: { type: 'array', description: 'Dice added or removed by circumstance: a tool or ally +1, good position +1, wrong tonic -1 or -2, cover -2.', items: obj({ label: S('Why.'), dice: I('Dice to add (positive) or remove (negative).') }, ['label', 'dice']) },
-      unhurried: B('True when the attempt is unopposed and unhurried. The Engine then compares the Homeostatic Baseline and may need no roll.'),
+      modifiers: { type: 'array', description: 'Dice added or removed by circumstance: an item of kit or an ally +1, good position +1, wrong tonic -1 or -2, cover -2.', items: obj({ label: S('Why.'), dice: I('Dice to add (positive) or remove (negative).') }, ['label', 'dice']) },
+      unhurried: B('True when the attempt is unopposed and unhurried: the Homeostatic Baseline is compared first, and it may need no roll at all.'),
     }, ['organism', 'baseline', 'threshold', 'what_for']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
-      if (!o) return noOrg(a.organism);
+      if (!o) return noOrg(a.organism, T.state);
       const at = Math.trunc(Number(a.threshold));
-      if (!(at >= 8 && at <= 28)) return { refused: 'A Threshold is between 8 and 28: use the ladder (8, 12, 16, 20) or a number printed in the site notes.' };
+      if (!(at >= 8 && at <= 28)) return { refused: 'A Threshold is between 8 and 28: use the ladder (8, 12, 16, 20) or a number the page prints here.' };
       if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { refused: `${o.name} already has a roll waiting. Wait for it.` };
       const before = T.state.rolls.length;
       const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: listOf(a.modifiers), unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
@@ -135,7 +140,7 @@ export const TOOLS = [
   {
     name: 'bring_creatures',
     description: 'Bring creatures printed for the current site into the scene. Only this site\'s printed creatures are allowed.',
-    parameters: obj({ block: S('The block id from the site notes, for example "gnaw-swarm".'), count: I('How many.'), band: S('How far from the Cohort.', { enum: BAND_IDS }) }, ['block', 'count']),
+    parameters: obj({ block: S('The block id the page prints for this site, for example "gnaw-swarm".'), count: I('How many.'), band: S('How far from the Cohort.', { enum: BAND_IDS }) }, ['block', 'count']),
     run(a, T) {
       const site = T.site();
       const printed = (site.encounter || []).find((e) => e.blockId === lower(a.block));
@@ -175,23 +180,23 @@ export const TOOLS = [
   {
     name: 'creature_move',
     description: 'On a creature\'s turn: it Drifts to a new band (1 Pulse Point).',
-    parameters: obj({ creature: S('Creature id from the briefing.'), band: S('Where it ends up, measured from the Cohort.', { enum: BAND_IDS }) }, ['creature', 'band']),
+    parameters: obj({ creature: S('Creature id in this scene.'), band: S('Where it ends up, measured from the Cohort.', { enum: BAND_IDS }) }, ['creature', 'band']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature);
+      if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Drift', cost: 1, band: a.band });
       return no ? { refused: no } : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
     name: 'creature_strike',
-    description: 'On a creature\'s turn: it attacks one organism. The Engine rolls its dice in the open and applies any damage. If the target holds a Reserve, the roll waits for their reaction and you must end your turn.',
-    parameters: obj({ creature: S('Creature id from the briefing.'), target: S('Organism id.') }, ['creature', 'target']),
+    description: 'On a creature\'s turn: it attacks one organism. Its dice are rolled in the open and any damage lands at once. If the target holds a Reserve, the roll waits for their reaction and you must end your turn.',
+    parameters: obj({ creature: S('Creature id in this scene.'), target: S('Organism id.') }, ['creature', 'target']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature);
+      if (!c) return noCre(a.creature, T.state);
       const o = findOrg(T.state, a.target);
-      if (!o) return noOrg(a.target);
+      if (!o) return noOrg(a.target, T.state);
       if (c.band === 'far' || c.band === 'loose') return { refused: `${c.name} is at ${c.band}: it must Drift closer before it can strike.` };
       const act = T.state.fight ? T.state.fight.actors[`cre:${c.cid}`] : null;
       // A swarm bites once per 2 Segments (CORE 4.13): the first Strike costs 2 PP, further bites in the allowance cost none.
@@ -213,18 +218,18 @@ export const TOOLS = [
     parameters: obj({ creature: S('Creature id.'), what: S('The printed name, for example "Brace" or "Swarm Over".'), cost: I('Its printed Pulse Point cost.') }, ['creature', 'what', 'cost']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature);
+      if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: String(a.what || 'Special').slice(0, 40), cost: a.cost });
       return no ? { refused: no } : { done: a.what, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
     name: 'creature_reserve',
-    description: 'On a creature\'s turn: it holds 1 Pulse Point in Reserve. The Engine will then Deflect the next attack against it this Cycle (+4 to its Membrane Threshold). Open to Standards, Elites and swarm clusters. Say aloud that it is holding something back.',
+    description: 'On a creature\'s turn: it holds 1 Pulse Point in Reserve. It then Deflects the next attack against it this Cycle (+4 to its Membrane Threshold). Open to Standards, Elites and swarm clusters. Say aloud that it is holding something back.',
     parameters: obj({ creature: S('Creature id.') }, ['creature']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature);
+      if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 });
       return no ? { refused: no } : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
     },
@@ -232,21 +237,21 @@ export const TOOLS = [
   {
     name: 'creature_stand_down',
     description: 'A creature leaves the fight without being destroyed: it has yielded, it has fled, it has what it wanted, or it was never fighting (a clerk honouring a filed oath). Standing down ends its turn at once (do not call end_creature_turn for it); it takes no more turns and no longer keeps the Pulse War open. If a player strikes it afterwards it rejoins the fight. Never use this for a creature that is still attacking.',
-    parameters: obj({ creature: S('Creature id from the briefing.'), why: S('Why it stands down, in a few words the players can hear.') }, ['creature', 'why']),
+    parameters: obj({ creature: S('Creature id in this scene.'), why: S('Why it stands down, in a few words the players can hear.') }, ['creature', 'why']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature);
+      if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.standDown', cid: c.cid, why: a.why });
       return no ? { refused: no } : { stood_down: c.name, ...(T.state.fight ? T.fightBrief() : {}) };
     },
   },
   {
     name: 'end_creature_turn',
-    description: 'End a creature\'s turn. The Engine moves to whoever acts next and tells you who.',
+    description: 'End a creature\'s turn: it passes to whoever acts next, and you are told who.',
     parameters: obj({ creature: S('Creature id.') }, ['creature']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature);
+      if (!c) return noCre(a.creature, T.state);
       // A creature that is down or has stood down has no turn to end: say so without a refusal.
       if (T.state.fight && (c.down || c.stoodDown)) return { note: `${c.name} is out of the fight and has no turn to end.`, ...T.fightBrief() };
       const no = T.do({ type: 'turn.end', cid: c.cid });
@@ -255,11 +260,11 @@ export const TOOLS = [
   },
   {
     name: 'hazard_damage',
-    description: 'A printed hazard hurts an organism. Soak applies. Use the damage printed in the site notes, never your own number. A hazard goes off only on its printed trigger or as the Cost of a FAILED roll: never after a roll that landed. It goes off once per Cycle inside a Pulse War, and once per scene outside one (CORE 8.1): ground the page prices "per Cycle" may go off again each Cycle, a detonation may not. Where the page prices the hazard for the whole chamber, one call pays every body at the site: never call it once per organism. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
+    description: 'A printed hazard hurts an organism. Soak applies. Use the damage the page prints here, never your own number. A hazard goes off only on its printed trigger or as the Cost of a FAILED roll: never after a roll that landed. It goes off once per Cycle inside a Pulse War, and once per scene outside one (CORE 8.1): ground the page prices "per Cycle" may go off again each Cycle, a detonation may not. Where the page prices the hazard for the whole chamber, one call pays every body at the site: never call it once per organism. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
     parameters: obj({ organism: S('Organism id.'), amount: I('Printed damage.'), type: S('Damage type, for example Kinetic or Lytic.'), trigger: S('What set the hazard off: the words printed in the site\'s Trigger line (for example "a Strike"), or "failed roll" when this is the Cost of the roll that just failed.'), why: S('What caused it, in a line the players can hear.') }, ['organism', 'amount', 'trigger', 'why']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
-      if (!o) return noOrg(a.organism);
+      if (!o) return noOrg(a.organism, T.state);
       const amount = Math.trunc(Number(a.amount));
       if (!(amount >= 1 && amount <= 20)) return { refused: 'Hazard damage is between 1 and 20: use the printed number.' };
       // The Engine keeps the hazard to what the page prints: the Trigger and Effect clauses are
@@ -280,7 +285,7 @@ export const TOOLS = [
       if (trig === 'failed roll' || trig === 'failed-roll') {
         const last = T.state.rolls[T.state.rolls.length - 1];
         if (!last) return { refused: 'There is no roll for this to be the cost of.' };
-        if (last.success) return { refused: `${last.who}'s throw succeeded (${last.total} against ${last.at}), so a hazard is not its price. The printed trigger here is: ${spec.trigger || 'see the site notes'}.` };
+        if (last.success) return { refused: `${last.who}'s throw succeeded (${last.total} against ${last.at}), so a hazard is not its price. The printed trigger here is: ${spec.trigger || 'the page prints no Trigger clause here'}.` };
       } else if (spec.trigger) {
         const words = trig.split(/[^a-z0-9]+/).filter((w) => w.length > 3);
         const miss = words.filter((w) => !lower(spec.trigger).includes(w));
@@ -289,13 +294,15 @@ export const TOOLS = [
       // The Engine keeps when it may go off again, and who the page pays, so the Director is told
       // what it just spent rather than trying the same detonation once per body.
       const f = T.state.fight;
-      const no = T.do({ type: 'hazard', siteId: T.site().id, area: spec.area === true, target: { kind: 'org', id: o.id }, amount, dtype: a.type || '', why: a.why });
+      const no = T.do({ type: 'hazard', siteId: T.site().id, area: spec.area === true, target: { kind: 'org', id: o.id }, amount, dtype: a.type || '', conditions: spec.conditions, why: a.why });
       if (no) return { refused: `${no}${spec.area ? ' That hazard is an area one: one call pays every body at the site, so it cannot go off again for the next one.' : ''}` };
       const t = T.state.organisms[o.id];
       const paid = spec.area ? Object.values(T.state.organisms).filter((x) => x.playerId).map((x) => `${x.name} MI ${x.mi}/${x.miMax}`) : [];
       return {
         organism: t.name, mi: `${t.mi}/${t.miMax}`, dormant: t.dormant,
         ...(paid.length ? { also_paid: paid } : {}),
+        // What the same Effect clause prices besides damage: the Engine put it on them.
+        ...(spec.conditions.length ? { also_set: spec.conditions.map((n) => `${n} on ${spec.area ? 'every body at the site' : 'it'}, from the printed Effect clause`) } : {}),
         spent: f ? `this hazard is spent until Cycle ${f.cycle + 1}` : 'this hazard is spent until the scene changes',
       };
     },
@@ -303,7 +310,7 @@ export const TOOLS = [
   {
     name: 'set_condition',
     description: 'Put a printed condition on an organism or a creature, or take it off. Where the page prices the condition for the whole chamber ("Jostled ... to all in the chamber"), set all_bodies: one call covers every body the Cohort has here, so never call it once per organism.',
-    parameters: obj({ target: S('Organism id or creature id. Name the one the effect started on; when all_bodies is true the Engine covers the rest.'), condition: S('The condition.', { enum: Object.keys(R.CONDITIONS) }), on: B('True to apply, false to remove.'), all_bodies: B('True when the page prices this condition for every body at the site, not for one of them.') }, ['target', 'condition', 'on']),
+    parameters: obj({ target: S('Organism id or creature id. Name the one the effect started on; when all_bodies is true every body the Cohort has here is covered.'), condition: S('The condition.', { enum: Object.keys(R.CONDITIONS) }), on: B('True to apply, false to remove.'), all_bodies: B('True when the page prices this condition for every body at the site, not for one of them.') }, ['target', 'condition', 'on']),
     run(a, T) {
       // An area condition is the page's, so the Engine pays the chamber once. HANDOFF's open
       // item 6: after the gas pocket went off, Jostled had to be applied one body at a time -
@@ -325,7 +332,7 @@ export const TOOLS = [
   },
   {
     name: 'move_clock',
-    description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason printed in the notes. Never because a roll failed. Each Clock may advance at most once per session. The Ledger pays the triggers the Vector prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
+    description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason the page prints. Never because a roll failed. Each Clock may advance at most once per session. The Vector pays the triggers it prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
     parameters: obj({ clock: S('Which Clock.', { enum: ['CARCASS', 'TOLL', 'HUNGER'] }), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),
     run(a, T) {
       const d = Math.trunc(Number(a.change));
@@ -338,7 +345,7 @@ export const TOOLS = [
   },
   {
     name: 'award',
-    description: 'Pay Codon or Substrate printed in the site notes ("Pays"), to every organism in play or to named ones.',
+    description: 'Pay Codon or Substrate the page prints for this site (its "Pays" line), to every organism in play or to named ones.',
     parameters: obj({ codon: { type: 'number', description: 'Codon each.' }, substrate: I('Substrate (S) each.'), why: S('What it is for, as printed.'), organisms: { type: 'array', items: { type: 'string' }, description: 'Organism ids. Leave out for everyone.' } }, ['why']),
     run(a, T) {
       const codon = Number(a.codon) || 0;
@@ -348,7 +355,7 @@ export const TOOLS = [
       // Ruling (12 Nov 2026): the Director pays only what this site prints under Pays.
       const printed = printedPays(T.site());
       const auto = Object.entries(T.site().harvestPays || {}).find(([, x]) => Number(x.codon) === codon);
-      if (codon && auto) return { refused: `${codon} Codon is paid by the Engine when a ${auto[0].replace(/-/g, ' ')} is harvested: use the harvest tool on a destroyed one. It is not paid for one that left, was given water, or was not cut.` };
+      if (codon && auto) return { refused: `${codon} Codon is paid when a ${auto[0].replace(/-/g, ' ')} is harvested: harvest a destroyed one and it comes with the cut. It is not paid for one that left, was given water, or was not cut.` };
       if (codon && !printed.codon.includes(codon)) return { refused: `${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay a printed amount, or nothing.` };
       if (sub && !printed.substrate.some(([lo, hi]) => sub >= lo && sub <= hi)) return { refused: `${sub} S is not printed for this site. Printed here: ${printed.substrate.length ? printed.substrate.map(([lo, hi]) => (lo === hi ? `${lo} S` : `${lo} to ${hi} S`)).join(', ') : 'no Substrate'}. Pay a printed amount, or nothing.` };
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
@@ -358,11 +365,11 @@ export const TOOLS = [
   },
   {
     name: 'harvest',
-    description: 'An organism harvests a destroyed creature, or (where the briefing says the site can be cut) the site itself. The Specimens do not go to the harvester: each is offered round the Cohort\'s picking order, and the players take or pass on their own screens. The Engine sets the Threshold (tier x 4 + 8), builds the pool (OSM or RTC with Synthesis, +2 with a Harvest Claw), charges 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
-    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a creature the briefing lists under "Can be harvested now". A creature still up, or stood down, cannot be harvested: kill it first or leave it. To cut the site itself, leave this out entirely: a site id or name never belongs here.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
+    description: 'An organism harvests a destroyed creature, or (where the page lets this site be cut) the site itself. The Specimens do not go to the harvester: each is offered round the Cohort\'s picking order, and the players take or pass on their own screens. Its Threshold is tier x 4 + 8, the pool is OSM or RTC with Synthesis (+2 with a Harvest Claw), it costs 1 Bulk, and in a Pulse War 2 Pulse Points on that organism\'s own turn. Outside a fight it may pass with no roll. The result lists the Specimens: never invent Specimen counts, grades or prices yourself.',
+    parameters: obj({ organism: S('Organism id.'), creature: S('Id of a creature listed here under "Can be harvested now". A creature still up, or stood down, cannot be harvested: kill it first or leave it. To cut the site itself, leave this out entirely: a site id or name never belongs here.'), baseline: S('OSM or RTC. Leave out for the better one.', { enum: ['OSM', 'RTC'] }) }, ['organism']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
-      if (!o) return noOrg(a.organism);
+      if (!o) return noOrg(a.organism, T.state);
       let cid = null;
       if (a.creature) {
         const here = T.site();
@@ -373,7 +380,7 @@ export const TOOLS = [
           return { note: `The ${here.name} is the site, not a creature. To cut the site itself, call harvest with no creature.` };
         }
         const c = findCre(T.state, a.creature);
-        if (!c) return noCre(a.creature);
+        if (!c) return noCre(a.creature, T.state);
         cid = c.cid;
       }
       const before = T.state.rolls.length;
@@ -414,11 +421,11 @@ export const TOOLS = [
   },
   {
     name: 'swear_oath',
-    description: 'An organism swears a promise into one of its Oath boxes (for example to pay a toll). The Engine spends the box and records the promise on its sheet. Use the player\'s own words for the promise. Only an organism whose briefing line shows Oath boxes can swear. Never state an Oath-box count yourself: this tool returns it.',
+    description: 'An organism swears a promise into one of its Oath boxes (for example to pay a toll). The box is spent and the promise recorded on its sheet. Use the player\'s own words for the promise. Only an organism whose line shows Oath boxes can swear. Never state an Oath-box count yourself: the count comes back with the result.',
     parameters: obj({ organism: S('Organism id.'), promise: S('What is promised, in the player\'s words. If the player has not said, ask them first.'), witness: S('Who witnesses it, for example "the Order II fold at the Toll-Vent".') }, ['organism', 'promise']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
-      if (!o) return noOrg(a.organism);
+      if (!o) return noOrg(a.organism, T.state);
       const no = T.do({ type: 'oath.swear', organismId: o.id, promise: a.promise, witness: a.witness || '' });
       if (no) return { refused: no };
       const t = T.state.organisms[o.id];
@@ -452,11 +459,11 @@ export const TOOLS = [
   },
   {
     name: 'settle_oath',
-    description: 'Close an Oath the briefing lists as OPEN: kept when the organism did the thing it promised, broken when it walked away from it or the moment to keep it has passed. The Engine writes the price: keeping pays the table a Cohesion, breaking marks two Lysis Countdown boxes and a scar, and the witness drops a rung. Settle before the Cohort leaves the site where the Oath was sworn. Never state Cohesion, Lysis boxes or a scar yourself: this tool returns them. Oath-breaking is a plot, not a punishment: narrate what it costs in the fiction, do not scold the player.',
-    parameters: obj({ organism: S('Organism id.'), kept: B('True when the promise was met, false when it was broken.'), oath: S('The Oath id from the briefing. Leave out when only one is open.'), why: S('One short line on what met or broke it.') }, ['organism', 'kept']),
+    description: 'Close an Oath shown as OPEN: kept when the organism did the thing it promised, broken when it walked away from it or the moment to keep it has passed. The price is written for you: keeping pays the table a Cohesion, breaking marks two Lysis Countdown boxes and a scar, and the witness drops a rung. Settle before the Cohort leaves the site where the Oath was sworn. Never state Cohesion, Lysis boxes or a scar yourself: they come back with the result. Oath-breaking is a plot, not a punishment: narrate what it costs in the fiction, do not scold the player.',
+    parameters: obj({ organism: S('Organism id.'), kept: B('True when the promise was met, false when it was broken.'), oath: S('The Oath id shown as OPEN. Leave out when only one is open.'), why: S('One short line on what met or broke it.') }, ['organism', 'kept']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
-      if (!o) return noOrg(a.organism);
+      if (!o) return noOrg(a.organism, T.state);
       const kept = a.kept === true || a.kept === 'true';
       const no = T.do({ type: 'oath.settle', organismId: o.id, oathId: a.oath, kept, why: a.why || '' });
       if (no) return { refused: no };
@@ -477,7 +484,7 @@ export const TOOLS = [
   },
   {
     name: 'change_site',
-    description: 'The Cohort leaves by an exit and arrives at the next site. Only the sites directly before and after the current one can be reached. Your next briefing will carry the new site\'s notes: end your turn after calling this with one sentence of travel, and open the new scene next turn.',
+    description: 'The Cohort leaves by an exit and arrives at the next site. Only the sites directly before and after the current one can be reached. The new site\'s situation reaches you on your next turn: end your turn after calling this with one sentence of travel, and open the new scene next turn.',
     parameters: obj({ site: S('The site id, for example "soft-field".') }, ['site']),
     run(a, T) {
       const here = T.site();
@@ -485,7 +492,7 @@ export const TOOLS = [
       if (!to) return { refused: `No site "${a.site}". Sites: ${T.scenario.sites.map((x) => x.id).join(', ')}.` };
       if (Math.abs(to.n - here.n) !== 1) return { refused: `${to.name} cannot be reached from ${here.name} in one step.` };
       const no = T.do({ type: 'scene.set', siteId: to.id });
-      return no ? { refused: no } : { arrived_at: to.name, note: 'End your turn now. The new site\'s notes come with your next briefing.' };
+      return no ? { refused: no } : { arrived_at: to.name, note: 'End your turn now. The new site reaches you on your next turn.' };
     },
   },
 ];

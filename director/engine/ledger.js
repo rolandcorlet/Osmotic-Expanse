@@ -329,6 +329,31 @@ function condSum(body, field) {
   return body.conditions.reduce((a, c) => a + ((R.CONDITIONS[c.name] || {})[field] || 0), 0);
 }
 
+// Put a printed condition on a set of bodies, or lift it off them, and tell the table once.
+// Both the `condition` action's area form and a hazard firing use this, so a condition that
+// belongs to a whole chamber costs one call and produces one line, never one per body.
+function applyConditionTo(s, ctx, bodies, name, on) {
+  if (!bodies.length || !R.CONDITIONS[name]) return 0;
+  let touched = 0;
+  for (const body of bodies) {
+    if (!on) {
+      const before = body.conditions.length;
+      body.conditions = body.conditions.filter((c) => c.name !== name);
+      if (body.conditions.length !== before) touched++;
+      continue;
+    }
+    if (hasCond(body, name)) continue;
+    const c = { name };
+    if (R.CONDITIONS[name].timed && s.fight) c.until = s.fight.cycle + 1;
+    body.conditions.push(c);
+    touched++;
+  }
+  const who = bodies.map((x) => x.name).join(', ');
+  const verb = bodies.length === 1 ? 'is' : 'are';
+  say(s, ctx, on ? `${who} ${verb} ${name}: ${R.CONDITIONS[name].effect}` : `${who} ${verb} no longer ${name}.`, 'info');
+  return touched;
+}
+
 export function orgMT(o) {
   return o.mt + condSum(o, 'mt');
 }
@@ -1313,13 +1338,21 @@ const HANDLERS = {
       // An area hazard is one firing that pays everyone at once. The Toll-Vent pocket prints
       // "1 band shift to all in the chamber", so the Director must not have to call it four
       // times (bench 13 Nov, run 3: it tried, and three of those calls were refusals).
+      // The same Effect clause often prices a condition beside the damage: the Toll-Vent prints
+      // "6 Kinetic, Jostled, 1 band shift to all in the chamber". Bench 13 Nov (13nov_am run 3):
+      // the second firing had no set_condition after it, so Jostled never landed and no flag
+      // existed to say so. The page pays it with the firing, to the same bodies it hurts.
+      const paid = (a.conditions || []).filter((n) => R.CONDITIONS[n]);
       if (a.area) {
-        for (const o of Object.values(s.organisms)) {
-          if (o.playerId) applyDamage(s, ctx, { kind: 'org', id: o.id }, amount, a.dtype, a.ignoreSoak);
-        }
+        const bodies = Object.values(s.organisms).filter((o) => o.playerId);
+        for (const o of bodies) applyDamage(s, ctx, { kind: 'org', id: o.id }, amount, a.dtype, a.ignoreSoak);
+        for (const n of paid) applyConditionTo(s, ctx, bodies, n, true);
         return;
       }
       applyDamage(s, ctx, a.target || {}, amount, a.dtype, a.ignoreSoak);
+      if (paid.length && (a.target || {}).kind === 'org') {
+        for (const n of paid) applyConditionTo(s, ctx, [org(s, a.target.id)], n, true);
+      }
     },
   },
   heal: {
@@ -1342,19 +1375,7 @@ const HANDLERS = {
       // every body's, not one target's (bench 13 Nov: the Director put it on a single organism,
       // then had to call it again for the next one). Same set of bodies hazard_damage pays.
       if (a.area) {
-        const bodies = Object.values(s.organisms).filter((o) => o.playerId);
-        if (!bodies.length) return;
-        const on = a.on !== false;
-        for (const body of bodies) {
-          if (!on) { body.conditions = body.conditions.filter((c) => c.name !== a.name); continue; }
-          if (hasCond(body, a.name)) continue;
-          const c = { name: a.name };
-          if (R.CONDITIONS[a.name].timed && s.fight) c.until = s.fight.cycle + 1;
-          body.conditions.push(c);
-        }
-        const who = bodies.map((x) => x.name).join(', ');
-        const verb = bodies.length === 1 ? 'is' : 'are';
-        say(s, ctx, on ? `${who} ${verb} ${a.name}: ${R.CONDITIONS[a.name].effect}` : `${who} ${verb} no longer ${a.name}.`, 'info');
+        applyConditionTo(s, ctx, Object.values(s.organisms).filter((o) => o.playerId), a.name, a.on !== false);
         return;
       }
       const t = a.target || {};

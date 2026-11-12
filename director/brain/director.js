@@ -51,12 +51,14 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   for (const [k, label] of [['play', 'Play'], ['danger', 'Danger'], ['wants', 'Wants'], ['weakness', 'Weakness'], ['hazard', 'Hazard'], ['pays', 'Pays'], ['tells', 'Tells'], ['lesson', 'Lesson']]) {
     if (h[k]) L.push(`${label}: ${h[k]}`);
   }
-  // Where the hazard note prices a condition as well as damage, the page gives it to every body at
-  // the site ("Effect: 6 Kinetic, Jostled, 1 band shift to all in the chamber"). Bench 13 Nov: the
-  // Director put Jostled on one organism at a time, four calls for one detonation.
+  // Where the page prices a condition beside the damage ("Effect: 6 Kinetic, Jostled, 1 band shift to
+  // all in the chamber"), the firing pays it. Bench 13 Nov: the Director set Jostled one body at a
+  // time, and the second firing left it off everyone with no flag to say so (13nov_am run 3, line 498).
+  // This line is deliberately said in table words: run 1's leak was the Director echoing our own
+  // phrasing back to the players.
   const hz = hazardSpec(site);
   if (hz.conditions.length) {
-    L.push(`THE HAZARD HERE ALSO PRICES ${hz.conditions.join(', ').toUpperCase()} ON THE BODIES AT THIS SITE, not on one of them: after hazard_damage goes off, one set_condition with all_bodies true covers every body the Cohort has here. Never name bodies one at a time, and never narrate a condition the tool did not set.`);
+    L.push(`THE HAZARD HERE ALSO PRICES ${hz.conditions.join(', ').toUpperCase()}: hazard_damage puts it on every body at the site in the same firing, so you never set it yourself and never pay for it twice. Where it costs something in the fiction, say what it feels like. And never describe anyone as ${hz.conditions.join(', ')} before the firing has happened.`);
   }
   // A hazard the Engine has already paid for in this Cycle or scene, so the Director stops trying
   // to go off with it again (bench 13 Nov: the same gas pocket was called once per player).
@@ -363,7 +365,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
 
 // The machinery, as the table must not hear it. Deliberately not "the page": instructions.md tells
 // the Director to use that sentence when the players want something off the page.
-const MACHINERY = /Director-only|site notes|\bthe notes\b|briefing|\btool\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
+export const MACHINERY = /Director-only|site notes|\bthe notes\b|briefing|\btool\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
 
 // A number attached to a damage type, or "takes N damage". Deliberately narrow: the check only
 // fires when no tool hurt anyone this turn, so a paid blow or a hazard is never flagged.

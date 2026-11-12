@@ -8,7 +8,7 @@ import { newSession, apply, restart, hazardBudget } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS, hazardSpec } from '../brain/tools.js';
-import { directorTurn, briefing, checkNarration, asksRollInWords } from '../brain/director.js';
+import { directorTurn, briefing, checkNarration, asksRollInWords, MACHINERY } from '../brain/director.js';
 import { createDirector } from '../brain/manager.js';
 import { gemini, pickDefaultModel } from '../brain/gemini.js';
 
@@ -350,8 +350,9 @@ test('the Engine pays a printed reward once per organism per site, for the Direc
   assert.match(again.refused, /already been paid/);
   assert.equal(T.state.organisms.wall.codon, 15); // the refused payment did not happen
   // A different reason is a different payment, and the host may still pay by hand.
-  // The per-swarm Codon is the Engine's to pay at harvest, never an award.
-  assert.match(T.run('award', { why: 'A swarm given water and gone', codon: 1.5, organisms: ['wall'] }).refused, /paid by the Engine when a gnaw swarm is harvested/);
+  // The per-swarm Codon is the Engine's to pay at harvest, never an award. The refusal is worded in
+  // table language, not "paid by the Engine": the Director repeats what it is told (13 Nov leak).
+  assert.match(T.run('award', { why: 'A swarm given water and gone', codon: 1.5, organisms: ['wall'] }).refused, /is paid when a gnaw swarm is harvested: harvest a destroyed one/);
   assert.match(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }).refused, /5 Codon is not printed for this site/);
   let h = apply(s, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
   h = apply(h, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
@@ -1112,12 +1113,74 @@ test('a condition the page prices for the chamber is one set_condition, not one 
   assert.match(solo.run('set_condition', { target: 'no-one-here', condition: 'Jostled', on: true }).refused, /set all_bodies/);
 });
 
-test('the briefing tells the Director the hazard prices Jostled on every body here', () => {
+test('the briefing tells the Director the hazard pays Jostled with the firing', () => {
   const text = briefing(seated(), scenario, bestiary, {});
-  assert.match(text, /ALSO PRICES JOSTLED ON THE BODIES AT THIS SITE/, 'the site that prints it says so');
-  assert.match(text, /all_bodies/);
+  assert.match(text, /ALSO PRICES JOSTLED/, 'the site that prints it says so');
+  assert.match(text, /hazard_damage puts it on every body at the site/);
+  assert.ok(!/briefing|the notes|the Engine|\bthe Ledger\b/.test(text.split('ALSO PRICES')[1].split('\n')[0]), 'and the line itself is in words the table may hear');
   const away = apply(seated(), { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
   assert.ok(!/ALSO PRICES/.test(briefing(away, scenario, bestiary, {})), 'and a site that prints no condition says nothing');
+});
+
+test('a hazard pays the condition its own Effect clause prints, on every body it hurts', () => {
+  // The 13 Nov gate, run 3: the pocket went off a second time (a fresh Cycle in a Pulse War) with no
+  // set_condition after it, so the printed Jostled never landed and no flag existed to notice.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  const first = T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket lets go under the chamber' });
+  assert.equal(first.refused, undefined);
+  assert.match((first.also_set || []).join(' '), /Jostled on every body at the site/, 'the tool says what else the firing paid');
+  for (const id of ['wall', 'eyes']) {
+    const o = T.state.organisms[id];
+    assert.ok(o.mi < o.miMax, `${o.name} took the printed 6 Kinetic`);
+    assert.ok(o.conditions.some((c) => c.name === 'Jostled'), `${o.name} carries the Jostled from the same clause, with no second call`);
+  }
+  assert.equal(T.refusals, 0, 'one firing, one price, nothing refused');
+
+  // And a second firing in a new Cycle pays it again, which is where run 3 lost it.
+  let s = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }], ownDice: { wall: 6, eyes: 6, 'Order I: Lytic Swarms': 1 } }, ctx('host', null));
+  const F = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.equal(F.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket, Cycle 1' }).refused, undefined);
+  F.state = apply(F.state, { type: 'cycle.end' }, ctx('host', null));
+  assert.equal(F.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket, Cycle 2' }).refused, undefined, 'a new Cycle re-arms the detonation');
+  for (const id of ['wall', 'eyes']) {
+    assert.ok(F.state.organisms[id].conditions.some((c) => c.name === 'Jostled'), `${F.state.organisms[id].name} is Jostled by the second firing too`);
+  }
+  assert.equal(F.refusals, 0);
+});
+
+test('nothing we say to the Director teaches it the words we then flag at the table', () => {
+  // 13 Nov gate, run 1's single leak: the Director told the players "Next briefing will carry the Soft
+  // Field", which is the change_site description quoted back. The guard cannot fix a vocabulary we
+  // supply ourselves, so the schema and the refusals are held to the same rule as the narration.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  const heard = [];
+  for (const [name, args] of [
+    ['harvest', { organism: 'nope' }],
+    ['harvest', { organism: 'eyes', creature: 'nope' }],
+    ['ask_for_roll', { organism: 'nope', baseline: 'OSM', threshold: 12, what_for: 'x' }],
+    ['creature_strike', { creature: 'nope', target: 'wall' }],
+    ['creature_stand_down', { creature: 'nope', why: 'x' }],
+    ['hazard_damage', { organism: 'nope', amount: 6, trigger: 'a Strike', why: 'x' }],
+    ['hazard_damage', { organism: 'wall', amount: 6, trigger: 'the flail', why: 'x' }],
+    ['set_condition', { target: 'nope', condition: 'Jostled', on: true }],
+    ['award', { why: 'A swarm given water and gone', codon: 1.5, organisms: ['wall'] }],
+    ['award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }],
+    ['change_site', { site: 'soft-field' }],
+    ['change_site', { site: 'nope' }],
+    ['move_clock', { clock: 'TOLL', change: 1, why: 'x' }],
+  ]) {
+    const r = T.run(name, args);
+    // Only what the model is told, not the name of the thing it called: the tool names themselves
+    // are in MACHINERY, and prefixing them here would flag our own test.
+    for (const k of ['refused', 'note']) if (r[k]) heard.push([name, r[k]]);
+  }
+  assert.ok(heard.length >= 8, 'the sweep actually reached the refusal paths');
+  for (const [name, line] of heard) assert.ok(!MACHINERY.test(line), `${name} would teach a leak: ${line}`);
+  // The schema, too: every description the model reads before it speaks.
+  for (const t of TOOLS) {
+    const words = [t.description, ...Object.values(t.parameters.properties).flatMap((p) => [p.description, p.items && p.items.description].filter(Boolean))];
+    for (const d of words) assert.ok(!MACHINERY.test(String(d)), `${t.name}: "${d}" names the machinery`);
+  }
 });
 
 test('the Engine budgets a hazard per Cycle inside a Pulse War, and per scene outside one', () => {
