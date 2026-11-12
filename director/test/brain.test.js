@@ -800,8 +800,9 @@ test('the briefing says what the page pays here and nobody has been given, and n
 
   // The Danger line names a Fold Sentinel; until it is brought in it cannot act.
   const text = briefing(s, scenario, bestiary, {});
-  assert.match(text, /NOT IN THE SCENE[^\n]*Fold Sentinel/);
-  assert.match(text, /do not describe a creature acting, blocking or watching unless it is listed above/);
+  assert.match(text, /PRINTED HERE BUT NOT YET IN THE SCENE: [^\n]*Fold Sentinel/);
+  assert.match(text, /never tell a player they are not/, 'a printed creature is never denied');
+  assert.match(text, /A player who attacks one starts the Pulse War: bring it in, then start_pulse_war/);
   const withIt = apply(s, { type: 'creature.add', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
-  assert.ok(!/NOT IN THE SCENE[^\n]*Fold Sentinel/.test(briefing(withIt, scenario, bestiary, {})));
+  assert.ok(!/NOT YET IN THE SCENE[^\n]*Fold Sentinel/.test(briefing(withIt, scenario, bestiary, {})));
 });

@@ -97,7 +97,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       .filter(([id, b]) => b && b.name && danger.includes(b.name) && !inScene.has(String(id).toLowerCase()))
       .map(([, b]) => b.name);
     if (named.length) {
-      L.push(`NOT IN THE SCENE (the Danger line names them, the Ledger does not hold them): ${named.join(', ')}. They have no Pulse Points, take no turns and cannot be struck. Either bring one in with bring_creatures, or leave it out of the narration: do not describe a creature acting, blocking or watching unless it is listed above.`);
+      L.push(`PRINTED HERE BUT NOT YET IN THE SCENE: ${named.join(', ')}. They ARE at this site: the page puts them here, so never tell a player they are not. They are simply not in the Ledger yet, so they cannot act, block or be struck until you bring them in. The moment the fiction reaches one (a player looks for it, asks about it, approaches it, or attacks it), call bring_creatures first, then describe it. A player who attacks one starts the Pulse War: bring it in, then start_pulse_war.`);
     }
   }
 
