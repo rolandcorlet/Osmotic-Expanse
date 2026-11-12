@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { newSession, apply, restart } from '../engine/ledger.js';
+import { newSession, apply, restart, hazardBudget } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS } from '../brain/tools.js';
@@ -410,6 +410,8 @@ test('the Director may not ask for an unhurried roll during a Pulse War', () => 
 test('the leak check catches a creature\'s health as a number, but not a player\'s', () => {
   let s = seated();
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }, { blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  // The bite below is real, so the "damage the Engine never paid" check stays out of this test's way.
+  s = apply(s, { type: 'damage', target: { kind: 'org', id: 'wall' }, amount: 6, dtype: 'Kinetic' }, ctx('host', null));
   const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
   assert.deepEqual(kinds('The Fold Sentinel groans as its integrity drops to seven. Brost, what now?'), ['leak']);
   assert.deepEqual(kinds('The sentinel oozes brine down to a single point of MI. Bresk, what now?'), ['leak']);
@@ -1054,6 +1056,68 @@ test('a site that prints no hazard cannot hurt anyone by hazard', () => {
   const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
   T.state = apply(T.state, { type: 'scene.set', siteId: 'brood' }, ctx('host', null));
   assert.match(T.run('hazard_damage', { organism: 'wall', amount: 6, trigger: 'a Strike', why: 'x' }).refused, /No hazard is printed for The Brood of the Not-Whale/);
+});
+
+test('a hazard the page prices for the chamber pays every body in one firing', () => {
+  // The Toll-Vent pocket prints "Effect: 6 Kinetic, Jostled, 1 band shift to all in the chamber".
+  // Bench 13 Nov, run 3: the Director called it once per player and took three refusals for it.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  const first = T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket lets go under the chamber' });
+  assert.equal(first.refused, undefined);
+  assert.match((first.also_paid || []).join(' '), /Brost of the Third Current MI 21\/27/, 'the other body at the site was paid in the same firing');
+  const again = T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket again' });
+  assert.match(again.refused, /already gone off in this scene[\s\S]*one call pays every body/);
+  assert.equal(T.refusals, 1, 'the second firing is one refusal, not one per body');
+});
+
+test('the Engine budgets a hazard per Cycle inside a Pulse War, and per scene outside one', () => {
+  let s = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }], ownDice: { wall: 6, eyes: 6, 'Order I: Lytic Swarms': 1 } }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.equal(T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket' }).refused, undefined, 'Cycle 1 pays');
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket again' }).refused, /already gone off in Cycle 1/);
+  T.state = apply(T.state, { type: 'cycle.end' }, ctx('host', null));
+  assert.equal(T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket, next Cycle' }).refused, undefined, 'a new Cycle re-arms it');
+  // And outside a fight it waits for a new scene.
+  T.state = apply(T.state, { type: 'fight.end' }, ctx('host', null));
+  T.state = apply(T.state, { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
+  assert.equal(hazardBudget(T.state, 'toll-vent').open, true, 'leaving the Toll-Vent spends nothing that has to be re-armed');
+});
+
+test('a hazard note that prints no "Effect:" clause is still held to its page number and its Clock', () => {
+  // 8.2's slough patches: "at CARCASS 3+, 1 Lytic damage per Cycle" — no Effect: label, and the
+  // damage waits for the Clock. The Engine checked nothing here before (bench 13 Nov).
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.state = apply(T.state, { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 4, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' }).refused, /does 1 Lytic, not 4/);
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 1, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' }).refused, /fires this hazard at CARCASS 3, and CARCASS is at 0/);
+  T.state = apply(T.state, { type: 'clock', id: 'CARCASS', delta: 3 }, ctx('host', null));
+  const paid = T.run('hazard_damage', { organism: 'eyes', amount: 1, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' });
+  assert.equal(paid.refused, undefined, 'once the Clock reaches what the page prints, it hurts');
+  assert.match(paid.spent, /spent until the scene changes/);
+});
+
+test('the Render Charge at the Gut Stone is the printed 20 Kinetic and waits for TOLL 5', () => {
+  // 8.5 prints it with no "Effect:" clause: "on a Clock, fires at TOLL 5. 20 Kinetic, 2-band
+  // shift, the carcass ends." Before this the Engine checked nothing at this site.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.state = apply(T.state, { type: 'scene.set', siteId: 'gut-stone' }, ctx('host', null));
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'the charge fires', why: 'the schedule' }).refused, /does 20 Kinetic, not 6/);
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 20, type: 'Kinetic', trigger: 'the charge fires', why: 'the schedule' }).refused, /fires this hazard at TOLL 5, and TOLL is at 0/);
+  T.state = apply(T.state, { type: 'clock', id: 'TOLL', delta: 5 }, ctx('host', null));
+  const r = T.run('hazard_damage', { organism: 'eyes', amount: 20, type: 'Kinetic', trigger: 'the charge fires', why: 'the Render Charge' });
+  assert.equal(r.refused, undefined, 'at TOLL 5 the page lets it go off');
+  assert.ok(r.mi.split('/')[0] < 27, `20 Kinetic through the Eyes: MI ${r.mi}`);
+});
+
+test('narration about damage the Engine never paid is flagged, and paid damage is not', () => {
+  // Bench 13 Nov, run 2: the pocket was described going off a second time — "six kinetic punch
+  // back up through Bresk's leading membrane" — with no tool behind it. The table heard a
+  // number that never happened.
+  const s = seated();
+  const flags = checkNarration('Six kinetic punch back up through Bresk, and the pocket lets go again.', s, { moved: false, since: s.seq });
+  assert.ok(flags.some((f) => f.kind === 'rule' && /damage the Engine never paid/.test(f.text)), JSON.stringify(flags));
+  const paid = apply(s, { type: 'damage', target: { kind: 'org', id: 'wall' }, amount: 6, dtype: 'Kinetic' }, ctx('host', null));
+  assert.ok(!checkNarration('Six kinetic punch back up through Bresk.', paid, { moved: false, since: s.seq }).some((f) => f.kind === 'rule'), 'a tool paid for this one');
 });
 
 test('while a throw is in the air, a beat that only holds it needs no question', () => {

@@ -4,7 +4,8 @@
 // commit the result (Auto) or show it to the host first (Co-pilot).
 
 import { readFileSync } from 'node:fs';
-import { TOOLS, toolbox, orgMT, printedPays } from './tools.js';
+import { TOOLS, toolbox, orgMT, printedPays, hazardSpec } from './tools.js';
+import { hazardBudget } from '../engine/ledger.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
 
@@ -49,6 +50,13 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   L.push('## Director-only notes for this site (never read these out)');
   for (const [k, label] of [['play', 'Play'], ['danger', 'Danger'], ['wants', 'Wants'], ['weakness', 'Weakness'], ['hazard', 'Hazard'], ['pays', 'Pays'], ['tells', 'Tells'], ['lesson', 'Lesson']]) {
     if (h[k]) L.push(`${label}: ${h[k]}`);
+  }
+  // A hazard the Engine has already paid for in this Cycle or scene, so the Director stops trying
+  // to go off with it again (bench 13 Nov: the same gas pocket was called once per player).
+  const budget = hazardBudget(state, site.id);
+  if (!budget.open) {
+    const spec = hazardSpec(site);
+    L.push(`THE HAZARD HERE HAS ALREADY GONE OFF and the Engine refuses hazard_damage until ${budget.until}. Say what the Cohort did to it and move on: never describe it going off a second time, and never describe damage no tool paid for.${spec.area ? ' That hazard is an area one: one call already paid every body at this site.' : ''}`);
   }
   if ((site.encounter || []).length) {
     L.push('');
@@ -277,7 +285,7 @@ const OUTSIDE_NUMBERS = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\
 const HEALTH = new RegExp(`\\b(?:integrity|MI)\\b[^.?!]{0,30}\\b${NUM}\\b|\\b${NUM}\\b[^.?!]{0,12}\\b(?:Membrane )?(?:Integrity|MI)\\b`, 'i');
 
 // moved: the Cohort changed site this turn, so the narration is one sentence of travel.
-export function checkNarration(text, state, { moved = false } = {}) {
+export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const flags = [];
   // A creature's health in numbers ("its integrity drops to seven"). A player's own MI may be said.
   const kinds = [...new Set(Object.values(state.creatures || {}).map((c) => String(c.name).replace(/\s+[A-Z]$/, '').split(/\s+/).pop().toLowerCase()).filter((w) => w.length > 2))];
@@ -330,8 +338,19 @@ export function checkNarration(text, state, { moved = false } = {}) {
   if (asksRollInWords(text, state)) flags.push({ kind: 'style', text: 'Asks for a roll in words, but no roll is waiting on a screen.' });
   if (!state.fight && /\bPulse Points?\b|\bPP\b/.test(text)) flags.push({ kind: 'style', text: 'Mentions Pulse Points outside a Pulse War.' });
   if (/[*_#]{2,}|^\s*[-*]\s/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; it should be plain text.' });
+  // Harm the table can hear but the Engine never paid for. Bench 13 Nov, run 2: the gas pocket was
+  // described going off a second time — "six kinetic punch back up through Bresk's leading
+  // membrane" — with no hazard call behind it, so the number was invented in prose. Damage only
+  // exists if a tool paid it this turn (`since` is the state this turn started from).
+  const paid = (state.log || []).some((e) => e.seq > since && (e.kind === 'hit' || e.kind === 'hazard'));
+  if (!paid && UNPAID_DAMAGE.test(text)) flags.push({ kind: 'rule', text: 'Says someone took damage the Engine never paid.' });
   return flags;
 }
+
+// A number attached to a damage type, or "takes N damage". Deliberately narrow: the check only
+// fires when no tool hurt anyone this turn, so a paid blow or a hazard is never flagged.
+const HARM_NUM = '\\d{1,3}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty';
+const UNPAID_DAMAGE = new RegExp(`(?:${HARM_NUM})\\s+(?:Kinetic|Lytic|Osmotic)\\b|(?:Kinetic|Lytic|Osmotic)\\s+(?:damage|punch|blow|burn)\\s+(?:of\\s+)?(?:${HARM_NUM})|takes?\\s+(?:${HARM_NUM})\\s+(?:damage|points)`, 'i');
 
 // The Director told a player to roll, in words, but no roll is waiting on anyone's screen.
 const ROLL_WORDS = /\broll\b[^.?!]{0,90}\b(?:against|Threshold|on your screen)\b|\b(?:roll|test) (?:your |his |her |their |its )?(?:raw )?(?:VSC|DFF|RTC|OSM|AFF|Viscosity|Diffusion|Reactivity|Osmo\w*|Affinity|reflex|Chemoreception|Baseline)\b|\bBaseline [A-Z]{3} against\b|\bgive me an? [^.?!]{0,40}\broll\b/i;
@@ -389,15 +408,17 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   if (!narration) return null;
   narration = narration.replace(/\*\*/g, '').trim();
   const moved = T.state.scene.siteId !== state.scene.siteId;
-  let flags = checkNarration(narration, T.state, { moved });
+  let flags = checkNarration(narration, T.state, { moved, since: state.seq });
   // One rewrite before anyone sees it, for a suspected leak, a reply that runs long, or one that
   // does not end on a question. A better rewrite replaces the draft; otherwise the draft and its
   // flags stand (and a leak is held for the host).
   const isLeak = (f) => f.kind === 'leak';
-  const fixable = (f) => f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text);
+  const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
+  const fixable = (f) => unpaid(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, notes or tools; describe what the organisms can see or sense instead.`);
+    if (flags.some(unpaid)) asks.push('It describes harm that no tool paid for this turn: the Engine hurt nobody. Say only what the tools actually did, and put no damage number in the scene.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
@@ -410,12 +431,13 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       usage.in += fix.usage.in;
       usage.out += fix.usage.out;
       const text = String(fix.text || '').replace(/\*\*/g, '').trim();
-      const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved }) : null;
-      const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style').length;
+      const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved, since: state.seq }) : null;
+      const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style' || f.kind === 'rule').length;
       if (again && !again.some(isLeak) && bad(again) < bad(flags)) {
         const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery'
-          : flags.some((f) => /^Puts a new question/.test(f.text)) ? 'the first draft moved the table on while a throw was still in the air'
-            : 'the first draft ran long, read out dice, or did not end on a question';
+          : flags.some(unpaid) ? 'the first draft described damage the Engine never paid'
+            : flags.some((f) => /^Puts a new question/.test(f.text)) ? 'the first draft moved the table on while a throw was still in the air'
+              : 'the first draft ran long, read out dice, or did not end on a question';
         narration = text;
         flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
       }

@@ -34,6 +34,13 @@ export function newSession(scenario) {
     creatures: {},
     clocks: {},
     fight: null,
+    // Which site hazard last went off, and when. CORE 8.1: a Cycle is six seconds of combat, so
+    // inside a Pulse War a hazard is budgeted per Cycle; outside one there are no Cycles and the
+    // unit is the scene, whose number is sceneNo (bumped by scene.set, where the place or the
+    // purpose changes). Bench 12-13 Nov: this budget was only prose for the Director, so the same
+    // gas pocket went off twice in one scene.
+    hazards: {},
+    sceneNo: 1,
     requests: [],
     rolls: [],
     log: [],
@@ -374,6 +381,40 @@ function addStress(s, ctx, o, n, why) {
 
 function checkLysis(s, ctx, o) {
   if (o.countdown >= o.countdownMax) say(s, ctx, `${o.name}'s Lysis Countdown is full: Total Lysis (CORE 5.6).`, 'danger');
+}
+
+// When a site's hazard may go off again, so the Engine, the briefing and the tools all read the
+// same budget. CORE 8.1: a Cycle is six seconds of combat, so inside a Pulse War a hazard is
+// budgeted per Cycle; outside one there are no Cycles and the unit is the scene (sceneNo, which
+// scene.set bumps when the place, the purpose or the people change). `cycle` is null when no
+// Pulse War is running.
+export function hazardBudget(s, siteId) {
+  const cycle = s.fight ? s.fight.cycle : null;
+  const scene = s.sceneNo || 1;
+  const seen = (s.hazards || {})[siteId];
+  if (!seen || seen.cycle !== cycle || seen.scene !== scene) return { open: true, cycle, scene };
+  return { open: false, cycle, scene, until: cycle == null ? 'the next scene' : `Cycle ${cycle + 1}` };
+}
+
+// Soak applies once, minimum 1 (§4.8). Shared by the host's plain damage ruling and by a hazard
+// going off, so both pay the same arithmetic.
+function applyDamage(s, ctx, t, amount, dtype, ignoreSoak) {
+  if (t.kind === 'org') {
+    const o = org(s, t.id);
+    const dmg = ignoreSoak ? amount : Math.max(1, amount - o.soak);
+    const before = o.mi;
+    hurtOrganism(s, ctx, o, dmg);
+    say(s, ctx, `${o.name} takes ${dmg} ${dtype || ''} damage${ignoreSoak ? ' (soak ignored)' : o.soak ? ` (${amount} - soak ${o.soak})` : ''}: MI ${before} to ${o.mi}.`, 'hit');
+  } else {
+    const c = cre(s, t.id);
+    if (c.segments != null) {
+      c.segments = Math.max(0, c.segments - amount);
+      c.down = c.segments === 0;
+      say(s, ctx, `${c.name} loses ${amount} Segments${c.down ? ' and is broken' : `: ${c.segments} left`}.`, 'hit');
+    } else {
+      hurtCreature(s, ctx, c, { overflow: 0, dmg: ignoreSoak ? amount : Math.max(1, amount - creSoak(c)) });
+    }
+  }
 }
 
 function hurtOrganism(s, ctx, o, dmg) {
@@ -1059,6 +1100,9 @@ const HANDLERS = {
       if (!site) throw new RuleError('That site is not in this Vector.');
       if (s.fight) throw new RuleError('End the Pulse War before changing the scene.');
       s.scene = { siteId: site.id };
+      // A new scene re-arms the site hazards (CORE 8.1: "once per scene" resets when the place,
+      // the purpose or the people change).
+      s.sceneNo = (s.sceneNo || 1) + 1;
       s.requests = [];
       for (const o of Object.values(s.organisms)) o.band = null;
       say(s, ctx, `New scene: ${site.name}.`, 'scene');
@@ -1187,28 +1231,48 @@ const HANDLERS = {
     },
   },
   damage: {
-    // Damage from a hazard or a ruling: soak applies once, minimum 1 (§4.8).
+    // A plain damage ruling by the host: soak applies once, minimum 1 (§4.8). A site's printed
+    // hazard goes through `hazard` below, which also keeps the firing budget.
     host: true,
     run(s, a, ctx) {
-      const t = a.target || {};
       const amount = Math.max(0, Math.trunc(Number(a.amount) || 0));
       if (!amount) return;
-      if (t.kind === 'org') {
-        const o = org(s, t.id);
-        const dmg = a.ignoreSoak ? amount : Math.max(1, amount - o.soak);
-        const before = o.mi;
-        hurtOrganism(s, ctx, o, dmg);
-        say(s, ctx, `${o.name} takes ${dmg} ${a.dtype || ''} damage${a.ignoreSoak ? ' (soak ignored)' : o.soak ? ` (${amount} - soak ${o.soak})` : ''}: MI ${before} to ${o.mi}.`, 'hit');
-      } else {
-        const c = cre(s, t.id);
-        if (c.segments != null) {
-          c.segments = Math.max(0, c.segments - amount);
-          c.down = c.segments === 0;
-          say(s, ctx, `${c.name} loses ${amount} Segments${c.down ? ' and is broken' : `: ${c.segments} left`}.`, 'hit');
-        } else {
-          hurtCreature(s, ctx, c, { overflow: 0, dmg: a.ignoreSoak ? amount : Math.max(1, amount - creSoak(c)) });
-        }
+      applyDamage(s, ctx, a.target || {}, amount, a.dtype, a.ignoreSoak);
+    },
+  },
+  hazard: {
+    // A printed site hazard going off. The Director may only ask for what the page prices
+    // (checked in brain/tools.js, which reads the site's Hazard note); the Engine owns when it
+    // may go off again. CORE 8.1: a Cycle is six seconds of combat and a scene ends when the
+    // place, the purpose or the people change. So: once per Cycle inside a Pulse War, once per
+    // scene outside one. The CODEX's lair action (§3.2, "once per Cycle, after everyone") is the
+    // same budget seen from inside a fight.
+    host: true,
+    run(s, a, ctx) {
+      if (!s.hazards) s.hazards = {}; // sessions saved before hazards had a budget
+      const amount = Math.max(0, Math.trunc(Number(a.amount) || 0));
+      if (!amount) return;
+      const siteId = String(a.siteId || s.scene.siteId);
+      const site = (ctx.scenario.sites || []).find((x) => x.id === siteId) || {};
+      const name = site.name || siteId;
+      const budget = hazardBudget(s, siteId);
+      if (!budget.open) {
+        throw new RuleError(budget.cycle == null
+          ? `${name}: its hazard has already gone off in this scene. It goes off once per scene, so say what has changed (the Cohort moves on and comes back, or the place itself changes) before it hurts anyone again.`
+          : `${name}: its hazard has already gone off in Cycle ${budget.cycle}. Once per Cycle, not twice.`);
       }
+      s.hazards[siteId] = { cycle: budget.cycle, scene: budget.scene, seq: s.seq };
+      if (a.why) say(s, ctx, String(a.why).slice(0, 200), 'hazard');
+      // An area hazard is one firing that pays everyone at once. The Toll-Vent pocket prints
+      // "1 band shift to all in the chamber", so the Director must not have to call it four
+      // times (bench 13 Nov, run 3: it tried, and three of those calls were refusals).
+      if (a.area) {
+        for (const o of Object.values(s.organisms)) {
+          if (o.playerId) applyDamage(s, ctx, { kind: 'org', id: o.id }, amount, a.dtype, a.ignoreSoak);
+        }
+        return;
+      }
+      applyDamage(s, ctx, a.target || {}, amount, a.dtype, a.ignoreSoak);
     },
   },
   heal: {

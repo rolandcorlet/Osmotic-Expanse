@@ -2,13 +2,13 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-`main` is **five commits ahead of `origin/main`** — `8ec4fa5` `66b634d` `8678e42` `2b08182` `2ac4384`, all of them bench fixes from 12–13 Nov. They are committed but unpushed. Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed** — checked 13 Nov: `HEAD` and `origin/main` both sit at `3f58021`. The hazard-budget work from the 13 Nov session after that is committed and unpushed. Roly pushes.
 
 ## What this is
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**108 tests**, all green as at `2ac4384`), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**112 tests**, all green at the 13 Nov hazard-budget commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -36,7 +36,27 @@ Since the 12 Nov draft: every site prices its printed creatures in `harvestPays`
 
 **Run 3 (13 Nov) — 27 turns,** 2 refusals, 0 leaks, 0 style flags, stayed at the Toll-Vent so 0 chapters. The fixes held: the hazard call carried `"trigger":"Momentum"` and matched the printed Trigger clause, no Tally Post tool was attempted even though players asked for one twice, the Oath closed `kept` rather than looping, and style flags went from two to zero. Both refusals were "the page does not print that" attempts, now pre-empted by briefing lines (`2b08182`).
 
-**What the runs have not cleared.** A hazard can still go off twice in a scene: the Engine checks the trigger and the amount, but "never twice" is only prose in the `hazard_damage` description (`brain/tools.js` ~229) — there is no Engine marker. Clocks barely move (CARCASS 0 and HUNGER 0 across a whole Vector) and narrated countdowns have no mechanic. The run-1 Oath loop is latent, not fixed. The Engine still applies only one priced-choice row.
+**The three-run gate at thinking medium (13 Nov, `--runs 3 --sites 2 --players 4`; its own log numbers them run 1-3).** GATE NOT PASSED, but this is the set that finally cleared item 2's missing coverage. Run 1: 24 turns, 19.2 s each, 701,584 in / 21,433 out, 1 refusal, 1 leak. Run 2: 34 turns, 18.7 s, 887,383 / 32,447, 0 refusals, 3 leaks, 2 style. Run 3: 24 turns, 16.9 s, 515,299 / 20,504, 3 refusals (all three the new hazard budget, and all three the Director trying to hit one more body with one detonation), 0 leaks, 0 style. About 2.1 M tokens in for the three, and thinking medium costs roughly 6 s a turn over thinking low. Reaches the Soft Field twice and the Render Hall once; 4 chronicle chapters in total.
+
+**Hazards are now the Engine's, not the Director's promise (13 Nov).** Three changes, all from those runs. `hazardSpec` (`brain/tools.js`) reads the three shapes The First Carve prices a hazard in — an `Effect:` clause, "1 Lytic damage per Cycle", and a bare "20 Kinetic" behind a Clock — so the Soft Field (8.2) and the Gut Stone (8.5, "The Render Charge") are policed as well as the Toll-Vent and the Render Hall: at those two the Director could name any number from 1 to 20 and the trigger check was skipped outright, because neither prints an "Effect:" or "Trigger:" clause. A hazard also now has a firing budget in the Ledger (`hazard` action, `hazardBudget`, `state.hazards` + `state.sceneNo`): **once per Cycle inside a Pulse War, once per scene outside one** — CORE 8.1 says a Cycle is six seconds of combat and "once per scene" resets when the place, the purpose or the people change, and the CODEX's lair action (§3.2) is the same budget seen from inside a fight. And where the page prices the hazard for the whole chamber ("1 band shift to all in the chamber") one call pays every body: gate run 3 (against this session's uncommitted working tree — the bench reads the tree, not `HEAD`) showed the Director calling the pocket once per player and taking three refusals for it, which is what the area branch fixes.
+
+**Damage the table heard but no tool paid for.** Gate run 2's worst moment: the gas pocket was narrated going off a second time — "six kinetic punch back up through Bresk's leading membrane" — with no `hazard_damage` behind it, so the number was invented in prose and nobody's MI moved. `checkNarration` now flags it (`kind: 'rule'`, "Says someone took damage the Engine never paid"), sends it to the one-shot rewrite, and `tools/bench.mjs` tallies it as `Unpaid damage in narration` and fails the gate on it. The leak half of that sentence — naming "the Engine", "the Ledger", "the notes" out loud at the table — is still there: 4 leak flags across the three runs, all of them machinery words, several caught and rewritten.
+
+**Why the Clocks barely move (found 13 Nov, needs Roly's ruling).** It is not the Director failing to move them: `engine/ledger.js` enforces Vector 3.4's Clock discipline as `c.aiAdvanced`, which lets the Director advance each Clock **once per session**. Gate run 3 ended CARCASS 0 / TOLL 0 / HUNGER 0 because the one TOLL advance it had was rewound by the toll chit, and CARCASS could not be touched twice. So a five-site Vector cannot be paced through the Director at all under that cap. Either the cap is per Cycle/scene rather than per session, or the Clocks move out of play itself (a fight at a staffed gate costing TOLL, a Reconstitution costing CARCASS) and the Director only narrates what the Ledger already paid.
+
+**What is still not cleared.** The "1 band shift" and "-1 Drift per Move" a hazard prints have no mechanic, so the Director narrates them and the Engine does not: same shape as the narrated countdowns, which still have no mechanic either. The run-1 Oath loop is latent, not fixed. The Engine still applies only one priced-choice row. And `set_condition` (Jostled on all four) has no area form, so the Director calls it once per body — legal, but chatty.
+
+**An Oath sworn with the Director's own scaffolding in it (run 3, 13 Nov).** The player never said
+what they promised, so the Director called `swear_oath` with the promise `"Bresk's own words: \\"We
+have no stamp. We offer a promise, witnessed and filed.\\" — to be asked what is promised."` The
+Engine wrote that into the Oath, `recall` later read it back to the table as what Bresk swore, and a
+second Oath was sworn over the same scene. `swear_oath` should refuse a promise that is not the
+player's words — the tell being "to be asked", a colon-then-quote shape, or a promise naming the
+Director's own turn — and the standing instruction says ask first, which the model skipped.
+
+Not faults, checked and cleared: run 1's `award` of 20 Codon each at the Soft Field and run 3's of 15
+each at the Toll-Vent are both printed in those sites' `Pays` lines, which is why the Cohorts finish
+those runs with such different Codon (23 against 6). The Engine's `printedPays` guard held.
 
 **Windows notes for a bench run.** `--runs`, not `--run`. `--sites 3` does not play a third site — the scripted table only has lines for two. `> bench_$(date …).log` does not expand in cmd, so every run overwrites `director/bench_.log`; name the file yourself. A run against `tools/fake-ai.mjs` prints GATE PASSED with `0 recall, 0 remember, 0 chapter(s)` and proves only that the harness loads. House command: `node tools/bench.mjs --runs 1 --sites 2 --players 4 --plain-chronicle --thinking low`.
 
@@ -50,9 +70,11 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 
 ## Open items
 1. Measure narration-to-first-sound with Kokoro (speech) and `Systran/faster-whisper-small` (listening) on the PC. Target: speech starts within about 2 s.
-2. Bench coverage still missing: the `--thinking medium` three-run gate, and Qwen3.8-27B Q4_K_M. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
+2. Bench coverage: the `--thinking medium` three-run gate ran on 13 Nov (numbers above), so what is missing now is a clean pass of it, and Qwen3.8-27B Q4_K_M. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
 3. Not built: save slots and Supabase copy (plan: rules and Vectors stay in GitHub; saves local first, Supabase as a copy; free plan pauses after 7 days idle and has no backups); ad-libbing (`improv: 'adlib'` is refused until built); Discord sign-in (deferred).
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
+5. The Clock cap needs a ruling (see the Clocks finding above): one Director advance per Clock per session cannot pace a five-site Vector. Roly decides between widening the cap and moving Clocks into play itself.
+6. Area forms are missing where the page prints area: `set_condition` (Jostled on the whole chamber) is called once per body, and the "1 band shift"/"-1 Drift per Move" a hazard prints has no mechanic at all, so it is narrated rather than paid.
 
 ## Design decisions to preserve
 - Speech starts within ~2 s; local voice first; the Director's voice also works on remote devices.

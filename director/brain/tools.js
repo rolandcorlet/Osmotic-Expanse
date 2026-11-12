@@ -30,15 +30,40 @@ export function printedPays(site) {
   return { codon, substrate };
 }
 
-// Every site's Hazard note is written with a Trigger clause and an Effect clause ("Trigger: a
-// Kinetic hit, a Strike, Momentum. Effect: 6 Kinetic, Jostled..."), so the Engine can hold a
-// hazard to the page instead of trusting the Director's word. A site that prints "None" has no
-// hazard at all; a hazard with no Trigger clause runs on its own notes or a Clock.
+// Every site's Hazard note prices itself on the page, but not in one shape. The First Carve prints
+// three: an Effect clause ("Trigger: a Kinetic hit, a Strike, Momentum. Effect: 6 Kinetic, Jostled"),
+// a standing patch that hurts once a Cycle ("at CARCASS 3+, 1 Lytic damage per Cycle"), and a bare
+// amount behind a Clock ("on a Clock, fires at TOLL 5. 20 Kinetic, 2-band shift"). Reading only the
+// first left the Soft Field and the Render Hall unpriced, so the Director could name any number from
+// 1 to 20 there. Damage types are the three CORE 8.1 prints (KINETIC, LYTIC, OSMOTIC), which keeps
+// "Tier 1", "soak 1" and "CARCASS 3+" out of the match.
+const DMG_TYPES = 'Kinetic|Lytic|Osmotic';
+const PER_CYCLE = new RegExp(`(\\d+)\\s+(${DMG_TYPES})\\s+damage\\s+per\\s+Cycle`, 'i');
 export function hazardSpec(site) {
   const text = String(((site || {}).host || {}).hazard || '');
   const tr = text.match(/Trigger:\s*([^.]*)/i);
-  const eff = text.match(/Effect:\s*(\d+)\s*([A-Za-z]+)/i);
-  return { text, none: !text || /^\s*none\b/i.test(text), trigger: tr ? tr[1].trim() : '', amount: eff ? Number(eff[1]) : null, type: eff ? eff[2] : '' };
+  const eff = text.match(new RegExp(`Effect:\\s*(\\d+)\\s+(${DMG_TYPES})`, 'i'))
+    || text.match(PER_CYCLE)
+    // Last resort: a number that opens a clause and names a damage type ("... fires at TOLL 5. 20 Kinetic, ...").
+    || text.match(new RegExp(`(?:^|[.,;:]\\s*)(\\d+)\\s+(${DMG_TYPES})\\b`, 'i'));
+  // "on a Clock, fires at TOLL 5" (the Render Charge) and "at CARCASS 3+, 1 Lytic damage per
+  // Cycle" (the slough patches) both hang the damage on a Clock value. "visible after CARCASS 1"
+  // is a clue, not a price, so it is deliberately not matched.
+  const gate = text.match(/\bat\s+(CARCASS|TOLL|HUNGER)\s+(\d+)\s*\+?/i);
+  return {
+    text,
+    none: !text || /^\s*none\b/i.test(text),
+    trigger: tr ? tr[1].trim() : '',
+    amount: eff ? Number(eff[1]) : null,
+    type: eff ? eff[2] : '',
+    // A standing patch: the page says it hurts every Cycle, so it is not a one-off detonation.
+    standing: PER_CYCLE.test(text),
+    // An area hazard pays every body in one firing ("1 band shift to all in the chamber"), so the
+    // Director never has to call it once per organism. Only the page's own words make it area.
+    area: /\ball (?:in|around) the chamber\b|\bthe whole (?:chamber|field|carcass)\b|\bto all\b|\beveryone in it\b/i.test(text),
+    // A Clock-gated hazard may not go off before the Clock reaches the printed segment.
+    clockGate: gate ? { clock: gate[1].toUpperCase(), at: Number(gate[2]) } : null,
+  };
 }
 
 // Some models send a list as JSON text: read it if it parses, otherwise ignore it.
@@ -226,7 +251,7 @@ export const TOOLS = [
   },
   {
     name: 'hazard_damage',
-    description: 'A printed hazard or a Cost hurts an organism. Soak applies. Use the damage printed in the site notes. A hazard goes off only on its printed trigger or as the cost of a FAILED roll: never after a roll that succeeded, and never twice. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
+    description: 'A printed hazard hurts an organism. Soak applies. Use the damage printed in the site notes, never your own number. A hazard goes off only on its printed trigger or as the Cost of a FAILED roll: never after a roll that landed. It goes off once per Cycle inside a Pulse War, and once per scene outside one (CORE 8.1): ground the page prices "per Cycle" may go off again each Cycle, a detonation may not. Where the page prices the hazard for the whole chamber, one call pays every body at the site: never call it once per organism. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
     parameters: obj({ organism: S('Organism id.'), amount: I('Printed damage.'), type: S('Damage type, for example Kinetic or Lytic.'), trigger: S('What set the hazard off: the words printed in the site\'s Trigger line (for example "a Strike"), or "failed roll" when this is the Cost of the roll that just failed.'), why: S('What caused it, in a line the players can hear.') }, ['organism', 'amount', 'trigger', 'why']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
@@ -238,7 +263,14 @@ export const TOOLS = [
       // hazards are the one place the Engine was letting an unprinted ruling through.)
       const spec = hazardSpec(T.site());
       if (spec.none) return { refused: `No hazard is printed for ${T.site().name}. Nothing here hurts an organism on its own.` };
-      if (spec.amount != null && amount !== spec.amount) return { refused: `The hazard printed for ${T.site().name} does ${spec.amount}${spec.type ? ` ${spec.type}` : ''}, not ${amount}. It reads: "${spec.text}"` };
+      if (spec.amount == null) return { refused: `The Hazard note for ${T.site().name} prints no damage number, so nothing here costs an organism MI. It reads: "${spec.text}"` };
+      if (amount !== spec.amount) return { refused: `The hazard printed for ${T.site().name} does ${spec.amount}${spec.type ? ` ${spec.type}` : ''}, not ${amount}. It reads: "${spec.text}"` };
+      // A hazard the page hangs on a Clock cannot go off early: "fires at TOLL 5" is a rule, not
+      // a suggestion, and the Render Charge is the whole carcass ending.
+      if (spec.clockGate) {
+        const c = T.state.clocks[spec.clockGate.clock];
+        if (c && c.filled < spec.clockGate.at) return { refused: `${T.site().name}: the page fires this hazard at ${spec.clockGate.clock} ${spec.clockGate.at}, and ${c.name} is at ${c.filled}. It has not triggered yet.` };
+      }
       const trig = lower(a.trigger);
       if (!trig) return { refused: `Name what set the hazard off: "failed roll", or the words printed in the Trigger line here (${spec.trigger || 'this site prints no Trigger clause: it runs on its own notes or a Clock'}).` };
       if (trig === 'failed roll' || trig === 'failed-roll') {
@@ -250,10 +282,18 @@ export const TOOLS = [
         const miss = words.filter((w) => !lower(spec.trigger).includes(w));
         if (miss.length) return { refused: `"${a.trigger}" is not a printed trigger for the hazard at ${T.site().name}. The page prints: ${spec.trigger}.` };
       }
-      const no = T.do({ type: 'damage', target: { kind: 'org', id: o.id }, amount, dtype: a.type || '' });
-      if (no) return { refused: no };
+      // The Engine keeps when it may go off again, and who the page pays, so the Director is told
+      // what it just spent rather than trying the same detonation once per body.
+      const f = T.state.fight;
+      const no = T.do({ type: 'hazard', siteId: T.site().id, area: spec.area === true, target: { kind: 'org', id: o.id }, amount, dtype: a.type || '', why: a.why });
+      if (no) return { refused: `${no}${spec.area ? ' That hazard is an area one: one call pays every body at the site, so it cannot go off again for the next one.' : ''}` };
       const t = T.state.organisms[o.id];
-      return { organism: t.name, mi: `${t.mi}/${t.miMax}`, dormant: t.dormant };
+      const paid = spec.area ? Object.values(T.state.organisms).filter((x) => x.playerId).map((x) => `${x.name} MI ${x.mi}/${x.miMax}`) : [];
+      return {
+        organism: t.name, mi: `${t.mi}/${t.miMax}`, dormant: t.dormant,
+        ...(paid.length ? { also_paid: paid } : {}),
+        spent: f ? `this hazard is spent until Cycle ${f.cycle + 1}` : 'this hazard is spent until the scene changes',
+      };
     },
   },
   {

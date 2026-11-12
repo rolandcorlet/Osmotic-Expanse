@@ -132,7 +132,7 @@ async function once(n) {
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
-  const tally = { turns: 0, refusals: 0, leaks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
 
   async function director(reason) {
     const t0 = Date.now();
@@ -153,6 +153,9 @@ async function once(n) {
     for (const f of r.flags) {
       if (f.kind === 'leak') tally.leaks += 1;
       if (f.kind === 'style') tally.style += 1;
+      // The Engine-refused count is already tallied from r.refusals; this is the other rule flag:
+      // narration that described harm no tool paid for.
+      if (f.kind === 'rule' && !/^The Engine refused/.test(f.text)) tally.unpaid += 1;
       console.log(`    ! ${f.kind}: ${f.text}`);
     }
   }
@@ -210,6 +213,7 @@ async function once(n) {
   console.log(`\nRun ${n}: ${tally.turns} Director turns, ${(tally.ms / tally.turns / 1000).toFixed(1)} s each on average, ${tally.tokensIn} tokens in, ${tally.tokensOut} out.`);
   console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}`);
   console.log(`  Leak flags: ${tally.leaks}`);
+  console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Style flags (questions, length, formatting): ${tally.style}`);
   console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled}`);
   const cards = Object.values(s.cast || {});
@@ -223,10 +227,10 @@ let bad = 0;
 for (let i = 1; i <= runs; i++) {
   try {
     const t = await once(i);
-    if (t.refusals || t.leaks) bad += 1;
+    if (t.refusals || t.leaks || t.unpaid) bad += 1;
   } catch (e) {
     console.log(`\nRun ${i} stopped: ${e.message}`);
     bad += 1;
   }
 }
-console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals and no leaks in ${runs} run(s). Read the transcript for quality.`);
+console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks or unpaid damage in ${runs} run(s). Read the transcript for quality.`);
