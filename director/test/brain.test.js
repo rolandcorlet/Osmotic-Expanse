@@ -644,6 +644,7 @@ test('harvest: the Soft Field can be cut, the Toll-Vent cannot; the Tally Post s
   if (r.waiting_for) { const q = T.state.requests[0]; T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2')); }
   const sp = T.state.organisms.eyes.specimens;
   assert.equal(sp.C + sp.G, 4);
+  T.run('tally_post_offer', {});
   assert.deepEqual(T.run('stamp_cut', {}), { stamped: true });
   assert.equal(T.state.organisms.eyes.stamped.C + T.state.organisms.eyes.stamped.G, 4);
   assert.deepEqual(T.state.organisms.eyes.specimens, { C: 0, G: 0, P: 0, T: 0 });
@@ -658,4 +659,22 @@ test('rulings of 12 Nov: a pool never falls below one die; Substrate awards must
   T.run('change_site', { site: 'soft-field' });
   assert.deepEqual(T.run('award', { why: 'A stamped cut', substrate: 60 }), { paid: true });
   assert.match(T.run('award', { why: 'A stamped cut, again', substrate: 500 }).refused, /Printed here: 40 to 120 S, 60 S/);
+});
+
+test('the Tally Post\'s priced choice is rolled once, from the printed table, before any stamp', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  assert.match(T.run('tally_post_offer', {}).refused, /no Tally Post/);
+  T.run('change_site', { site: 'soft-field' });
+  assert.match(briefing(T.state, scenario, bestiary, {}), /priced choice has not been rolled/);
+  const r = T.run('harvest', { organism: 'eyes' });
+  if (r.waiting_for) { const q = T.state.requests[0]; T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(5) }, ctx('player', 'p2')); }
+  assert.match(T.run('stamp_cut', {}).refused, /priced choice first/);
+  const offer = T.run('tally_post_offer', {});
+  assert.ok(offer.roll >= 1 && offer.roll <= 12 && offer.offer && offer.price);
+  assert.deepEqual(T.run('tally_post_offer', {}), offer, 'the offer does not change');
+  assert.match(briefing(T.state, scenario, bestiary, {}), /priced choice was rolled \(d12 = \d+\): the clerk offers/);
+  assert.deepEqual(T.run('stamp_cut', {}), { stamped: true });
+  // Every face of the d12 has a row.
+  const site = scenario.sites.find((x) => x.id === 'soft-field');
+  for (let n = 1; n <= 12; n++) assert.ok(site.pricedChoice.some((row) => n >= row.lo && n <= row.hi), `d12 = ${n}`);
 });

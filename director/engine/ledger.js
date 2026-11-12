@@ -1160,12 +1160,29 @@ const HANDLERS = {
       say(s, ctx, `${o.name} sets to harvesting ${h.what}: ${pool.dice} dice against Threshold ${at}.`, 'ask');
     },
   },
+  // The post's priced choice: a d12 on the site's printed table, rolled once and then fixed.
+  'post.offer': {
+    host: true,
+    run(s, a, ctx) {
+      const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
+      if (!site.post || !Array.isArray(site.pricedChoice)) throw new RuleError('There is no Tally Post with a priced choice at this site.');
+      s.posts = s.posts || {};
+      if (s.posts[site.id]) return; // already rolled: the offer stands
+      const own = a.roll != null ? Math.trunc(Number(a.roll)) : null;
+      if (own != null && (own < 1 || own > 12)) throw new RuleError('The priced choice is a d12: 1 to 12.');
+      const roll = own != null ? own : 1 + Math.floor(ctx.rng() * 12);
+      const row = site.pricedChoice.find((r) => roll >= r.lo && roll <= r.hi);
+      s.posts[site.id] = { roll, offer: row.offer, price: row.price };
+      say(s, ctx, `At the Tally Post (d12 = ${roll}): ${row.offer}. The price: ${row.price}.`, 'info');
+    },
+  },
   // The Tally Post weighs, grades and stamps a cut. Stamped Specimens are property; unstamped are not.
   'harvest.stamp': {
     host: true,
     run(s, a, ctx) {
       const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
       if (!site.post) throw new RuleError('There is no Tally Post at this site.');
+      if (ctx.ai && Array.isArray(site.pricedChoice) && !(s.posts || {})[site.id]) throw new RuleError('Roll the post\'s priced choice first (tally_post_offer): the clerk\'s offer decides what stamp is on the table.');
       const ids = (a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms).filter((id) => s.organisms[id].playerId));
       let any = false;
       for (const id of ids) {

@@ -56,6 +56,7 @@ const SCRIPT = [
 // The second site: the harvest, a price trap, the stamp, and leaving. FIGHT lets any Pulse War play out first.
 const SCRIPT2 = [
   ['*', 'FIGHT'],
+  ['p3', 'Before we leave, I harvest what we killed here. What can be taken from the bodies?'],
   ['p2', 'The way is clear. We go down the cut-lane into the Soft Field.'],
   ['p3', 'I go to the Tally Post. What does the ledger there say, and what are the tools for?'],
   ['p4', 'I scout the far panels, well away from the nest. Is there a clean cut to be had there?'],

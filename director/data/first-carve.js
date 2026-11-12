@@ -99,6 +99,17 @@ const sites = [
   {
     id: 'soft-field', n: 2, name: 'The Soft Field', short: 'the licensed cut-ground, and the Tally Post',
     harvest: { tier: 1, what: 'the hanging lipid panels' }, post: true,
+    // The priced choice (THE FIRST CARVE 8.2): a d12, rolled once when the Cohort reaches the post.
+    pricedChoice: [
+      { lo: 1, hi: 2, offer: 'stamp your cut under the first crew\'s void claim', price: 'the Ash will call it a grave-robbing; the Guild will not notice for two Beats' },
+      { lo: 3, hi: 4, offer: 'stamp it under Tallow Ring\'s second sale', price: 'free, and the first buyer\'s crew will come to collect' },
+      { lo: 5, hi: 6, offer: 'a Guild tally-stamp', price: 'the Guild takes a third of the haul, and TOLL -1' },
+      { lo: 7, hi: 8, offer: 'an Ash Unwasted seal over the panel you are cutting', price: 'the cut is slower (CARCASS -1 for that panel only) and worth one grade more' },
+      { lo: 9, hi: 9, offer: 'drone licence: Order II stamps it', price: 'TOLL -1, and the drones now consider you registered, including for what the brood needs' },
+      { lo: 10, hi: 10, offer: 'no stamp: the clerk is a client of Neth, and refuses', price: 'the cut is worth nothing legally; a contest or a Bribery in samples (10 to 30 S) fixes it' },
+      { lo: 11, hi: 11, offer: 'the clerk will trade: a stamp now, a favour at the Gut Stone later', price: 'you owe; the favour arrives at the Gut Stone' },
+      { lo: 12, hi: 12, offer: 'the post is empty, and the scale is still warm', price: 'someone was here minutes ago; HUNGER +1, and a Reveal: the pump shaft is open' },
+    ],
     inWhale: 'Inside the flank, just in from the wound.',
     where: 'The good part of the whale: hanging sheets of lipid and connective tissue, cut lanes marked with Guild claim-line pheromone, and tally-sleds on a cable line. At the centre stands the Tally Post, where a cut is weighed, graded and stamped. Tools are stacked, unblooded. The sleds are empty.',
     front: 'The hanging panels and the cut lanes between them, with the Tally Post in the middle of the field.',
@@ -218,6 +229,6 @@ export function publicScenario(sc = scenario) {
     title: sc.title,
     whale: sc.whale,
     clocks: sc.clocks,
-    sites: sc.sites.map(({ host, encounter, ...open }) => open),
+    sites: sc.sites.map(({ host, encounter, pricedChoice, ...open }) => open), // the priced-choice table stays behind the screen
   };
 }

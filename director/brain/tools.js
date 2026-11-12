@@ -284,6 +284,16 @@ export const TOOLS = [
     },
   },
   {
+    name: 'tally_post_offer',
+    description: 'When the Cohort reaches a Tally Post: roll the printed priced choice (a d12, once). The result is what the clerk offers and what it costs. It does not change: calling again returns the same offer. Tell the players the offer and its price in your own words; any clock change in the price is yours to make with move_clock when they accept.',
+    parameters: obj({}),
+    run(a, T) {
+      const no = T.do({ type: 'post.offer' });
+      if (no) return { refused: no };
+      return (T.state.posts || {})[T.state.scene.siteId];
+    },
+  },
+  {
     name: 'stamp_cut',
     description: 'At a Tally Post: the cut the Cohort carries is weighed, graded and stamped, which makes it property. Use only when the players bring their cut to the post and the claim stands.',
     parameters: obj({ organisms: { type: 'array', items: { type: 'string' }, description: 'Organism ids. Leave out for everyone carrying a cut.' } }),

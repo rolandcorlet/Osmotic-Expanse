@@ -26,7 +26,11 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
   if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} (harvest tool with no creature). The grade depends on CARCASS, not on the roll.`);
-  if (site.post) L.push('A Tally Post stands here: stamp_cut weighs, grades and stamps what the Cohort carries.');
+  if (site.post) {
+    const offer = (state.posts || {})[site.id];
+    L.push('A Tally Post stands here: stamp_cut weighs, grades and stamps what the Cohort carries.');
+    if (site.pricedChoice) L.push(offer ? `The post's priced choice was rolled (d12 = ${offer.roll}): the clerk offers "${offer.offer}". Price: ${offer.price}.` : 'The post\'s priced choice has not been rolled. When the Cohort reaches the post, call tally_post_offer before anything is stamped. Do not invent the clerk\'s offer.');
+  }
   L.push('');
   L.push('## Director-only notes for this site (never read these out)');
   for (const [k, label] of [['play', 'Play'], ['danger', 'Danger'], ['wants', 'Wants'], ['weakness', 'Weakness'], ['hazard', 'Hazard'], ['pays', 'Pays'], ['tells', 'Tells'], ['lesson', 'Lesson']]) {
