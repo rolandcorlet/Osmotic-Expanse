@@ -186,3 +186,21 @@ says so here, so it can be changed in one place.
 * The Detection Phase as a guided step, Bursts with their effects, Momentum checks, hazards as
   timed objects, harvest and Specimens, Cohesion, Oaths, and Growth.
 * Encounter budgets scaled for a Cohort of two to six.
+
+## Rulings confirmed by Roly on 12 November 2026
+
+1. A Heavy Apparatus costs 3 Pulse Points to Strike (CORE 9.3).
+2. A swarm's first Strike in a turn costs 2 Pulse Points; further bites inside its Segment allowance cost none.
+3. Stress penalties count inside the +5 / -5 modifier cap.
+4. Brace halves damage after soak, rounded down, minimum 1.
+5. A pass on Baseline (no roll) gives no Overflow.
+6. Creature Frequency is d6 + 0 unless printed, one roll per Order.
+7. Turgid's "MT -2" is applied once, not doubled through DFF.
+8. The table screen measures bands from the Cohort as a group.
+9. Zone distances are shown only where the Vector prints them.
+10. A pool never falls below one die.
+11. The AI Director may award only the Codon and Substrate amounts printed under the site's Pays. The host is not limited.
+12. A failed creature harvest gives 5 S for each printed C Specimen, and no Specimens.
+13. One cut of the Soft Field gives 4 C, or 3 C and 1 G on 4 or more Overflow while CARCASS is 0 or 1. A failed cut gives 10 S.
+14. A harvested creature gives the Specimens printed in the Bestiary (a Gnaw Swarm: C3 / G1), not the "2 C Specimens" in the Toll-Vent's notes.
+15. A successful harvest gives Specimens only, until an amount of Substrate is set.

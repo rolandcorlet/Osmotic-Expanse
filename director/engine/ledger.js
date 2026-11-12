@@ -1525,7 +1525,7 @@ export function viewFor(state, role, pid) {
       looks = f >= 1 ? 'unhurt' : f > 0.66 ? 'scratched' : f > 0.33 ? 'hurt' : 'badly hurt';
     }
     pub[c.cid] = {
-      cid: c.cid, blockId: c.blockId, name: c.name, band: c.band, siteId: c.siteId, down: c.down, stoodDown: !!c.stoodDown,
+      cid: c.cid, blockId: c.blockId, name: c.name, band: c.band, siteId: c.siteId, down: c.down, stoodDown: !!c.stoodDown, harvested: !!c.harvested,
       segments: c.segments, segMax: c.segMax, looks, conditions: c.conditions,
     };
   }

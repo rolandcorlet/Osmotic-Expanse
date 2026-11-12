@@ -95,6 +95,7 @@ async function once(n) {
   }
 
   // The players' side, played simply: roll what is asked, let attacks fall, strike on their turn.
+  let lastSaid = '';
   async function settle(maxSteps = 12, maxCycle = 3) {
     for (let guard = 0; guard < maxSteps; guard++) {
       const q = s.requests[0];
@@ -113,7 +114,9 @@ async function once(n) {
         // The scripted players attack what is fighting them first.
         const up = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
         // If nothing is fighting, the scripted player still attacks: that is what they said they would do.
-        const target = up.find((c) => !c.stoodDown) || up[0];
+        // They go for what they named ("the nearest swarm") before anything else that is fighting.
+        const named = up.filter((c) => !c.stoodDown && lastSaid.includes(String(c.name).replace(/\s+[A-Z]$/, '').split(/\s+/).pop().toLowerCase()));
+        const target = named[0] || up.find((c) => !c.stoodDown) || up[0];
         const w = o.weapons.find((x) => x.carried !== false);
         const cost = 2 + (w.props.includes('Heavy') ? 1 : 0);
         if (target && cur.pp >= cost) {
@@ -136,6 +139,7 @@ async function once(n) {
     if (pid === '*') { if (s.fight) { console.log('\n(the fight is played out)'); await settle(80, 8); } continue; }
     const o = Object.values(s.organisms).find((x) => x.playerId === pid);
     console.log(`\n${o.name.toUpperCase()}: ${text}`);
+    lastSaid = text.toLowerCase();
     act('player', pid, { type: 'say', text });
     await director('a player spoke');
     await settle();

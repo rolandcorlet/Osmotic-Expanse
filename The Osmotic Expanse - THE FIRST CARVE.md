@@ -498,7 +498,7 @@ Four Level-1 organisms start with **40 S each** (160 S together) and Tier-1 play
 
 **DANGER.** 2 **Gnaw Swarms** + 1 **Fold Sentinel** = **6 BSP** (Standard band for a Cohort of four at Levels 1–4, CODEX §4.1). **The Fold Sentinel does not start the fight**: it demands, in chemical semiotics, that the Cohort show its claim. If the Cohort has paid or sworn, it stands aside even after a strike — Order II defend, they do not avenge.
 **Wants:** drink, not violence (a Gnaw Swarm offered water leaves in one sentence). **Weakness, printed:** area effects. A Lytic Fog, a shove into the current, or the pump wash removes Segments by the handful.
-**What it pays:** the toll chit (**TOLL −1**), a legal route in, 2 C Specimens per harvested swarm (1.5 Codon each), and **15 Codon** for the objective *get inside without making an enemy of Order II*.
+**What it pays:** the toll chit (**TOLL −1**), a legal route in, the Bestiary’s harvest for each harvested swarm (C3 / G1; 1.5 Codon each), and **15 Codon** for the objective *get inside without making an enemy of Order II*.
 **Tells:** bare patches of old biomass on the wound lip (the scavengers found it first); the drone fold is **facing the wrong way** — its gate points *inward*, toward the whale. They are not guarding the toll. They are guarding something from what is inside. *(First clue to the brood.)*
 **Exit:** the cut-lane down (to the Soft Field), or the hole a gas pocket blew.
 

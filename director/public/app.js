@@ -45,7 +45,7 @@ const ui = {
   join: { name: store.get('oxd.name') || '' },
   claim: { hand: null, name: '' },
   oath: { text: '' },
-  show: { scene: false, quick: false }, // player page: panels opened with the buttons at the top
+  show: { scene: false, quick: false, harvest: false }, // player page: panels opened with the buttons at the top
   own: null,
   seenReq: {},
   jumpTop: false,
@@ -650,8 +650,21 @@ function playHtml(o) {
   for (const q of myAsks) out.push(askCard(q));
   // Two panels stay folded away until asked for, so the story and the last roll stay in view.
   const sw = (what, label) => `<button class="btn grow${ui.show[what] ? ' primary' : ''}" data-act="p.show" data-what="${what}" aria-pressed="${ui.show[what] ? 'true' : 'false'}">${ui.show[what] ? 'Hide: ' : ''}${label}</button>`;
-  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}</div>`);
+  // Harvest: destroyed bodies not yet harvested, and the site itself where it can be cut.
+  const bodies = creaturesHere().filter((c) => c.down && !c.harvested);
+  const cut = site().harvest;
+  const canHarvest = (bodies.length || cut) && !o.dormant;
+  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}</div>`);
   if (ui.show.scene) out.push(sceneCard());
+  if (ui.show.harvest && canHarvest) {
+    const cap = (o.base.VSC || 0) * 5;
+    const busy = myAsks.length > 0;
+    out.push(`<section class="card"><h3>Harvest<span class="right"><span class="chip">Bulk ${o.bulk || 0}/${cap}</span></span></h3>
+      <div class="small dim">Each harvest takes 1 Bulk. ${state.fight ? 'In a Pulse War it is a Synthesise action: 2 Pulse Points, on your turn.' : 'Outside a fight it takes about ten minutes, and may need no roll.'} A failed roll ruins the sample.</div>
+      <div class="acts">${bodies.map((c) => `<button class="btn" data-act="p.harvest" data-org="${o.id}" data-id="${c.cid}" ${busy ? 'disabled' : ''}>Harvest ${esc(c.name)}</button>`).join('')}${cut ? `<button class="btn" data-act="p.harvest" data-org="${o.id}" data-id="" ${busy ? 'disabled' : ''}>Cut ${esc(cut.what || 'the site')}</button>` : ''}</div>
+      ${site().post ? '<div class="small dim">A Tally Post stands here. A cut is worth nothing outside until it is stamped: ask at the post.</div>' : ''}
+    </section>`);
+  }
   if (ui.show.quick && !state.fight) out.push(quietCard(o));
   out.push(storyCard({ n: 12, input: `<div class="row"><input type="text" class="grow" data-k="say" data-bind="say.text" value="${esc(ui.say.text)}" maxlength="600" placeholder="What does ${esc(o.name.split(' ')[0])} do?" autocomplete="off"><button class="btn primary" data-act="say">Say</button></div>` }));
   if (ui.own && ui.own.mode === 'quick') out.push(`<section class="card ask"><h3>Your own dice</h3><div><b>${esc(ui.own.label)}</b></div>${ownPad(ui.own.n)}</section>`);
@@ -999,6 +1012,7 @@ function hostWho() {
 const ACT = {
   tab: (d) => { ui.tab = d.t; },
   'p.show': (d) => { ui.show[d.what] = !ui.show[d.what]; },
+  'p.harvest': (d) => send({ type: 'harvest', organismId: d.org, cid: d.id || null }),
   'rolls.mine': () => { ui.rollsMine = !ui.rollsMine; },
   say: async () => {
     const text = ui.say.text.trim();

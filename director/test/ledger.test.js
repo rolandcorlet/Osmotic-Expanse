@@ -332,3 +332,16 @@ test('situation, Overdrive, Inhibit, and a creature that Deflects', () => {
   t.host({ type: 'condition', target: { kind: 'cre', id: c.cid }, name: 'Braced' });
   assert.equal(creMT(t.s.creatures[c.cid]), 15);
 });
+
+test('players see whether a body has been harvested, and may start a harvest themselves', () => {
+  const t = seated();
+  t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
+  const cid = Object.keys(t.s.creatures)[0];
+  t.host({ type: 'damage', target: { kind: 'cre', id: cid }, amount: 40 });
+  assert.equal(t.s.creatures[cid].down, true);
+  assert.equal(viewFor(t.s, 'player', 'p2').creatures[cid].harvested, false);
+  assert.throws(() => t.as('p2', { type: 'harvest', organismId: 'wall', cid }), /not your organism/);
+  t.as('p2', { type: 'harvest', organismId: 'eyes', cid });
+  if (t.s.requests.length) t.as('p2', { type: 'roll', requestId: t.s.requests[0].id, dice: Array(t.s.requests[0].pool.dice).fill(5) });
+  assert.equal(viewFor(t.s, 'player', 'p2').creatures[cid].harvested, true);
+});

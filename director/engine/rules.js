@@ -140,7 +140,8 @@ export function buildPool({ baseline = 0, pathway = 0, mods = [], stress = 0, fi
   const bought = list.filter((m) => m.uncapped).reduce((a, m) => a + m.dice, 0);
   const applied = Math.max(-MOD_CAP, Math.min(MOD_CAP, raw));
   const base = fixed != null ? fixed : baseline + pathway;
-  const dice = Math.max(0, base + applied + bought);
+  // Ruling (12 Nov 2026): a pool never falls below one die, so a player always rolls something.
+  const dice = Math.max(1, base + applied + bought);
   return { dice, base, mods: list, modsRaw: raw, modsApplied: applied, capped: raw !== applied, parts: parts.concat(list) };
 }
 

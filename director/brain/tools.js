@@ -20,6 +20,14 @@ function findOrg(s, ref) {
   return list.find((o) => o.id === k) || list.find((o) => lower(o.name) === k) || list.find((o) => lower(o.hand) === k || lower(o.hand) === `the ${k}`)
     || list.find((o) => k && lower(o.name).startsWith(k)) || null;
 }
+// The amounts a site prints under Pays: Codon values, and Substrate values or ranges.
+export function printedPays(site) {
+  const text = String(((site || {}).host || {}).pays || '');
+  const codon = [...text.matchAll(/(\d+(?:\.\d+)?) Codon/g)].map((m) => Number(m[1]));
+  const substrate = [...text.matchAll(/(\d+)(?: to (\d+))? S\b/g)].map((m) => [Number(m[1]), Number(m[2] || m[1])]);
+  return { codon, substrate };
+}
+
 // Some models send a list as JSON text: read it if it parses, otherwise ignore it.
 function listOf(v) {
   if (Array.isArray(v)) return v;
@@ -247,8 +255,12 @@ export const TOOLS = [
     run(a, T) {
       const codon = Number(a.codon) || 0;
       const sub = Math.trunc(Number(a.substrate) || 0);
-      if (codon < 0 || codon > 25 || sub < 0 || sub > 120) return { refused: 'An award is at most 25 Codon and 120 S each: use the numbers printed under Pays.' };
+      if (codon < 0 || sub < 0) return { refused: 'An award cannot be negative.' };
       if (!codon && !sub) return { refused: 'Give a Codon or Substrate amount.' };
+      // Ruling (12 Nov 2026): the Director pays only what this site prints under Pays.
+      const printed = printedPays(T.site());
+      if (codon && !printed.codon.includes(codon)) return { refused: `${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay a printed amount, or nothing.` };
+      if (sub && !printed.substrate.some(([lo, hi]) => sub >= lo && sub <= hi)) return { refused: `${sub} S is not printed for this site. Printed here: ${printed.substrate.length ? printed.substrate.map(([lo, hi]) => (lo === hi ? `${lo} S` : `${lo} to ${hi} S`)).join(', ') : 'no Substrate'}. Pay a printed amount, or nothing.` };
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
       const no = T.do({ type: 'award', codon, substrate: sub, why: a.why, organismIds: ids });
       return no ? { refused: no } : { paid: true };

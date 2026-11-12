@@ -75,7 +75,7 @@ test('the Engine refuses what is off the page', () => {
   assert.match(T.run('ask_for_roll', { organism: 'wall', baseline: 'VSC', threshold: 5, what_for: 'x' }).refused, /between 8 and 28/);
   assert.match(T.run('ask_for_roll', { organism: 'rider', baseline: 'DFF', threshold: 12, what_for: 'x' }).refused, /No organism/);
   assert.match(T.run('change_site', { site: 'gut-stone' }).refused, /cannot be reached/);
-  assert.match(T.run('award', { codon: 500, why: 'x' }).refused, /at most/);
+  assert.match(T.run('award', { codon: 500, why: 'x' }).refused, /not printed for this site/);
   assert.match(T.run('creature_strike', { creature: 'ghost', target: 'wall' }).refused, /No creature/);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'a loud fight' }).now, '1/5');
   assert.match(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'again' }).refused, /at most one segment per session/);
@@ -338,7 +338,8 @@ test('the Engine pays a printed reward once per organism per site, for the Direc
   assert.match(again.refused, /already been paid/);
   assert.equal(T.state.organisms.wall.codon, 15); // the refused payment did not happen
   // A different reason is a different payment, and the host may still pay by hand.
-  assert.deepEqual(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }), { paid: true });
+  assert.deepEqual(T.run('award', { why: 'A harvested swarm', codon: 1.5, organisms: ['wall'] }), { paid: true });
+  assert.match(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }).refused, /5 Codon is not printed for this site/);
   let h = apply(s, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
   h = apply(h, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
   assert.equal(h.organisms.wall.codon, 30);
@@ -647,4 +648,14 @@ test('harvest: the Soft Field can be cut, the Toll-Vent cannot; the Tally Post s
   assert.equal(T.state.organisms.eyes.stamped.C + T.state.organisms.eyes.stamped.G, 4);
   assert.deepEqual(T.state.organisms.eyes.specimens, { C: 0, G: 0, P: 0, T: 0 });
   assert.match(T.run('stamp_cut', {}).refused, /unstamped cut/);
+});
+
+test('rulings of 12 Nov: a pool never falls below one die; Substrate awards must be printed', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('ask_for_roll', { organism: 'wall', baseline: 'RTC', threshold: 12, what_for: 'Shove', modifiers: [{ label: 'a', dice: -5 }] });
+  assert.equal(T.state.requests[0].pool.dice, 1);
+  assert.match(T.run('award', { why: 'x', substrate: 50 }).refused, /50 S is not printed/);
+  T.run('change_site', { site: 'soft-field' });
+  assert.deepEqual(T.run('award', { why: 'A stamped cut', substrate: 60 }), { paid: true });
+  assert.match(T.run('award', { why: 'A stamped cut, again', substrate: 500 }).refused, /Printed here: 40 to 120 S, 60 S/);
 });

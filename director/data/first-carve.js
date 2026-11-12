@@ -91,7 +91,7 @@ const sites = [
       wants: 'Drink, not violence. A Gnaw Swarm offered water leaves in one sentence.',
       weakness: 'Area effects. A Lytic Fog, a shove into the current, or the pump wash removes Segments by the handful.',
       hazard: 'Gas pocket under the lip (Tier 1). Discovery: Sense, Chemoreception AT 12 ("the floor is humming"). Trigger: a Kinetic hit, a Strike, Momentum. Effect: 6 Kinetic, Jostled, 1 band shift to all in the chamber. Counter: vent it slowly (Synthesise, 2 PP), or Brace and ride it for 2 free Drifts.',
-      pays: 'The toll chit (TOLL -1), a legal route in, 2 C Specimens per harvested swarm (1.5 Codon each), and 15 Codon for getting inside without making an enemy of Order II.',
+      pays: 'The toll chit (TOLL -1), a legal route in, the Specimens printed in the Bestiary for each harvested swarm (C3 / G1 with the harvest tool; 1.5 Codon each), and 15 Codon for getting inside without making an enemy of Order II.',
       tells: 'Bare patches of old biomass on the wound lip. The drone fold faces the wrong way: its gate points inward. (First clue to the brood.)',
       lesson: 'Lesson 1, the roll: the drone\'s own roll at the lip, then the crossing at AT 12.',
     },
