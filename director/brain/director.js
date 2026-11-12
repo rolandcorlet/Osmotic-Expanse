@@ -266,6 +266,12 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 // ---- checks on what the Director wrote, before anyone sees it --------------------
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|zero|a single point)';
 const NDICE = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat|at)\b/i;
+// Any dice count at all, with no "against" after it: "the swarm rolls three dice". Inside a Pulse
+// War that used to pass unflagged, which is the one number a player most wants leaned on. Ruling
+// from Roly, 13 Nov 2026: the Director never says how many dice an attacking creature rolls.
+const ANYDICE = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+(?:dice|d6)\b/i;
+// Pronouns get around "whoever is named nearest the number owns it": "it rolls four dice at you".
+const CREATURE_ROLLS = /\b(?:it|they|its|their|the swarm|the creature)\b[^.?!]{0,24}\b(?:rolls?|throws?|comes with|swings?)\b[^.?!]{0,14}(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|\d+)\s+dice/i;
 // Outside a fight the player sees their dice and Threshold on their own screen: the Director does not read them out.
 const OUTSIDE_NUMBERS = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice\b|\bAT\s*\d+\b|\bThreshold (?:of )?\d+\b|\bagainst (?:a |an )?(?:\d+|twelve|fourteen|sixteen|eight)\b/i;
 const HEALTH = new RegExp(`\\b(?:integrity|MI)\\b[^.?!]{0,30}\\b${NUM}\\b|\\b${NUM}\\b[^.?!]{0,12}\\b(?:Membrane )?(?:Integrity|MI)\\b`, 'i');
@@ -294,7 +300,10 @@ export function checkNarration(text, state, { moved = false } = {}) {
     // A creature's own numbers in words: "a pool of three dice", "its Membrane Threshold of 12".
     || /Membrane Threshold|\bpool of (?:\w+ )?dice\b/i.test(text)
     // "three dice against ...": a leak when it is a creature's dice, not when it is the player's own.
-    || sentences.some((sn) => { const m = sn.match(NDICE); return m && ownedByCreature(sn, m); })) {
+    || sentences.some((sn) => { const m = sn.match(NDICE); return m && ownedByCreature(sn, m); })
+    // The bare count, with nothing after it: "the swarm rolls three dice", "it swings six dice".
+    || CREATURE_ROLLS.test(text)
+    || sentences.some((sn) => { const m = sn.match(ANYDICE); return m && ownedByCreature(sn, m); })) {
     flags.push({ kind: 'leak', text: 'May be reading out a creature\'s block or numbers.' });
   } else if (!state.fight && (NDICE.test(text) || OUTSIDE_NUMBERS.test(text))) {
     flags.push({ kind: 'style', text: 'Reads out dice counts outside a Pulse War.' });

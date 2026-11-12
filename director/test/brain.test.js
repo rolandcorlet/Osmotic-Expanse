@@ -945,6 +945,20 @@ test('the briefing says the Engine pays the printed harvest Codon itself, so it 
   assert.match(b, /Killing one pays nothing/);
 });
 
+test('the Director never says how many dice a creature rolls, least of all in a Pulse War', () => {
+  // Ruling from Roly, 13 Nov 2026. Inside a fight the bare count used to pass with no flag at all.
+  let s = seated();
+  s = apply(s, { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
+  s = apply(s, { type: 'fight.start' }, ctx('host', null));
+  assert.ok(s.fight, 'a Pulse War is running');
+  const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
+  assert.deepEqual(kinds('It rolls three dice at you. Bresk of the Sixth Choir, what now?'), ['leak']);
+  assert.deepEqual(kinds('The swarm rolls 3 dice. Bresk of the Sixth Choir, what do you do?'), ['leak']);
+  assert.deepEqual(kinds('Its Membrane Threshold is 12. Bresk of the Sixth Choir, what now?'), ['leak']);
+  // The players own their own dice: saying those is not a leak.
+  assert.ok(!kinds('You have six dice in the pool, Bresk of the Sixth Choir. What do you spend them on?').includes('leak'));
+});
+
 test('a site that prints nothing to cut is told so, instead of being left to try', () => {
   // Bench run of 13 Nov: at the Toll-Vent the Director called harvest with no creature, because
   // the briefing only ever said where a site CAN be cut.
