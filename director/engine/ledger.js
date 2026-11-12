@@ -32,6 +32,8 @@ export function newSession(scenario) {
     rolls: [],
     log: [],
     story: [],
+    // Session zero: agreed before play. The pause word stops the scene at once.
+    zero: { pauseWord: 'SLACK WATER', tone: '', lines: [], open: true },
     nextId: 1,
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
@@ -670,13 +672,51 @@ function customBlock(c) {
 // ------------------------------------------------------------------ handlers
 const HANDLERS = {
   // ---- players
+  // Session zero. The host sets the tone and the pause word; anyone may add a line
+  // that stays off the page; every player agrees before they take an organism.
+  'zero.set': {
+    host: true,
+    run(s, a, ctx) {
+      const z = s.zero;
+      if (typeof a.pauseWord === 'string' && a.pauseWord.trim()) z.pauseWord = a.pauseWord.trim().slice(0, 24);
+      if (typeof a.tone === 'string') z.tone = a.tone.trim().slice(0, 300);
+      if (a.open != null) z.open = !!a.open;
+      say(s, ctx, `Session zero: the pause word is ${z.pauseWord}.`, 'table');
+    },
+  },
+  'zero.line': {
+    run(s, a, ctx) {
+      const z = s.zero;
+      const text = String(a.text || '').trim().slice(0, 120);
+      if (a.remove) {
+        z.lines = z.lines.filter((l) => l !== a.remove);
+        say(s, ctx, 'A line was taken off the list.', 'table');
+        return;
+      }
+      if (!text) throw new RuleError('Say what to leave out, in a few words.');
+      if (z.lines.length >= 20) throw new RuleError('The list is full. Take one off first.');
+      if (z.lines.some((l) => l.toLowerCase() === text.toLowerCase())) return;
+      z.lines.push(text);
+      // Who asked for it is nobody's business: the line is shared, the name is not.
+      say(s, ctx, `Off the page for this table: ${text}.`, 'table');
+    },
+  },
+  'zero.agree': {
+    run(s, a, ctx) {
+      const p = s.players[ctx.pid];
+      if (!p) throw new RuleError('Join the table first.');
+      if (p.agreed) return;
+      p.agreed = true;
+      say(s, ctx, `${p.name} has read session zero and is ready.`, 'table');
+    },
+  },
   join: {
     run(s, a, ctx) {
       const name = String(a.name || '').trim().slice(0, 24);
       if (!name) throw new RuleError('Tell the table your name.');
       if (!ctx.pid) throw new RuleError('This device has no player id.');
       const had = s.players[ctx.pid];
-      s.players[ctx.pid] = { name, organismId: had ? had.organismId : null };
+      s.players[ctx.pid] = { name, organismId: had ? had.organismId : null, agreed: had ? !!had.agreed : false };
       if (!had) say(s, ctx, `${name} joins the table.`, 'table');
     },
   },
@@ -685,6 +725,7 @@ const HANDLERS = {
       const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
       const p = s.players[pid];
       if (!p) throw new RuleError('Join the table first.');
+      if (!p.agreed && ctx.role !== 'host') throw new RuleError('Read session zero and agree before you take an organism.');
       const o = org(s, a.organismId);
       if (o.playerId && o.playerId !== pid) throw new RuleError(`${o.name} is already being played.`);
       if (p.organismId && p.organismId !== o.id && s.organisms[p.organismId]) s.organisms[p.organismId].playerId = null;

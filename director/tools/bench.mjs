@@ -74,6 +74,7 @@ async function once(n) {
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
   for (const [pid, who, hand, name] of SEATS.slice(0, players)) {
     act('player', pid, { type: 'join', name: who });
+    act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
   const tally = { turns: 0, refusals: 0, leaks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0 };

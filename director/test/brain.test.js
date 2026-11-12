@@ -18,10 +18,11 @@ const ctx = (role, pid) => ({ role, pid, rng, now: 0, scenario, bestiary });
 
 function seated() {
   let s = newSession(scenario);
-  s = apply(s, { type: 'join', name: 'Roly' }, ctx('player', 'p1'));
-  s = apply(s, { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' }, ctx('player', 'p1'));
-  s = apply(s, { type: 'join', name: 'Sam' }, ctx('player', 'p2'));
-  s = apply(s, { type: 'claim', organismId: 'eyes', name: 'Brost of the Third Current' }, ctx('player', 'p2'));
+  for (const [pid, who, hand, name] of [['p1', 'Roly', 'wall', 'Bresk of the Sixth Choir'], ['p2', 'Sam', 'eyes', 'Brost of the Third Current'], ['p3', 'Ana', 'ledger', 'Ilm of the Open Hand'], ['p4', 'Kit', 'rider', 'Vash of the Long Reach']].slice(0, 2)) {
+    s = apply(s, { type: 'join', name: who }, ctx('player', pid));
+    s = apply(s, { type: 'zero.agree' }, ctx('player', pid));
+    s = apply(s, { type: 'claim', organismId: hand, name }, ctx('player', pid));
+  }
   return s;
 }
 
@@ -731,4 +732,16 @@ test('the briefing lists what can be harvested now, and nothing else', () => {
   const text = briefing(s, scenario, bestiary, {});
   assert.match(text, /Can be harvested now \(destroyed, not yet cut\): Gnaw Swarm A\./);
   assert.ok(!text.includes('Gnaw Swarm B.'), 'a stood-down creature is not offered');
+});
+
+test('the briefing carries session zero, and it outranks the page', () => {
+  let s = seated();
+  assert.ok(!/SESSION ZERO/.test(briefing(s, scenario, bestiary, {})));
+  s = apply(s, { type: 'zero.set', pauseWord: 'Slack Water', tone: 'Body horror is in; cruelty to animals is out.' }, ctx('host', null));
+  s = apply(s, { type: 'zero.line', text: 'Drowning' }, ctx('player', 'p1'));
+  const text = briefing(s, scenario, bestiary, {});
+  assert.match(text, /SESSION ZERO \(agreed by the table: this outranks the page\)/);
+  assert.match(text, /Body horror is in; cruelty to animals is out\./);
+  assert.match(text, /Off the page, never put these in a scene[^\n]*Drowning/);
+  assert.match(text, /pause word \(Slack Water\), stop at once/);
 });

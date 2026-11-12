@@ -156,6 +156,15 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     for (const l of recent) L.push(`- ${l.text}`);
   }
 
+  const z = state.zero || {};
+  if ((z.lines || []).length || z.tone) {
+    L.push('');
+    L.push('# SESSION ZERO (agreed by the table: this outranks the page)');
+    if (z.tone) L.push(`The table's own words: ${z.tone}`);
+    if ((z.lines || []).length) L.push(`Off the page, never put these in a scene, not even in passing: ${z.lines.join('; ')}. If the page calls for one, use something else and say nothing about why.`);
+    L.push(`If a player says the pause word (${z.pauseWord || 'the pause word'}), stop at once: no narration, step back one sentence, and ask how they would like to go on.`);
+  }
+
   L.push('');
   if (hostNote) L.push(`# NOTE FROM THE HOST (follow it): ${hostNote}`);
   L.push(`# YOUR MOVE${reason ? ` (${reason})` : ''}. Use tools if the world must change, then narrate in plain text and end on one question.`);

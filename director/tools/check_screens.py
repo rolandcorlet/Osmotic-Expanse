@@ -69,6 +69,15 @@ with sync_playwright() as p:
         ph.goto(f"{BASE}/play?pid={pid}")
         ph.fill('[data-k="join.name"]', name)
         ph.click('button:has-text("Join")')
+        # Session zero comes first: nobody takes an organism before they have read it and agreed.
+        ph.wait_for_selector("text=Session zero")
+        if pid == "p1":
+            shot(ph, "phone-session-zero")
+            ph.fill('[data-k="zero.line"]', "Harm to children")
+            ph.click('button:has-text("Add")')
+            ph.wait_for_selector('.chip:has-text("Harm to children")')
+        ph.click('button:has-text("I have read this, and I am ready to play")')
+        ph.wait_for_selector(f'.hand:has-text("{hand}")')
         ph.click(f'.hand:has-text("{hand}")')
         ph.fill('[data-k="claim.name"]', org)
         ph.click("text=Play this organism")
@@ -80,6 +89,15 @@ with sync_playwright() as p:
     watch(table, "table")
     table.goto(f"{BASE}/table")
     table.wait_for_selector("text=Distance from the Cohort")
+
+    # --- the host's side of session zero
+    host.fill('[data-k="zero.pw"]', "Slack Water")
+    host.fill('[data-k="zero.tone"]', "Body horror is in; cruelty to animals is out.")
+    host.click('[data-act="h.zero"]')
+    host.wait_for_selector('.card:has-text("Session zero") .chip.ok:has-text("all ready")')
+    print("session zero: both players ready, line shared:",
+          host.locator('.card:has-text("Session zero") .chip:has-text("Harm to children")').count() == 1)
+    shot(host, "host-session-zero")
 
     # --- a roll with the player's own dice
     host.wait_for_selector('.seg button:has-text("Bresk")')
@@ -108,6 +126,13 @@ with sync_playwright() as p:
     p2.click('[data-act="p.show"][data-what="scene"]')
     p2.wait_for_selector('section.scene')
     p2.click('[data-act="p.show"][data-what="scene"]')
+    # Session zero stays reachable during play, so a line can be added mid-scene.
+    p2.click('[data-act="p.show"][data-what="zero"]')
+    p2.wait_for_selector('.card:has-text("Off the page for this table")')
+    p2.fill('[data-k="zero.line"]', "Drowning")
+    p2.click('.card:has-text("Off the page") button:has-text("Add")')
+    p2.wait_for_selector('.chip:has-text("Drowning")')
+    p2.click('[data-act="p.show"][data-what="zero"]')
     p2.click('[data-act="p.show"][data-what="quick"]')
     p2.select_option('[data-k="q.p"]', "Chemoreception")
     p2.click('button:has-text("Roll 7 dice")')

@@ -45,7 +45,8 @@ const ui = {
   join: { name: store.get('oxd.name') || '' },
   claim: { hand: null, name: '' },
   oath: { text: '' },
-  show: { scene: false, quick: false, harvest: false }, // player page: panels opened with the buttons at the top
+  zero: { line: '', pauseWord: '', tone: '' },
+  show: { scene: false, quick: false, harvest: false, zero: false }, // player page: panels opened with the buttons at the top
   own: null,
   seenReq: {},
   jumpTop: false,
@@ -574,10 +575,35 @@ function playerHtml() {
       <label class="fld"><span class="fl">Your name</span><input type="text" data-k="join.name" data-bind="join.name" value="${esc(ui.join.name)}" maxlength="24" placeholder="What the table calls you" autocomplete="off"></label>
       <button class="btn primary big" data-act="join">Join</button></section></div></div>`;
   }
+  if (!m.agreed) return zeroHtml();
   const o = mine();
   if (!o) return chooseHandHtml();
   if (ui.tab === 'sheet') return `<div class="stack">${sheetCard(o, { own: true })}</div>`;
   return `<div class="stack" data-scroll="play">${playHtml(o)}</div>`;
+}
+
+// Session zero: read before anyone takes an organism.
+function zeroCard({ host = false } = {}) {
+  const z = state.zero || { pauseWord: 'SLACK WATER', lines: [] };
+  return `<section class="card"><h3>Session zero<span class="right"><span class="chip warn">${esc(z.pauseWord)}</span></span></h3>
+    <p class="tale">This is a game for adults. It is about a dead whale being taken apart for parts, and it can get close and bodily.</p>
+    <p class="tale">Say <b>${esc(z.pauseWord)}</b> at any time, for any reason, and the scene stops where it is. No explanation is owed. We step back a moment and carry on from there.</p>
+    ${z.tone ? `<div class="note">${esc(z.tone)}</div>` : ''}
+    <div class="fl">Off the page for this table</div>
+    ${z.lines.length ? `<div class="row">${z.lines.map((l) => `<span class="chip warn">${esc(l)}${host ? ` <button class="btn sm" data-act="zero.drop" data-line="${esc(l)}" title="Take it off the list">x</button>` : ''}</span>`).join('')}</div>`
+    : '<p class="small dim">Nothing yet. Anything on this list stays out of the game.</p>'}
+    <div class="row"><input type="text" class="grow" data-k="zero.line" data-bind="zero.line" value="${esc(ui.zero.line)}" maxlength="120" placeholder="Something to leave out (nobody is told who asked)"><button class="btn" data-act="zero.add">Add</button></div>
+  </section>`;
+}
+
+function zeroHtml() {
+  const waiting = Object.values(state.players || {}).filter((p) => !p.agreed).length;
+  return `<div class="stack">${zeroCard()}
+    <section class="card"><h3>Ready?</h3>
+      <p class="small dim">Add anything you want left out first: the list is shared with the table, your name is not. You can add more at any time during play.</p>
+      <button class="btn primary big grow" data-act="zero.agree">I have read this, and I am ready to play</button>
+      ${waiting > 1 ? `<p class="small dim">${waiting - 1} other${waiting > 2 ? 's have' : ' has'} not answered yet.</p>` : ''}
+    </section></div>`;
 }
 
 function chooseHandHtml() {
@@ -654,7 +680,8 @@ function playHtml(o) {
   const bodies = creaturesHere().filter((c) => c.down && !c.harvested);
   const cut = site().harvest;
   const canHarvest = (bodies.length || cut) && !o.dormant;
-  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}</div>`);
+  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}${sw('zero', 'Session zero')}</div>`);
+  if (ui.show.zero) out.push(zeroCard());
   if (ui.show.scene) out.push(sceneCard());
   if (ui.show.harvest && canHarvest) {
     const cap = (o.base.VSC || 0) * 5;
@@ -787,8 +814,22 @@ function hostHtml() {
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}</div>
     <div class="col">${hostAskCard()}${hostWaitingCard()}</div>
-    <div class="col">${hostFightCard()}${hostToolsCard()}</div>
+    <div class="col">${hostFightCard()}${hostToolsCard()}${hostZeroCard()}</div>
   </div>`;
+}
+
+// Session zero on the host console: set the pause word and the tone, see who has agreed.
+function hostZeroCard() {
+  const z = state.zero || { pauseWord: '', tone: '', lines: [] };
+  const ps = Object.values(state.players || {});
+  const waiting = ps.filter((p) => !p.agreed).map((p) => p.name);
+  return `<section class="card"><h3>Session zero<span class="right"><span class="chip${waiting.length ? ' warn' : ' ok'}">${ps.length ? (waiting.length ? `${waiting.length} not ready` : 'all ready') : 'nobody yet'}</span></span></h3>
+    <div class="row"><input type="text" class="grow" data-k="zero.pw" data-bind="zero.pauseWord" value="${esc(ui.zero.pauseWord || z.pauseWord)}" maxlength="24" placeholder="Pause word"><button class="btn" data-act="h.zero">Set</button></div>
+    <div class="fld"><span class="fl">A line for the table, in your own words (optional)</span>
+      <input type="text" data-k="zero.tone" data-bind="zero.tone" value="${esc(ui.zero.tone || z.tone)}" maxlength="300" placeholder="For example: body horror is in, cruelty to animals is out"></div>
+    ${z.lines.length ? `<div class="row">${z.lines.map((l) => `<span class="chip warn">${esc(l)} <button class="btn sm" data-act="zero.drop" data-line="${esc(l)}">x</button></span>`).join('')}</div>` : '<p class="small dim">Nothing is off the page yet.</p>'}
+    ${waiting.length ? `<p class="small dim">Waiting on: ${waiting.map(esc).join(', ')}. They cannot take an organism until they agree.</p>` : ''}
+  </section>`;
 }
 
 function hostSceneCard() {
@@ -1015,6 +1056,10 @@ function hostWho() {
 const ACT = {
   tab: (d) => { ui.tab = d.t; },
   'p.show': (d) => { ui.show[d.what] = !ui.show[d.what]; },
+  'zero.agree': () => send({ type: 'zero.agree' }),
+  'zero.add': () => { const t = (ui.zero.line || '').trim(); if (!t) return; send({ type: 'zero.line', text: t }); ui.zero.line = ''; },
+  'zero.drop': (d) => send({ type: 'zero.line', remove: d.line }),
+  'h.zero': () => send({ type: 'zero.set', pauseWord: ui.zero.pauseWord || undefined, tone: ui.zero.tone }),
   'p.harvest': (d) => send({ type: 'harvest', organismId: d.org, cid: d.id || null }),
   'rolls.mine': () => { ui.rollsMine = !ui.rollsMine; },
   say: async () => {

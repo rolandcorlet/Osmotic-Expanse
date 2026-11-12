@@ -20,8 +20,10 @@ function table(seed = 7) {
 function seated() {
   const t = table();
   t.as('p1', { type: 'join', name: 'Roly' });
+  t.as('p1', { type: 'zero.agree' });
   t.as('p1', { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' });
   t.as('p2', { type: 'join', name: 'Sam' });
+  t.as('p2', { type: 'zero.agree' });
   t.as('p2', { type: 'claim', organismId: 'eyes', name: 'Brost of the Third Current' });
   return t;
 }
@@ -344,4 +346,28 @@ test('players see whether a body has been harvested, and may start a harvest the
   t.as('p2', { type: 'harvest', organismId: 'eyes', cid });
   if (t.s.requests.length) t.as('p2', { type: 'roll', requestId: t.s.requests[0].id, dice: Array(t.s.requests[0].pool.dice).fill(5) });
   assert.equal(viewFor(t.s, 'player', 'p2').creatures[cid].harvested, true);
+});
+
+test('session zero: a player agrees before taking an organism, and the lines are shared but not attributed', () => {
+  const t = table();
+  t.as('p1', { type: 'join', name: 'Roly' });
+  assert.throws(() => t.as('p1', { type: 'claim', organismId: 'wall' }), /agree before you take an organism/);
+  // Anyone may add a line; the log says what, never who.
+  t.as('p1', { type: 'zero.line', text: 'Harm to children' });
+  assert.deepEqual(t.s.zero.lines, ['Harm to children']);
+  const said = t.s.log.filter((l) => /Harm to children/.test(l.text));
+  assert.equal(said.length, 1);
+  assert.ok(!said[0].text.includes('Roly'), 'the line is shared, the name is not');
+  t.as('p1', { type: 'zero.line', text: 'harm to children' }); // the same line twice is one line
+  assert.equal(t.s.zero.lines.length, 1);
+  t.as('p1', { type: 'zero.agree' });
+  t.as('p1', { type: 'claim', organismId: 'wall', name: 'Bresk' });
+  assert.equal(t.s.organisms.wall.playerId, 'p1');
+  // The host sets the pause word and may take a line off.
+  t.host({ type: 'zero.set', pauseWord: 'Slack Water', tone: 'Body horror is in; cruelty to animals is out.' });
+  assert.equal(t.s.zero.pauseWord, 'Slack Water');
+  t.as('p1', { type: 'zero.line', remove: 'Harm to children' });
+  assert.deepEqual(t.s.zero.lines, []);
+  // Players see all of it.
+  assert.equal(viewFor(t.s, 'player', 'p1').zero.pauseWord, 'Slack Water');
 });
