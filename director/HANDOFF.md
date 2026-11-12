@@ -4,6 +4,34 @@ Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, 
 
 Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed** — checked 13 Nov: `HEAD` and `origin/main` both sit at `3f58021`. The hazard-budget work from the 13 Nov session after that is committed and unpushed. Roly pushes.
 
+## Starting a new session (as at 13 Nov, HEAD `b4c4b07`)
+
+Today landed three commits: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+`hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
+ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
+and `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
+table never said). Roly pushed the first two mid-session; **`b4c4b07` is unpushed.** `node --test` is
+**120 green**. The working tree shows ~83 "modified" files and every one of them is pure CRLF noise:
+check `git diff --numstat` for equal insert/delete counts before believing a dirty tree.
+
+Read in order: this file, then the bench findings above, then `README.md` "Not built yet". Rulings that
+are settled and must not be reopened: creature arithmetic never spoken aloud ([[never-creature-dice]]
+in memory, HANDOFF's own section), machinery words at the table are leaks, and 3.4's one-advance-per-Clock
+cap is printed and correct.
+
+Queued, in the order I would take them: **(1)** area forms where the page prints area — `set_condition`
+(Jostled on the whole chamber is called once per body) and the hazard's printed "1 band shift to all in
+the chamber", which has no mechanic at all, so it is narrated rather than paid; **(2)** the Cycle outside
+a Pulse War and the **Beat**, which unlock three of the printed Clock rows, the hazard "per Cycle" rows and
+the narrated countdowns; **(3)** the run-1 Oath loop, still latent; **(4)** only one priced-choice row is
+applied by the Engine; **(5)** `harvestPays` covers 12 creatures but the shipped-haul, salted-panel and
+Gut-Stone-serial rows in 3.1-3.3 are still prose.
+
+First job, before any of that: re-run the gate on Windows (`node tools/bench.mjs --runs 3 --sites 2
+--players 4 --thinking medium`) and read the new **Unpaid damage in narration** line. Expect the three
+hazard refusals of run 3 to be gone and the leaks to be down. Then Phase 4 with a real group — the
+scripted bench is rehearsal, not the gate.
+
 ## What this is
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
