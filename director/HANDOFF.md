@@ -2,41 +2,52 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed** — checked 13 Nov: `HEAD` and `origin/main` both sit at `3f58021`. The hazard-budget work from the 13 Nov session after that is committed and unpushed. Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the 13 Nov hazard-budget stack: re-checked 13 Nov at 09:44, `HEAD` and `origin/main` both sat at `6b0eed7`. Since then only `cbb2e52` (the area condition) is committed and unpushed. Roly pushes.
 
-## Starting a new session (as at 13 Nov, HEAD `b4c4b07`)
+## Starting a new session (as at 13 Nov, HEAD `cbb2e52`)
 
-Today landed three commits: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+Today landed four commits: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
 ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
-and `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
-table never said). Roly pushed the first two mid-session; **`b4c4b07` is unpushed.** `node --test` is
-**120 green**. The working tree shows ~83 "modified" files and every one of them is pure CRLF noise:
-check `git diff --numstat` for equal insert/delete counts before believing a dirty tree.
+`b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
+table never said), and `cbb2e52` (an area condition: the `condition` action takes `area` and
+`set_condition` takes `all_bodies`, so the Jostled the Toll-Vent prices for the chamber lands on
+every body in one call rather than one call per body). Roly pushed through `6b0eed7` at 09:40 —
+checked: `HEAD` and `origin/main` both sat at `6b0eed7`, nothing of yesterday's work was unpushed —
+so **`cbb2e52` is the one unpushed commit.** `node --test` is **124 green**. The working tree shows
+~83 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
+insert/delete counts before believing a dirty tree.
 
 Read in order: this file, then the bench findings above, then `README.md` "Not built yet". Rulings that
 are settled and must not be reopened: creature arithmetic never spoken aloud ([[never-creature-dice]]
 in memory, HANDOFF's own section), machinery words at the table are leaks, and 3.4's one-advance-per-Clock
 cap is printed and correct.
 
-Queued, in the order I would take them: **(1)** area forms where the page prints area — `set_condition`
-(Jostled on the whole chamber is called once per body) and the hazard's printed "1 band shift to all in
-the chamber", which has no mechanic at all, so it is narrated rather than paid; **(2)** the Cycle outside
+Queued, in the order I would take them: **(1)** the half of "area forms" still missing — the **band
+shift**. `set_condition` is built (`cbb2e52`: the Ledger's `condition` action takes `area`, the tool
+takes `all_bodies`, `hazardSpec().conditions` reads the printed condition off the site's own note, and
+the briefing says one call covers the chamber). What is left in that clause is the hazard's printed
+"1 band shift to all in the chamber", the Gut Stone's "2-band shift" and the slough's "-1 Drift per
+Move": none has a mechanic, so all three are narrated rather than paid. **Blocked on Roly's ruling** —
+how the Engine prices a band shift when a hazard pays it, and whether "-1 Drift per Move" belongs to
+the Move action at all; **(2)** the Cycle outside
 a Pulse War and the **Beat**, which unlock three of the printed Clock rows, the hazard "per Cycle" rows and
 the narrated countdowns; **(3)** the run-1 Oath loop, still latent; **(4)** only one priced-choice row is
 applied by the Engine; **(5)** `harvestPays` covers 12 creatures but the shipped-haul, salted-panel and
 Gut-Stone-serial rows in 3.1-3.3 are still prose.
 
 First job, before any of that: re-run the gate on Windows (`node tools/bench.mjs --runs 3 --sites 2
---players 4 --thinking medium`) and read the new **Unpaid damage in narration** line. Expect the three
-hazard refusals of run 3 to be gone and the leaks to be down. Then Phase 4 with a real group — the
-scripted bench is rehearsal, not the gate.
+--players 4 --thinking medium`) and read the new **Unpaid damage in narration** line. Give the log a real
+name (`> bench_13nov_am.log`) — the only log on disk is 12 Nov's, so yesterday's medium-thinking gate was
+never saved. Expect the three hazard refusals of run 3 to be gone and the leaks to be down, and expect the
+Jostled after the pocket to be **one** `set_condition` with `all_bodies`, not one per body. Then Phase 4
+with a real group — the scripted bench is rehearsal, not the gate.
 
 ## What this is
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**120 tests**, all green at the 13 Nov Clock-trigger commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**124 tests**, all green at the 13 Nov area-condition commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -86,7 +97,9 @@ Director is told, and its one discretionary advance is not wasted on a Clock tha
 in the same scene is not loud twice. What is still untracked is the **Beat** ("Advance +1 when a Beat passes"),
 which is the same missing family as the Cycle outside a Pulse War and the printed "1 band shift".
 
-**What is still not cleared.** The "1 band shift" and "-1 Drift per Move" a hazard prints have no mechanic, so the Director narrates them and the Engine does not: same shape as the narrated countdowns, which still have no mechanic either. The run-1 Oath loop is latent, not fixed. The Engine still applies only one priced-choice row. And `set_condition` (Jostled on all four) has no area form, so the Director calls it once per body — legal, but chatty.
+**What is still not cleared.** The "1 band shift" and "-1 Drift per Move" a hazard prints have no mechanic, so the Director narrates them and the Engine does not: same shape as the narrated countdowns, which still have no mechanic either. The run-1 Oath loop is latent, not fixed. The Engine still applies only one priced-choice row. (`set_condition`'s missing area form was the other half of that sentence — now built, see below.)
+
+**A condition the page prices for the chamber is one call (13 Nov, `cbb2e52`).** The Toll-Vent's Effect clause prices three things at once: "6 Kinetic, Jostled, 1 band shift to all in the chamber." The 6 Kinetic was made one firing that pays every body; the Jostled still had no area form, so one detonation meant four `set_condition` calls, one per body. Legal, but four turns and four log lines for what the page writes as one price. Now the `condition` action in `engine/ledger.js` takes `area` and pays every body the Cohort has at the site — the same set `hazard_damage` pays — stamps a `timed` condition with the same end-of-next-Cycle expiry, and writes one line to the log ("Bresk…, Brost… are Jostled: -1 PP; MT -2"). Re-applying is a no-op, not a stack; `on: false` clears the chamber in one call. `set_condition` exposes it as `all_bodies` and returns who carries what. Which conditions those are stays on the page: `hazardSpec().conditions` reads them from the site's own Hazard note and cuts at "Counter:" so "Brace and ride it" cannot read as a price — only the Toll-Vent prints one, and the briefing line appears only where the note does. The band shift in the same clause is deliberately **not** built: pricing one is Roly's call.
 
 **The Director may only swear words the table said (13 Nov).** Bench run 3 swore
 `"Bresk's own words: \"We have no stamp. We offer a promise, witnessed and filed.\" — to be asked what is
@@ -127,7 +140,10 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
    (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, and the Gut Stone's serial turned in at a
    Warden register arch.
-6. Area forms are missing where the page prints area: `set_condition` (Jostled on the whole chamber) is called once per body, and the "1 band shift"/"-1 Drift per Move" a hazard prints has no mechanic at all, so it is narrated rather than paid.
+6. Area forms: `set_condition` is done at `cbb2e52` (an area condition is one call for the chamber).
+   Still missing where the page prints area: the "1 band shift"/"2-band shift" and "-1 Drift per Move"
+   a hazard prints have no mechanic, so they are narrated rather than paid — needs Roly's ruling on how
+   the Engine prices a band shift before anything is built.
 
 ## Design decisions to preserve
 - Speech starts within ~2 s; local voice first; the Director's voice also works on remote devices.
