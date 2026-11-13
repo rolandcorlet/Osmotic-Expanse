@@ -335,6 +335,21 @@ export const TOOLS = [
     },
   },
   {
+    name: 'open_panel',
+    description: 'The Cohort opens a new panel at this site: a hit or a throw cracks one loose and the oxygen gets in. The site pays for that itself (CARCASS +1, 3.1), so never spend your one Clock advance on a panel. Call it at the moment a panel comes open, not for one merely mentioned. If a cut at this site has already paid for a panel in this scene it answers that the price is already in.',
+    parameters: obj({ what: S('What was opened, in a few words the players can hear, for example "a hanging lipid panel".') }, ['what']),
+    run(a, T) {
+      const before = T.state.clocks.CARCASS || {};
+      const already = before.panelScene === (T.state.sceneNo || 1);
+      const no = T.do({ type: 'panel.open', what: a.what });
+      if (no) return { refused: no };
+      const c = T.state.clocks.CARCASS || {};
+      return already
+        ? { already_paid: true, clock: `${c.name} ${c.filled}/${c.segments}`, note: `The site has already paid for opening a panel in this scene (${c.name} ${c.filled}/${c.segments}): nothing further is owed, and do not spend your own advance on it.` }
+        : { panel_opened: String(a.what || 'a panel'), clock: `${c.name} ${c.filled}/${c.segments}` };
+    },
+  },
+  {
     name: 'move_clock',
     description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason the page prints. Never because a roll failed. Each Clock may advance at most once per session. The Vector pays the triggers it prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
     parameters: obj({ clock: S('Which Clock.', { enum: ['CARCASS', 'TOLL', 'HUNGER'] }), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),

@@ -519,6 +519,34 @@ test('walking out and leaving a body uncut feeds the scavengers (3.3)', () => {
   assert.equal(t2.s.clocks.HUNGER.filled, mid, 'it was harvested: nothing was left in the water');
 });
 
+test('opening a panel pays CARCASS as many times as the Vector says, and the scene is one of them (3.1)', () => {
+  // Both runs of the 13 Nov evening gate ended at CARCASS 2 from ONE panel: the Director spent its one
+  // discretionary advance on the panel and the site cut paid its own row on top. So the Engine counts
+  // panel payments per scene against the Vector's own number (rules.panelOpensPerScene), and a second
+  // panel in the same scene is not a second payment while that number is 1.
+  const t = seated();
+  t.host({ type: 'panel.open', what: 'a hanging lipid panel' });
+  assert.equal(t.s.clocks.CARCASS.filled, 1, 'the panel pays CARCASS');
+  t.host({ type: 'panel.open', what: 'another panel down the lane' });
+  assert.equal(t.s.clocks.CARCASS.filled, 1, 'this Vector pays one panel opening per scene');
+  t.host({ type: 'clock', id: 'CARCASS', delta: 1, by: 'ai' });
+  assert.equal(t.s.clocks.CARCASS.filled, 2, 'the Director still has its one advance of its own');
+  t.host({ type: 'scene.set', siteId: 'soft-field' });
+  t.host({ type: 'panel.open', what: 'a far panel in the Soft Field' });
+  assert.equal(t.s.clocks.CARCASS.filled, 3, 'a new scene pays for its own panel');
+  // And the number is data, not law: with no per-scene limit every panel cracked loose pays its own.
+  const loose = { ...scenario, rules: { ...scenario.rules, panelOpensPerScene: 0 } };
+  const rng2 = makeRng(3);
+  const c2 = (role, pid) => ({ role, pid, rng: rng2, now: 0, scenario: loose, bestiary });
+  let s2 = newSession(loose);
+  s2 = apply(s2, { type: 'join', name: 'Roly' }, c2('player', 'p1'));
+  s2 = apply(s2, { type: 'zero.agree' }, c2('player', 'p1'));
+  s2 = apply(s2, { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' }, c2('player', 'p1'));
+  s2 = apply(s2, { type: 'panel.open', what: 'the near panel' }, c2('host', null));
+  s2 = apply(s2, { type: 'panel.open', what: 'the far panel' }, c2('host', null));
+  assert.equal(s2.clocks.CARCASS.filled, 2, 'uncapped: two panels, two segments');
+});
+
 test('a Pulse War in the open moves TOLL and HUNGER once per scene (3.2, 3.3)', () => {
   // §3.2 prices the Cohort being loud in the channels on TOLL and §3.3 prices "the Cohort fights
   // loudly" on HUNGER, so one Pulse War in the open is one event the carcass pays twice. Reading the

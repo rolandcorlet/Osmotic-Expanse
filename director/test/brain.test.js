@@ -594,6 +594,42 @@ test('settling an Oath that is already closed is a note, not a refusal', () => {
   assert.equal(T.refusals, 0, 'and it does not mark the run against the gate');
 });
 
+test('open_panel lets the site pay for a panel, and a second one in the scene is answered, not refused', () => {
+  // Run 3 of the afternoon gate and both evening runs: the Director spent its one Clock advance on a
+  // panel the Vector was paying for as well. There is now a call for the event itself, and the second
+  // call in a scene teaches the model instead of marking the run.
+  const T = toolbox({ state: apply(seated(), { type: 'scene.set', siteId: 'soft-field' }, ctx('host')), scenario, bestiary, rng, now: 0 });
+  const one = T.run('open_panel', { what: 'a hanging lipid panel' });
+  assert.equal(one.panel_opened, 'a hanging lipid panel', JSON.stringify(one));
+  assert.equal(one.clock, 'CARCASS 1/6');
+  const two = T.run('open_panel', { what: 'another panel down the lane' });
+  assert.equal(two.refused, undefined, 'a restatement is not a rule break');
+  assert.equal(two.already_paid, true);
+  assert.match(String(two.note), /do not spend your own advance/);
+  // The site cut is the same event: it must not pay the row a second time in one scene.
+  T.run('harvest', { organism: 'eyes' });
+  for (const q of [...T.state.requests]) T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) }, ctx('player', 'p2'));
+  assert.equal(T.state.clocks.CARCASS.filled, 1, 'one panel opening, one segment, one scene');
+  assert.equal(T.refusals, 0, 'and nothing in that sequence counts against the run');
+});
+
+test('narration that reverses a throw the page passed is flagged', () => {
+  // Run 2 of the 13 Nov evening gate: 16 against 12 — SUCCESS, Overflow 4 — narrated as the lip folding
+  // over Bresk instead of parting, in the same turn that settled his Oath as kept.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('ask_for_roll', { organism: 'wall', baseline: 'DFF', pathway: 'Membrane Penetration', threshold: 12, what_for: 'Shoulder through the wound lip before it closes' });
+  const q = T.state.requests[0];
+  const since = T.state.seq;
+  T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) }, ctx('player', 'p1'));
+  assert.ok(T.state.rolls.at(-1).success, 'the throw passed');
+  const flags = checkNarration('The lip folds over Bresk instead of parting, and the current takes him sideways. Bresk, what do you do?', T.state, { moved: false, since });
+  assert.ok(flags.some((f) => f.kind === 'rule' && /^Reverses Bresk/.test(f.text)), JSON.stringify(flags));
+  // A success at a price is what a Cost looks like: not a reversal.
+  assert.ok(!checkNarration('The lip gives and Bresk is through, though the current keeps a hand on him. Bresk, what now?', T.state, { moved: false, since }).some((f) => /^Reverses /.test(f.text)));
+  // And prose about somebody else holding still is nobody's reversal.
+  assert.ok(!checkNarration('The Fold Sentinel has not moved an inch at the chokepoint. Bresk, what do you do?', T.state, { moved: false, since }).some((f) => /^Reverses /.test(f.text)));
+});
+
 test('a hazard is only what this site prints, and a creature is not one', () => {
   // Run 1 of the 13 Nov evening gate priced the Glaze Medusas' trailing field as a hazard (4 Osmotic)
   // with no Pulse War running. The page refused and quoted the site's own Hazard line, which fixed it

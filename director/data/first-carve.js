@@ -240,6 +240,11 @@ export const scenario = {
     // defect — the Director told the table HUNGER had moved, which is what the book prints, and the
     // Engine had paid nothing to HUNGER at all.
     clockTriggers: { panelOpens: 'CARCASS', bodyCut: 'HUNGER', bodyLeft: 'HUNGER', loud: ['TOLL', 'HUNGER'], oathKept: 'TOLL' },
+    // 3.1 prices "the Cohort opens a new panel" on CARCASS. Both runs of the 13 Nov evening gate paid
+    // that row twice for one panel — the Director's discretionary advance and the site cut — so this
+    // Vector says how many panel openings one scene pays for. 1 keeps the Clock honest to the scene;
+    // set it to 0 and every panel cracked loose pays its own segment.
+    panelOpensPerScene: 1,
   },
 };
 

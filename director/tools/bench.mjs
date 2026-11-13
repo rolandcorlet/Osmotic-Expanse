@@ -151,7 +151,7 @@ async function once(n) {
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
-  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
 
   async function director(reason) {
     const t0 = Date.now();
@@ -177,7 +177,9 @@ async function once(n) {
       if (f.kind === 'rule' && !/^The Engine refused/.test(f.text)) {
         // Harm nobody paid for, and a Clock named as moving that nothing moved: the same fault in two
         // shapes, tallied apart so a gate read says which one the table heard.
-        if (/^Names (CARCASS|TOLL|HUNGER)/.test(f.text)) tally.clocks += 1; else tally.unpaid += 1;
+        if (/^Names (CARCASS|TOLL|HUNGER)/.test(f.text)) tally.clocks += 1;
+        else if (/^Reverses /.test(f.text)) tally.reversed += 1;
+        else tally.unpaid += 1;
       }
       console.log(`    ! ${f.kind}: ${f.text}`);
     }
@@ -238,6 +240,7 @@ async function once(n) {
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);
+  console.log(`  Reversed rolls in narration (a throw the page passed, described as failing): ${tally.reversed}`);
   console.log(`  Style flags (questions, length, formatting): ${tally.style}`);
   console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled}`);
   const cards = Object.values(s.cast || {});
@@ -251,10 +254,10 @@ let bad = 0;
 for (let i = 1; i <= runs; i++) {
   try {
     const t = await once(i);
-    if (t.refusals || t.leaks || t.unpaid || t.clocks) bad += 1;
+    if (t.refusals || t.leaks || t.unpaid || t.clocks || t.reversed) bad += 1;
   } catch (e) {
     console.log(`\nRun ${i} stopped: ${e.message}`);
     bad += 1;
   }
 }
-console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage, unpaid Clocks or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks, unpaid damage or unpaid Clocks in ${runs} run(s). Read the transcript for quality.`);
+console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage, unpaid Clocks, reversed rolls or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks, unpaid damage, unpaid Clocks or reversed rolls in ${runs} run(s). Read the transcript for quality.`);

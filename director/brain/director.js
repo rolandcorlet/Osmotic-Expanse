@@ -174,6 +174,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const paid = (state.log || []).filter((e) => e.kind === 'clock').slice(-4);
   if (paid.length) L.push(`Clocks this site has already moved (the players were told): ${paid.map((e) => e.text).join(' | ')}`);
   L.push('CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.');
+  L.push('A panel opening is the site paying, not you: call `open_panel` the moment one comes loose, and it pays CARCASS for the first one in a scene. Never spend your own one advance on a panel, and do not call it twice in one scene.');
 
   L.push('');
   const f = state.fight;
@@ -374,6 +375,23 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const named = [...new Set(sentences.filter((sn) => CLOCK.test(sn) && CLOCK_MOVE.test(sn)).flatMap((sn) => sn.match(new RegExp(CLOCK.source, 'g')) || []))];
   const unpaidClock = named.filter((n) => !new RegExp(`\\b${n}\\b`).test(clockLines));
   if (unpaidClock.length) flags.push({ kind: 'rule', text: `Names ${unpaidClock.join(' and ')} moving when nothing moved it.` });
+  // "A roll that succeeds, succeeds." Run 2 of the 13 Nov evening gate: Bresk threw 16 against 12 —
+  // SUCCESS, Overflow 4, printed in the model's own briefing — and the narration said "The lip folds
+  // over Bresk instead of parting", in the same turn that settled his Oath as kept. Prose that reverses
+  // a throw the page has passed is the same fault as harm nobody paid for: the table heard an outcome
+  // that is not the one on the screen. Only the success direction is checked, because a FAILED throw is
+  // allowed to work at a price (a Cost) and reads the other way round on purpose. The sentence has to
+  // name whoever threw it, which is what keeps "the Sentinel has not moved an inch" out of it.
+  const REVERSED = /\binstead of\b|\b(?:fail|fails|failed|failing)\s+to\b|\bmissed\b|\bfell\s+short\b|\bcame\s+up\s+short\b|\b(?:cannot|can't|couldn't|could not|didn't|did not|doesn't|does not|never)\b[^.?!]{0,34}\b(?:part|parted|opening|open|opened|clear|cleared|hold|holding|held|land|lands|landed|reach|reaches|reached|carry|carries|carried|make|makes|made|pass|passes|passed|get|gets|got)\b/i;
+  for (const r of (state.rolls || []).filter((x) => x.seq > since && x.at != null && x.success)) {
+    const first = String(r.who || '').split(/\s+/)[0];
+    if (!first) continue;
+    const who = new RegExp(`\\b${first.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    if (sentences.some((sn) => who.test(sn) && REVERSED.test(sn))) {
+      flags.push({ kind: 'rule', text: `Reverses ${r.who}'s ${r.label || 'throw'}, which the page passed.` });
+      break;
+    }
+  }
   return flags;
 }
 
@@ -458,12 +476,14 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const isLeak = (f) => f.kind === 'leak';
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
-  const fixable = (f) => unpaid(f) || unpaidClock(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
+  const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
+  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead. "The page has nothing printed for that" is allowed.`);
     if (flags.some(unpaid)) asks.push('It describes harm that nothing paid for this turn: nobody was hurt. Say only what your calls actually did, and put no damage number in the scene.');
     if (flags.some(unpaidClock)) asks.push('It names a Clock moving when nothing moved it: no Clock changed. Name only a Clock the page actually moved, with the segments it stands at, or say nothing about Clocks at all.');
+    if (flags.some(reversed)) asks.push('It describes the opposite of a throw the page has already passed: that throw succeeded and the player saw the total on their own screen. Say what the success did - and what it cost, if the page priced a cost - and do not undo it.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');

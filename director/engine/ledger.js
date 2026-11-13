@@ -445,6 +445,28 @@ function payClock(s, ctx, id, delta, why) {
 // one. Reading the map as one id each is the 13 Nov afternoon gate's defect: the Director told the
 // table "HUNGER moves a segment for a fight this loud" — which the page prints — while the Engine had
 // moved only TOLL. So a trigger names an id or a list of them, and this pays whichever it finds.
+// 3.1: "the Cohort opens a new panel (oxygen gets in; the job has a cost)". `harvest` with no creature
+// and `panel.open` are both that event, and both runs of the 13 Nov evening gate paid for the SAME
+// panel twice — the Director spending its one discretionary advance on a panel, and the cut paying its
+// own row on top — so CARCASS climbed twice as fast as anything in the fiction did. How many panels one
+// scene may pay for is the Vector's number, not the Engine's: `rules.panelOpensPerScene` says it, and
+// 0 or absent means every panel opened pays its own segment.
+function payPanelOnce(s, ctx, why) {
+  const scene = s.sceneNo || 1;
+  const perScene = Number((((ctx || {}).scenario || {}).rules || {}).panelOpensPerScene) || 0;
+  const ids = [].concat(clockTrigger(ctx, 'panelOpens')).filter((id) => s.clocks[id]);
+  const notes = [];
+  for (const id of ids) {
+    const c = s.clocks[id];
+    if (c.panelScene !== scene) { c.panelScene = scene; c.panelCount = 0; }
+    if (perScene > 0 && c.panelCount >= perScene) continue;
+    c.panelCount += 1;
+    const n = payClock(s, ctx, id, 1, why);
+    if (n) notes.push(n);
+  }
+  return notes;
+}
+
 function payTrigger(s, ctx, name, delta, why) {
   const ids = clockTrigger(ctx, name);
   const notes = [];
@@ -730,7 +752,7 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
     else sub = 10;
     s.scene.cuts = (s.scene.cuts || 0) + 1;
     // 3.1: "Advance +1 when: ... the Cohort opens a new panel (oxygen gets in; the job has a cost)."
-    notes.push(...payTrigger(s, ctx, 'panelOpens', 1, `${h.what} is open to the oxygen`));
+    notes.push(...payPanelOnce(s, ctx, `${h.what} is open to the oxygen`));
   }
   if (got) queueLoot(s, ctx, got, h.what);
   if (sub) o.substrate += sub;
@@ -1220,6 +1242,18 @@ const HANDLERS = {
         if (s.fight.turn === k) s.fight.turn = null;
       }
       s.requests = s.requests.filter((q) => !(q.actor.kind === 'cre' && q.actor.id === c.cid) && !(q.target && q.target.kind === 'cre' && q.target.id === c.cid));
+    },
+  },
+  // 3.1: "Advance +1 when: ... the Cohort opens a new panel (oxygen gets in; the job has a cost)."
+  // Opening a panel is one event, and two different calls can be it: the site cut that harvests what
+  // hangs behind the panel, and the hit or the throw that cracks one loose without cutting it. Both
+  // runs of the 13 Nov evening gate paid for the same panel twice - the Director spending its one
+  // discretionary advance on a panel, and the cut paying its own row on top - so the Vector pays it
+  // once per scene, whichever arrives first, and `panelScene` on that Clock is what remembers.
+  'panel.open': {
+    host: true,
+    run(s, a, ctx) {
+      payPanelOnce(s, ctx, `${String(a.what || 'a panel').slice(0, 90)} is open to the oxygen`);
     },
   },
   clock: {
