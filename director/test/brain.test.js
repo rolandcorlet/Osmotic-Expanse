@@ -581,6 +581,28 @@ test('an Oath spends a box and records the promise; Hands without boxes cannot s
   assert.match(T.run('swear_oath', { organism: 'wall', promise: '' }).refused, /what is promised/);
 });
 
+test('settling an Oath that is already closed is a note, not a refusal', () => {
+  // Run 2 of the 13 Nov evening gate: it settled the Oath kept after the crossing, then tried to settle
+  // the same one broken on the way out of the site, and took a refusal for restating its own record.
+  const s = apply(seated(), { type: 'say', text: 'We will carry the last cargo out under stamp' }, ctx('player', 'p1'));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  T.run('swear_oath', { organism: 'wall', promise: 'We will carry the last cargo out under stamp', witness: 'the Order II fold' });
+  assert.equal(T.run('settle_oath', { organism: 'wall', kept: true, why: 'it went out under stamp' }).settled, 'kept');
+  const again = T.run('settle_oath', { organism: 'wall', kept: false, why: 'walked away' });
+  assert.equal(again.refused, undefined, 'the Oath is closed: restating it is not a rule break');
+  assert.match(String(again.note), /already closed/);
+  assert.equal(T.refusals, 0, 'and it does not mark the run against the gate');
+});
+
+test('a hazard is only what this site prints, and a creature is not one', () => {
+  // Run 1 of the 13 Nov evening gate priced the Glaze Medusas' trailing field as a hazard (4 Osmotic)
+  // with no Pulse War running. The page refused and quoted the site's own Hazard line, which fixed it
+  // on the next call — so the wording now says it up front, where it is read before the attempt.
+  const d = TOOLS.find((t) => t.name === 'hazard_damage').description;
+  assert.match(d, /only the hazard this site prints/);
+  assert.match(d, /sting or trailing field is not a hazard/);
+});
+
 test('the Director may not swear an Oath the table never said', () => {
   // Bench run 3 of 13 Nov: it swore `Bresk's own words: "..." - to be asked what is promised.`,
   // the Oath went into the record with that in it, and `recall` later read it back to Bresk as his

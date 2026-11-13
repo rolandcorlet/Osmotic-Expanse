@@ -264,7 +264,7 @@ export const TOOLS = [
   },
   {
     name: 'hazard_damage',
-    description: 'A printed hazard hurts an organism. Soak applies. Use the damage the page prints here, never your own number. A hazard goes off only on its printed trigger or as the Cost of a FAILED roll: never after a roll that landed. It goes off once per Cycle inside a Pulse War, and once per scene outside one (CORE 8.1): ground the page prices "per Cycle" may go off again each Cycle, a detonation may not. Where the page prices the hazard for the whole chamber, one call pays every body at the site: never call it once per organism. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
+    description: 'A printed hazard hurts an organism. Soak applies. Use the damage the page prints here, never your own number: only the hazard this site prints, at the number and the damage type it prints. A creature\'s own attack, sting or trailing field is not a hazard - that belongs to the creature, on its own turn, inside a Pulse War. A hazard goes off only on its printed trigger or as the Cost of a FAILED roll: never after a roll that landed. It goes off once per Cycle inside a Pulse War, and once per scene outside one (CORE 8.1): ground the page prices "per Cycle" may go off again each Cycle, a detonation may not. Where the page prices the hazard for the whole chamber, one call pays every body at the site: never call it once per organism. Say in `trigger` what set it off: the words from the site\'s printed Trigger line, or "failed roll" when it is the Cost of the throw that just failed.',
     parameters: obj({ organism: S('Organism id.'), amount: I('Printed damage.'), type: S('Damage type, for example Kinetic or Lytic.'), trigger: S('What set the hazard off: the words printed in the site\'s Trigger line (for example "a Strike"), or "failed roll" when this is the Cost of the roll that just failed.'), why: S('What caused it, in a line the players can hear.') }, ['organism', 'amount', 'trigger', 'why']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
@@ -469,6 +469,14 @@ export const TOOLS = [
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism, T.state);
       const kept = a.kept === true || a.kept === 'true';
+      // Run 2 of the 13 Nov evening gate settled an Oath it had already closed in the same run and was
+      // refused for it. The briefing prints every closed Oath on the organism's own line, so this is
+      // restating rather than breaking: answer with a note and the state, and do not mark the run.
+      const oaths = o.oaths || [];
+      if (!oaths.some((v) => v.open)) {
+        const closed = oaths.filter((v) => !v.open).map((v) => `${v.id} ${v.kept ? 'kept' : 'BROKEN'}`).join(', ');
+        return { settled: 'nothing open', note: `${o.name} has no Oath open${closed ? ` (${closed})` : ''}: it is already closed. Never settle the same Oath twice.` };
+      }
       const no = T.do({ type: 'oath.settle', organismId: o.id, oathId: a.oath, kept, why: a.why || '' });
       if (no) return { refused: no };
       const t = T.state.organisms[o.id];
