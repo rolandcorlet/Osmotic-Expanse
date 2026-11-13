@@ -344,8 +344,27 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // swarm is six small segments" and "two small bodies' worth of it left of what was a dozen" while the
   // Engine had removed 5 of 6. What stays legal is how the thing LOOKS: "a dozen small ones wearing a
   // slime coat" is the standing example in instructions.md, and "half of it peels away" names nothing.
-  const SEGMENTS = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|\d+)(?:\s+\w+){0,2}\s+(?:segments?|sections?)\b|segments?\s+\d+\s*\/\s*\d+/i;
-  if (SEGMENTS.test(text)) flags.push({ kind: 'leak', text: 'Counts a swarm\'s Segments or sections, which is its health track.' });
+  // The count has to belong to a creature, the same way the dice and MI checks decide whose number it
+  // is: the page and the players talk about "four cut sections" of lipid all day, and flagging that is
+  // a false leak that burns a rewrite and fails the run (found by reading the saved gate logs against
+  // the regex, the same way the "the Ledger's room" false positive was found for the briefing sweep).
+  const NUMW = 'one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|half|\\d+';
+  const SEGMENTS = new RegExp(`\\b(?:${NUMW})(?:\\s+\\w+){0,2}\\s+(?:segments?|sections?)\\b|\\bsegments?\\s+\\d+\\s*\\/\\s*\\d+\\b`, 'i');
+  const SEGMENTS_OF_CREATURE = new RegExp(`\\b(?:its|their)\\s+(?:${NUMW})\\s+(?:segments?|sections?)\\b|\\b(?:${NUMW})\\s+(?:segments?|sections?)\\s+of\\s+(?:it|them)\\b`, 'i');
+  // Harvest prose uses the same word — "four cut sections", "the wreck lies in sections at Vash's feet"
+  // — so an unnamed owner is not enough. If nothing in the sentence points at a person or at the cut,
+  // and there is a creature in the scene, the count is the creature's ("They are small and many: six
+  // slow segments apiece", straight out of the saved gate).
+  const HARVEST_WORDS = /\b(cut|cuttable|cut-able|unstamped|stamped|specimen|specimens|weigh|scale|carry|carried|bulk|harvest|lipid|panel|panels|tissue|sheet|sheets|cradle|crate|crates|picking|picks|share|shared|pass|passed|screen|screens|wreck|wreckage|remains|scraps?|heaps?|harvested)\b/i;
+  const segSentence = sentences.find((sn) => {
+    const m = sn.match(SEGMENTS);
+    if (!m && !SEGMENTS_OF_CREATURE.test(sn)) return false;
+    if (m && ownedByCreature(sn, m)) return true;
+    if (SEGMENTS_OF_CREATURE.test(sn)) return true;
+    const low = sn.toLowerCase();
+    return kinds.length > 0 && !people.some((p) => low.includes(p)) && !HARVEST_WORDS.test(sn);
+  });
+  if (segSentence) flags.push({ kind: 'leak', text: 'Counts a swarm\'s Segments or sections, which is its health track.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).

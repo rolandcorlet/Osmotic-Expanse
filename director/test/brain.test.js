@@ -635,12 +635,19 @@ test("counting a swarm's Segments out loud is a leak, printed or invented", () =
   // it left of what was a dozen". Segments are a swarm's health track (the block prints MI 10 and
   // Segments 6 in the same line), so counting them is the same fault as reading out MI. What stays
   // legal is how the thing looks and how much is left in the fiction.
-  const s = seated();
+  // A swarm in the scene, because that is the state the false positives were found against: the same
+  // word "sections" is what the Cohort's own cut is made of, and the saved gate logs are full of it.
+  const s = apply(seated(), { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
   const said = (t) => checkNarration(t, s, { moved: true }).map((f) => f.text);
   assert.ok(said('Each swarm is six small segments wearing a wet look. Bresk, what now?').some((f) => /health track/.test(f)));
   assert.ok(said('Two sections of it are left, still scenting you. Bresk, what now?').some((f) => /health track/.test(f)));
+  assert.ok(said('The needle rakes the far side of the swarm: four of its six sections torn away. Bresk, what now?').some((f) => /health track/.test(f)));
+  assert.ok(said('They are small and many: six slow segments apiece, more drinking than hunting. Brost, what now?').some((f) => /health track/.test(f)));
+  // Not the creature's numbers: appearance, and the Cohort's own harvest.
   assert.ok(!said('A dozen small ones wearing a slime coat, half of them peeling away into the current. Bresk, what now?').some((f) => /health track/.test(f)));
   assert.ok(!said('It is a brittle, frantic cloud and anything that spreads takes pieces off it. Bresk, what now?').some((f) => /health track/.test(f)));
+  assert.ok(!said('Ilm works the far sheet slowly, and four cut sections lie in the cradle of the current, unstamped. Bresk, what now?').some((f) => /health track/.test(f)), 'the cut is made of sections too');
+  assert.ok(!said('The wreck of the first one lies in sections at Vash\'s feet, cuttable. Bresk, what now?').some((f) => /health track/.test(f)), 'and a body at a player\'s feet is not a health readout');
 });
 
 test('an Oath the Director swears has to be owed to somebody the table can see', () => {
