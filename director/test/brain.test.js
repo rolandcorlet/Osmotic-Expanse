@@ -1513,3 +1513,10 @@ test('14 Nov (second bench): damage dealt to a creature is its health, "the page
   assert.match(b, /NOTHING IS WAITING TO BE SHARED/);
   assert.ok(!BRIEFING_LEAK.test(b.split('\n').filter((l) => /NOTHING IS WAITING/.test(l)).join(' ')));
 });
+
+test('"the page" as a page of paper in the fiction is not the rulebook', () => {
+  const s = seated();
+  const st = (t) => checkNarration(t, s).filter((f) => /the page/.test(f.text)).length;
+  assert.equal(st('The clerk\'s pen comes down under the dead crew\'s name, nobody\'s own face on the page. Brost, what now?'), 0);
+  assert.equal(st('The page says a swarm offered drink leaves. Brost, what now?'), 1);
+});

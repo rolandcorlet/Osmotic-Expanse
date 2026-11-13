@@ -374,7 +374,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const HITNUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\\s+points?\\s+of\\s+(?:\\w+\\s+)?damage\\b`, 'i');
   if (sentences.some((sn) => HITNUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
   // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
-  if (/\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
+  if (/(?<!\b(?:on|off|across|down|from|flip|flips|flipped|turn|turns|turned)\s)\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).

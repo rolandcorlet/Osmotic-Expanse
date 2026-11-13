@@ -28,6 +28,10 @@ Zero refusals, leaks, unpaid damage, Clocks or reversed rolls. What the transcri
 
 Left alone: "RUNAWAY CATALYSIS" and "Lodged" said as rules words; the award narrated "between you" when it is 20 Codon each; the chronicle files dead swarms as `[faction]` cast; the 1-in-3 turns that still need the length rewrite; run 3's last Long flag survived its rewrite. Next: re-run the same bench (`--runs 3 --sites 2 --players 4 --thinking low`) and look first for the tray stall.
 
+## Model speed in the bench (14 Nov)
+
+`tools/bench.mjs` now times every model call (Director turns, rewrites and chronicle chapters) and prints a **Speed** line per run and one for all runs: calls, seconds per call, tokens in and out per call, output tok/s counting everything, and, when there are 8+ calls, a least-squares fit `ms = fixed + in/reading speed + out/writing speed`, so prompt-reading and writing speed come out separately. Reference from the 14 Nov bench (thinking low, iq3_s, RTX 3090) before this existed: 90 turns, ~17.1 s a turn, ~23.5k tokens in and ~850 out per turn, ~50 tok/s output end to end (a floor on decode speed). Also: the "the page" style check ignores "on/off/across/down/from the page" and "turn(s)/flip(s) the page", which is paper in the fiction.
+
 ## Sites 3 and 4, prepared (13 Nov, after the gate handoff — `node --test` now 141)
 
 Asked "is site 3 ready", the answer was no, and the reason is a trap in the summary line: **"Ended at: The

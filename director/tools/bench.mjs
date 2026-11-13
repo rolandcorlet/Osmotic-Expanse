@@ -61,8 +61,42 @@ if (logFile) {
   process.on('exit', () => out.end());
 }
 if ((info.key === 'required' && !apiKey) || !model) { console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`); process.exit(1); }
-const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking });
-const makeQuick = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking: 'off' }); // the chronicle: no thinking
+// Every model call is timed, so the summary can say how fast the model really is: milliseconds,
+// prompt tokens and completion tokens per call (the servers here answer whole, not streamed).
+const calls = [];
+function timed(p) {
+  const start = p.start.bind(p);
+  return { ...p, start(opts) {
+    const chat = start(opts);
+    const wrap = (fn) => async (...a) => { const t0 = Date.now(); const r = await fn(...a); calls.push({ ms: Date.now() - t0, in: r.usage ? r.usage.in : 0, out: r.usage ? r.usage.out : 0 }); return r; };
+    return { ...chat, send: wrap(chat.send.bind(chat)), results: chat.results ? wrap(chat.results.bind(chat)) : undefined };
+  } };
+}
+// ms = a + in/P + out/D, fitted by least squares over the calls: P is prompt reading speed, D is writing speed.
+function speeds(list) {
+  const n = list.length;
+  if (n < 8) return null;
+  const X = list.map((c) => [1, c.in / 1000, c.out / 1000]);
+  const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0];
+  X.forEach((x, i) => { for (let r = 0; r < 3; r++) { b[r] += x[r] * list[i].ms; for (let c = 0; c < 3; c++) A[r][c] += x[r] * x[c]; } });
+  for (let i = 0; i < 3; i++) { // Gauss-Jordan
+    let m = i; for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[m][i])) m = r;
+    if (Math.abs(A[m][i]) < 1e-9) return null;
+    [A[i], A[m]] = [A[m], A[i]]; [b[i], b[m]] = [b[m], b[i]];
+    for (let r = 0; r < 3; r++) if (r !== i) { const f = A[r][i] / A[i][i]; for (let c = i; c < 3; c++) A[r][c] -= f * A[i][c]; b[r] -= f * b[i]; }
+  }
+  const [a, perKin, perKout] = [b[0] / A[0][0], b[1] / A[1][1], b[2] / A[2][2]];
+  if (!(perKin > 0) || !(perKout > 0)) return null;
+  return { overhead: a / 1000, prefill: 1000 / perKin, decode: 1000 / perKout };
+}
+function speedLine(list, label) {
+  if (!list.length) return;
+  const ms = list.reduce((x, c) => x + c.ms, 0), tin = list.reduce((x, c) => x + c.in, 0), tout = list.reduce((x, c) => x + c.out, 0);
+  const f = speeds(list);
+  console.log(`  ${label}: ${list.length} model calls, ${(ms / list.length / 1000).toFixed(1)} s each; ${Math.round(tin / list.length)} tokens in and ${Math.round(tout / list.length)} out per call; ${(tout / (ms / 1000)).toFixed(1)} tok/s out counting everything${f ? `; fitted: reads ${Math.round(f.prefill)} tok/s, writes ${f.decode.toFixed(1)} tok/s, ${f.overhead.toFixed(1)} s fixed per call` : ''}`);
+}
+const makeProvider = () => timed(build({ provider, apiKey, baseUrl, model, numCtx, thinking }));
+const makeQuick = () => timed(build({ provider, apiKey, baseUrl, model, numCtx, thinking: 'off' })); // the chronicle: no thinking
 
 const bestiary = JSON.parse(readFileSync(join(here, '..', 'data', 'bestiary.json'), 'utf8'));
 const rng = systemRng();
@@ -180,6 +214,7 @@ async function once(n) {
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
+  const callsFrom = calls.length;
   const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {} };
 
   async function director(reason) {
@@ -277,6 +312,7 @@ async function once(n) {
   }
   console.log(`\nRun ${n}: ${tally.turns} Director turns, ${(tally.ms / tally.turns / 1000).toFixed(1)} s each on average, ${tally.tokensIn} tokens in, ${tally.tokensOut} out.`);
   console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}${Object.keys(tally.refusedBy).length ? ` — by call: ${Object.entries(tally.refusedBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
+  speedLine(calls.slice(callsFrom), 'Speed');
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);
@@ -300,4 +336,5 @@ for (let i = 1; i <= runs; i++) {
     bad += 1;
   }
 }
+if (runs > 1) { console.log(''); speedLine(calls.filter((c, i) => i >= 0), 'Speed, all runs together'); }
 console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage, unpaid Clocks, reversed rolls or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks, unpaid damage, unpaid Clocks or reversed rolls in ${runs} run(s). Read the transcript for quality.`);
