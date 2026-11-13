@@ -440,6 +440,21 @@ function payClock(s, ctx, id, delta, why) {
   return `${c.name} is now ${c.filled} of ${c.segments} (${why})`;
 }
 
+// One printed row can price more than one Clock. THE FIRST CARVE §3.2 and §3.3 both list the Cohort
+// being loud in the channels, so `loud` moves TOLL *and* HUNGER; every other row in this Vector names
+// one. Reading the map as one id each is the 13 Nov afternoon gate's defect: the Director told the
+// table "HUNGER moves a segment for a fight this loud" — which the page prints — while the Engine had
+// moved only TOLL. So a trigger names an id or a list of them, and this pays whichever it finds.
+function payTrigger(s, ctx, name, delta, why) {
+  const ids = clockTrigger(ctx, name);
+  const notes = [];
+  for (const id of Array.isArray(ids) ? ids : [ids]) {
+    const n = payClock(s, ctx, id, delta, why);
+    if (n) notes.push(n);
+  }
+  return notes;
+}
+
 // When a site's hazard may go off again, so the Engine, the briefing and the tools all read the
 // same budget. CORE 8.1: a Cycle is six seconds of combat, so inside a Pulse War a hazard is
 // budgeted per Cycle; outside one there are no Cycles and the unit is the scene (sceneNo, which
@@ -706,8 +721,7 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
     if (c) { c.harvested = true; c.harvestPending = false; }
     // 3.3: "Rewind -1 when: the Cohort harvests what it kills (each body harvested: -1, never
     // below 0)". The body is out of the water whether the sample came away clean or ruined.
-    const back = payClock(s, ctx, clockTrigger(ctx, 'bodyCut'), -1, `the body of ${c ? c.name : h.what} is cut and out of the water`);
-    if (back) notes.push(back);
+    notes.push(...payTrigger(s, ctx, 'bodyCut', -1, `the body of ${c ? c.name : h.what} is cut and out of the water`));
     if (success) got = { ...h.yield };
     else sub = 5 * (h.yield.C || 0);
   } else {
@@ -716,8 +730,7 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
     else sub = 10;
     s.scene.cuts = (s.scene.cuts || 0) + 1;
     // 3.1: "Advance +1 when: ... the Cohort opens a new panel (oxygen gets in; the job has a cost)."
-    const cost = payClock(s, ctx, clockTrigger(ctx, 'panelOpens'), 1, `${h.what} is open to the oxygen`);
-    if (cost) notes.push(cost);
+    notes.push(...payTrigger(s, ctx, 'panelOpens', 1, `${h.what} is open to the oxygen`));
   }
   if (got) queueLoot(s, ctx, got, h.what);
   if (sub) o.substrate += sub;
@@ -1168,7 +1181,7 @@ const HANDLERS = {
       // was not killed (8.3: "in a long fight, a Feeder becomes four Feeders").
       for (const c of Object.values(s.creatures)) {
         if (c.siteId === s.scene.siteId && c.down && !c.harvested && !c.stoodDown) {
-          payClock(s, ctx, clockTrigger(ctx, 'bodyLeft'), 1, `${c.name} was left uncut in the water`);
+          payTrigger(s, ctx, 'bodyLeft', 1, `${c.name} was left uncut in the water`);
         }
       }
       s.scene = { siteId: site.id };
@@ -1437,12 +1450,15 @@ const HANDLERS = {
       if (!orgIds.length) throw new RuleError('No organisms are in play yet. Players must join and choose a Hand first.');
       const here = Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && !c.down);
       s.fight = { cycle: 1, order: [], actors: {}, turn: null, startedSeq: s.seq };
-      // 3.2: "Advance +1 when: ... the Cohort is loud in the channels (a Pulse War, a collapsed
-      // panel, a corpse left in the water)". Once per scene: the law clock notices the noise, not
-      // every swing inside it.
-      const loudId = clockTrigger(ctx, 'loud');
-      const loud = s.clocks[loudId];
-      if (loud && loud.loudScene !== s.sceneNo) { loud.loudScene = s.sceneNo; payClock(s, ctx, loudId, 1, 'a Pulse War in the open: the channels are loud'); }
+      // 3.2 and 3.3: "Advance +1 when: ... the Cohort is loud in the channels (a Pulse War, a
+      // collapsed panel, a corpse left in the water)" — and §3.3 prices the same noise on the danger
+      // clock: "the Cohort fights loudly". Once per scene, whichever Clocks answer: the channels
+      // notice the noise, not every swing inside it.
+      const loudIds = [].concat(clockTrigger(ctx, 'loud')).filter((id) => s.clocks[id]);
+      if (loudIds.length && !loudIds.some((id) => s.clocks[id].loudScene === s.sceneNo)) {
+        for (const id of loudIds) s.clocks[id].loudScene = s.sceneNo;
+        payTrigger(s, ctx, 'loud', 1, 'a Pulse War in the open: the channels are loud');
+      }
       for (const id of orgIds) {
         const o = org(s, id);
         const mod = o.base.DFF + condBase(o, 'DFF') + (o.pathways['Pulse Discipline'] || 0);
@@ -1616,7 +1632,7 @@ const HANDLERS = {
       if (a.kept) {
         s.cohesion = (s.cohesion || 0) + 1;
         // 3.2: "Rewind -1 when: ... the Cohort keeps an Oath in front of a faction that notices".
-        if (v.witness) payClock(s, ctx, clockTrigger(ctx, 'oathKept'), -1, `${o.name}'s Oath was kept in front of ${v.witness}`);
+        if (v.witness) payTrigger(s, ctx, 'oathKept', -1, `${o.name}'s Oath was kept in front of ${v.witness}`);
         say(s, ctx, `${o.name} keeps the Oath: "${v.promise}"${why ? ` — ${why}` : ''}. Cohesion ${s.cohesion}.`, 'award');
       } else {
         o.countdown = clamp(o.countdown + 2, 0, o.countdownMax);

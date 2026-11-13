@@ -12,8 +12,9 @@
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the em dashes and
 // curly quotes in the transcript, so a saved gate comes out ungreppable without converting it first.
 //
-// The gate for a model: no Engine refusals, no leak flags, and every reply ends
-// on exactly one question. Nothing here touches a saved session.
+// The gate for a model: no Engine refusals, no leak flags, no harm and no Clock the narration moved
+// without paying for it, and every reply ends on exactly one question. Nothing here touches a saved
+// session.
 import { readFileSync, existsSync, mkdtempSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -150,7 +151,7 @@ async function once(n) {
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
-  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
 
   async function director(reason) {
     const t0 = Date.now();
@@ -173,7 +174,11 @@ async function once(n) {
       if (f.kind === 'style') tally.style += 1;
       // The Engine-refused count is already tallied from r.refusals; this is the other rule flag:
       // narration that described harm no tool paid for.
-      if (f.kind === 'rule' && !/^The Engine refused/.test(f.text)) tally.unpaid += 1;
+      if (f.kind === 'rule' && !/^The Engine refused/.test(f.text)) {
+        // Harm nobody paid for, and a Clock named as moving that nothing moved: the same fault in two
+        // shapes, tallied apart so a gate read says which one the table heard.
+        if (/^Names (CARCASS|TOLL|HUNGER)/.test(f.text)) tally.clocks += 1; else tally.unpaid += 1;
+      }
       console.log(`    ! ${f.kind}: ${f.text}`);
     }
   }
@@ -232,6 +237,7 @@ async function once(n) {
   console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}`);
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
+  console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);
   console.log(`  Style flags (questions, length, formatting): ${tally.style}`);
   console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled}`);
   const cards = Object.values(s.cast || {});
@@ -245,10 +251,10 @@ let bad = 0;
 for (let i = 1; i <= runs; i++) {
   try {
     const t = await once(i);
-    if (t.refusals || t.leaks || t.unpaid) bad += 1;
+    if (t.refusals || t.leaks || t.unpaid || t.clocks) bad += 1;
   } catch (e) {
     console.log(`\nRun ${i} stopped: ${e.message}`);
     bad += 1;
   }
 }
-console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks or unpaid damage in ${runs} run(s). Read the transcript for quality.`);
+console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage, unpaid Clocks or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks, unpaid damage or unpaid Clocks in ${runs} run(s). Read the transcript for quality.`);

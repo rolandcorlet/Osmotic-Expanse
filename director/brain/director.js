@@ -206,7 +206,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
     else if (cur) L.push('It is a player\'s turn: they act on their own screen. Do not act for any creature now — no creature_move, creature_strike, creature_special, creature_reserve. Creatures act only on their own turns. Narrate and ask.');
   } else {
-    L.push('# NO PULSE WAR. Pulse Points do not exist right now: do not mention them.');
+    L.push('# NO PULSE WAR. Pulse Points do not exist right now: do not mention them. Nobody has a turn, so nothing acts on one: creature_move, creature_strike, creature_special and creature_reserve are all refused out of a fight. Say what a creature here is doing in the fiction - drifting in, tasting the water, holding a way - and open the Pulse War with start_pulse_war the moment someone commits to violence.');
   }
 
   L.push('');
@@ -360,6 +360,20 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // exists if a tool paid it this turn (`since` is the state this turn started from).
   const paid = (state.log || []).some((e) => e.seq > since && (e.kind === 'hit' || e.kind === 'hazard'));
   if (!paid && UNPAID_DAMAGE.test(text)) flags.push({ kind: 'rule', text: 'Says someone took damage the Engine never paid.' });
+  // A Clock named as moving that nothing moved. §3.4 says advance a Clock in front of the players and
+  // *name* it, so naming one a call just moved is required; naming one nothing paid for is the same
+  // fault as harm nobody paid for. The 13 Nov afternoon gate, run 2: "the noise of it is being
+  // counted: HUNGER moves a segment for a fight this loud" — §3.3 prints that row, the Engine had
+  // moved TOLL, and HUNGER sat at 0 with nothing flagging it. Matched on the Capitalised Clock names
+  // only, so "the toll board" and "the carcass bursts" are not Clocks. A Clock named in a recent log
+  // line counts as paid: the page says its own moves out loud, and a Director repeating one a beat
+  // later is faithful rather than inventive.
+  const CLOCK = /\b(CARCASS|TOLL|HUNGER)\b/;
+  const CLOCK_MOVE = /\b(moves?|moved|moving|tick(?:s|ed|ing)?|climb(?:s|ed|ing)?|advance[sd]?|advancing|rewind[sd]?|rewinding|drop(?:s|ed|ing)?|falls?|fallen|step(?:s|ped)?|jump(?:s|ed|ing)?|slid(?:e[sd]?|den)|nudge[sd]?|settle[sd]?|creep(?:s|ed|ing)?|spike[sd]?)\b/i;
+  const clockLines = (state.log || []).filter((e) => e.kind === 'clock').slice(-12).map((e) => String(e.text)).join(' | ');
+  const named = [...new Set(sentences.filter((sn) => CLOCK.test(sn) && CLOCK_MOVE.test(sn)).flatMap((sn) => sn.match(new RegExp(CLOCK.source, 'g')) || []))];
+  const unpaidClock = named.filter((n) => !new RegExp(`\\b${n}\\b`).test(clockLines));
+  if (unpaidClock.length) flags.push({ kind: 'rule', text: `Names ${unpaidClock.join(' and ')} moving when nothing moved it.` });
   return flags;
 }
 
@@ -443,11 +457,13 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // flags stand (and a leak is held for the host).
   const isLeak = (f) => f.kind === 'leak';
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
-  const fixable = (f) => unpaid(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
+  const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
+  const fixable = (f) => unpaid(f) || unpaidClock(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead. "The page has nothing printed for that" is allowed.`);
-    if (flags.some(unpaid)) asks.push('It describes harm that no tool paid for this turn: the Engine hurt nobody. Say only what the tools actually did, and put no damage number in the scene.');
+    if (flags.some(unpaid)) asks.push('It describes harm that nothing paid for this turn: nobody was hurt. Say only what your calls actually did, and put no damage number in the scene.');
+    if (flags.some(unpaidClock)) asks.push('It names a Clock moving when nothing moved it: no Clock changed. Name only a Clock the page actually moved, with the segments it stands at, or say nothing about Clocks at all.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');

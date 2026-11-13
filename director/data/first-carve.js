@@ -234,8 +234,12 @@ export const scenario = {
     // 3.1-3.3 print what the place pays on its own, so the Ledger pays them when the event happens
     // in play. 3.4's cap on the Director's discretionary advance (one segment per Clock per
     // session) is untouched: these are the carcass reacting, not the host choosing. A Clock named
-    // here is a claim this Vector makes.
-    clockTriggers: { panelOpens: 'CARCASS', bodyCut: 'HUNGER', bodyLeft: 'HUNGER', loud: 'TOLL', oathKept: 'TOLL' },
+    // here is a claim this Vector makes, and one row may name more than one: §3.2 prices "the Cohort
+    // is loud in the channels (a Pulse War...)" on TOLL and §3.3 prices "the Cohort fights loudly" on
+    // HUNGER, so a Pulse War in the open moves both. Naming only TOLL is the 13 Nov afternoon gate's
+    // defect — the Director told the table HUNGER had moved, which is what the book prints, and the
+    // Engine had paid nothing to HUNGER at all.
+    clockTriggers: { panelOpens: 'CARCASS', bodyCut: 'HUNGER', bodyLeft: 'HUNGER', loud: ['TOLL', 'HUNGER'], oathKept: 'TOLL' },
   },
 };
 

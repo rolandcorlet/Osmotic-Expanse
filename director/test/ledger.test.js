@@ -519,20 +519,27 @@ test('walking out and leaving a body uncut feeds the scavengers (3.3)', () => {
   assert.equal(t2.s.clocks.HUNGER.filled, mid, 'it was harvested: nothing was left in the water');
 });
 
-test('a Pulse War in the open moves TOLL once per scene (3.2)', () => {
+test('a Pulse War in the open moves TOLL and HUNGER once per scene (3.2, 3.3)', () => {
+  // §3.2 prices the Cohort being loud in the channels on TOLL and §3.3 prices "the Cohort fights
+  // loudly" on HUNGER, so one Pulse War in the open is one event the carcass pays twice. Reading the
+  // trigger table as one Clock per row is what let run 2 of the 13 Nov afternoon gate tell the table
+  // HUNGER had moved when the Engine had only moved TOLL.
   const t = seated();
   t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
   t.host({ type: 'fight.start' });
-  assert.equal(t.s.clocks.TOLL.filled, 1, 'the channels are loud');
+  assert.equal(t.s.clocks.TOLL.filled, 1, 'the law clock hears it (3.2)');
+  assert.equal(t.s.clocks.HUNGER.filled, 1, 'and so do the scavengers (3.3)');
   t.host({ type: 'fight.end' });
   t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
   t.host({ type: 'fight.start' });
   assert.equal(t.s.clocks.TOLL.filled, 1, 'one loud thing per scene, not one per swing');
+  assert.equal(t.s.clocks.HUNGER.filled, 1, 'neither clock is paid twice in one scene');
   t.host({ type: 'fight.end' });
   t.host({ type: 'scene.set', siteId: 'soft-field' });
   t.host({ type: 'creature.add', creatures: [{ blockId: 'glaze-medusa', count: 1, band: 'near' }] });
   t.host({ type: 'fight.start' });
   assert.equal(t.s.clocks.TOLL.filled, 2, 'a new scene is loud again');
+  assert.equal(t.s.clocks.HUNGER.filled, 2, 'for both clocks');
   // And the Director still gets exactly one advance of its own for the whole session.
   t.host({ type: 'clock', id: 'TOLL', delta: 1, by: 'ai' });
   assert.equal(t.s.clocks.TOLL.filled, 3);

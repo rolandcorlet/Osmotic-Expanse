@@ -241,6 +241,10 @@ export const TOOLS = [
     run(a, T) {
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
+      // Saying it twice is not a rule break: the body is already out of the fight. The 13 Nov
+      // afternoon gate's run 2 took a refusal for restating a swarm it had already stood down, which
+      // only taught the model to argue with it. Told as a note, with the state it is in.
+      if (c.stoodDown) return { stood_down: c.name, note: `${c.name} is already stood down (${c.stoodDown.why || 'it is not fighting'}): nothing changed. It rejoins only if a player strikes it.` };
       const no = T.do({ type: 'creature.standDown', cid: c.cid, why: a.why });
       return no ? { refused: no } : { stood_down: c.name, ...(T.state.fight ? T.fightBrief() : {}) };
     },

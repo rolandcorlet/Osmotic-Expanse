@@ -1287,6 +1287,53 @@ test('narration about damage the Engine never paid is flagged, and paid damage i
   assert.ok(!checkNarration('Six kinetic punch back up through Bresk.', paid, { moved: false, since: s.seq }).some((f) => f.kind === 'rule'), 'a tool paid for this one');
 });
 
+test('a Clock named as moving in narration is checked against what the page paid for', () => {
+  // 13 Nov afternoon gate, run 2: "the noise of it is being counted: HUNGER moves a segment for a
+  // fight this loud". HUNGER sat at 0. §3.3 does print that row, so the fix is in two places: the
+  // Ledger pays it (see ledger.test.js), and the narration is checked for a Clock nothing moved.
+  const s = seated();
+  const flags = checkNarration('Somewhere behind you the noise is being counted: HUNGER moves a segment for a fight this loud. Bresk, what do you do?', s, { moved: false, since: s.seq });
+  assert.ok(flags.some((f) => f.kind === 'rule' && /^Names HUNGER/.test(f.text)), JSON.stringify(flags));
+
+  // Naming a Clock the page just moved is §3.4's instruction, not a fault.
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  T.run('move_clock', { clock: 'TOLL', change: 1, why: 'a Pulse War in the open' });
+  const paid = checkNarration('TOLL moves to one: the channels are loud, and the drones have stopped moving. Bresk, what do you do?', T.state, { moved: false, since: s.seq });
+  assert.ok(!paid.some((f) => /^Names TOLL/.test(f.text)), JSON.stringify(paid));
+  // A beat later is still faithful: the window is recent log lines, not only this turn, or every
+  // restatement of a paid Clock would burn a rewrite.
+  assert.ok(!checkNarration('TOLL moves to one, and the queue has gone quiet. Bresk, what do you do?', T.state, { moved: false, since: T.state.seq }).some((f) => /^Names TOLL/.test(f.text)), 'the next turn may name a Clock the page already moved');
+
+  // No claim that it moved, no flag — and a lowercase "toll" in prose is the board, not the Clock.
+  assert.ok(!checkNarration('The toll board hangs above an empty queue, and CARCASS is at two of six. Bresk, what do you do?', s, { moved: false, since: s.seq }).some((f) => /^Names /.test(f.text)));
+});
+
+test('outside a Pulse War the briefing says no creature acts on a turn', () => {
+  // Run 2 of the 13 Nov afternoon gate called creature_move with no fight running and was refused;
+  // nothing we said to the model had told it that was coming.
+  const b = briefing(seated(), scenario, bestiary, {});
+  assert.match(b, /NO PULSE WAR[\s\S]{0,500}creature_move/);
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('bring_creatures', { block: 'gnaw-swarm', count: 1, band: 'near' });
+  const cid = Object.keys(T.state.creatures)[0];
+  assert.match(String(T.run('creature_move', { creature: cid, band: 'mid' }).refused), /no Pulse War/i);
+});
+
+test('standing a creature down twice is a note, not a refusal', () => {
+  // Run 2's third refusal: the model restated a swarm it had already stood down and was told no.
+  let s = apply(seated(), { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  s = apply(s, { type: 'fight.start', ownDice: { wall: 6, eyes: 6, 'Order I: Lytic Swarms': 1 } }, ctx('host', null));
+  const cid = Object.keys(s.creatures)[0];
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const first = T.run('creature_stand_down', { creature: cid, why: 'it was never fighting' });
+  assert.equal(first.refused, undefined, JSON.stringify(first));
+  assert.ok(first.stood_down, 'it stands down');
+  const again = T.run('creature_stand_down', { creature: cid, why: 'it was never fighting' });
+  assert.equal(again.refused, undefined, 'restating it is not a rule break');
+  assert.match(String(again.note), /already stood down/);
+  assert.equal(T.refusals, 0, 'and the gate does not count it against the run');
+});
+
 test('while a throw is in the air, a beat that only holds it needs no question', () => {
   const s = apply(seated(), { type: 'request.check', organismId: 'eyes', baseline: 'OSM', at: 12, label: 'Taste the outflow' }, ctx('host', null));
   assert.deepEqual(checkNarration('Hold still on the cut, Brost. Nothing else moves until it lands.', s), []);
