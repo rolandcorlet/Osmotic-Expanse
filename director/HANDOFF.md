@@ -2,7 +2,7 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file) and `ed536dd` (the afternoon gate's fixes) have landed, and Roly pushed through `0f189ca` at 12:35 — so `origin/main` sits at **`0f189ca`** and **`ed536dd`, `c931149`, `f3e5a6d` and this file are what is not pushed.** Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file) and `ed536dd` (the afternoon gate's fixes) have landed, and Roly pushed at 12:35 and again at 13:18 — so `origin/main` sits at **`c931149`** (the tree the evening gate ran on) and **`f3e5a6d`, `c63e791` and this file are what is not pushed.** Roly pushes.
 
 ## Starting a new session (as at 13 Nov, ~14:40 — HEAD `f3e5a6d` plus this file)
 
@@ -21,7 +21,7 @@ on, the briefing and the instructions telling the Director that nobody acts on a
 War, and a repeat `creature_stand_down` as a note rather than a refusal), and `f3e5a6d` (the evening gate's
 one fix each: `hazard_damage` says in its own words that only this site's printed hazard counts and a
 creature's sting or field is not a hazard, and settling an already-closed Oath answers with a note).
-Roly pushed through `0f189ca` at 12:35; `ed536dd`, `c931149`, `f3e5a6d` and this file are unpushed.
+Roly pushed through `c931149` at 13:18; `f3e5a6d`, `c63e791` and this file are unpushed.
 `node --test` is
 **132 green**. The working tree shows
 ~82 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
