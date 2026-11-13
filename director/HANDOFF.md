@@ -2,11 +2,11 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`** and `rev-list --count origin/main..HEAD` was 0 when the 11:00 session checked. Since then `8358eba` has landed (the briefing held to the leak rule, plus the bench housekeeping). `8358eba` and this file are what is not pushed. Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then four more have landed: `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file), and `ed536dd` (the 13 Nov afternoon gate's fixes) with this file again on top. **`8358eba`, `0f189ca`, `ed536dd` and this file are what is not pushed.** Roly pushes.
 
-## Starting a new session (as at 13 Nov, ~12:15 — HEAD `8358eba` plus this file)
+## Starting a new session (as at 13 Nov, ~13:45 — HEAD `ed536dd` plus this file)
 
-Today landed six: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+Today landed seven: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
 ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
 `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
@@ -15,17 +15,23 @@ table never said), `cbb2e52` (an area condition: the `condition` action takes `a
 `5eee166` (a hazard pays the condition its own Effect clause prints, and the words we address the
 Director in are held to the same leak rule as its narration), and `8358eba` (the **briefing** held to
 that same rule, and the housekeeping: `*.log` in `director/.gitignore` plus a `--log <file>` flag on
-`tools/bench.mjs`). Roly pushed the morning stack at 11:01, so `origin/main` is at `ae24bc5`; only
-`8358eba` and this file are unpushed. `node --test` is
-**127 green**. The working tree shows
+`tools/bench.mjs`), and `ed536dd` (the afternoon gate's fixes: `loud` pays TOLL **and** HUNGER as §3.2
+and §3.3 print it, an **Unpaid Clocks in narration** rule flag that the bench tallies and the gate fails
+on, the briefing and the instructions telling the Director that nobody acts on a turn outside a Pulse
+War, and a repeat `creature_stand_down` as a note rather than a refusal). Roly pushed the morning stack
+at 11:01, so `origin/main` is at `ae24bc5`; `8358eba`, `0f189ca`, `ed536dd` and this file are unpushed.
+`node --test` is
+**130 green**. The working tree shows
 ~82 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
 insert/delete counts before believing a dirty tree. The two bench logs no longer show as untracked,
 because they are ignored now — get one with `--log` rather than a redirect.
 
 ### For the next session — start here
 
-Nothing is broken and waiting: 127 tests green. Of the five things queued at 11:00, **two are done**
-and **two are rulings, not jobs** — do not start either until Roly answers.
+Nothing is broken and waiting: 130 tests green, and the afternoon gate has run (its numbers and what it
+found are in the findings below). **Zero leak flags and zero unpaid damage across 81 turns**; its only
+failure was run 2's three refusals, all fixed at `ed536dd`. What is left are **rulings, not jobs** — do
+not start any of them until Roly answers.
 
 1. **DONE — the briefing is held to the leak rule (`8358eba`).** The tool strings have been swept by a
    test since `5eee166`; the briefing was the last big block of our own prose the model reads, and it
@@ -43,30 +49,46 @@ and **two are rulings, not jobs** — do not start either until Roly answers.
    takes `--log <file>` and writes its own UTF-8 copy of everything it prints, so a saved gate is
    greppable without `iconv`. New gate command:
    `node tools/bench.mjs --runs 3 --sites 2 --players 4 --thinking medium --log bench_13nov_pm.log`
-3. **RULING NEEDED — who pays a Clock when a panel is opened by a roll rather than by a harvest**
-   (Open item 5). This is better scoped than it was this morning, and it is bigger than a Clock.
-   `panelOpens` is paid at `engine/ledger.js:719`, inside the harvest branch that has no creature id,
-   so a successful roll that cracks a panel open pays CARCASS nothing; in the saved gate run 3 the
-   Director spent its one discretionary `move_clock` doing the Vector's job (log line 584). But the
-   same act also prints a second price that nothing pays: the Soft Field's Weakness line, "Cut a panel
-   loose (a Kinetic hit, 4+ Overflow) and the lane goes opaque: every contest in the room is -2 dice
-   for everyone" (`data/first-carve.js:134`). So the real question is whether "the Cohort opens a new
-   panel" becomes one Engine event that pays both. My steer is a small action the Director calls when
-   a panel is opened — CARCASS +1 and the opacity, on the printed Overflow — because that keeps the
-   rule that nothing at the table happens unless a call pays for it, and it stops the roll path
-   having to guess intent from `what_for` prose. One word from Roly and it is a change plus tests.
-4. **STILL BLOCKED — the band shift** (Open item 6): "1 band shift to all in the chamber", the Gut
+3. **DONE at `ed536dd` — the afternoon gate's three refusals and its Clock defects.** See the findings
+   block below: `loud` pays both Clocks §3.2 and §3.3 price, an Unpaid Clocks flag now fails the gate,
+   the briefing and instructions say that nobody acts on a turn outside a Pulse War, and a repeat
+   `creature_stand_down` is a note.
+4. **RULING NEEDED — who pays a Clock when a panel is opened by a roll rather than by a harvest**
+   (Open item 5). `panelOpens` is paid at `engine/ledger.js:719`, inside the harvest branch that has no
+   creature id, so a successful roll that cracks a panel open pays CARCASS nothing — and the afternoon
+   gate paid for the missing rule out of the Director's one advance: **run 3 called `move_clock
+   CARCASS +1` and `harvest` with no creature in one step and ended at CARCASS 2**, where runs 1 and 2,
+   which never spent the advance, ended at 1. So a panel is currently priced twice, or not at all,
+   depending on whether the model notices. The same printed act also carries a second price nothing pays:
+   the Soft Field's "Cut a panel loose (a Kinetic hit, 4+ Overflow) and the lane goes opaque: every
+   contest in the room is -2 dice for everyone" (`data/first-carve.js:134`). My steer is one small action
+   the Director calls when a panel opens — CARCASS +1 and the opacity on the printed Overflow — because
+   it keeps "nothing at the table happens unless a call pays for it" and stops the roll path guessing
+   intent from `what_for` prose. One word from Roly and it is a change plus tests.
+5. **STILL BLOCKED — the band shift** (Open item 6): "1 band shift to all in the chamber", the Gut
    Stone's "2-band shift" and the slough's "-1 Drift per Move" have no mechanic, so all three get
    narrated rather than paid. Nothing is built here — pricing one is Roly's call, and the printed text
    does not say which way a hazard shifts everyone (toward the breach, or away from the blast), or
    whether "-1 Drift per Move" belongs to the Move action at all.
-5. **In the next gate run, look for:** zero refusals and zero leaks, and **no `set_condition` at all**
-   after a hazard firing — the firing pays Jostled by itself now. If a run shows one `set_condition`
-   per body, something regressed. Two more tells since `8358eba`: no rewrite whose quoted text
-   contains "the Engine", "the Ledger", "the notes" or "the briefing" (the briefing sweep should have
-   removed the supply), and read whether CARCASS moved at all when a run opened a panel without
-   harvesting — that is item 3 happening live. Also budget for the style tax: 20 of ~81 turns needed
-   the one-shot rewrite last gate and 17 of those were style, not rules.
+6. **RULING NEEDED — is a swarm's Segments a creature's number, or something the players can see?** The
+   afternoon gate's Director said "each swarm is six small segments" and "six segments each, then fewer",
+   and `Segments 6` is exactly the printed Gnaw Swarmling line. The leak check catches integrity/MI
+   wording and dice, not Segments, so it passed. If it is a number it goes in `checkNarration` and the
+   rewrite prompt, not in prose; if it is observable, say so and it stays legal.
+7. **RULING NEEDED — should a guard refusal that corrects itself fail the gate?** Run 2's first refusal
+   was `swear_oath` carrying `"A promise offered to the drone gate… the players have not yet said what it
+   is"`, which is the `spokenAtTable` guard from `b4c4b07` doing precisely what it was built for; the
+   model asked for the player's words on the next turn and no false Oath was written. It still counted as
+   a refusal and cost the run the gate. Either score guard catches separately from rule breaks, or leave
+   the bar where it is and accept that a working guard makes a clean pass harder.
+8. **In the next gate run, look for:** zero refusals, zero leaks, zero unpaid damage and now also **zero
+   Unpaid Clocks**, with **HUNGER at 1 after the first Pulse War in a scene** (§3.3 paying like §3.2
+   does). Still: **no `set_condition` at all** after a hazard firing — one redundant `all_bodies` call is
+   a legal no-op (run 1 of this gate made one), but one call **per body** is a regression. And read
+   whether CARCASS reaches 2 in a run that both spent its discretionary advance and cut a panel: that is
+   item 4's double payment, which `ed536dd` did not touch. Budget for the style tax too: 20 of 81 turns
+   needed the one-shot rewrite again, and almost all of them were "ran long, read out dice, or did not
+   end on a question" rather than a rule fault.
 
 Then Phase 4 with a real group: the scripted bench is rehearsal, not the gate.
 
@@ -98,7 +120,7 @@ opened by a roll rather than by a harvest.
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**127 tests**, all green at `8358eba`, the briefing-and-housekeeping commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**130 tests**, all green at `ed536dd`, the afternoon-gate fixes), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -174,6 +196,50 @@ double-mangles em dashes and curly quotes, so it is ungreppable until converted
 (`iconv -f UTF-16LE -t UTF-8`). Better: let `bench.mjs` write its own file — it does now, with
 `--log <file>` at `8358eba`.
 
+**The 13 Nov afternoon gate (`--runs 3 --sites 2 --players 4 --thinking medium`, tree at `0f189ca`):
+GATE NOT PASSED on run 2's three refusals, and otherwise the cleanest set yet.** Run 1: 33 turns, 17.8 s
+each, 808,951 in / 28,251 out, 0 refusals, 0 leaks, 0 unpaid damage, 1 style, CARCASS 1 / TOLL 1 /
+HUNGER 0. Run 2: 24 turns, 18.2 s, 578,985 in, **3 refusals**, nothing else. Run 3: 24 turns, 662,209
+in, 0/0/0. About 2.05 M tokens for the three, all three reached The Render Hall, 6 chapters, and **zero
+leak flags across 81 turns** — the tool-string pass and the briefing pass both held. All three runs took
+the scripted "how many dice does the swarm roll, and what is its Membrane Threshold?" and answered with
+behaviour and consequence, no number, no sending the player to a sheet; run 1 also had one draft caught
+and rewritten for creature numbers before anyone saw it. The `set_condition` tell came back right: runs
+2 and 3 made **no** call after a firing (the firing paid the chamber its own Jostled), and run 1 made one
+redundant `all_bodies` call — a legal no-op on bodies already carrying it, not the per-body regression
+we were watching for.
+
+**The three refusals, and what each became.** (1) `swear_oath` with `"A promise offered to the drone
+gate… the players have not yet said what it is"` — that is the `spokenAtTable` guard working, and the
+model asked for the player's words next turn; it still fails the gate, which is Roly's call to score
+differently. (2) `creature_move` refused with "There is no Pulse War running" — nothing in the briefing
+or the standing instructions had told the model that out of a fight nobody acts on a turn, so both now
+say it, naming the four refused creature actions. (3) `creature_stand_down` on a body already stood
+down — restating a true thing is not a rule break, so the tool answers with a `note` and the run is not
+marked against it.
+
+**Two Clock defects this set found, and both were ours, not the Director's.** (a) **A panel can be paid
+twice.** Run 3 called `move_clock CARCASS +1` and `harvest` with no creature in one step, and CARCASS
+ended at 2 where runs 1 and 2 — where the Director kept its hands off — ended at 1. So the panel ruling
+below is not hypothetical: when a run opens a panel without cutting it the Director burns its one
+discretionary advance, and when it does cut, `panelOpens` pays again on top. (b) **HUNGER's printed row
+was unwired while the page priced it.** Run 2 narrated "the noise of it is being counted: HUNGER moves a
+segment for a fight this loud", HUNGER stayed at 0, and nothing flagged it. §3.2 prices the Cohort being
+loud in the channels on TOLL and §3.3 prices "the Cohort fights loudly" on HUNGER — one event, two
+Clocks — but `clockTriggers` held one id per row. So `loud: ['TOLL', 'HUNGER']` now, paid through
+`payTrigger`, still once per scene, and a `checkNarration` rule flag (**Unpaid Clocks in narration**,
+tallied by the bench and it fails the gate) names a Clock the narration moved when the recent log lines
+show nothing moved it. Naming a Clock the page did move stays legal and required: §3.4 says advance it in
+front of the players and name it, and the check window is recent log lines, not only this turn, so a
+faithful restatement a beat later does not burn a rewrite. The match is on the Capitalised Clock names,
+so "the toll board" and "the carcass bursts" are not Clocks.
+
+**One ruling this set leaves open: segment counts.** The Director said "each swarm is **six small
+segments**" and "six segments each, then fewer". `Segments 6` is the printed Gnaw Swarmling line
+(`MT 12 · MI 10 · soak 0 · pool 3d · Segments 6`) and the leak check only catches integrity/MI wording,
+so it passed. Is a swarm's Segments a creature's number like MI, or something the players can watch? If
+it is a number it goes in the check, not in prose.
+
 **The Director may only swear words the table said (13 Nov).** Bench run 3 swore
 `"Bresk's own words: \"We have no stamp. We offer a promise, witnessed and filed.\" — to be asked what is
 promised."` The Engine wrote that into the Oath, `recall` later read it back to Bresk as his own promise, and a
@@ -219,7 +285,12 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    the lane goes opaque: every contest in the room is -2 dice for everyone" (`data/first-carve.js:134`) — so
    the question is really whether "a panel is opened" becomes one Engine event paying both. My steer is the
    small action: it keeps the "nothing happens unless a call pays for it" rule and avoids matching prose in
-   `what_for` to decide what a roll meant.
+   `what_for` to decide what a roll meant. **The afternoon gate priced the same act twice:** run 3 spent the
+   Director's one `move_clock` and then `harvest`ed the panel, and CARCASS ended at 2.
+   **Fixed at `ed536dd`, two parts:** `loud` now names `['TOLL','HUNGER']` because §3.2 and §3.3 both price
+   the Cohort being loud (paid through `payTrigger`, still once per scene), and `checkNarration` flags a
+   Clock the narration moves that nothing moved — **Unpaid Clocks in narration** — which the bench tallies
+   and the gate fails on.
    Also unbuilt: the **Beat**
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
    (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, and the Gut Stone's serial turned in at a
