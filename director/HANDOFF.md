@@ -17,6 +17,17 @@ What the gate failed on, and what each turned out to be: **three false leaks and
 
 Checked by running every real `DIRECTOR:` line of the saved bench through `checkNarration`: the three false leaks are gone and the one genuine double question remains flagged. **Not changed, still true:** the model's own habits (Pulse War granularity made run 3 124 turns; "ran long" rewrites on about a third of turns), and none of this has been run against a live model since. Re-run `node tools/bench.mjs --runs 3 --sites 2 --players 4 --thinking low`.
 
+## Bench of 14 Nov, second (thinking low, 3 runs): GATE PASSED, then the quality read (`node --test` 146)
+
+Zero refusals, leaks, unpaid damage, Clocks or reversed rolls. What the transcript still showed, and what changed:
+1. **Run 1 stalled eight turns on a tray that was empty.** The bench had shared all 14 Specimens at once, but the Director's own last line ended "take one or pass", so it kept telling the table the lane was waiting on "six more Specimens from the Sentinel" that never existed, and refused to let anyone move. Now: the briefing says **NOTHING IS WAITING TO BE SHARED** when the queue is empty, the harvest tool note says sharing does not hold the Cohort up and not to ask anyone to take or pass, and `instructions.md` says the same. (Only stamping waits; `change_site` was never blocked by the queue.)
+2. **Creature damage in numbers** ("Fourteen points of damage tear through the overlap", run 2): new leak flag when "N points of damage" appears with no player named.
+3. **"The page" spoken to the table** ("The page is clear: a swarm offered drink leaves in one sentence"): new style flag; only "The page has nothing printed for that" may name it.
+4. **Pulse Points mentioned after the fight ended** is now rewritten once instead of only flagged.
+5. **A declared attack that opens a Pulse War was narrated as landing** (runs 2 and 3: "scatters half of them") with no roll behind it. Instruction added: that blow is thrown on the player's own turn.
+
+Left alone: "RUNAWAY CATALYSIS" and "Lodged" said as rules words; the award narrated "between you" when it is 20 Codon each; the chronicle files dead swarms as `[faction]` cast; the 1-in-3 turns that still need the length rewrite; run 3's last Long flag survived its rewrite. Next: re-run the same bench (`--runs 3 --sites 2 --players 4 --thinking low`) and look first for the tray stall.
+
 ## Sites 3 and 4, prepared (13 Nov, after the gate handoff — `node --test` now 141)
 
 Asked "is site 3 ready", the answer was no, and the reason is a trap in the summary line: **"Ended at: The

@@ -1497,3 +1497,19 @@ test('14 Nov: out-of-turn creature calls say who is up, and ending a turn it is 
   const e = T.run('end_creature_turn', { creature: cid });
   assert.ok(!e.refused && /no turn to end/.test(e.note), 'ending a turn it is not taking is a note');
 });
+
+test('14 Nov (second bench): damage dealt to a creature is its health, "the page" is not for the table, and an empty tray is said', () => {
+  const s = seated();
+  const flags = (t, st = s) => checkNarration(t, st).map((f) => `${f.kind}: ${f.text}`);
+  assert.ok(flags('Five points of damage bite in, and the dagger lodges. Brost, what now?').some((f) => /^leak: Gives how much damage/.test(f)));
+  assert.ok(!flags('Bresk takes six points of damage from the blast. Brost, what now?').some((f) => /^leak/.test(f)));
+  assert.ok(flags('Yes, water works. The page is clear: a swarm offered drink leaves. Brost, what now?').some((f) => /the page/.test(f)));
+  assert.ok(!flags('The page has nothing printed for that. Brost, what now?').some((f) => /the page/.test(f)));
+  assert.ok(flags('The Sentinel folds. Bresk, one Pulse Point left. What now?').some((f) => /^style: Mentions Pulse Points/.test(f)));
+  // After a harvest has been shared out, the briefing says nothing is waiting, so the Director cannot invent a full tray.
+  let t = seated();
+  t = { ...t, loot: { ...(t.loot || {}), order: Object.keys(t.organisms).filter((k) => t.organisms[k].playerId), queue: [], offer: null } };
+  const b = briefing(t, scenario, bestiary);
+  assert.match(b, /NOTHING IS WAITING TO BE SHARED/);
+  assert.ok(!BRIEFING_LEAK.test(b.split('\n').filter((l) => /NOTHING IS WAITING/.test(l)).join(' ')));
+});

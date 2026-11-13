@@ -430,7 +430,7 @@ export const TOOLS = [
         const r = T.state.rolls[T.state.rolls.length - 1];
         const L = T.state.loot || {};
         const who = L.offer ? T.state.organisms[L.offer.orgId].name : null;
-        return { no_roll_needed: true, result: r.harvest, note: (r.notes || []).join(' '), sharing: L.queue && L.queue.length ? `${L.queue.length} Specimen${L.queue.length === 1 ? '' : 's'} now go round the picking order, one at a time; ${who} chooses first. The players take or pass on their own screens: do not say who gets what.` : undefined };
+        return { no_roll_needed: true, result: r.harvest, note: (r.notes || []).join(' '), sharing: L.queue && L.queue.length ? `${L.queue.length} Specimen${L.queue.length === 1 ? '' : 's'} now go round the picking order, one at a time; ${who} chooses first. The players take or pass on their own screens: do not say who gets what, do not ask anyone to take or pass, and end on what the Cohort does next. Sharing does not hold them up.` : undefined };
       }
       const q = T.state.requests[T.state.requests.length - 1];
       return { waiting_for: o.name, dice: q.pool.dice, threshold: q.at, note: 'The roll is on their screen. Narrate the cut beginning, and end your turn.' };

@@ -151,6 +151,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       L.push('The players take or pass on their own screens, and whoever is offered goes to the back of the order either way. Never choose for them, and never say who got what: it is written down as they pick, and the players see it on their own screens.');
       L.push('');
     } else if ((Lt.order || []).length > 1) {
+      L.push('# NOTHING IS WAITING TO BE SHARED. Every Specimen cut so far has been picked or passed. Sharing never holds the Cohort up: do not tell anyone to take or pass, and do not say anything is left in the water or blocking the way.');
       L.push(`Picking order for the next harvest: ${Lt.order.map((id) => (state.organisms[id] || {}).name || id).join(', ')}.`);
       L.push('');
     }
@@ -367,6 +368,13 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     return kinds.length > 0 && !people.some((p) => low.includes(p)) && !HARVEST_WORDS.test(sn);
   });
   if (segSentence) flags.push({ kind: 'leak', text: 'Counts a swarm\'s Segments or sections, which is its health track.' });
+  // "Fourteen points of damage tear through the overlap": what a blow took off a creature is its
+  // health in the other direction. Bench 14 Nov (second): the same "points of damage" is fine said of a
+  // player, so it only counts when no player is named in the sentence.
+  const HITNUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\\s+points?\\s+of\\s+(?:\\w+\\s+)?damage\\b`, 'i');
+  if (sentences.some((sn) => HITNUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
+  // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
+  if (/\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).
@@ -520,7 +528,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier)/.test(f.text));
+  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page")/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -529,6 +537,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     if (flags.some(reversed)) asks.push('It describes the opposite of a throw the page has already passed: that throw succeeded and the player saw the total on their own screen. Say what the success did - and what it cost, if the page priced a cost - and do not undo it.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
     if (flags.some((f) => /^Asks \d+ questions/.test(f.text))) asks.push('It asks the table more than one question: ask exactly one, to one named organism, and fold any other choice into it ("do you X, or Y?"). What a character in the fiction says aloud may stay a question.');
+    if (flags.some((f) => /^Mentions Pulse Points/.test(f.text))) asks.push('It mentions Pulse Points, but no Pulse War is running: leave Pulse Points out and say only what the Cohort sees and can do.');
+    if (flags.some((f) => /^Speaks of "the page"/.test(f.text))) asks.push('It speaks of "the page" as though the players could read it. Say what is true in the fiction instead; only "The page has nothing printed for that" may name it.');
     if (flags.some((f) => /^Repeats an earlier/.test(f.text))) asks.push('It repeats words you already used in an earlier line: say what is new this time, as this roll changed it, in fresh words.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
