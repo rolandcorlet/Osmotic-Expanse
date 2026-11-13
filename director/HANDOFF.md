@@ -6,6 +6,17 @@ Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, 
 **`edfe4bb`** and everything written above this line is **already pushed**. What is unpushed is the site 3
 and 4 prep below it.
 
+## Bench of 14 Nov (thinking low, 4 runs, 3 failed) and the fixes (`node --test` now 145)
+
+What the gate failed on, and what each turned out to be: **three false leaks and a refusal habit, not the model leaking.**
+1. *Segments leak (run 2)* flagged "CARCASS ticks forward one segment" — a Clock's segment. Sentences naming a Clock are now skipped.
+2. *Machinery leak (run 3)* flagged "the better tool" in "Your Needle Dagger is fine and silent — maybe the better tool". `MACHINERY` now wants "tool call/result/schema" or "the tool refused/returned/said", not the bare word.
+3. *"Asks 2 questions" (3 of them)*: two were a clerk's question inside quotation marks. Questions inside quotes are no longer counted; the one genuine double question is now also in `fixable`, so it gets the one rewrite (it never did before).
+4. *Refusals*: `move_clock` HUNGER twice (run 1) after the one AI advance was spent — now a **note** that says nothing moved. Run 3's five were creature calls out of turn (`end_creature_turn`/`creature_strike`/`creature_move`, once with an organism id): `end_creature_turn` for a creature that is not acting is a note; the other refusals now end "Acting now: <name>".
+5. *New check, "Repeats an earlier line"*: run 3 narrated three different Vash rolls against the mite with the same paragraph word for word. Four-word-shingle overlap of 40% with any of the last four narrations is a style flag and gets the one rewrite.
+
+Checked by running every real `DIRECTOR:` line of the saved bench through `checkNarration`: the three false leaks are gone and the one genuine double question remains flagged. **Not changed, still true:** the model's own habits (Pulse War granularity made run 3 124 turns; "ran long" rewrites on about a third of turns), and none of this has been run against a live model since. Re-run `node tools/bench.mjs --runs 3 --sites 2 --players 4 --thinking low`.
+
 ## Sites 3 and 4, prepared (13 Nov, after the gate handoff — `node --test` now 141)
 
 Asked "is site 3 ready", the answer was no, and the reason is a trap in the summary line: **"Ended at: The

@@ -357,6 +357,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // slow segments apiece", straight out of the saved gate).
   const HARVEST_WORDS = /\b(cut|cuttable|cut-able|unstamped|stamped|specimen|specimens|weigh|scale|carry|carried|bulk|harvest|lipid|panel|panels|tissue|sheet|sheets|cradle|crate|crates|picking|picks|share|shared|pass|passed|screen|screens|wreck|wreckage|remains|scraps?|heaps?|harvested)\b/i;
   const segSentence = sentences.find((sn) => {
+    // A Clock has segments too ("CARCASS ticks forward one segment"): that is the table's own count.
+    if (/\b(?:CARCASS|TOLL|HUNGER)\b|\bClocks?\b/.test(sn)) return false;
     const m = sn.match(SEGMENTS);
     if (!m && !SEGMENTS_OF_CREATURE.test(sn)) return false;
     if (m && ownedByCreature(sn, m)) return true;
@@ -369,7 +371,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).
   const pend = (state.requests || []).map((rq) => (rq.kind === 'incoming' ? rq.target : rq.actor)).filter((a) => a && a.kind === 'org');
-  const q = (text.match(/\?/g) || []).length;
+  // A clerk's question inside quotation marks is the fiction speaking, not the Director asking the table.
+  const q = (text.replace(/"[^"]*"|“[^”]*”/g, ' ').match(/\?/g) || []).length;
   // With a throw in the air the table is already waiting on one screen, so a beat that only holds
   // ("nothing else moves until it lands") needs no question of its own.
   if (q === 0 && !moved && !pend.length) flags.push({ kind: 'style', text: 'Does not end on a question.' });
@@ -381,6 +384,14 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     const lastQ = (text.match(/[^?]*\?/g) || []).pop() || '';
     const other = Object.values(state.organisms || {}).find((o) => o.playerId && !waiters.includes(first(o.name).toLowerCase()) && new RegExp(`\\b${firstName(o.name)}\\b`, 'i').test(lastQ));
     if (other) flags.push({ kind: 'style', text: `Puts a new question to ${other.name} while ${pend.map((a) => a.name).join(' and ')} still has a throw in the air.` });
+  }
+  // The same paragraph twice. Bench 14 Nov, run 3: a miss was narrated with the very words of the miss
+  // before it, three rolls running, whatever the dice said. Four-word runs shared with a recent line.
+  const shingles = (t) => { const w = String(t).toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').split(/\s+/).filter(Boolean); const out = new Set(); for (let i = 0; i + 4 <= w.length; i++) out.add(w.slice(i, i + 4).join(' ')); return out; };
+  const mine = shingles(text);
+  if (mine.size >= 12) {
+    const before = (state.story || []).filter((e) => e.kind === 'narration').slice(-4);
+    if (before.some((e) => { const th = shingles(e.text); let n = 0; for (const g of mine) if (th.has(g)) n++; return n / mine.size >= 0.4; })) flags.push({ kind: 'style', text: 'Repeats an earlier line.' });
   }
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 170) flags.push({ kind: 'style', text: `Long: ${words} words.` });
@@ -429,7 +440,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
 
 // The machinery, as the table must not hear it. Deliberately not "the page": instructions.md tells
 // the Director to use that sentence when the players want something off the page.
-export const MACHINERY = /Director-only|site notes|\bthe notes\b|briefing|\btool\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
+export const MACHINERY = /Director-only|site notes|\bthe notes\b|briefing|\btools?\s+(?:calls?|results?|schema)\b|\b(?:the|your|my)\s+tools?\s+(?:refused|returned|said|says|told|allows?)\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
 
 // The same rule, aimed at the prose WE hand the Director. Run 1 of the 13 Nov gate said "Next
 // briefing will carry the Soft Field" to the players — a string of ours, quoted back — and a test now
@@ -509,7 +520,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
+  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -517,6 +528,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     if (flags.some(unpaidClock)) asks.push('It names a Clock moving when nothing moved it: no Clock changed. Name only a Clock the page actually moved, with the segments it stands at, or say nothing about Clocks at all.');
     if (flags.some(reversed)) asks.push('It describes the opposite of a throw the page has already passed: that throw succeeded and the player saw the total on their own screen. Say what the success did - and what it cost, if the page priced a cost - and do not undo it.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
+    if (flags.some((f) => /^Asks \d+ questions/.test(f.text))) asks.push('It asks the table more than one question: ask exactly one, to one named organism, and fold any other choice into it ("do you X, or Y?"). What a character in the fiction says aloud may stay a question.');
+    if (flags.some((f) => /^Repeats an earlier/.test(f.text))) asks.push('It repeats words you already used in an earlier line: say what is new this time, as this roll changed it, in fresh words.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
     if (flags.some((f) => /^Puts a new question/.test(f.text))) {

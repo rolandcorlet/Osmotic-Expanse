@@ -97,6 +97,11 @@ function findCre(s, ref) {
 const whoIsHere = (s) => Object.values(s.organisms).filter((o) => o.playerId).map((o) => `${o.id} (${o.name})`).join(', ');
 const whatIsHere = (s) => Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId).map((c) => c.cid).join(', ');
 const noOrg = (ref, s) => ({ refused: `No organism called "${ref}" is in play. Here: ${whoIsHere(s) || 'nobody has claimed a body yet'}.` });
+// A refusal for acting out of turn says whose turn it is, so the next call is the right one.
+const withTurn = (T, no) => {
+  if (!T.state.fight || !/\bturn\b/i.test(String(no))) return no;
+  return `${no} Acting now: ${T.fightBrief().acting_now}.`;
+};
 const noCre = (ref, s) => ({ refused: `No creature called "${ref}" is in this scene. Here: ${whatIsHere(s) || 'nothing has been brought in at this site'}.` });
 
 function lastRoll(s) {
@@ -194,7 +199,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Drift', cost: 1, band: a.band });
-      return no ? { refused: no } : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? { refused: withTurn(T, no) } : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
@@ -229,7 +234,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: String(a.what || 'Special').slice(0, 40), cost: a.cost });
-      return no ? { refused: no } : { done: a.what, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? { refused: withTurn(T, no) } : { done: a.what, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
@@ -240,7 +245,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 });
-      return no ? { refused: no } : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? { refused: withTurn(T, no) } : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
@@ -267,8 +272,11 @@ export const TOOLS = [
       if (!c) return noCre(a.creature, T.state);
       // A creature that is down or has stood down has no turn to end: say so without a refusal.
       if (T.state.fight && (c.down || c.stoodDown)) return { note: `${c.name} is out of the fight and has no turn to end.`, ...T.fightBrief() };
+      // Ending a turn it is not taking is a no-op, not a rule break: say who is up instead.
+      const act = T.state.fight && T.state.fight.actors[`cre:${c.cid}`];
+      if (act && act.status !== 'acting' && act.status !== 'holding') return { note: `${c.name} is not acting, so it has no turn to end. Nothing changed.`, ...T.fightBrief() };
       const no = T.do({ type: 'turn.end', cid: c.cid });
-      return no ? { refused: no } : T.fightBrief();
+      return no ? { refused: withTurn(T, no) } : T.fightBrief();
     },
   },
   {
@@ -366,6 +374,9 @@ export const TOOLS = [
     run(a, T) {
       const d = Math.trunc(Number(a.change));
       if (d !== 1 && d !== -1) return { refused: 'A Clock moves one segment at a time: +1 or -1.' };
+      // Your one advance is spent: that is a note, not a rule break, and it must not be narrated as a move.
+      const was = T.state.clocks[a.clock];
+      if (was && d > 0 && was.aiAdvanced) return { clock: was.name, now: `${was.filled}/${was.segments}`, note: `${was.name} has already taken your one advance this session. Nothing moved: do not name it as moving, and do not try it again.` };
       const no = T.do({ type: 'clock', id: a.clock, delta: d, why: a.why, by: 'ai' });
       if (no) return { refused: no };
       const c = T.state.clocks[a.clock];

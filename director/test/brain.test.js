@@ -90,10 +90,10 @@ test('the Engine refuses what is off the page', () => {
   assert.match(T.run('award', { codon: 500, why: 'x' }).refused, /not printed for this site/);
   assert.match(T.run('creature_strike', { creature: 'ghost', target: 'wall' }).refused, /No creature/);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'a loud fight' }).now, '1/5');
-  assert.match(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'again' }).refused, /at most one segment per session/);
+  assert.match(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'again' }).note, /already taken your one advance/);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: -1, why: 'a toll chit' }).now, '0/5');
   assert.match(T.run('rest', {}).rested ? 'ok' : 'no', /ok/);
-  assert.equal(T.refusals, 7, 'repeats of what is already true are notes, not refusals');
+  assert.equal(T.refusals, 6, 'repeats of what is already true are notes, not refusals');
   assert.equal(Object.keys(T.state.creatures).length, 2, 'only the printed two swarms came in');
 });
 
@@ -1454,4 +1454,46 @@ test('while a throw is in the air, a beat that only holds it needs no question',
   const s = apply(seated(), { type: 'request.check', organismId: 'eyes', baseline: 'OSM', at: 12, label: 'Taste the outflow' }, ctx('host', null));
   assert.deepEqual(checkNarration('Hold still on the cut, Brost. Nothing else moves until it lands.', s), []);
   assert.deepEqual(checkNarration('The current slackens and the lane waits.', seated()).map((f) => f.kind), ['style'], 'with nobody waiting, one question is still required');
+});
+
+// ---- Bench of 14 Nov (thinking low, four runs): what the checks and tools got wrong ----
+test('14 Nov: a clerk\'s quoted question is not the Director\'s, but two real questions are', () => {
+  const s = seated();
+  const st = (t) => checkNarration(t, s).filter((f) => f.kind === 'style').map((f) => f.text);
+  assert.deepEqual(st('The clerk sets down its stylus. "You want stamped, or you want to talk?" Its tone says it suspects both.\n\nBrost, what do you say to the clerk?'), []);
+  assert.deepEqual(st('The drone looks up. "Escort pays or vouches. Which is it?"\n\nBresk, what do you put down?'), []);
+  assert.ok(st('Do you step to the plate with paper? Or do you finish what Bresk started?').some((t) => /^Asks 2 questions/.test(t)));
+  // A question that is only ever spoken aloud does not end the beat on a question to the table.
+  assert.ok(st('The clerk says, "Well, which is it?" and waits.').some((t) => /^Does not end/.test(t)));
+});
+
+test('14 Nov: a Clock\'s segment is not a creature\'s health track, and "tool" is a word in the fiction', () => {
+  const f = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const leaks = (t) => checkNarration(t, f).filter((x) => x.kind === 'leak').map((x) => x.text);
+  assert.deepEqual(leaks('The claw pulls the sheet free. CARCASS ticks forward one segment. Brost, what do you do?'), []);
+  assert.deepEqual(leaks('Your Needle Dagger is fine and silent, maybe the better tool here. What do you do?'), []);
+  assert.ok(leaks('It has six slow segments apiece. Brost, what do you do?').length === 1);
+  assert.ok(leaks('The tool call returned a refusal. Brost, what do you do?').length === 1);
+});
+
+test('14 Nov: a paragraph repeated word for word after a different roll is flagged', () => {
+  const s = seated();
+  const line = 'The blade carves in twice more and the mite\'s membrane pre-flexes both times, that held-back tension catching the edge and shoving it off-course like a stone skipping off water.';
+  const withStory = { ...s, story: [{ kind: 'narration', text: line, id: 's1' }] };
+  const kinds = (t, st) => checkNarration(t, st).filter((f) => f.kind === 'style').map((f) => f.text);
+  assert.ok(kinds(`${line} Vash, what now?`, withStory).some((t) => /^Repeats/.test(t)));
+  assert.ok(!kinds('The edge finds a seam this time and the water around the mite clouds with its own milk. Vash, what now?', withStory).some((t) => /^Repeats/.test(t)));
+});
+
+test('14 Nov: out-of-turn creature calls say who is up, and ending a turn it is not taking is a note', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng });
+  const cid = Object.keys(T.state.creatures)[0];
+  const cur = T.state.fight.actors[T.state.fight.turn];
+  if (cur.kind === 'cre') assert.ok(!T.run('end_creature_turn', { creature: cid }).refused); // its turn is over: now it waits
+  const r = T.run('creature_move', { creature: cid, band: 'mid' });
+  assert.match(r.refused, /not .* turn[\s\S]*Acting now:/);
+  const e = T.run('end_creature_turn', { creature: cid });
+  assert.ok(!e.refused && /no turn to end/.test(e.note), 'ending a turn it is not taking is a note');
 });
