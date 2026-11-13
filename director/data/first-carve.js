@@ -185,6 +185,12 @@ const sites = [
     encounter: [{ blockId: 'receptor-lurker', count: 2 }, { blockId: 'drifter-shoal', count: 3 }],
     // Paid by the Engine when one of these is harvested, never by the Director's award.
     harvestPays: { 'receptor-lurker': { codon: 3 }, 'drifter-shoal': { codon: 1.5 } },
+    // 8.4 prices this room's cut the other way round from 3.3's cleanup row: "if the brood is
+    // registered, a Name. If harvested instead: 400 to 900 S, HUNGER +2, TOLL +1. Both are legitimate
+    // play: charge for both." The page prices the *act*, so `oncePerScene`: the first body cut in the
+    // brood pays both Clocks and the rest of the shoal does not stack them. A site's row replaces the
+    // Vector's row for that event here, because this is not the Cohort cleaning the water.
+    clockTriggers: { bodyCut: { HUNGER: 2, TOLL: 1, oncePerScene: true } },
     host: {
       cite: 'Vector §8.4',
       play: 'Nothing here wants to fight. What is here wants to be legal. Run the room as Lesson 5: three exchanges, Stakes Ladder visible, and state what success buys first. The drone elder is Nine-Folds.',

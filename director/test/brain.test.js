@@ -1162,6 +1162,28 @@ test('a hazard may be the Cost of a throw that failed, but never the price of on
   assert.match(landed.run('hazard_damage', { organism: 'eyes', amount: 6, trigger: 'failed roll', why: 'the pocket' }).refused, /succeeded[\s\S]*a hazard is not its price/);
 });
 
+test('the later rooms answer the Director: what is printed there can be brought and is policed', () => {
+  // Nothing has ever been called at the Render Hall in a bench run: every saved gate stops at the
+  // arrival line. So the tool layer is checked against the room directly - the creatures the page
+  // prints there, the hazard it prices there, and the site policing that keeps another room's
+  // creatures out of it.
+  const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
+  T.run('change_site', { site: 'soft-field' });
+  T.run('change_site', { site: 'render-hall' }); // the cut-lane is the only way into the stomach
+  const brought = T.run('bring_creatures', { block: 'cytoplasmic-bleeder', count: 3, band: 'near' });
+  assert.equal(brought.refused, undefined, '3 Cytoplasmic Bleeders are printed for the stomach');
+  assert.ok(Object.values(T.state.creatures).filter((c) => c.siteId === 'render-hall').length >= 3, 'and they are in the scene');
+  assert.match(T.run('bring_creatures', { block: 'gnaw-swarm', count: 1 }).refused, /not printed for The Render Hall[\s\S]*cytoplasmic-bleeder/, 'another room\'s swarm cannot be brought here');
+  // 8.3: "Trigger: entering Mid band, or a Strike inside it. Effect: 8 Lytic, -1 soak until repaired."
+  assert.match(T.run('hazard_damage', { organism: 'wall', amount: 9, type: 'Lytic', trigger: 'a Strike', why: 'the field' }).refused, /does 8 Lytic, not 9/, 'the field is the page\'s number');
+  assert.match(T.run('hazard_damage', { organism: 'wall', amount: 8, type: 'Lytic', trigger: 'Momentum', why: 'the field' }).refused, /not a printed trigger[\s\S]*entering Mid band/, "and the page's trigger, not the Toll-Vent's");
+  assert.equal(T.run('hazard_damage', { organism: 'wall', amount: 8, type: 'Lytic', trigger: 'a Strike', why: 'a Strike inside the haze' }).refused, undefined, 'one firing lands');
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 8, type: 'Lytic', trigger: 'a Strike', why: 'again' }).refused, /already gone off|not again/, 'and it is one firing per scene outside a Pulse War');
+  // The Brood: its own printed encounter can be brought, even though it prints no hazard.
+  T.run('change_site', { site: 'brood' });
+  assert.equal(T.run('bring_creatures', { block: 'drifter-shoal', count: 3, band: 'mid' }).refused, undefined, 'the shoal is printed here');
+});
+
 test('a site that prints no hazard cannot hurt anyone by hazard', () => {
   const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
   T.state = apply(T.state, { type: 'scene.set', siteId: 'brood' }, ctx('host', null));

@@ -467,15 +467,16 @@ test('a new game: everything fresh, and the table can stay seated', () => {
 // stays. What the Engine now pays by itself is the other half of the same three sections: the lists
 // of "Advance +1 when" and "Rewind -1 when", which are the place reacting, not the host choosing.
 
-// One fresh swarm, already broken, harvested with a clean throw. Returns its id.
-function downOneSwarm(t) {
+// One fresh body of a printed block, already broken, harvested with a clean throw. Returns its id.
+function brokenBody(t, blockId = 'gnaw-swarm') {
   const before = Object.keys(t.s.creatures);
-  t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] });
+  t.host({ type: 'creature.add', creatures: [{ blockId, count: 1, band: 'near' }] });
   const cid = Object.keys(t.s.creatures).find((k) => !before.includes(k));
   t.host({ type: 'damage', target: { kind: 'cre', id: cid }, amount: 99 });
   assert.equal(t.s.creatures[cid].down, true, 'a broken body is what can be cut');
   return cid;
 }
+function downOneSwarm(t) { return brokenBody(t); }
 function harvestBody(t, cid, pid = 'p2', orgId = 'eyes') {
   t.as(pid, { type: 'harvest', organismId: orgId, cid });
   if (t.s.requests.length) t.as(pid, { type: 'roll', requestId: t.s.requests[0].id, dice: Array(t.s.requests[0].pool.dice).fill(6) });
@@ -492,6 +493,34 @@ test('each body harvested rewinds HUNGER by one, and never below zero (3.3)', ()
   harvestBody(t, second);
   assert.equal(t.s.clocks.HUNGER.filled, 0, 'never below 0, as printed');
   assert.ok(t.s.log.some((l) => l.kind === 'clock' && /HUNGER/.test(l.text)), 'and it says so in the log');
+});
+
+test('a room may price the same act its own way: the Brood cut is a feeding (8.4)', () => {
+  // 8.4: "if the brood is registered, a Name. If harvested instead: 400 to 900 S, HUNGER +2, TOLL +1.
+  // Both are legitimate play: charge for both." In this room a cut is not 3.3's cleanup (-1 a body):
+  // it is a feeding and it is heard, so the site's own row replaces the Vector's row for `bodyCut`.
+  // The page prices one act, so `oncePerScene` - the second body in the same scene stacks nothing.
+  const t = seated();
+  t.host({ type: 'scene.set', siteId: 'brood' });
+  const hunger = t.s.clocks.HUNGER.filled, toll = t.s.clocks.TOLL.filled;
+  harvestBody(t, brokenBody(t, 'receptor-lurker'));
+  assert.equal(t.s.clocks.HUNGER.filled, hunger + 2, 'the cut feeds what is left in the Reach');
+  assert.equal(t.s.clocks.TOLL.filled, toll + 1, 'and it is heard by the law');
+  harvestBody(t, brokenBody(t, 'drifter-shoal'));
+  assert.equal(t.s.clocks.HUNGER.filled, hunger + 2, 'one act, once per scene, not once per body');
+  assert.equal(t.s.clocks.TOLL.filled, toll + 1, 'nor twice for the same room');
+  assert.ok(t.s.log.some((l) => l.kind === 'clock' && /HUNGER/.test(l.text)), 'and the players are told');
+  // A scene change is a new act in the page's own unit, the way `loud` re-arms: +2 again, not +1 and
+  // not the leftover bodies. Drop `oncePerScene` in the data and every body cut stacks it instead.
+  t.host({ type: 'scene.set', siteId: 'brood' });
+  harvestBody(t, brokenBody(t, 'drifter-shoal'));
+  assert.equal(t.s.clocks.HUNGER.filled, hunger + 4, 'a new scene prices a new feeding');
+  assert.equal(t.s.clocks.TOLL.filled, toll + 2, 'and the law hears it once per scene as well');
+  // And the Vector's row is untouched in a room that does not price it differently.
+  const t2 = seated();
+  t2.host({ type: 'clock', id: 'HUNGER', delta: 2 });
+  harvestBody(t2, brokenBody(t2));
+  assert.equal(t2.s.clocks.HUNGER.filled, 1, 'at the Toll-Vent a body cut is still -1 (3.3)');
 });
 
 test('opening a panel at a cuttable site costs CARCASS a segment (3.1)', () => {

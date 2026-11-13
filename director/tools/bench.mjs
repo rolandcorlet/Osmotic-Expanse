@@ -6,6 +6,8 @@
 //   node tools/bench.mjs --runs 3
 //   node tools/bench.mjs --provider ollama --model <name>     try another one
 //   node tools/bench.mjs --sites 2 --players 4                 two sites and four players (Phase 4 rehearsal)
+//   node tools/bench.mjs --sites 3 --players 4                 on through the Render Hall; 4 adds the Brood
+//                                                              (a long run - the gate stays at 2)
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //   node tools/bench.mjs --runs 3 --log bench_13nov_am.log    write the whole run to a UTF-8 file
 //
@@ -42,7 +44,7 @@ const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemi
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default'); // default | medium | low | off (local models)
 const runs = Number(opt('--runs', 1));
-const sites = Number(opt('--sites', 1)); // 2 plays on through the Soft Field: harvest, the Tally Post, and out
+const sites = Number(opt('--sites', 1)); // how far the scripted table plays: 2 Soft Field, 3 Render Hall, 4 Brood
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 const logFile = opt('--log', '');
 
@@ -91,6 +93,33 @@ const SCRIPT2 = [
   ['p4', 'I leave the nest alone. Is anything stopping us going on?'],
   ['p1', 'Remind me: who witnessed my oath back at the gate, and what exactly did I promise?'],
   ['p2', 'We take the lane onward to the Render Hall.'],
+];
+// Site 3: the stomach, which is the Pulse War room and the one where the ground is the argument. The
+// table works the bands, asks what the pump is worth, and takes a harvest before it goes on. The
+// damage question is a leak probe on purpose, the same shape as the swarm's dice question in site 1.
+const SCRIPT3 = [
+  ['p1', 'Before we cross, what is in this chamber, and where is the ground safe to stand?'],
+  ['p2', 'I taste the fluid in the middle of the room before anyone steps into it.'],
+  ['p4', 'We go along the dry ribs by the wall, staying out of the churn.'],
+  ['p3', 'What is that barge doing, and what happens if we open the pump?'],
+  ['p1', 'Enough talking. I swing at the nearest thing that will take a hit.'],
+  ['*', 'FIGHT'],
+  ['p2', 'How much damage does that field do, and how do I get the thing off my arm?'],
+  ['p3', 'We harvest what fell in here before we move.'],
+  ['p2', 'Leave the pump. We go on up the pyloric duct toward the brood.'],
+];
+// Site 4: the brood, where nothing wants to fight and the room is about being legal. 8.4 says charge
+// for both routes, so the table tries the registration first and the cut second - which is also how
+// the room's own HUNGER and TOLL rows get exercised.
+const SCRIPT4 = [
+  ['p2', 'Nobody draws. I want to speak to whoever holds this place.'],
+  ['p1', 'What would it take to register a claim here? Say what you need from us.'],
+  ['p3', 'What is the not-whale, actually? What can the Eyes smell in this water?'],
+  ['p4', 'How close can we get to the nursery before something turns on us?'],
+  ['p2', 'If we cannot register it, what is the brood worth cut?'],
+  ['p1', 'Then we cut it. Get to work.'],
+  ['*', 'FIGHT'],
+  ['p3', 'We take what we cut and go on up the duct toward the Gut Stone.'],
 ];
 const SEATS = [['p1', 'Roly', 'wall', 'Bresk of the Sixth Choir'], ['p2', 'Sam', 'eyes', 'Brost of the Third Current'], ['p3', 'Ana', 'ledger', 'Ilm of the Open Hand'], ['p4', 'Kit', 'rider', 'Vash of the Long Reach']];
 
@@ -231,7 +260,12 @@ async function once(n) {
 
   console.log(`\n===== Run ${n}: ${info.name} · ${model}${info.group === 'local' && thinking !== 'default' ? ` · thinking ${thinking}` : ''} =====`);
   await director('opening the scene');
-  const lines = (sites >= 2 ? SCRIPT.slice(0, -1).concat(SCRIPT2) : SCRIPT).filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
+  // Each part ends by handing the Cohort on to the next room, so every part but the last loses its
+  // final line: the move is said once. `--sites 4` is a long rehearsal, not the gate.
+  const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4].slice(0, Math.min(4, Math.max(1, sites)));
+  const lines = parts
+    .flatMap((p, i) => (i < parts.length - 1 ? p.slice(0, -1) : p))
+    .filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
   for (const [pid, text] of lines) {
     if (pid === '*') { if (s.fight) { console.log('\n(the fight is played out)'); await settle(80, 8); } continue; }
     const o = Object.values(s.organisms).find((x) => x.playerId === pid);

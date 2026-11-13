@@ -415,7 +415,26 @@ function checkLysis(s, ctx, o) {
 // `aiAdvanced`) stays exactly as printed and untouched. `scenario.rules.clockTriggers` names which
 // Clock each event moves, so another Vector hangs its own clocks on the same events. Rewinds clamp
 // at 0 because the page says never below 0.
-const clockTrigger = (ctx, name) => (((((ctx || {}).scenario || {}).rules) || {}).clockTriggers || {})[name] || '';
+// A Vector prices an event one way everywhere and another way in one room. 3.3 rewinds HUNGER for
+// "each body harvested: -1" - the Cohort cleaning the water - but 8.4 prints the Brood the other way
+// round: "if the brood is registered, a Name. If harvested instead: 400 to 900 S, HUNGER +2, TOLL +1.
+// Both are legitimate play: charge for both." Butchering the not-whale's young is not cleaning up, so
+// a room's own row **replaces** the Vector's row for that event rather than adding to it; to price
+// both, write both. A row may name one Clock, a list of them, or an object of signed amounts, and
+// `oncePerScene` on that object makes the room price the act rather than every body in it - three
+// shoal cut in one scene is one feeding, not six segments.
+const clockTrigger = (s, ctx, name) => {
+  const sc = (ctx || {}).scenario || {};
+  const here = (sc.sites || []).find((x) => x.id === (((s || {}).scene || {}).siteId)) || {};
+  const atSite = (here.clockTriggers || {})[name];
+  return atSite !== undefined ? atSite : (((sc.rules || {}).clockTriggers || {})[name] || '');
+};
+// Which Clocks a row names, whatever shape it is written in. `payPanelOnce` and the Pulse War's
+// `loud` price a fixed +1 the page prints, so they read the ids only; `payTrigger` below is the one
+// that reads a room's own signed amounts.
+const clockIds = (row) => (row && typeof row === 'object' && !Array.isArray(row)
+  ? Object.keys(row).filter((k) => k !== 'oncePerScene')
+  : [].concat(row || []));
 // The promise has to be words the table said: quotes, asterisks and case off, and the promise must
 // sit inside something a seated player has said recently (the Cohort promises together). Framing it
 // as "X's own words: ..." is not their words, so a promise that merely *contains* a player's
@@ -454,7 +473,7 @@ function payClock(s, ctx, id, delta, why) {
 function payPanelOnce(s, ctx, why) {
   const scene = s.sceneNo || 1;
   const perScene = Number((((ctx || {}).scenario || {}).rules || {}).panelOpensPerScene) || 0;
-  const ids = [].concat(clockTrigger(ctx, 'panelOpens')).filter((id) => s.clocks[id]);
+  const ids = clockIds(clockTrigger(s, ctx, 'panelOpens')).filter((id) => s.clocks[id]);
   const notes = [];
   for (const id of ids) {
     const c = s.clocks[id];
@@ -468,11 +487,28 @@ function payPanelOnce(s, ctx, why) {
 }
 
 function payTrigger(s, ctx, name, delta, why) {
-  const ids = clockTrigger(ctx, name);
+  const row = clockTrigger(s, ctx, name);
+  const pricedAct = !!row && typeof row === 'object' && !Array.isArray(row);
   const notes = [];
-  for (const id of Array.isArray(ids) ? ids : [ids]) {
-    const n = payClock(s, ctx, id, delta, why);
+  const pay = (id, amount) => {
+    if (!id || !s.clocks[id] || !amount) return;
+    // The room priced one act, not every body in it: the first payment in this scene sets the mark,
+    // the same way `loud` pays a scene once (see the Pulse War branch).
+    if (pricedAct && row.oncePerScene) {
+      const scene = s.sceneNo || 1;
+      if (s.clocks[id][`${name}Scene`] === scene) return;
+      s.clocks[id][`${name}Scene`] = scene;
+    }
+    const n = payClock(s, ctx, id, amount, why);
     if (n) notes.push(n);
+  };
+  if (pricedAct) {
+    for (const [id, amount] of Object.entries(row)) {
+      if (id === 'oncePerScene') continue;
+      pay(id, Number(amount) || 0);
+    }
+  } else {
+    for (const id of Array.isArray(row) ? row : [row]) pay(id, delta);
   }
   return notes;
 }
@@ -1534,7 +1570,7 @@ const HANDLERS = {
       // collapsed panel, a corpse left in the water)" — and §3.3 prices the same noise on the danger
       // clock: "the Cohort fights loudly". Once per scene, whichever Clocks answer: the channels
       // notice the noise, not every swing inside it.
-      const loudIds = [].concat(clockTrigger(ctx, 'loud')).filter((id) => s.clocks[id]);
+      const loudIds = clockIds(clockTrigger(s, ctx, 'loud')).filter((id) => s.clocks[id]);
       if (loudIds.length && !loudIds.some((id) => s.clocks[id].loudScene === s.sceneNo)) {
         for (const id of loudIds) s.clocks[id].loudScene = s.sceneNo;
         payTrigger(s, ctx, 'loud', 1, 'a Pulse War in the open: the channels are loud');

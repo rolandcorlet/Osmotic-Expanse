@@ -1,8 +1,81 @@
 # Handoff: continuing The Osmotic Expanse AI Director
 
-Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Rewritten at the end of 13 November 2026, HEAD `caf1b2a` plus this file.** Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
+Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Rewritten at the end of 13 November 2026, HEAD `caf1b2a` plus this file, and extended the same night with the site 3 and 4 prep below.** Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-**Push state:** Roly pushed at 11:01, 12:35, 13:18 and 22:37, so `origin/main` sits at **`caf1b2a`** and **only this handoff commit is unpushed**. He pushes from Windows while a session is running, so re-check `git rev-list --count origin/main..HEAD` before quoting an unpushed number — a stale line in this file cost the 11:00 session ten minutes this morning. The sandbox has no egress, and a commit run from here leaves `.git` locks and `tmp_obj_*` files to delete in the same call.
+**Push state:** Roly pushed at 11:01, 12:35, 13:18, 22:37 **and 22:44** — so `origin/main` sits at
+**`edfe4bb`** and everything written above this line is **already pushed**. What is unpushed is the site 3
+and 4 prep below it.
+
+## Sites 3 and 4, prepared (13 Nov, after the gate handoff — `node --test` now 141)
+
+Asked "is site 3 ready", the answer was no, and the reason is a trap in the summary line: **"Ended at: The
+Render Hall" is not coverage.** All three 13 Nov runs that reached it stopped *at the arrival* — one
+narration, one question, turn budget out. Across both saved logs, at site 3: no `bring_creatures`, no
+`hazard_damage`, no Pulse War, and not one occurrence of "Enzyme". The only blocks ever brought anywhere
+are `gnaw-swarm` 4, `fold-sentinel` 3, `glaze-medusa` 2, `hijack-mite` 1 — never the bleeders and feeders
+the page prints for the stomach. `bring_creatures` does police block ids to the site (`brain/tools.js:155`),
+so this was never the model being refused; it never got into the room, because the scripted table's last
+line was the move.
+
+**Built (my call where the page left a shape, one row of data each):**
+
+1. **A room may price an event its own way.** `clockTrigger(s, ctx, name)` now reads the **site's**
+   `clockTriggers` before the Vector's, and a row may be one Clock id, a list, or an object of **signed
+   amounts** with `oncePerScene`. The Brood carries `bodyCut: { HUNGER: 2, TOLL: 1, oncePerScene: true }`
+   because §8.4 prices it that way — "if the brood is registered, a Name. If harvested instead: 400 to
+   900 S, HUNGER +2, TOLL +1. Both are legitimate play: charge for both." **My call, and it is a
+   direction call:** the site row *replaces* §3.3's "each body harvested: −1" in that room rather than
+   adding to it, because butchering the not-whale's young is not the Cohort cleaning the water; add the
+   −1 to the row to price both. `oncePerScene` is the other knob — drop it and every body cut stacks
+   +2/+1. A scene change re-arms it, the same unit `loud` uses.
+2. **The bench can reach rooms 3 and 4.** `SCRIPT3` (the stomach: the bands, the pump question, a
+   harvest) and `SCRIPT4` (the brood: registration first, then the cut, which is how the row above gets
+   exercised live) are new, and `--sites 3` / `--sites 4` select them. The composition drops each part's
+   hand-off line so the move is said once; **`--sites 2` is unchanged** (verified: still 19 Director
+   turns against the stand-in). A 4-site run is ~32 turns at the stand-in and much longer at a real
+   model — it is a rehearsal, not the gate; the gate stays at 2.
+3. **The later rooms are now tested at the tool layer, not only in the data.** A new `brain.test.js`
+   test drives `change_site` → `bring_creatures` → `hazard_damage` at the Render Hall: 3 bleeders can be
+   brought, a Toll-Vent swarm cannot, the Enzyme Field refuses 9 ("does 8 Lytic, not 9"), refuses
+   `Momentum` (that is the Toll-Vent's trigger; this room prints "entering Mid band, or a Strike inside
+   it"), lands once, and refuses a second firing in the same scene. Plus the site-4 encounter.
+
+**Checked and clean, so nobody re-investigates it:** `printedPays` already reads each site's prose `Pays`
+line, so the Render Hall's "20 Codon for stabilising a stranger", the Brood's "25 Codon" and "400 to 900
+S", and the Gut Stone's "200 to 400 S" are all awardable; a test already holds every site's `harvestPays`
+to the Bestiary, and all five sites' encounter block ids exist in the 68-block bestiary. The Brood prints
+"None, which is the point" for a hazard and `hazard_damage` is refused there outright. And the churn's
+"1 band per Cycle" does **not** misread as a hazard band shift or as a standing hazard — `hazardSpec`
+cuts at "Counter:" and `PER_CYCLE` wants "<n> <type> damage per Cycle".
+
+**Two things the pre-gate sweep settled, so they are not re-litigated mid-run.** Before touching any of
+this, the *current* `checkNarration` was run over the 81 real narration lines in the saved gate logs plus
+the sentences quoted above from the unsaved gates: **zero machinery leaks, zero unpaid damage, zero
+Unpaid Clocks, zero Reversed rolls, and 3 Segments flags, all three genuine creature counts** ("six slow
+segments apiece", "one segment left", "four of its six sections torn away"). Two corrections to what is
+written above about the checks: the "sections come off it in twos" over-flag is **not** firing — that
+sentence only flags because the same sentence goes on to say "one segment left"; and the one live
+false-positive shape in `REVERSED` is a negation plus *open / clear / reach / get* about something other
+than the throw that passed — "The gate does not open for him this time, and Bresk goes around it" reads as
+reversing Bresk's crossing if Bresk passed a throw that turn. It fails the gate, so if a run dies on that,
+suspect the regex (`REVERSED` in `brain/director.js`) before the model. The save round-trip worry is also
+closed: the only stale save on disk predates `hazards`, `sceneNo` and the Clock `panelScene`/`panelCount`,
+and every read of those is guarded, while the one unguarded new read (`s.scene.cloud`) sits on a field the
+Ledger has written since Phase 1.
+
+**Still unbuilt at site 3, and these are shape decisions, not rows:** the **ground/zone model** —
+`site.zones` is read by nothing but the briefing line, so "the churn drags 1 band per Cycle unless you
+win Fluid Navigation", "every Drift is a contest if you are in it" and the dry ribs holding Mid band are
+all unpaid; **the Enzyme Field is not area** (`hazardSpec().area` needs "all in the chamber / the whole
+chamber|field|carcass / to all / everyone in it", and this note says "across the mid floor"), so a
+floor-wide field pays **one body per firing** — but making it area *without* the zone model would hit a
+Braced Cohort on the dry ribs, which the page's own Counter protects, so it waits with the zones; **the
+pump** ("seize or open it: CARCASS −1 and the Enzyme Field dies; loud: HUNGER +1, TOLL +1 if the Guild
+sees it") has no action, no Clock row to hang on, and nothing in the Engine can kill a hazard; "-1 soak
+until repaired" has no mechanic. **At site 4:** registration ("a claim needs a witness, a signature, and
+a body that can hold paper", "if the brood is registered, a Name") and the **Stakes Ladder** Lesson 5
+asks for — neither exists anywhere in `engine/`. And Pump-Hand Osk (MT 12, MI 24) and Nine-Folds are
+prose, not bestiary blocks, while Lesson 4's rehearsal hangs on Countdown boxes. He pushes from Windows while a session is running, so re-check `git rev-list --count origin/main..HEAD` before quoting an unpushed number — a stale line in this file cost the 11:00 session ten minutes this morning. The sandbox has no egress, and a commit run from here leaves `.git` locks and `tmp_obj_*` files to delete in the same call.
 
 ## Starting a new session (as at 13 Nov, end of day — HEAD `caf1b2a` plus this file)
 
@@ -198,7 +271,7 @@ then Phase 4 with a real group.
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**139 tests**, all green at `716187e`, the delegated-calls commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**141 tests**, all green at the site 3 and 4 prep below), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 1-4 --players 4 --thinking --provider/--model/--url --plain-chronicle --log <file>`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -433,6 +506,9 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    leave while the fight math is being watched; the place to finish it is where the creature pool is built
    in `engine/ledger.js`, reading `s.scene.cloud` the same way `poolForCheck` now does.
 8. **HUNGER cannot climb for a Cohort that harvests** (§3.3: +1 for fighting loudly, −1 for every body
+   harvested, never below 0) — **one printed route now exists:** at the Brood a cut is priced as +2, not
+   −1, so a Cohort that butchers the not-whale's young pays for it. The general question is still yours.
+   (§3.3: +1 for fighting loudly, −1 for every body
    harvested, never below 0). Five gates, HUNGER 0 every time, and its Feeders / Render / Render-Cascade
    segments never reached. Rule-correct, but it makes the danger clock decorative for a thorough Cohort —
    Roly to decide whether the loud row should pay more than one segment, or the refund should be capped.
