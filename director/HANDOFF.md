@@ -2,11 +2,11 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file) and `ed536dd` (the afternoon gate's fixes) have landed, and Roly pushed at 12:35 and again at 13:18 — so `origin/main` sits at **`c931149`** (the tree the evening gate ran on) and **`f3e5a6d`, `c63e791` and this file are what is not pushed.** Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file) and `ed536dd` (the afternoon gate's fixes) have landed, and Roly pushed at 12:35 and again at 13:18 — so `origin/main` sits at **`c931149`** (the tree the evening gate ran on) and **`f3e5a6d`, `c63e791`, `91b0f6b`, `95d1271` and this file are what is not pushed.** Roly pushes.
 
-## Starting a new session (as at 13 Nov, ~14:40 — HEAD `f3e5a6d` plus this file)
+## Starting a new session (as at 13 Nov, ~15:20 — HEAD `95d1271` plus this file)
 
-Today landed eight: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+Today landed nine: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
 ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
 `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
@@ -20,20 +20,26 @@ and §3.3 print it, an **Unpaid Clocks in narration** rule flag that the bench t
 on, the briefing and the instructions telling the Director that nobody acts on a turn outside a Pulse
 War, and a repeat `creature_stand_down` as a note rather than a refusal), and `f3e5a6d` (the evening gate's
 one fix each: `hazard_damage` says in its own words that only this site's printed hazard counts and a
-creature's sting or field is not a hazard, and settling an already-closed Oath answers with a note).
-Roly pushed through `c931149` at 13:18; `f3e5a6d`, `c63e791` and this file are unpushed.
+creature's sting or field is not a hazard, and settling an already-closed Oath answers with a note), and
+`95d1271` (the panel is one Engine event the site pays — `panel.open`, and `open_panel` for the Director
+— with the count per scene held in `rules.panelOpensPerScene`, and a **Reversed rolls in narration**
+flag for prose that undoes a throw the page passed). Roly pushed through `c931149` at 13:18; `f3e5a6d`,
+`c63e791`, `91b0f6b`, `95d1271` and this file are unpushed.
 `node --test` is
-**132 green**. The working tree shows
+**135 green**. The working tree shows
 ~82 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
 insert/delete counts before believing a dirty tree. The two bench logs no longer show as untracked,
 because they are ignored now — get one with `--log` rather than a redirect.
 
 ### For the next session — start here
 
-Nothing is broken and waiting: 130 tests green, and the afternoon gate has run (its numbers and what it
-found are in the findings below). **Zero leak flags and zero unpaid damage across 81 turns**; its only
-failure was run 2's three refusals, all fixed at `ed536dd`. What is left are **rulings, not jobs** — do
-not start any of them until Roly answers.
+Nothing is broken and waiting: 135 tests green, and both of today's extra gates have been read (their
+numbers and what they found are in the findings below). **Zero leak flags and zero unpaid damage across
+136 turns**; the failures were five refusals between them, all fixed at `ed536dd` and `f3e5a6d`, and the
+two defects those transcripts exposed — a panel priced twice, and prose reversing a throw the page passed
+— are built at `95d1271`. What is left are **rulings, not jobs**: the band shift, whether a swarm's
+Segments is a creature's number, whether a promise has to be owed to someone before it can be filed, and
+whether a guard refusal that corrects itself should keep failing the gate.
 
 1. **DONE — the briefing is held to the leak rule (`8358eba`).** The tool strings have been swept by a
    test since `5eee166`; the briefing was the last big block of our own prose the model reads, and it
@@ -55,18 +61,17 @@ not start any of them until Roly answers.
    block below: `loud` pays both Clocks §3.2 and §3.3 price, an Unpaid Clocks flag now fails the gate,
    the briefing and instructions say that nobody acts on a turn outside a Pulse War, and a repeat
    `creature_stand_down` is a note.
-4. **RULING NEEDED — who pays a Clock when a panel is opened by a roll rather than by a harvest**
-   (Open item 5). `panelOpens` is paid at `engine/ledger.js:719`, inside the harvest branch that has no
-   creature id, so a successful roll that cracks a panel open pays CARCASS nothing — and the afternoon
-   gate paid for the missing rule out of the Director's one advance: **run 3 called `move_clock
-   CARCASS +1` and `harvest` with no creature in one step and ended at CARCASS 2**, where runs 1 and 2,
-   which never spent the advance, ended at 1. So a panel is currently priced twice, or not at all,
-   depending on whether the model notices. The same printed act also carries a second price nothing pays:
-   the Soft Field's "Cut a panel loose (a Kinetic hit, 4+ Overflow) and the lane goes opaque: every
-   contest in the room is -2 dice for everyone" (`data/first-carve.js:134`). My steer is one small action
-   the Director calls when a panel opens — CARCASS +1 and the opacity on the printed Overflow — because
-   it keeps "nothing at the table happens unless a call pays for it" and stops the roll path guessing
-   intent from `what_for` prose. One word from Roly and it is a change plus tests.
+4. **BUILT at `95d1271` — the panel is one event, and the site pays it** (was Open item 5's ruling).
+   `panel.open` is the Engine event; `open_panel` is the Director's call for "a hit or a throw cracked
+   one loose", and the site cut with no creature goes through the same `payPanelOnce`. Both runs of the
+   evening gate had paid the same panel twice (the Director's one advance plus the cut's own row) and
+   ended at CARCASS 2; now a scene pays `rules.panelOpensPerScene` times, set to **1** in this Vector,
+   and **0 or absent means every panel cracked loose pays its own segment** — so if the carcass should
+   rot faster when the Cohort works the field, that one number in `data/first-carve.js` is where you
+   change it, not the Engine. The briefing and the tool description both tell the model never to spend
+   its advance on a panel. **Still unbuilt from that same printed clause:** the Soft Field's "the lane
+   goes opaque: every contest in the room is -2 dice for everyone" at 4+ Overflow — that wants a
+   scene-level pool modifier, and it sits with the Beat and the band shift.
 5. **STILL BLOCKED — the band shift** (Open item 6): "1 band shift to all in the chamber", the Gut
    Stone's "2-band shift" and the slough's "-1 Drift per Move" have no mechanic, so all three get
    narrated rather than paid. Nothing is built here — pricing one is Roly's call, and the printed text
@@ -88,20 +93,26 @@ not start any of them until Roly answers.
    does). Still: **no `set_condition` at all** after a hazard firing — one redundant `all_bodies` call is
    a legal no-op (run 1 of this gate made one), but one call **per body** is a regression. And read
    whether CARCASS reaches 2 in a run that both spent its discretionary advance and cut a panel: that is
-   item 4's double payment, which `ed536dd` did not touch. Budget for the style tax too: 20 of 81 turns
+   item 4's double payment, which `95d1271` has since closed. Budget for the style tax too: 20 of 81 turns
    needed the one-shot rewrite again, and almost all of them were "ran long, read out dice, or did not
    end on a question" rather than a rule fault. **The evening gate confirms the tells and clears the
    new ones:** zero leaks, zero unpaid damage, zero unpaid Clocks across 55 turns, HUNGER reading 0
    because §3.3 refunds every harvested body rather than because it never moved — and CARCASS at 2 in
-   both runs, so item 4 is now 2 for 2.
+   both runs, so item 4 is now 2 for 2. **Since `95d1271`, read also:** zero **Reversed rolls in
+   narration**, and CARCASS reaching **1** (not 2) in a run that cut a panel — if a run still spends its
+   own advance on a panel, the briefing line and the `open_panel` call have not landed, and that is the
+   thing to look at first.
 9. **RULING NEEDED — must a sworn promise be owed to someone, or may it be the player's own action
    line?** Run 2 of the evening gate filed `I shoulder through the wound lip before the flap closes` as
    the Oath, and the next roll both resolved the crossing and settled it. `spokenAtTable` passes it,
    because the words genuinely were said at the table.
-10. **RULING NEEDED — should a narration that undoes a successful roll be flagged?** Run 2 threw 16
-   against 12 and was narrated as the lip folding over Bresk anyway, in the same turn that settled the
-   Oath as *kept*. `checkNarration` has no such check; the roll line names the actor and its label, so a
-   rule flag is buildable, but where "the cost of a success" stops and "reversing it" begins is your call.
+10. **BUILT at `95d1271` — a throw the page passed cannot be un-passed in prose.** Run 2 threw 16 against
+   12 and was narrated as the lip folding over Bresk anyway, in the turn that settled the Oath as *kept*.
+   `checkNarration` now flags `Reverses <who>'s <label>, which the page passed`, the rewrite is asked for,
+   and the bench tallies **Reversed rolls in narration** and fails the gate on it. It reads only the
+   success direction (a failed throw may work at a price — that is what a Cost is), and only in a sentence
+   that names whoever threw it, so "the Sentinel has not moved an inch" is not a reversal. If the wording
+   it catches is too narrow or too wide, `REVERSED` in `brain/director.js` is the one regex.
 
 Then Phase 4 with a real group: the scripted bench is rehearsal, not the gate.
 
@@ -133,7 +144,7 @@ opened by a roll rather than by a harvest.
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**132 tests**, all green at `f3e5a6d`, the evening-gate fixes), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**135 tests**, all green at `95d1271`, the panel and reversed-roll commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -145,7 +156,7 @@ Test it: `node --test` (**132 tests**, all green at `f3e5a6d`, the evening-gate 
 - Do not work around a permission denial.
 
 ## Layout
-- `engine/` rules and Ledger (state). `data/` Vectors and The First Carve. `brain/`: `director.js` (briefing and turn), `manager.js` (provider, queue, chapters), `tools.js` (24 tools), `instructions.md` (the Director's standing instructions), `memory.js` and `chronicle.js` (history), `voice.js` (speech). `public/` front end (`app.js`, `app.css`). `server.js` routes. `test/` tests. `tools/` bench and screen check.
+- `engine/` rules and Ledger (state). `data/` Vectors and The First Carve. `brain/`: `director.js` (briefing and turn), `manager.js` (provider, queue, chapters), `tools.js` (25 tools), `instructions.md` (the Director's standing instructions), `memory.js` and `chronicle.js` (history), `voice.js` (speech). `public/` front end (`app.js`, `app.css`). `server.js` routes. `test/` tests. `tools/` bench and screen check.
 
 ## State of the phases
 0-3 done. **4 (the table) is the current gate: a real group plays two sites.** 5 (face and voice) is built and pushed but unmeasured. 6 is the campaign Director.
@@ -328,12 +339,12 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 2. Bench coverage: the saved `--thinking medium` gate ran 13 Nov (`bench_13nov_am.log`, numbers above). Its only faults are fixed at `5eee166`, so **a clean pass of it is still outstanding** — and Qwen3.8-27B Q4_K_M is untried. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
 3. Not built: save slots and Supabase copy (plan: rules and Vectors stay in GitHub; saves local first, Supabase as a copy; free plan pauses after 7 days idle and has no backups); ad-libbing (`improv: 'adlib'` is refused until built); Discord sign-in (deferred).
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
-5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Ruling needed:**
-   a panel opened by a successful roll rather than by a `harvest` pays nothing — `panelOpens` is only wired
-   into the harvest path (`engine/ledger.js:719`, the branch with no creature id), and in the 13 Nov gate
-   the Director spent its one discretionary `move_clock` doing the Vector's job (log line 584). Options: a
-   small "open a panel" action that pays CARCASS itself, or pay it from the roll that opened it, or leave it
-   to the Director's advance. **Found checking this (13 Nov):** it is not only a Clock. The same printed act
+5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Built at
+   `95d1271`:** opening a panel is one Engine event (`panel.open`, and `open_panel` for the Director),
+   which closes the gap where a panel opened by a roll rather than a `harvest` paid nothing and the
+   Director spent its one discretionary `move_clock` doing the Vector's job (log line 584, then CARCASS 2
+   in both evening runs from one panel). `rules.panelOpensPerScene` is the Vector's number for how many
+   panel openings one scene pays; it is 1, and 0 means every panel pays its own segment. **Found checking this (13 Nov):** it is not only a Clock. The same printed act
    carries a second price nobody pays — the Soft Field's "Cut a panel loose (a Kinetic hit, 4+ Overflow) and
    the lane goes opaque: every contest in the room is -2 dice for everyone" (`data/first-carve.js:134`) — so
    the question is really whether "a panel is opened" becomes one Engine event paying both. My steer is the
@@ -346,8 +357,9 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    and the gate fails on.
    Also unbuilt: the **Beat**
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
-   (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, and the Gut Stone's serial turned in at a
-   Warden register arch.
+   (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, the Gut Stone's serial turned in at a
+   Warden register arch, and the Soft Field's opacity at 4+ Overflow ("every contest in the room is -2 dice
+   for everyone") — a scene-level pool modifier, in the same missing family as the Beat and the band shift.
 6. Area forms: `set_condition` is done at `cbb2e52` (an area condition is one call for the chamber).
    Still missing where the page prints area: the "1 band shift"/"2-band shift" and "-1 Drift per Move"
    a hazard prints have no mechanic, so they are narrated rather than paid — needs Roly's ruling on how
