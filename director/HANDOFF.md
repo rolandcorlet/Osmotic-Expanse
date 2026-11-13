@@ -2,44 +2,71 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the 13 Nov hazard-budget stack: re-checked 13 Nov at 09:44, `HEAD` and `origin/main` both sat at `6b0eed7`. Since then `cbb2e52`, `1e2c7c7` and `5eee166` have landed; Roly has pushed the first two. Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`** and `rev-list --count origin/main..HEAD` was 0 when the 11:00 session checked. Since then `8358eba` has landed (the briefing held to the leak rule, plus the bench housekeeping). `8358eba` and this file are what is not pushed. Roly pushes.
 
-## Starting a new session (as at 13 Nov, 11:00 — HEAD `5eee166` plus this file)
+## Starting a new session (as at 13 Nov, ~12:15 — HEAD `8358eba` plus this file)
 
-Today landed five: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+Today landed six: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
 ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
 `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
 table never said), `cbb2e52` (an area condition: the `condition` action takes `area` and
-`set_condition` takes `all_bodies`, so a chamber-wide Jostled lands on every body in one call), and
+`set_condition` takes `all_bodies`, so a chamber-wide Jostled lands on every body in one call),
 `5eee166` (a hazard pays the condition its own Effect clause prints, and the words we address the
-Director in are held to the same leak rule as its narration). Roly has pushed through `1e2c7c7` —
-`origin/main` sits there — so `5eee166` and this file are what is not. `node --test` is
-**126 green**. The working tree shows
-~83 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
-insert/delete counts before believing a dirty tree.
+Director in are held to the same leak rule as its narration), and `8358eba` (the **briefing** held to
+that same rule, and the housekeeping: `*.log` in `director/.gitignore` plus a `--log <file>` flag on
+`tools/bench.mjs`). Roly pushed the morning stack at 11:01, so `origin/main` is at `ae24bc5`; only
+`8358eba` and this file are unpushed. `node --test` is
+**127 green**. The working tree shows
+~82 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
+insert/delete counts before believing a dirty tree. The two bench logs no longer show as untracked,
+because they are ignored now — get one with `--log` rather than a redirect.
 
-### For the session starting 11:00 on 13 Nov — start here
+### For the next session — start here
 
-Nothing is broken and waiting. 126 tests green; the last two commits (`5eee166` and this file) are
-the saved gate's two fixes; the gate itself needs re-running on Windows, not in the sandbox. What is
-queued are **decisions**, in the order I would take them:
+Nothing is broken and waiting: 127 tests green. Of the five things queued at 11:00, **two are done**
+and **two are rulings, not jobs** — do not start either until Roly answers.
 
-1. **Who pays a Clock when a panel is opened by a roll rather than a harvest** (Open item 5). Three
-   routes are written out there; pick one and it is a small change with a test.
-2. **Hold the briefing to the leak rule?** Every tool string is now held by a test, but the site
-   briefing still speaks in machinery words in Director-only text ("the Engine refuses
-   `hazard_damage` until…"). It is the likeliest source of the next leak. Bigger pass than one
-   sitting — worth starting, worth doing in one piece.
-3. **The band shift** — the other half of queued item 1: how the Engine prices "1 band shift to all
-   in the chamber", the Gut Stone's "2-band shift" and the slough's "-1 Drift per Move". Needs
-   Roly's ruling before anything is built.
-4. **Housekeeping, if wanted:** `*.log` in `director/.gitignore` (two bench logs sit untracked), and
-   a `--log <file>` flag in `tools/bench.mjs` so the harness writes its own UTF-8 file instead of
-   fighting PowerShell's UTF-16.
+1. **DONE — the briefing is held to the leak rule (`8358eba`).** The tool strings have been swept by a
+   test since `5eee166`; the briefing was the last big block of our own prose the model reads, and it
+   was free to say "the Engine refuses `hazard_damage` until…" and have it come back at the table.
+   Fifteen briefing lines are now in page and scene words ("Clocks this site has already moved", "FOR
+   YOU ALONE AT THIS SITE", "# WHAT JUST GOT PAID", "not in the scene yet" instead of "not in the
+   Ledger yet"), and `instructions.md` lost the same actor nouns wherever they were only phrasing.
+   They are kept where the model needs the concept to work — a tool name it must call, and the leak
+   rule itself, which has to name the words to forbid them. `BRIEFING_LEAK` in `brain/director.js` is
+   `MACHINERY` minus the two words the Vector's own page prose legitimately writes ("the harvest tool"
+   in the Toll-Vent's Pays line, "the Ledger's room" in a Lesson line), and a new test sweeps the
+   **generated** briefing across both sites, a spent hazard, a destroyed body, the sharing queue, an
+   already-paid site, and the chronicle and host-note blocks.
+2. **DONE — housekeeping (`8358eba`):** `*.log` is in `director/.gitignore`, and `tools/bench.mjs`
+   takes `--log <file>` and writes its own UTF-8 copy of everything it prints, so a saved gate is
+   greppable without `iconv`. New gate command:
+   `node tools/bench.mjs --runs 3 --sites 2 --players 4 --thinking medium --log bench_13nov_pm.log`
+3. **RULING NEEDED — who pays a Clock when a panel is opened by a roll rather than by a harvest**
+   (Open item 5). This is better scoped than it was this morning, and it is bigger than a Clock.
+   `panelOpens` is paid at `engine/ledger.js:719`, inside the harvest branch that has no creature id,
+   so a successful roll that cracks a panel open pays CARCASS nothing; in the saved gate run 3 the
+   Director spent its one discretionary `move_clock` doing the Vector's job (log line 584). But the
+   same act also prints a second price that nothing pays: the Soft Field's Weakness line, "Cut a panel
+   loose (a Kinetic hit, 4+ Overflow) and the lane goes opaque: every contest in the room is -2 dice
+   for everyone" (`data/first-carve.js:134`). So the real question is whether "the Cohort opens a new
+   panel" becomes one Engine event that pays both. My steer is a small action the Director calls when
+   a panel is opened — CARCASS +1 and the opacity, on the printed Overflow — because that keeps the
+   rule that nothing at the table happens unless a call pays for it, and it stops the roll path
+   having to guess intent from `what_for` prose. One word from Roly and it is a change plus tests.
+4. **STILL BLOCKED — the band shift** (Open item 6): "1 band shift to all in the chamber", the Gut
+   Stone's "2-band shift" and the slough's "-1 Drift per Move" have no mechanic, so all three get
+   narrated rather than paid. Nothing is built here — pricing one is Roly's call, and the printed text
+   does not say which way a hazard shifts everyone (toward the breach, or away from the blast), or
+   whether "-1 Drift per Move" belongs to the Move action at all.
 5. **In the next gate run, look for:** zero refusals and zero leaks, and **no `set_condition` at all**
    after a hazard firing — the firing pays Jostled by itself now. If a run shows one `set_condition`
-   per body, something regressed.
+   per body, something regressed. Two more tells since `8358eba`: no rewrite whose quoted text
+   contains "the Engine", "the Ledger", "the notes" or "the briefing" (the briefing sweep should have
+   removed the supply), and read whether CARCASS moved at all when a run opened a panel without
+   harvesting — that is item 3 happening live. Also budget for the style tax: 20 of ~81 turns needed
+   the one-shot rewrite last gate and 17 of those were style, not rules.
 
 Then Phase 4 with a real group: the scripted bench is rehearsal, not the gate.
 
@@ -71,7 +98,7 @@ opened by a roll rather than by a harvest.
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**126 tests**, all green at the 13 Nov vocabulary-and-Effect commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**127 tests**, all green at `8358eba`, the briefing-and-housekeeping commit), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -144,7 +171,8 @@ dice, or did not end on a question"), so style, not rules, is the main turn cost
 everywhere because `bodyLeft` only pays for a body that is down and uncut when the Cohort walks out,
 which none of these runs did. **Windows note:** PowerShell's `>` writes the log as **UTF-16LE** and
 double-mangles em dashes and curly quotes, so it is ungreppable until converted
-(`iconv -f UTF-16LE -t UTF-8`). Better: let `bench.mjs` write its own file.
+(`iconv -f UTF-16LE -t UTF-8`). Better: let `bench.mjs` write its own file — it does now, with
+`--log <file>` at `8358eba`.
 
 **The Director may only swear words the table said (13 Nov).** Bench run 3 swore
 `"Bresk's own words: \"We have no stamp. We offer a promise, witnessed and filed.\" — to be asked what is
@@ -166,7 +194,7 @@ Not faults, checked and cleared: run 1's `award` of 20 Codon each at the Soft Fi
 each at the Toll-Vent are both printed in those sites' `Pays` lines, which is why the Cohorts finish
 those runs with such different Codon (23 against 6). The Engine's `printedPays` guard held.
 
-**Windows notes for a bench run.** `--runs`, not `--run`. `--sites 3` does not play a third site — the scripted table only has lines for two. `> bench_$(date …).log` does not expand in cmd, so every run overwrites `director/bench_.log`; name the file yourself. A run against `tools/fake-ai.mjs` prints GATE PASSED with `0 recall, 0 remember, 0 chapter(s)` and proves only that the harness loads. House command: `node tools/bench.mjs --runs 1 --sites 2 --players 4 --plain-chronicle --thinking low`.
+**Windows notes for a bench run.** Use **`--log bench_13nov_pm.log`** (`8358eba`): the harness writes its own UTF-8 file, which is what the mangled logs on disk needed `iconv -f UTF-16LE -t UTF-8` to read. `--runs`, not `--run`. `--sites 3` does not play a third site — the scripted table only has lines for two. `> bench_$(date …).log` does not expand in cmd, so every run overwrites `director/bench_.log`; name the file yourself, and note that `*.log` in `director/` is ignored by git now. A run against `tools/fake-ai.mjs` prints GATE PASSED with `0 recall, 0 remember, 0 chapter(s)` and proves only that the harness loads. House command: `node tools/bench.mjs --runs 1 --sites 2 --players 4 --plain-chronicle --thinking low`.
 
 **Do not re-accuse the Director of inventing these three — all were printed, with sources.** The "toll manifest" is the scenario's own Tie, `data/first-carve.js` line 18: *"Your name is on the toll manifest as the escort for the whale's last cargo."* A `creature_special` of `Present` at cost 3 is the Fold Sentinel's printed Special, in `data/bestiary.json` under `fold-sentinel`: *"Special — Present (3 PP): it declares a zone 3 Drifts wide Held for 3 Cycles."* The gas pocket that fired after Vash's Strike was legal: the Toll-Vent's `host.hazard` (`data/first-carve.js` line 95) reads *"Trigger: a Kinetic hit, a Strike, Momentum. Effect: 6 Kinetic, Jostled"*. Before ruling that a hazard, Clock or damage call broke the rules, read that site's `host.hazard` and Clock notes in `data/first-carve.js` and the creature's entry in `data/bestiary.json` — the scenario prose and the stat block define what is legal, not the standing instructions. (I got this wrong twice on 12 Nov, so the check is worth the two minutes.)
 
@@ -183,9 +211,15 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
 5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Ruling needed:**
    a panel opened by a successful roll rather than by a `harvest` pays nothing — `panelOpens` is only wired
-   into the harvest path (`engine/ledger.js` ~690), and in the 13 Nov gate the Director spent its one
-   discretionary `move_clock` doing the Vector's job (log line 584). Options: a small "open a panel" action
-   that pays CARCASS itself, or pay it from the roll that opened it, or leave it to the Director's advance.
+   into the harvest path (`engine/ledger.js:719`, the branch with no creature id), and in the 13 Nov gate
+   the Director spent its one discretionary `move_clock` doing the Vector's job (log line 584). Options: a
+   small "open a panel" action that pays CARCASS itself, or pay it from the roll that opened it, or leave it
+   to the Director's advance. **Found checking this (13 Nov):** it is not only a Clock. The same printed act
+   carries a second price nobody pays — the Soft Field's "Cut a panel loose (a Kinetic hit, 4+ Overflow) and
+   the lane goes opaque: every contest in the room is -2 dice for everyone" (`data/first-carve.js:134`) — so
+   the question is really whether "a panel is opened" becomes one Engine event paying both. My steer is the
+   small action: it keeps the "nothing happens unless a call pays for it" rule and avoids matching prose in
+   `what_for` to decide what a roll meant.
    Also unbuilt: the **Beat**
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
    (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, and the Gut Stone's serial turned in at a
