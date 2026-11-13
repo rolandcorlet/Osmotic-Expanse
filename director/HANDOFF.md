@@ -2,11 +2,11 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then four more have landed: `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file), and `ed536dd` (the 13 Nov afternoon gate's fixes) with this file again on top. **`8358eba`, `0f189ca`, `ed536dd` and this file are what is not pushed.** Roly pushes.
+Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file) and `ed536dd` (the afternoon gate's fixes) have landed, and Roly pushed through `0f189ca` at 12:35 — so `origin/main` sits at **`0f189ca`** and **`ed536dd`, `c931149`, `f3e5a6d` and this file are what is not pushed.** Roly pushes.
 
-## Starting a new session (as at 13 Nov, ~13:45 — HEAD `ed536dd` plus this file)
+## Starting a new session (as at 13 Nov, ~14:40 — HEAD `f3e5a6d` plus this file)
 
-Today landed seven: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
+Today landed eight: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
 `hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
 ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
 `b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
@@ -18,10 +18,12 @@ that same rule, and the housekeeping: `*.log` in `director/.gitignore` plus a `-
 `tools/bench.mjs`), and `ed536dd` (the afternoon gate's fixes: `loud` pays TOLL **and** HUNGER as §3.2
 and §3.3 print it, an **Unpaid Clocks in narration** rule flag that the bench tallies and the gate fails
 on, the briefing and the instructions telling the Director that nobody acts on a turn outside a Pulse
-War, and a repeat `creature_stand_down` as a note rather than a refusal). Roly pushed the morning stack
-at 11:01, so `origin/main` is at `ae24bc5`; `8358eba`, `0f189ca`, `ed536dd` and this file are unpushed.
+War, and a repeat `creature_stand_down` as a note rather than a refusal), and `f3e5a6d` (the evening gate's
+one fix each: `hazard_damage` says in its own words that only this site's printed hazard counts and a
+creature's sting or field is not a hazard, and settling an already-closed Oath answers with a note).
+Roly pushed through `0f189ca` at 12:35; `ed536dd`, `c931149`, `f3e5a6d` and this file are unpushed.
 `node --test` is
-**130 green**. The working tree shows
+**132 green**. The working tree shows
 ~82 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
 insert/delete counts before believing a dirty tree. The two bench logs no longer show as untracked,
 because they are ignored now — get one with `--log` rather than a redirect.
@@ -88,7 +90,18 @@ not start any of them until Roly answers.
    whether CARCASS reaches 2 in a run that both spent its discretionary advance and cut a panel: that is
    item 4's double payment, which `ed536dd` did not touch. Budget for the style tax too: 20 of 81 turns
    needed the one-shot rewrite again, and almost all of them were "ran long, read out dice, or did not
-   end on a question" rather than a rule fault.
+   end on a question" rather than a rule fault. **The evening gate confirms the tells and clears the
+   new ones:** zero leaks, zero unpaid damage, zero unpaid Clocks across 55 turns, HUNGER reading 0
+   because §3.3 refunds every harvested body rather than because it never moved — and CARCASS at 2 in
+   both runs, so item 4 is now 2 for 2.
+9. **RULING NEEDED — must a sworn promise be owed to someone, or may it be the player's own action
+   line?** Run 2 of the evening gate filed `I shoulder through the wound lip before the flap closes` as
+   the Oath, and the next roll both resolved the crossing and settled it. `spokenAtTable` passes it,
+   because the words genuinely were said at the table.
+10. **RULING NEEDED — should a narration that undoes a successful roll be flagged?** Run 2 threw 16
+   against 12 and was narrated as the lip folding over Bresk anyway, in the same turn that settled the
+   Oath as *kept*. `checkNarration` has no such check; the roll line names the actor and its label, so a
+   rule flag is buildable, but where "the cost of a success" stops and "reversing it" begins is your call.
 
 Then Phase 4 with a real group: the scripted bench is rehearsal, not the gate.
 
@@ -120,7 +133,7 @@ opened by a roll rather than by a harvest.
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
 
 Run it: `node server.js --new --port 8791 --saves /tmp/oxd-saves --host-key TEST01` (see README "Run it").
-Test it: `node --test` (**130 tests**, all green at `ed536dd`, the afternoon-gate fixes), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
+Test it: `node --test` (**132 tests**, all green at `f3e5a6d`, the evening-gate fixes), `python3 tools/check_screens.py http://localhost:8791 TEST01 /tmp/oxd-shots` (Playwright, three screen sizes), `node tools/bench.mjs` (flags `--runs --sites 2 --players 4 --thinking --provider/--model/--url --plain-chronicle`), `tools/fake-ai.mjs` stands in for a model.
 
 ## Rules of the house (keep these)
 - **Engine first.** `apply(state, action, ctx)` in `engine/ledger.js` returns a new state or throws `RuleError`. The model never does arithmetic; it narrates and calls tools in `brain/tools.js`. `ctx.ai = true` marks Director-only limits.
@@ -239,6 +252,46 @@ segments**" and "six segments each, then fewer". `Segments 6` is the printed Gna
 (`MT 12 · MI 10 · soak 0 · pool 3d · Segments 6`) and the leak check only catches integrity/MI wording,
 so it passed. Is a swarm's Segments a creature's number like MI, or something the players can watch? If
 it is a number it goes in the check, not in prose.
+
+**The 13 Nov evening gate (`--runs 2 --sites 2 --players 4 --thinking medium`, tree at `c931149`):
+GATE NOT PASSED on one refusal per run, and the new checks came back clean.** Run 1: 30 turns, 18.7 s
+each, 759,472 in / 27,048 out, 1 refusal, 0 leaks, 0 unpaid damage, **0 unpaid Clocks**, 0 style, ending
+at The Render Hall with CARCASS 2 / TOLL 1 / HUNGER 0. Run 2: 25 turns, 17.9 s, 683,175 in, 1 refusal,
+0/0/0, 1 style. That is **two gates in a row — 136 turns — with zero leak flags and zero unpaid damage**.
+The Clock wiring from `ed536dd` shows up correctly: HUNGER reads 0 at both ends not because it never
+moved but because §3.3 pays −1 for every body harvested and these Cohorts harvested everything (run 2:
++1 for a loud Pulse War, −2 for two cut bodies, clamped at 0), and TOLL landed where the printed rows say
+it should. The Unpaid Clocks check saw three real Clock sentences the runs narrated — all paid, none
+flagged — and had nothing to complain about, so the false-positive worry did not materialise. Both runs
+still ended at **CARCASS 2 because the Director spent its one advance on a panel and `harvest` paid
+`panelOpens` on top**: item 4's double payment is now 2 for 2.
+
+**The two refusals, both the page policing itself, both fixed at `f3e5a6d`.** Run 1 priced the Glaze
+Medusas' trailing field as a hazard — `4 Osmotic`, `"trigger":"failed roll"` — at a site whose only
+printed hazard is the slough patch at 1 Lytic per Cycle from CARCASS 3 up, with no Pulse War running and
+no creature on a turn; the refusal quoted the site's own Hazard line and the model accepted it ("Nothing
+bites, but the Beat goes"). The description now says both halves up front: only this site's printed
+hazard, at the printed number and type, and a creature's own attack, sting or field belongs to the
+creature on its own turn inside a Pulse War. Run 2 settled an Oath kept after the crossing and then
+tried to settle the same Oath broken on the way out — restating its own record, so it answers with a note
+like `ed536dd` did for `creature_stand_down`.
+
+**Two things this set shows that are rulings, not bugs, and I have not touched either.** (1) **A roll's
+outcome contradicted in prose.** Run 2's Bresk threw 16 against 12 — success, Overflow 4 — and the
+narration said "The lip folds over Bresk instead of parting" and "the promise broke at the moment of its
+keeping", in the same turn that settled the Oath as *kept*. The briefing prints `SUCCESS, Overflow 4`, so
+the model had the result and wrote the opposite; nothing checks a narration that undoes a throw the page
+just passed. A rule flag on that shape is possible — the roll line names the actor and its label, so it
+need not be vague — but how much failure language counts is a taste call, so it waits for Roly. (2) **An
+Oath that is only the attempt.** Run 2 filed `I shoulder through the wound lip before the flap closes` —
+the player's own action line — as the sworn promise, and the next roll both resolved the crossing and
+settled the Oath. `spokenAtTable` passed it because the words really were said at the table. Is a
+declaration of what you are about to do an Oath at all, or must a promise be owed to someone (a witness,
+a faction, a price) before it can be filed? (3) The **segments** ruling from the afternoon gate got
+busier: "five of the dozen scatter… one small body and its coat" and "two small bodies' worth of it left
+of what was a dozen" — the arithmetic matched the Engine exactly (11 Overflow removes ⌈11/3⌉+1 = 5 of the
+printed 6), but "a dozen" is not the printed number either, so that ruling covers both leaking the block
+and inventing a count.
 
 **The Director may only swear words the table said (13 Nov).** Bench run 3 swore
 `"Bresk's own words: \"We have no stamp. We offer a promise, witnessed and filed.\" — to be asked what is
