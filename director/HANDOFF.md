@@ -549,3 +549,10 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 
 ## Limits of the tooling here (worth knowing for whoever picks this up)
 Claude's Linux shell has no outbound network, so `git push`, real-model bench runs, cloud providers and `tools/check_screens.py` all have to be run by Roly on Windows. Reading the repo and its history offline is fine, as are `node --test`, `node server.js`, and `node tools/bench.mjs` against `tools/fake-ai.mjs`. Two traps: the Windows working tree shows ~89 files as "modified" whose diffs are whole-file 1:1 insertions/deletions — pure CRLF/LF noise, so check `git diff --numstat` for that pattern before treating a dirty tree as real work (no `.gitattributes` yet; `* text=auto eol=lf` would end it). And a 0-byte `.git/index.lock` was present on 13 Nov — if git refuses to run, delete that file.
+
+## Bench of 14 Nov, fifth (thinking low, 3 runs, 2 of 3 had one refusal) and the fixes
+- Speed: 269 model calls, 9.4 s each, 13.6k in / 491 out per call, 51.9 tok/s (runs 51.7 / 48.3 / 56.8); 43-61 turns per run at 16-18 s.
+- 0 leaks, unpaid damage/Clocks, reversed rolls, style flags in all three runs.
+- Refusals: a creature acted out of turn (Run 1) and `change_site` to the current site (Run 3). Both are now notes, as are all out-of-turn creature calls (they say who is acting).
+- New checks: another script mid-sentence (a stray Chinese character in Run 3) and a capitals heading ("RUNAWAY CATALYSIS - ...", Run 1) now trigger a rewrite.
+- Seen, not fixed: Run 2 invented a pump that starts the sled-line and "opens the flank another notch" (the page has none; Runs 1 and 3 refused it correctly); Director still says "Runaway catalysis"/"Lodged" aloud in prose.

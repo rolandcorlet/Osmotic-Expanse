@@ -1493,7 +1493,7 @@ test('14 Nov: out-of-turn creature calls say who is up, and ending a turn it is 
   const cur = T.state.fight.actors[T.state.fight.turn];
   if (cur.kind === 'cre') assert.ok(!T.run('end_creature_turn', { creature: cid }).refused); // its turn is over: now it waits
   const r = T.run('creature_move', { creature: cid, band: 'mid' });
-  assert.match(r.refused, /not .* turn[\s\S]*Acting now:/);
+  assert.ok(!r.refused && /no turn right now[\s\S]*Acting now:/.test(r.note), 'acting out of turn is a note that says who is up');
   const e = T.run('end_creature_turn', { creature: cid });
   assert.ok(!e.refused && /no turn to end/.test(e.note), 'ending a turn it is not taking is a note');  const x = T.run('end_creature_turn', { creature: 'eyes' });
   assert.ok(!x.refused && /not a creature/.test(x.note), 'a non-creature id is a note, not a refusal');
@@ -1520,4 +1520,16 @@ test('"the page" as a page of paper in the fiction is not the rulebook', () => {
   const st = (t) => checkNarration(t, s).filter((f) => /the page/.test(f.text)).length;
   assert.equal(st('The clerk\'s pen comes down under the dead crew\'s name, nobody\'s own face on the page. Brost, what now?'), 0);
   assert.equal(st('The page says a swarm offered drink leaves. Brost, what now?'), 1);
+});
+
+test('14 Nov (fifth bench): another script and a capitals heading are flagged, and the same site is a note', () => {
+  const s = seated();
+  const flags = (t) => checkNarration(t, s).map((f) => `${f.kind}: ${f.text}`);
+  assert.ok(flags('They swarm over whatever is closest and咬 every contact. Brost, what now?').some((f) => /another language/.test(f)));
+  assert.ok(flags('RUNAWAY CATALYSIS - every secret laid bare. Ilm, what do you do?').some((f) => /heading in capitals/.test(f)));
+  assert.ok(!flags('The HUNGER Clock ticks up a segment. Ilm, what do you do?').some((f) => /heading in capitals/.test(f)));
+  assert.ok(flags('Runaway catalysis: the cut spread further than the blade meant. Ilm, what now?').some((f) => /names a rule/.test(f)));
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  const r = T.run('change_site', { site: T.site().id });
+  assert.ok(!r.refused && /already at/.test(r.note));
 });

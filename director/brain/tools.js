@@ -102,6 +102,10 @@ const withTurn = (T, no) => {
   if (!T.state.fight || !/\bturn\b/i.test(String(no))) return no;
   return `${no} Acting now: ${T.fightBrief().acting_now}.`;
 };
+// Acting out of turn changes nothing: it is a note that says who is up, not a rule broken.
+const outOfTurn = (T, no, c) => (T.state.fight && /\bnot .*\bturn\b/i.test(String(no))
+  ? { note: `${c.name} has no turn right now, so nothing changed. Acting now: ${T.fightBrief().acting_now}.`, ...T.fightBrief() }
+  : { refused: withTurn(T, no) });
 const noCre = (ref, s) => ({ refused: `No creature called "${ref}" is in this scene. Here: ${whatIsHere(s) || 'nothing has been brought in at this site'}.` });
 
 function lastRoll(s) {
@@ -199,7 +203,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Drift', cost: 1, band: a.band });
-      return no ? { refused: withTurn(T, no) } : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? outOfTurn(T, no, c) : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
@@ -216,7 +220,7 @@ export const TOOLS = [
       // A swarm bites once per 2 Segments (CORE 4.13): the first Strike costs 2 PP, further bites in the allowance cost none.
       const cost = c.segments != null && act && act.strikes > 0 ? 0 : 2;
       const no = T.do({ type: 'creature.strike', cid: c.cid, targetId: o.id, cost });
-      if (no) return { refused: no };
+      if (no) return outOfTurn(T, no, c);
       const q = T.state.requests[T.state.requests.length - 1];
       if (q.canReact) return { waiting: true, note: `${o.name} holds a Reserve and may Deflect or Brace before the dice fall. Say the strike is coming, and end your turn.` };
       const no2 = T.do({ type: 'roll', requestId: q.id });
@@ -234,7 +238,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: String(a.what || 'Special').slice(0, 40), cost: a.cost });
-      return no ? { refused: withTurn(T, no) } : { done: a.what, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? outOfTurn(T, no, c) : { done: a.what, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
@@ -245,7 +249,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 });
-      return no ? { refused: withTurn(T, no) } : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? outOfTurn(T, no, c) : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
   {
@@ -277,7 +281,7 @@ export const TOOLS = [
       const act = T.state.fight && T.state.fight.actors[`cre:${c.cid}`];
       if (act && act.status !== 'acting' && act.status !== 'holding') return { note: `${c.name} is not acting, so it has no turn to end. Nothing changed.`, ...T.fightBrief() };
       const no = T.do({ type: 'turn.end', cid: c.cid });
-      return no ? { refused: withTurn(T, no) } : T.fightBrief();
+      return no ? outOfTurn(T, no, c) : T.fightBrief();
     },
   },
   {
@@ -539,6 +543,7 @@ export const TOOLS = [
       const here = T.site();
       const to = T.scenario.sites.find((x) => x.id === lower(a.site));
       if (!to) return { refused: `No site "${a.site}". Sites: ${T.scenario.sites.map((x) => x.id).join(', ')}.` };
+      if (to.id === here.id) return { note: `The Cohort is already at ${here.name}. Nothing changed: narrate it from here.` };
       if (Math.abs(to.n - here.n) !== 1) return { refused: `${to.name} cannot be reached from ${here.name} in one step.` };
       const no = T.do({ type: 'scene.set', siteId: to.id });
       return no ? { refused: no } : { arrived_at: to.name, note: 'End your turn now. The new site reaches you on your next turn.' };

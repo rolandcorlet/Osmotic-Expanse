@@ -406,6 +406,11 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (asksRollInWords(text, state)) flags.push({ kind: 'style', text: 'Asks for a roll in words, but no roll is waiting on a screen.' });
   if (!state.fight && /\bPulse Points?\b|\bPP\b/.test(text)) flags.push({ kind: 'style', text: 'Mentions Pulse Points outside a Pulse War.' });
   if (/[*_#]{2,}|^\s*[-*]\s/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; it should be plain text.' });
+  // A heading in capitals ("RUNAWAY CATALYSIS - ...") is the rulebook talking, not the table.
+  if (/^\s*[A-Z]{3,}(?:\s+[A-Z]{3,})+\b/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; a heading in capitals is the rulebook talking.' });
+  if (/\brunaway catalysis\b|\bLodged (?:property|trait)\b/i.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; names a rule (Runaway Catalysis or Lodged) aloud.' });
+  // The model sometimes slips into another script mid-sentence.
+  if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0400-\u04ff]/.test(text)) flags.push({ kind: 'style', text: 'Contains characters from another language.' });
   // Harm the table can hear but the Engine never paid for. Bench 13 Nov, run 2: the gas pocket was
   // described going off a second time — "six kinetic punch back up through Bresk's leading
   // membrane" — with no hazard call behind it, so the number was invented in prose. Damage only
@@ -528,7 +533,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page")/.test(f.text));
+  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -539,6 +544,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     if (flags.some((f) => /^Asks \d+ questions/.test(f.text))) asks.push('It asks the table more than one question: ask exactly one, to one named organism, and fold any other choice into it ("do you X, or Y?"). What a character in the fiction says aloud may stay a question.');
     if (flags.some((f) => /^Mentions Pulse Points/.test(f.text))) asks.push('It mentions Pulse Points, but no Pulse War is running: leave Pulse Points out and say only what the Cohort sees and can do.');
     if (flags.some((f) => /^Speaks of "the page"/.test(f.text))) asks.push('It speaks of "the page" as though the players could read it. Say what is true in the fiction instead; only "The page has nothing printed for that" may name it.');
+    if (flags.some((f) => /^Uses formatting/.test(f.text))) asks.push('It uses formatting or a heading in capitals. Write plain sentences only, and put a rule or a roll result in the fiction ("the cut ran wild") rather than naming it.');
+    if (flags.some((f) => /^Contains characters/.test(f.text))) asks.push('It contains a word in another language or script. Write every word in English.');
     if (flags.some((f) => /^Repeats an earlier/.test(f.text))) asks.push('It repeats words you already used in an earlier line: say what is new this time, as this roll changed it, in fresh words.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
