@@ -269,7 +269,8 @@ export const TOOLS = [
     parameters: obj({ creature: S('Creature id.') }, ['creature']),
     run(a, T) {
       const c = findCre(T.state, a.creature);
-      if (!c) return noCre(a.creature, T.state);
+      // An id that names no creature (a player, an organism, a body part) has no creature turn to end: a note, not a refusal.
+      if (!c) return { note: `"${a.creature}" is not a creature, so there is no creature turn to end. A player ends their own turn. Creatures here: ${whatIsHere(T.state) || 'none'}. Nothing changed.`, ...(T.state.fight ? T.fightBrief() : {}) };
       // A creature that is down or has stood down has no turn to end: say so without a refusal.
       if (T.state.fight && (c.down || c.stoodDown)) return { note: `${c.name} is out of the fight and has no turn to end.`, ...T.fightBrief() };
       // Ending a turn it is not taking is a no-op, not a rule break: say who is up instead.

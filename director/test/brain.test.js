@@ -1495,7 +1495,8 @@ test('14 Nov: out-of-turn creature calls say who is up, and ending a turn it is 
   const r = T.run('creature_move', { creature: cid, band: 'mid' });
   assert.match(r.refused, /not .* turn[\s\S]*Acting now:/);
   const e = T.run('end_creature_turn', { creature: cid });
-  assert.ok(!e.refused && /no turn to end/.test(e.note), 'ending a turn it is not taking is a note');
+  assert.ok(!e.refused && /no turn to end/.test(e.note), 'ending a turn it is not taking is a note');  const x = T.run('end_creature_turn', { creature: 'eyes' });
+  assert.ok(!x.refused && /not a creature/.test(x.note), 'a non-creature id is a note, not a refusal');
 });
 
 test('14 Nov (second bench): damage dealt to a creature is its health, "the page" is not for the table, and an empty tray is said', () => {
