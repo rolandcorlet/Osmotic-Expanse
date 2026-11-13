@@ -67,6 +67,15 @@ export function hazardSpec(site) {
     // Kinetic, Jostled, 1 band shift to all in the chamber", so Jostled is the chamber's too.
     // Cut at "Counter:" so the page's advice ("Brace and ride it") cannot read as a price.
     conditions: Object.keys(R.CONDITIONS).filter((n) => new RegExp(`\\b${n}\\b`, 'i').test(String(text).split(/\bCounter:/i)[0])),
+    // And the same clause throws people: "1 band shift to all in the chamber", "20 Kinetic, 2-band
+    // shift". A bare "a band shift" is one step. The Engine moves everyone outward from the blast
+    // (see shiftAllBands); a clause that names a direction ("toward the breach") is not this one.
+    bands: (() => {
+      const clause = String(text).split(/\bCounter:/i)[0];
+      const n = clause.match(/(\d+)[\s-]band shift/i);
+      if (n) return Math.max(1, Math.trunc(Number(n[1])));
+      return /\bband shift\b/i.test(clause) && !/toward|inward/i.test(clause) ? 1 : 0;
+    })(),
   };
 }
 
@@ -298,7 +307,7 @@ export const TOOLS = [
       // The Engine keeps when it may go off again, and who the page pays, so the Director is told
       // what it just spent rather than trying the same detonation once per body.
       const f = T.state.fight;
-      const no = T.do({ type: 'hazard', siteId: T.site().id, area: spec.area === true, target: { kind: 'org', id: o.id }, amount, dtype: a.type || '', conditions: spec.conditions, why: a.why });
+      const no = T.do({ type: 'hazard', siteId: T.site().id, area: spec.area === true, target: { kind: 'org', id: o.id }, amount, dtype: a.type || '', conditions: spec.conditions, bands: spec.bands, why: a.why });
       if (no) return { refused: `${no}${spec.area ? ' That hazard is an area one: one call pays every body at the site, so it cannot go off again for the next one.' : ''}` };
       const t = T.state.organisms[o.id];
       const paid = spec.area ? Object.values(T.state.organisms).filter((x) => x.playerId).map((x) => `${x.name} MI ${x.mi}/${x.miMax}`) : [];
@@ -307,6 +316,7 @@ export const TOOLS = [
         ...(paid.length ? { also_paid: paid } : {}),
         // What the same Effect clause prices besides damage: the Engine put it on them.
         ...(spec.conditions.length ? { also_set: spec.conditions.map((n) => `${n} on ${spec.area ? 'every body at the site' : 'it'}, from the printed Effect clause`) } : {}),
+        ...(spec.bands ? { also_shifted: `${spec.bands} band${spec.bands > 1 ? 's' : ''} outward for every body at the site, from the same clause — never call a band shift yourself` } : {}),
         spent: f ? `this hazard is spent until Cycle ${f.cycle + 1}` : 'this hazard is spent until the scene changes',
       };
     },
@@ -440,8 +450,8 @@ export const TOOLS = [
   },
   {
     name: 'swear_oath',
-    description: 'An organism swears a promise into one of its Oath boxes (for example to pay a toll). The box is spent and the promise recorded on its sheet. Use the player\'s own words for the promise. Only an organism whose line shows Oath boxes can swear. Never state an Oath-box count yourself: the count comes back with the result.',
-    parameters: obj({ organism: S('Organism id.'), promise: S('What is promised, in the player\'s words. If the player has not said, ask them first.'), witness: S('Who witnesses it, for example "the Order II fold at the Toll-Vent".') }, ['organism', 'promise']),
+    description: 'An organism swears a promise into one of its Oath boxes (for example to pay a toll). The box is spent and the promise recorded on its sheet. Use the player\'s own words for the promise, and name in `witness` who it is owed to — the fold at the gate, the clerk, the crew being dealt with: a promise owed to nobody is not filed here. A promise is also not the throw itself: if the players are about to attempt something, that is a roll, and what they owe somebody for attempting it is the promise. Only an organism whose line shows Oath boxes can swear. Never state an Oath-box count yourself: the count comes back with the result.',
+    parameters: obj({ organism: S('Organism id.'), promise: S('What is promised, in the player\'s words. If the player has not said, ask them first.'), witness: S('Who it is owed to and who witnesses it, for example "the Order II fold at the Toll-Vent".') }, ['organism', 'promise', 'witness']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism, T.state);

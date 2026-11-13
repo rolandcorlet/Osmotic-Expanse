@@ -630,6 +630,30 @@ test('narration that reverses a throw the page passed is flagged', () => {
   assert.ok(!checkNarration('The Fold Sentinel has not moved an inch at the chokepoint. Bresk, what do you do?', T.state, { moved: false, since }).some((f) => /^Reverses /.test(f.text)));
 });
 
+test("counting a swarm's Segments out loud is a leak, printed or invented", () => {
+  // The evening gate's Director said "each swarm is six small segments" and "two small bodies' worth of
+  // it left of what was a dozen". Segments are a swarm's health track (the block prints MI 10 and
+  // Segments 6 in the same line), so counting them is the same fault as reading out MI. What stays
+  // legal is how the thing looks and how much is left in the fiction.
+  const s = seated();
+  const said = (t) => checkNarration(t, s, { moved: true }).map((f) => f.text);
+  assert.ok(said('Each swarm is six small segments wearing a wet look. Bresk, what now?').some((f) => /health track/.test(f)));
+  assert.ok(said('Two sections of it are left, still scenting you. Bresk, what now?').some((f) => /health track/.test(f)));
+  assert.ok(!said('A dozen small ones wearing a slime coat, half of them peeling away into the current. Bresk, what now?').some((f) => /health track/.test(f)));
+  assert.ok(!said('It is a brittle, frantic cloud and anything that spreads takes pieces off it. Bresk, what now?').some((f) => /health track/.test(f)));
+});
+
+test('an Oath the Director swears has to be owed to somebody the table can see', () => {
+  // The evening gate filed `I shoulder through the wound lip before the flap closes` as a promise with
+  // no party owed, and the next roll settled it. A promise is what somebody is being held to.
+  const s = apply(seated(), { type: 'say', text: 'We will carry the last cargo out under stamp' }, ctx('player', 'p1'));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.match(String(T.run('swear_oath', { organism: 'wall', promise: 'We will carry the last cargo out under stamp' }).refused), /who witnesses it/);
+  const ok = T.run('swear_oath', { organism: 'wall', promise: 'We will carry the last cargo out under stamp', witness: 'the Order II fold at the gate' });
+  assert.equal(ok.sworn, true, JSON.stringify(ok));
+  assert.equal(T.refusals, 1, 'the unowed one is the only refusal in the run');
+});
+
 test('a hazard is only what this site prints, and a creature is not one', () => {
   // Run 1 of the 13 Nov evening gate priced the Glaze Medusas' trailing field as a hazard (4 Osmotic)
   // with no Pulse War running. The page refused and quoted the site's own Hazard line, which fixed it
@@ -1168,6 +1192,11 @@ test('a condition the page prices for the chamber is one set_condition, not one 
   // condition in its Hazard note, and its Counter clause ("Brace and ride it") is not a price.
   assert.deepEqual(hazardSpec(scenario.sites.find((x) => x.id === 'toll-vent')).conditions, ['Jostled']);
   assert.deepEqual(hazardSpec(scenario.sites.find((x) => x.id === 'soft-field')).conditions, [], 'the slough prints damage and Drift, no condition');
+  // The same clause throws: "1 band shift to all in the chamber" at the Toll-Vent, "2-band shift" on
+  // the Gut Stone's Render Charge, and nothing at all for the slough patches.
+  assert.equal(hazardSpec(scenario.sites.find((x) => x.id === 'toll-vent')).bands, 1);
+  assert.equal(hazardSpec(scenario.sites.find((x) => x.id === 'gut-stone')).bands, 2, 'the charge throws twice as far');
+  assert.equal(hazardSpec(scenario.sites.find((x) => x.id === 'soft-field')).bands, 0, 'standing ground is not a blast');
   // A body name that matches nothing still points at the area form rather than a dead end.
   const solo = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
   assert.match(solo.run('set_condition', { target: 'no-one-here', condition: 'Jostled', on: true }).refused, /set all_bodies/);

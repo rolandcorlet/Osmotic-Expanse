@@ -519,6 +519,60 @@ test('walking out and leaving a body uncut feeds the scavengers (3.3)', () => {
   assert.equal(t2.s.clocks.HUNGER.filled, mid, 'it was harvested: nothing was left in the water');
 });
 
+test('a hazard that throws moves everyone at the site outward in the same firing (8.1)', () => {
+  // The Toll-Vent prints "Effect: 6 Kinetic, Jostled, 1 band shift to all in the chamber" and the Gut
+  // Stone's Render Charge "20 Kinetic, 2-band shift". The damage and the Jostled were paid; the shift
+  // was narrated and never priced. It reads as being thrown clear of the blast, so outward, and Loose
+  // is the floor: a hazard does not throw anybody out of the scene.
+  const t = seated();
+  t.host({ type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'contact' }, { blockId: 'gnaw-swarm', count: 1, band: 'far' }] });
+  t.s.organisms.wall.band = 'contact';
+  t.s.organisms.eyes.band = 'loose';
+  t.host({ type: 'hazard', siteId: 'toll-vent', area: true, target: { kind: 'org', id: 'wall' }, amount: 6, dtype: 'Kinetic', conditions: ['Jostled'], bands: 1 });
+  assert.equal(t.s.organisms.wall.band, 'near', 'a body at Contact is thrown to Near');
+  assert.equal(t.s.organisms.eyes.band, 'loose', 'and one already Loose is not thrown out of the scene');
+  assert.deepEqual(Object.values(t.s.creatures).map((c) => c.band).sort(), ['loose', 'near'], 'the creatures at the site are thrown too');
+  assert.ok(t.s.organisms.wall.conditions.some((c) => c.name === 'Jostled'), 'the same clause still pays Jostled');
+  assert.ok(t.s.log.some((e) => e.kind === 'hazard' && /throws everyone outward/.test(e.text)), 'and it is said out loud, once');
+});
+
+test('cutting a panel loose at 4+ Overflow clouds the lane for the scene (8.2)', () => {
+  // "Cut a panel loose (a Kinetic hit, 4+ Overflow) and the lane goes opaque: every contest in the
+  // room is -2 dice for everyone." The Overflow is read off the throw that opened the panel, and the
+  // cloud is a property of the scene rather than of each body, so it clears when the Cohort moves on.
+  const t = seated();
+  t.host({ type: 'scene.set', siteId: 'soft-field' });
+  t.host({ type: 'request.check', organismId: 'wall', baseline: 'DFF', at: 12, label: 'Cross the lane' });
+  const q = t.s.requests[0];
+  const before = q.pool.dice;
+  t.as('p1', { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) });
+  assert.ok(t.s.rolls.at(-1).success && t.s.rolls.at(-1).overflow >= 4, 'the throw that opens the panel has the printed Overflow');
+  t.host({ type: 'panel.open', what: 'a hanging lipid panel' });
+  assert.ok(t.s.scene.cloud, 'the page priced the opacity');
+  assert.equal(t.s.scene.cloud.dice, -2);
+  t.host({ type: 'request.check', organismId: 'wall', baseline: 'DFF', at: 12, label: 'Work the cut' });
+  assert.equal(t.s.requests.at(-1).pool.dice, before - 2, 'every contest in the room');
+  assert.ok(t.s.requests.at(-1).pool.parts.some((p) => /opaque/.test(p.label)), 'and the players are told why the dice are fewer');
+  t.host({ type: 'scene.set', siteId: 'render-hall' });
+  assert.ok(!t.s.scene.cloud, 'the cloud belongs to the scene it was made in');
+  // Under the printed Overflow, nothing is clouded: the page priced the blow, not the intent.
+  const rng2 = makeRng(3);
+  const c2 = (role, pid) => ({ role, pid, rng: rng2, now: 0, scenario, bestiary });
+  let s2 = newSession(scenario);
+  s2 = apply(s2, { type: 'join', name: 'Roly' }, c2('player', 'p1'));
+  s2 = apply(s2, { type: 'zero.agree' }, c2('player', 'p1'));
+  s2 = apply(s2, { type: 'claim', organismId: 'wall', name: 'Bresk of the Sixth Choir' }, c2('player', 'p1'));
+  s2 = apply(s2, { type: 'scene.set', siteId: 'soft-field' }, c2('host', null));
+  s2 = apply(s2, { type: 'request.check', organismId: 'wall', baseline: 'DFF', at: 6, label: 'Cross' }, c2('host', null));
+  const q2 = s2.requests[0];
+  s2 = apply(s2, { type: 'roll', requestId: q2.id, dice: Array(q2.pool.dice).fill(2) }, c2('player', 'p1'));
+  const r2 = s2.rolls.at(-1);
+  assert.ok(r2.success && r2.overflow < 4, `the clean cut should be worth under 4 Overflow: ${JSON.stringify({ dice: r2.dice, total: r2.total, at: r2.at, success: r2.success, overflow: r2.overflow, pool: q2.pool.dice })}`);
+  s2 = apply(s2, { type: 'panel.open', what: 'a panel, cut carefully' }, c2('host', null));
+  assert.ok(!s2.scene.cloud, 'a clean cut under 4 Overflow pays CARCASS but does not cloud the lane');
+  assert.equal(s2.clocks.CARCASS.filled, 1);
+});
+
 test('opening a panel pays CARCASS as many times as the Vector says, and the scene is one of them (3.1)', () => {
   // Both runs of the 13 Nov evening gate ended at CARCASS 2 from ONE panel: the Director spent its one
   // discretionary advance on the panel and the site cut paid its own row on top. So the Engine counts

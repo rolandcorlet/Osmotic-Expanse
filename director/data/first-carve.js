@@ -126,6 +126,10 @@ const sites = [
     encounter: [{ blockId: 'glaze-medusa', count: 2 }, { blockId: 'hijack-mite', count: 2 }],
     // Paid by the Engine when one of these is harvested, never by the Director's award.
     harvestPays: { 'glaze-medusa': { codon: 3 }, 'hijack-mite': { codon: 1.5 } },
+    // 8.2, priced in the Weakness line below: "Cut a panel loose (a Kinetic hit, 4+ Overflow) and the
+    // lane goes opaque: every contest in the room is -2 dice for everyone." It is a property of the
+    // place rather than of each body, so the Engine keeps it on the scene and every pool here reads it.
+    panelCloud: { overflow: 4, dice: -2, why: 'the lane is opaque with dissolved lipid' },
     host: {
       cite: 'Vector §8.2, §7.2',
       play: 'Nothing carried out of this Vector is worth anything unless it passed a post. Say it out loud here. The post\'s ledger has the first crew\'s last entry: CLAIM VOID - SEE NETH. When they reach the post, roll the d12 priced choice (§8.2).',

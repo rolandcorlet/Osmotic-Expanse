@@ -151,7 +151,7 @@ async function once(n) {
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
-  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0 };
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {} };
 
   async function director(reason) {
     const t0 = Date.now();
@@ -167,7 +167,13 @@ async function once(n) {
     tally.refusals += r.refusals;
     tally.tokensIn += r.usage.in;
     tally.tokensOut += r.usage.out;
-    for (const c of r.calls) console.log(`    [${c.name}] ${JSON.stringify(c.args)}${c.result && c.result.refused ? `  REFUSED: ${c.result.refused}` : ''}`);
+    for (const c of r.calls) {
+      // Which calls the page is saying no to, counted as well as printed: a gate read that lists the
+      // refusals by call shows at a glance whether one habit is still costing runs (hazard_damage and
+      // settle_oath were the whole of the 13 Nov evening gate) rather than making Roly scroll for it.
+      if (c.result && c.result.refused) tally.refusedBy[c.name] = (tally.refusedBy[c.name] || 0) + 1;
+      console.log(`    [${c.name}] ${JSON.stringify(c.args)}${c.result && c.result.refused ? `  REFUSED: ${c.result.refused}` : ''}`);
+    }
     console.log(`  DIRECTOR: ${r.narration}`);
     for (const f of r.flags) {
       if (f.kind === 'leak') tally.leaks += 1;
@@ -236,7 +242,7 @@ async function once(n) {
     await settle();
   }
   console.log(`\nRun ${n}: ${tally.turns} Director turns, ${(tally.ms / tally.turns / 1000).toFixed(1)} s each on average, ${tally.tokensIn} tokens in, ${tally.tokensOut} out.`);
-  console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}`);
+  console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}${Object.keys(tally.refusedBy).length ? ` — by call: ${Object.entries(tally.refusedBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);

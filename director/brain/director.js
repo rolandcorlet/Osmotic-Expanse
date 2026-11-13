@@ -22,6 +22,8 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   L.push(`What it is: ${site.where}`);
   L.push(`In front: ${site.front}`);
   L.push(`Fluid: tonic ${site.tonic}; viscosity ${site.visc}; flow ${site.flow}`);
+  if (site.panelCloud) L.push(`Opening a panel here can cloud the water: the page prices it at ${site.panelCloud.overflow}+ Overflow on the throw that opens it, and then every contest in this scene costs ${Math.abs(site.panelCloud.dice)} extra dice. It is the place paying, so you never call it and you never move the number - say what the Cohort is seeing instead.`);
+  if (state.scene && state.scene.cloud) L.push(`THE WATER HERE IS OPAQUE (${state.scene.cloud.why}): every contest in this scene is ${state.scene.cloud.dice} dice. Say what the Cohort is seeing - a lane gone milky, a shape only at the edge of the light - and let the dice come from the throw.`);
   L.push(`Zones: ${site.zones.map((z) => `${z.name}${z.band ? ` (${z.band})` : ''}${z.note ? `: ${z.note}` : ''}`).join(' | ')}`);
   L.push(`Exits: ${site.exits.join(' | ')}`);
   const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
@@ -57,6 +59,9 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   // This line is deliberately said in table words: run 1's leak was the Director echoing our own
   // phrasing back to the players.
   const hz = hazardSpec(site);
+  if (hz.bands) {
+    L.push(`THE HAZARD HERE ALSO THROWS EVERYBODY OUTWARD ${hz.bands} BAND${hz.bands > 1 ? 'S' : ''}: the same firing moves every body at this site one step away from it, so you never call a band shift yourself, and never describe anyone as thrown before it has gone off. Say what it feels like - thrown clear, the wall coming up under you, the lane turning over.`);
+  }
   if (hz.conditions.length) {
     L.push(`THE HAZARD HERE ALSO PRICES ${hz.conditions.join(', ').toUpperCase()}: hazard_damage puts it on every body at the site in the same firing, so you never set it yourself and never pay for it twice. Where it costs something in the fiction, say what it feels like. And never describe anyone as ${hz.conditions.join(', ')} before the firing has happened.`);
   }
@@ -333,6 +338,14 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // Roly, 13 Nov: "the page has nothing printed for that" is the sanctioned way to say no (see
   // instructions.md), so it is not a leak. Naming what does the arithmetic is. The Tally Post has a
   // physical ledger in the fiction, so "the Ledger" only leaks when it is doing Engine verbs.
+  // A swarm's Segments are its health track — the block prints "MI 10 · soak 0 · pool 3d · Segments 6"
+  // — so counting them out loud is the same leak as reading out MI, whether the count is the printed
+  // one or an invented one. Called with Roly's delegation, 13 Nov, after the evening gate said "each
+  // swarm is six small segments" and "two small bodies' worth of it left of what was a dozen" while the
+  // Engine had removed 5 of 6. What stays legal is how the thing LOOKS: "a dozen small ones wearing a
+  // slime coat" is the standing example in instructions.md, and "half of it peels away" names nothing.
+  const SEGMENTS = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|\d+)(?:\s+\w+){0,2}\s+(?:segments?|sections?)\b|segments?\s+\d+\s*\/\s*\d+/i;
+  if (SEGMENTS.test(text)) flags.push({ kind: 'leak', text: 'Counts a swarm\'s Segments or sections, which is its health track.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).
@@ -480,7 +493,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
-    if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity or soak) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead. "The page has nothing printed for that" is allowed.`);
+    if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
     if (flags.some(unpaid)) asks.push('It describes harm that nothing paid for this turn: nobody was hurt. Say only what your calls actually did, and put no damage number in the scene.');
     if (flags.some(unpaidClock)) asks.push('It names a Clock moving when nothing moved it: no Clock changed. Name only a Clock the page actually moved, with the segments it stands at, or say nothing about Clocks at all.');
     if (flags.some(reversed)) asks.push('It describes the opposite of a throw the page has already passed: that throw succeeded and the player saw the total on their own screen. Say what the success did - and what it cost, if the page priced a cost - and do not undo it.');

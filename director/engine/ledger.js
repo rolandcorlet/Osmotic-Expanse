@@ -490,6 +490,30 @@ export function hazardBudget(s, siteId) {
   return { open: false, cycle, scene, until: cycle == null ? 'the next scene' : `Cycle ${cycle + 1}` };
 }
 
+// A hazard's printed band shift. The Toll-Vent pocket prices "6 Kinetic, Jostled, 1 band shift to all
+// in the chamber" and the Gut Stone's Render Charge "20 Kinetic, 2-band shift": both are detonations,
+// and being thrown clear is what the fiction shows, so the Engine moves everyone one step OUTWARD.
+// Bands run contact → near → mid → far → loose (CORE §Bands) and loose is the floor: a hazard does not
+// throw anybody out of the scene. Where the page pulls things inward it says so ("3 band shift toward
+// the breach", "Breacher: the region's pressure differential then does the rest"), and those stay a
+// hand call because the direction is printed for the event doing it, not for a blast. Bodies with no
+// band recorded — organisms move freely and are usually untracked between Drifts — are left alone
+// rather than given a position the Engine never had.
+function shiftAllBands(s, ctx, bodies, steps, name) {
+  const ids = R.BANDS.map((b) => b.id);
+  const moved = [];
+  for (const b of bodies) {
+    const i = ids.indexOf(b.band || '');
+    if (i < 0) continue;
+    const j = Math.min(ids.length - 1, Math.max(0, i + steps));
+    if (i === j) continue;
+    b.band = ids[j];
+    moved.push(`${b.name} at ${R.BANDS[j].name}`);
+  }
+  if (moved.length) say(s, ctx, `${name} throws everyone outward: ${moved.join(', ')}.`, 'hazard');
+  return moved;
+}
+
 // Soak applies once, minimum 1 (§4.8). Shared by the host's plain damage ruling and by a hazard
 // going off, so both pay the same arithmetic.
 function applyDamage(s, ctx, t, amount, dtype, ignoreSoak) {
@@ -561,10 +585,14 @@ const SIGNATURE = {
   genetic: 'inflict Hijacked, steal a Vial or held Specimen, or force a Sequence save',
 };
 
-function poolForCheck(o, { baseline, pathway, mods }) {
+function poolForCheck(o, { baseline, pathway, mods, scene }) {
   if (!R.BASELINES.includes(baseline)) throw new RuleError('Choose a Baseline: VSC, DFF, RTC, OSM or AFF.');
   const rank = pathway ? (o.pathways[pathway] || 0) : 0;
-  const p = R.buildPool({ baseline: o.base[baseline] + condBase(o, baseline), pathway: rank, mods: mods || [], stress: o.stress });
+  // Ground the whole scene is standing in, priced once rather than per body: 8.2's opaque lane is
+  // "every contest in the room is -2 dice for everyone", so it is a property of the place, not a
+  // condition on each organism.
+  const sceneMods = scene && scene.cloud ? [{ label: String(scene.cloud.why || 'Clouded lane').slice(0, 40), dice: Math.trunc(Number(scene.cloud.dice) || 0) }] : [];
+  const p = R.buildPool({ baseline: o.base[baseline] + condBase(o, baseline), pathway: rank, mods: [...(mods || []), ...sceneMods], stress: o.stress });
   p.baselineName = baseline;
   p.pathwayName = pathway || null;
   return p;
@@ -1119,7 +1147,7 @@ const HANDLERS = {
     run(s, a, ctx) {
       needControl(s, ctx, a.organismId);
       const o = org(s, a.organismId);
-      const pool = poolForCheck(o, { baseline: a.baseline, pathway: a.pathway, mods: cleanMods(a.mods) });
+      const pool = poolForCheck(o, { baseline: a.baseline, pathway: a.pathway, mods: cleanMods(a.mods), scene: s.scene });
       const at = a.at == null || a.at === '' ? null : clamp(Math.trunc(Number(a.at)), 1, 60);
       const label = String(a.label || (a.pathway ? `${a.baseline} + ${a.pathway}` : a.baseline)).slice(0, 60);
       const req = { kind: 'check', actor: { kind: 'org', id: o.id, name: o.name }, label, pool, at, practice: !!a.practice };
@@ -1131,7 +1159,7 @@ const HANDLERS = {
     host: true,
     run(s, a, ctx) {
       const o = org(s, a.organismId);
-      const pool = poolForCheck(o, { baseline: a.baseline, pathway: a.pathway, mods: cleanMods(a.mods) });
+      const pool = poolForCheck(o, { baseline: a.baseline, pathway: a.pathway, mods: cleanMods(a.mods), scene: s.scene });
       const at = clamp(Math.trunc(Number(a.at) || 12), 1, 60);
       const label = String(a.label || (a.pathway ? `${a.baseline} + ${a.pathway}` : a.baseline)).slice(0, 60);
       const base = R.homeostatic(pool.dice);
@@ -1253,7 +1281,20 @@ const HANDLERS = {
   'panel.open': {
     host: true,
     run(s, a, ctx) {
+      const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
       payPanelOnce(s, ctx, `${String(a.what || 'a panel').slice(0, 90)} is open to the oxygen`);
+      // 8.2: "Cut a panel loose (a Kinetic hit, 4+ Overflow) and the lane goes opaque: every contest in
+      // the room is -2 dice for everyone." The Overflow is read off the throw that opened the panel, so
+      // the Director cannot choose the number, and the cloud belongs to the scene: walk on and the
+      // current clears it. Every contest this scene then costs the printed dice — see poolForCheck.
+      const cloud = site.panelCloud;
+      if (cloud && !s.scene.cloud) {
+        const r = (s.rolls || []).slice().reverse().find((x) => x.success && x.overflow != null);
+        if (r && r.overflow >= (Number(cloud.overflow) || 4)) {
+          s.scene.cloud = { dice: Math.trunc(Number(cloud.dice) || -2), why: String(cloud.why || 'the lane is opaque with dissolved lipid') };
+          say(s, ctx, `${site.name || 'The site'}: ${s.scene.cloud.why} — every contest in this scene is ${s.scene.cloud.dice} dice.`, 'danger');
+        }
+      }
     },
   },
   clock: {
@@ -1390,16 +1431,21 @@ const HANDLERS = {
       // the second firing had no set_condition after it, so Jostled never landed and no flag
       // existed to say so. The page pays it with the firing, to the same bodies it hurts.
       const paid = (a.conditions || []).filter((n) => R.CONDITIONS[n]);
+      const bands = Math.max(0, Math.trunc(Number(a.bands) || 0));
       if (a.area) {
         const bodies = Object.values(s.organisms).filter((o) => o.playerId);
         for (const o of bodies) applyDamage(s, ctx, { kind: 'org', id: o.id }, amount, a.dtype, a.ignoreSoak);
         for (const n of paid) applyConditionTo(s, ctx, bodies, n, true);
+        // Same clause, same firing: the page writes the shift beside the damage, so the Engine moves
+        // the chamber rather than leaving the Director to narrate a price it never paid.
+        if (bands) shiftAllBands(s, ctx, [...bodies, ...Object.values(s.creatures).filter((c) => c.siteId === siteId && !c.down)], bands, name);
         return;
       }
       applyDamage(s, ctx, a.target || {}, amount, a.dtype, a.ignoreSoak);
       if (paid.length && (a.target || {}).kind === 'org') {
         for (const n of paid) applyConditionTo(s, ctx, [org(s, a.target.id)], n, true);
       }
+      if (bands && (a.target || {}).kind === 'org') shiftAllBands(s, ctx, [org(s, a.target.id)], bands, name);
     },
   },
   heal: {
@@ -1557,7 +1603,7 @@ const HANDLERS = {
       const claw = o.weapons.some((w) => w.id === 'harvest-claw' && w.carried !== false);
       const carcassNow = (s.clocks.CARCASS || {}).filled || 0;
       const at = R.harvestAT(tier) + (!a.cid && carcassNow >= 3 ? 2 : 0);
-      const pool = poolForCheck(o, { baseline, pathway: 'Synthesis', mods: claw ? [{ label: 'Harvest Claw', dice: 2 }] : [] });
+      const pool = poolForCheck(o, { baseline, pathway: 'Synthesis', mods: claw ? [{ label: 'Harvest Claw', dice: 2 }] : [], scene: s.scene });
       const label = `Harvest ${h.what}`.slice(0, 60);
       if (s.fight) {
         // A Synthesise action: 2 PP. The Harvest Claw gives one free Harvest per Pulse War.
@@ -1641,6 +1687,11 @@ const HANDLERS = {
       // human host may still phrase one freely (ctx.ai marks Director-only limits).
       if (ctx.ai && !spokenAtTable(s, promise)) throw new RuleError(`No player said that, so it is not an Oath yet: nothing at the table matches "${promise.slice(0, 70)}". Ask what ${o.name} swears, then call swear_oath with exactly their words.`);
       const witness = String(a.witness || '').trim().slice(0, 60);
+      // A promise at this table is filed in front of somebody: the toll board's third price is "a
+      // promise sworn with an Order II fold to witness it", and 3.2 rewinds TOLL for an Oath kept "in
+      // front of a faction that notices". Called with Roly's delegation on 13 Nov, after the evening
+      // gate filed an Oath that named nobody it was owed to. A human host may still file one freely.
+      if (ctx.ai && !witness) throw new RuleError('Name who witnesses it: an Oath is owed to somebody the table can see — the Order II fold at the gate, the clerk, the crew you are dealing with.');
       o.oath -= 1;
       o.oaths = o.oaths || [];
       o.oaths.push({ id: `v${s.nextId++}`, promise, witness, siteId: s.scene.siteId, open: true });
@@ -1908,6 +1959,8 @@ const HANDLERS = {
       if (braced && s.fight && act && !act.drifted) mods.push({ label: 'Braced (did not Drift)', dice: 1 });
       if (a.momentum && !braced) mods.push({ label: 'Momentum', dice: a.current ? 3 : 2 });
       if (hasCond(c, 'Marked')) mods.push({ label: 'Target is Marked', dice: 2 });
+      // "Every contest in the room": the Strike path reads the same ground as a check does.
+      if (s.scene.cloud) mods.push({ label: String(s.scene.cloud.why || 'Clouded lane').slice(0, 40), dice: Math.trunc(Number(s.scene.cloud.dice) || 0) });
       for (const m of situationMods(a.situation)) mods.push(m);
       if (ctx.role === 'host') for (const m of cleanMods(a.mods)) mods.push(m);
       const pool = R.buildPool({ baseline: o.base[baseName] + condBase(o, baseName), pathway: o.pathways[pathName] || 0, mods, stress: o.stress });
@@ -2001,7 +2054,7 @@ const HANDLERS = {
       if (o.dormant) throw new RuleError(`${o.name} is Dormant and cannot act.`);
       const act = actorOf(s, 'org', o.id);
       if (s.fight && act) spendPP(s, act, 2, 'Synthesise');
-      const pool = poolForCheck(o, { baseline: 'RTC', pathway: 'Synthesis', mods: cleanMods(a.mods) });
+      const pool = poolForCheck(o, { baseline: 'RTC', pathway: 'Synthesis', mods: cleanMods(a.mods), scene: s.scene });
       pushRequest(s, {
         kind: 'stabilise', actor: { kind: 'org', id: o.id, name: o.name }, target: { kind: 'org', id: t.id, name: t.name },
         label: `Stabilise ${t.name}`, pool, at: R.stabiliseAT(t.level), ppCost: s.fight && act ? 2 : 0,
