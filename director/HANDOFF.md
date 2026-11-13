@@ -1,51 +1,83 @@
 # Handoff: continuing The Osmotic Expanse AI Director
 
-Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Updated 13 November 2026** at `2ac4384`. Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
+Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Rewritten at the end of 13 November 2026, HEAD `caf1b2a` plus this file.** Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-Those five bench fixes (`8ec4fa5`..`2ac4384`) and this doc (`3f58021`) **are pushed**, and so is the whole 13 Nov morning stack: Roly pushed at 11:01, so `origin/main` sits at **`ae24bc5`**. Since then `8358eba` (the briefing held to the leak rule, plus the bench housekeeping), `0f189ca` (this file) and `ed536dd` (the afternoon gate's fixes) have landed, and Roly pushed at 12:35 and again at 13:18 — so `origin/main` sits at **`c931149`** (the tree the evening gate ran on) and **`f3e5a6d`, `c63e791`, `91b0f6b`, `95d1271`, `a518ba3`, `716187e` and this file are what is not pushed.** Roly pushes.
+**Push state:** Roly pushed at 11:01, 12:35, 13:18 and 22:37, so `origin/main` sits at **`caf1b2a`** and **only this handoff commit is unpushed**. He pushes from Windows while a session is running, so re-check `git rev-list --count origin/main..HEAD` before quoting an unpushed number — a stale line in this file cost the 11:00 session ten minutes this morning. The sandbox has no egress, and a commit run from here leaves `.git` locks and `tmp_obj_*` files to delete in the same call.
 
-## Starting a new session (as at 13 Nov, ~16:10 — HEAD `716187e` plus this file)
+## Starting a new session (as at 13 Nov, end of day — HEAD `caf1b2a` plus this file)
 
-Today landed ten: `f4d68e0` (hazards owned by the Engine: the firing budget, the widened
-`hazardSpec` parse, the unpaid-damage guard that now fails the bench gate), `4070dd6` (Roly's leak
-ruling: "the page prints nothing for that" is legal table talk, the Engine and the Ledger are not),
-`b4c4b07` (the Vector pays its own Clocks from 3.1-3.3, and `oath.swear` refuses a promise the
-table never said), `cbb2e52` (an area condition: the `condition` action takes `area` and
-`set_condition` takes `all_bodies`, so a chamber-wide Jostled lands on every body in one call),
-`5eee166` (a hazard pays the condition its own Effect clause prints, and the words we address the
-Director in are held to the same leak rule as its narration), and `8358eba` (the **briefing** held to
-that same rule, and the housekeeping: `*.log` in `director/.gitignore` plus a `--log <file>` flag on
-`tools/bench.mjs`), and `ed536dd` (the afternoon gate's fixes: `loud` pays TOLL **and** HUNGER as §3.2
-and §3.3 print it, an **Unpaid Clocks in narration** rule flag that the bench tallies and the gate fails
-on, the briefing and the instructions telling the Director that nobody acts on a turn outside a Pulse
-War, and a repeat `creature_stand_down` as a note rather than a refusal), and `f3e5a6d` (the evening gate's
-one fix each: `hazard_damage` says in its own words that only this site's printed hazard counts and a
-creature's sting or field is not a hazard, and settling an already-closed Oath answers with a note), and
-`95d1271` (the panel is one Engine event the site pays — `panel.open`, and `open_panel` for the Director
-— with the count per scene held in `rules.panelOpensPerScene`, and a **Reversed rolls in narration**
-flag for prose that undoes a throw the page passed), and `716187e` (the four definitions Roly delegated,
-called and built: a hazard's printed band shift moves everyone outward in the firing; 8.2's opaque lane
-is a scene-level -2 dice read off the throw that opened the panel; Segments are a creature's number and
-counting them is a leak; an Oath the Director files must be owed to a named witness — plus refusals
-counted by call in the bench summary). Roly pushed through `c931149` at 13:18; `f3e5a6d`, `c63e791`,
-`91b0f6b`, `95d1271`, `a518ba3`, `716187e` and this file are unpushed.
-`node --test` is
-**139 green**. The working tree shows
-~82 "modified" files and every one of them is pure CRLF noise: check `git diff --numstat` for equal
-insert/delete counts before believing a dirty tree. The two bench logs no longer show as untracked,
-because they are ignored now — get one with `--log` rather than a redirect.
+Today's commits, in order, each in one line (docs between them omitted): `f4d68e0` hazards owned by the Engine
+(firing budget, a wider `hazardSpec` parse, the unpaid-damage guard that fails the gate); `4070dd6`
+Roly's leak ruling at the table; `b4c4b07` the Vector pays its own Clocks from §3.1-3.3, and `oath.swear`
+refuses a promise the table never said; `cbb2e52` an area condition in one call; `5eee166` a hazard pays
+the condition its own Effect clause prints, and the tool strings are held to the leak rule; `8358eba` the
+**briefing** held to that rule too, plus `*.log` ignored and a `--log <file>` flag for the bench;
+`ed536dd` `loud` pays TOLL **and** HUNGER, an **Unpaid Clocks** check, the briefing saying nobody acts on a
+turn outside a Pulse War, and a repeat `creature_stand_down` answered with a note; `f3e5a6d` `hazard_damage`
+says only this site's printed hazard counts, and settling an already-closed Oath is a note; `95d1271` the
+panel is one Engine event the site pays, plus a **Reversed rolls in narration** check; `716187e` the four
+definitions Roly delegated — a hazard's band shift throws everyone outward, 8.2's opaque lane is a
+scene-level -2 dice, a swarm's Segments are a creature's number, and an Oath must name a witness — and
+refusals counted by call; `caf1b2a` one of those new checks fixed, because it was flagging the Cohort's own
+harvest. Every gate number, what each run showed and what each check caught is in the findings below.
+
+`node --test` is **139 green**. The working tree still shows ~82 "modified" files and every one is pure
+CRLF noise — check `git diff --numstat` for equal insert/delete before believing a dirty tree, and there is
+still no `.gitattributes`. Bench logs are ignored now; get one with `--log` rather than a redirect.
 
 ### For the next session — start here
 
-Nothing is broken and waiting: 139 tests green, and both of today's extra gates have been read (their
-numbers and what they found are in the findings below). **Zero leak flags and zero unpaid damage across
-136 turns**; the failures were five refusals between them, all fixed at `ed536dd` and `f3e5a6d`, and the
-two defects those transcripts exposed — a panel priced twice, and prose reversing a throw the page passed
-— are built at `95d1271`. The four rulings that were still open have been **called with Roly delegating**
-and built at `716187e` (items 5-8 below), so the short list left is work, not definition: the Beat, the
-Cycle outside a Pulse War, the slough's "-1 Drift per Move" and the ground/zone model it needs, salting a
-panel, shipping a haul, the Gut Stone's serial, the narrated countdowns, and then Phase 4 with a real
-group.
+Nothing is broken and waiting. Nothing is *measured*, either, and that is the difference this file needs
+you to hold onto: today added a great deal that has only ever run under `node --test`.
+
+1. **First job, and it is Roly's to run: the gate.** It is the first live look at `open_panel`, the opaque
+   lane, `shiftAllBands`, the Oath-witness requirement, and two narration checks that now **fail the gate**
+   (Unpaid Clocks, Reversed rolls in narration) plus the Segments leak.
+   `node tools/bench.mjs --runs 3 --sites 2 --players 4 --thinking medium --log bench_13nov_pm.log`
+   Tells to read: zero refusals (the summary names them by call now), zero leaks, zero unpaid damage, zero
+   Unpaid Clocks, zero Reversed rolls; **HUNGER at 1** after the first Pulse War of a scene; **CARCASS 1,
+   not 2**, where a run cuts a panel; **no `set_condition` at all** after a firing (one redundant
+   `all_bodies` call is a legal no-op, one per body is a regression); the first Toll-Vent firing logging
+   **"throws everyone outward"**; and if a run works the Soft Field panels hard at 4+ Overflow, the opaque
+   lane line with the -2 dice showing as a labelled part of the pool. Expect the style tax regardless: 20 of
+   81 turns needed the one-shot rewrite last gate, almost all of them "ran long, read out dice, or did not
+   end on a question".
+2. **If a new check fails a run, suspect the check before the model.** `caf1b2a` is the proof: my first
+   Segments check flagged "Four cut sections lie in the cradle of the current" — the Cohort's own harvest —
+   and a leak flag both burns a rewrite and fails the gate. The method that found it: convert the saved
+   logs (`iconv -f UTF-16LE -t UTF-8`) and run every `DIRECTOR:` line through `checkNarration`, then read
+   the flag counts. 81 real lines now yield three Segments flags, all genuine, and the Unpaid Clocks check
+   produced none once the Clock payments were in the state.
+3. **Knobs I set today, each one number or one regex if Roly wants them different.**
+   `rules.panelOpensPerScene = 1` (0 makes every panel cracked loose pay its own CARCASS segment);
+   `soft-field.panelCloud = { overflow: 4, dice: -2 }`; `SEGMENTS`, `REVERSED` and `HARVEST_WORDS` in
+   `brain/director.js`; the outward direction of a hazard's band shift (`shiftAllBands`, with clauses that
+   print their own direction deliberately left alone); `swear_oath` requiring a witness from the Director
+   only; and the gate staying strict on refusals while now counting them by call.
+4. **Known-incomplete by my hand, not accidents.** The opaque lane does not reach creature→player attack
+   pools, so "every contest in the room is -2 dice for everyone" is honoured on one side only.
+   `HARVEST_WORDS` is a list curated from the transcripts rather than a rule, so a harvest sentence using
+   none of those words will still over-flag; and "sections come off it in twos" is an over-flag (it
+   describes a blow, not a tally). `swear_oath` now *requires* `witness` in its schema, which may itself
+   create refusals from a model that forgets it — unmeasured.
+5. **A reachability problem nobody has priced yet: HUNGER cannot climb for a Cohort that harvests.** §3.3
+   pays +1 for fighting loudly and **−1 for every body harvested**, so a thorough Cohort pins it at 0 —
+   which is why its Feeders, Render and Render-Cascade segments have never appeared in five gates. That is
+   rule-correct behaviour, not a bug, and it is worth a decision before anyone concludes the danger clock
+   is unused.
+6. **Unverified from this sandbox, in case anyone assumes otherwise:** the screens (no Playwright here, so
+   no 1366/1536/1920 or 390 px look at how the new log lines render); loading a pre-existing save through
+   the new state fields (`panelScene`, `panelCount`, `scene.cloud` are additive and hazards had a guard, but
+   nothing round-tripped one); sites 4 and 5 — the scripted table plays two sites, so the Gut Stone's
+   "2-band shift" and the Render Charge at TOLL 5 are unit-tested and have never fired; Phase 5's
+   narration-to-first-sound latency; and the 82-file CRLF churn with no `.gitattributes`.
+7. **Then the work list, which is now work rather than definition:** the Beat; the Cycle outside a Pulse
+   War; the ground/zone model the slough's "-1 Drift per Move" needs; salting a panel or a wound; shipping
+   a haul to a buyer; the Gut Stone's serial at a Warden register arch; the narrated countdowns; the second
+   half of the priced-choice rows (only one is applied); and the run-1 Oath loop, still latent. After that,
+   **Phase 4 with a real group** — the scripted bench is rehearsal, not the gate.
+
+Today's changes item by item, with the reason each exists:
 
 1. **DONE — the briefing is held to the leak rule (`8358eba`).** The tool strings have been swept by a
    test since `5eee166`; the briefing was the last big block of our own prose the model reads, and it
@@ -128,6 +160,14 @@ group.
     part of the pool. No rewrite should quote "the Engine", "the Ledger", "the notes" or "the briefing",
     and none should count a swarm's Segments. Budget for the style tax as always: 20 of 81 turns needed the
     one-shot rewrite last gate, almost all of them "ran long, read out dice, or did not end on a question".
+11. **A check of mine that was wrong, fixed at `caf1b2a`.** The Segments leak added at `716187e` matched
+    any number near "segments/sections", which in this Vector is also how a cut is described: "four cut
+    sections lie in the cradle of the current", "the wreck of the first one lies in sections at Vash's
+    feet". Flagging those would have burned rewrites and failed runs for describing a harvest. It now
+    decides whose count it is — nearest named owner, an explicit "four of its six sections", or an unnamed
+    owner with a creature in the scene and nothing in the sentence pointing at a person or at the cut —
+    with tests for both false positives. **The lesson for the next session: sweep any new narration rule
+    over the saved transcripts before you trust it.**
 
 Then Phase 4 with a real group: the scripted bench is rehearsal, not the gate.
 
@@ -142,23 +182,17 @@ owed to; and the gate stays strict on refusals because a refusal is the model re
 when the Engine catches it. The last four were **called by me on 13 Nov with Roly delegating** — he can
 overturn any of them, and each is one number or one regex away from being changed.
 
-Queued, in the order I would take them: **(1)** ~~the half of "area forms" still missing — the **band
-shift**~~ — **done**: `set_condition` at `cbb2e52` (the `condition` action takes `area`, the tool takes
-`all_bodies`, `hazardSpec().conditions` reads the printed condition off the site's own note), and the
-band shift at `716187e` (the same Effect clause's "1 band shift to all in the chamber" / "2-band shift"
-moves every body at the site one step outward in the firing). What is left of that family is the slough's
-**"-1 Drift per Move"**, which wants a ground/zone model — nothing in the Engine knows who is standing in
-what — so it joins the Beat; **(2)** the Cycle outside
-a Pulse War and the **Beat**, which unlock three of the printed Clock rows, the hazard "per Cycle" rows and
-the narrated countdowns; **(3)** the run-1 Oath loop, still latent; **(4)** only one priced-choice row is
-applied by the Engine; **(5)** `harvestPays` covers 12 creatures but the shipped-haul, salted-panel and
-Gut-Stone-serial rows in 3.1-3.3 are still prose.
+The area-form family is closed except for one member: `set_condition` at `cbb2e52` (a chamber-wide
+condition is one call) and the hazard's band shift at `716187e` (the same Effect clause, one step outward).
+What is left of that family is the slough's **"-1 Drift per Move"**, which wants a ground/zone model —
+nothing in the Engine knows who is standing in what — so it waits with the Beat. `harvestPays` covers the 12
+printed creatures; the shipped-haul, salted-panel and Gut-Stone-serial rows in 3.1-3.3 are still prose, and
+only one priced-choice row is applied.
 
-That gate ran on 13 Nov (Roly) and is saved as `director/bench_13nov_am.log` — the numbers are in the
-findings below. It cleared the hazards and proved the area condition works at the table; the two things
-it exposed are fixed at `5eee166`. **Next job is Phase 4 with a real group** — the scripted bench is
-rehearsal, not the gate — plus one ruling listed under Open items: who pays a Clock when a panel is
-opened by a roll rather than by a harvest.
+All three of today's gates are saved and read (the `bench_13nov_am.log` set and the two runs pasted into the
+session, written up in the findings below). **Next job is one more gate against `caf1b2a`** — it is the
+first live look at the four delegated calls and at the two narration checks that now fail the gate — and
+then Phase 4 with a real group.
 
 ## What this is
 A tabletop RPG run by two parts: a rules **Engine** (all numbers and rules) and a language-model **Director** (narrates, calls tools). Players use phones, the table has a shared screen, the host has a console. Node server, plain browser front end, no build step.
@@ -356,7 +390,13 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
 
 ## Open items
 1. Measure narration-to-first-sound with Kokoro (speech) and `Systran/faster-whisper-small` (listening) on the PC. Target: speech starts within about 2 s.
-2. Bench coverage: the saved `--thinking medium` gate ran 13 Nov (`bench_13nov_am.log`, numbers above). Its only faults are fixed at `5eee166`, so **a clean pass of it is still outstanding** — and Qwen3.8-27B Q4_K_M is untried. Phase 4 still needs a real group playing two sites — that is the gate, not another scripted run.
+2. Bench coverage: three `--thinking medium` gates ran on 13 Nov (`bench_13nov_am.log`, plus the
+   afternoon and evening sets written up above). **No gate has passed yet, and the last two failed only on
+   refusals** — five between them, all fixed — while leaks and unpaid damage stayed at zero across 136
+   turns. The next run is against `caf1b2a` and is the first live look at the four delegated calls and the
+   two narration checks that now fail the gate, so read the flags before blaming the model. Qwen3.8-27B
+   Q4_K_M is still untried. Phase 4 still needs a real group playing two sites — that is the gate, not
+   another scripted run.
 3. Not built: save slots and Supabase copy (plan: rules and Vectors stay in GitHub; saves local first, Supabase as a copy; free plan pauses after 7 days idle and has no backups); ad-libbing (`improv: 'adlib'` is refused until built); Discord sign-in (deferred).
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
 5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Built at
@@ -388,6 +428,14 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    hand that printed them. **Still missing:** the slough's "-1 Drift per Move", which needs the Engine to
    know who is standing in which patch of ground — the same missing model as the Beat and the
    narrated countdowns.
+7. The opaque lane (`716187e`) reads on organism checks and the player Strike path, **not on creature
+   attacks** — so "every contest in the room is -2 dice for everyone" is honoured on one side only. Fine to
+   leave while the fight math is being watched; the place to finish it is where the creature pool is built
+   in `engine/ledger.js`, reading `s.scene.cloud` the same way `poolForCheck` now does.
+8. **HUNGER cannot climb for a Cohort that harvests** (§3.3: +1 for fighting loudly, −1 for every body
+   harvested, never below 0). Five gates, HUNGER 0 every time, and its Feeders / Render / Render-Cascade
+   segments never reached. Rule-correct, but it makes the danger clock decorative for a thorough Cohort —
+   Roly to decide whether the loud row should pay more than one segment, or the refund should be capped.
 
 ## Design decisions to preserve
 - Speech starts within ~2 s; local voice first; the Director's voice also works on remote devices.
