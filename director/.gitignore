@@ -1,3 +1,8 @@
 # Saved sessions stay on the computer that hosts the table.
 saves/
 node_modules/
+
+# Gate logs are read, not kept, and two of them only clutter status. Get one with
+# `--log bench_13nov.log`: the harness writes its own UTF-8 file, whereas a PowerShell
+# `>` redirect writes UTF-16LE and mangles every em dash in the transcript.
+*.log

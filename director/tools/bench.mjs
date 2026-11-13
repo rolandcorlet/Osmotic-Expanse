@@ -7,10 +7,14 @@
 //   node tools/bench.mjs --provider ollama --model <name>     try another one
 //   node tools/bench.mjs --sites 2 --players 4                 two sites and four players (Phase 4 rehearsal)
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
+//   node tools/bench.mjs --runs 3 --log bench_13nov_am.log    write the whole run to a UTF-8 file
+//
+// Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the em dashes and
+// curly quotes in the transcript, so a saved gate comes out ungreppable without converting it first.
 //
 // The gate for a model: no Engine refusals, no leak flags, and every reply ends
 // on exactly one question. Nothing here touches a saved session.
-import { readFileSync, existsSync, mkdtempSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -39,6 +43,20 @@ const thinking = opt('--thinking', cfg.thinking || 'default'); // default | medi
 const runs = Number(opt('--runs', 1));
 const sites = Number(opt('--sites', 1)); // 2 plays on through the Soft Field: harvest, the Tally Post, and out
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
+const logFile = opt('--log', '');
+
+// Everything the bench prints also goes to --log, written as UTF-8 by the harness itself. Teeing
+// console keeps the transcript identical to the console scroll, so the gate can be read afterwards
+// instead of re-run.
+if (logFile) {
+  const out = createWriteStream(logFile, { encoding: 'utf8' });
+  out.write(`# bench ${new Date().toISOString()} provider=${provider} model=${model} thinking=${thinking} runs=${runs} sites=${sites} players=${players}\n`);
+  for (const k of ['log', 'error', 'warn']) {
+    const orig = console[k].bind(console);
+    console[k] = (...a) => { out.write(`${a.map((x) => (typeof x === 'string' ? x : String(x))).join(' ')}\n`); orig(...a); };
+  }
+  process.on('exit', () => out.end());
+}
 if ((info.key === 'required' && !apiKey) || !model) { console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`); process.exit(1); }
 const makeProvider = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking });
 const makeQuick = () => build({ provider, apiKey, baseUrl, model, numCtx, thinking: 'off' }); // the chronicle: no thinking

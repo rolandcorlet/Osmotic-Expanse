@@ -26,7 +26,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   L.push(`Exits: ${site.exits.join(' | ')}`);
   const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
-  if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} (harvest tool with no creature). The grade depends on CARCASS, not on the roll.`);
+  if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} — call \`harvest\` with no creature to cut the site itself. The grade depends on CARCASS, not on the roll.`);
   // The Soft Field can be carved; the wound mouth cannot. Saying only the positive left the Director
   // to try a site cut at the Toll-Vent, where nothing is printed to cut (bench run, 13 Nov 2026).
   else L.push(`Nothing at this site can be cut for yield: it prints no harvest. Here harvest is only ever for a destroyed creature, with its id. Do not call harvest with no creature, and do not look for a panel, a gland or a seam to carve.`);
@@ -34,7 +34,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     // The Pays prose often names the per-creature harvest Codon; the Engine pays that itself,
     // and a Director reading the prose alone tries to award it (bench, 12 Nov 2026).
     const auto = Object.entries(site.harvestPays || {}).map(([b, p]) => `${p.codon} Codon for each harvested ${String(b).replace(/-/g, ' ')}`).filter((x) => x);
-    if (auto.length) L.push(`The Engine pays these at the cut: ${auto.join('; ')}. It adds them itself the moment a harvest of that creature succeeds, and pays it to the whole Cohort. Killing one pays nothing: the amount exists only once somebody cuts the body, and the Engine does the paying. Never call award for these amounts, even though the Pays line names the same figure; award refuses it. You pay only what the Pays line prints that is NOT a harvest amount.`);
+    if (auto.length) L.push(`Paid at the cut, to the whole Cohort: ${auto.join('; ')}. They go in by themselves the moment a harvest of that creature succeeds. Killing one pays nothing: the amount exists only once somebody cuts the body, and the cut itself does the paying. Never call award for these amounts, even though the Pays line names the same figure — award answers that it is refused, because it is not yours to give. You pay only what the Pays line prints that is NOT a harvest amount.`);
   }
   if (site.post) {
     const offer = (state.posts || {})[site.id];
@@ -47,7 +47,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     L.push('Say plainly that an unstamped cut is worth nothing outside until a weighing house takes it, grades it and stamps it.');
   }
   L.push('');
-  L.push('## Director-only notes for this site (never read these out)');
+  L.push('## FOR YOU ALONE AT THIS SITE — none of this is said at the table');
   for (const [k, label] of [['play', 'Play'], ['danger', 'Danger'], ['wants', 'Wants'], ['weakness', 'Weakness'], ['hazard', 'Hazard'], ['pays', 'Pays'], ['tells', 'Tells'], ['lesson', 'Lesson']]) {
     if (h[k]) L.push(`${label}: ${h[k]}`);
   }
@@ -65,7 +65,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const budget = hazardBudget(state, site.id);
   if (!budget.open) {
     const spec = hazardSpec(site);
-    L.push(`THE HAZARD HERE HAS ALREADY GONE OFF and the Engine refuses hazard_damage until ${budget.until}. Say what the Cohort did to it and move on: never describe it going off a second time, and never describe damage no tool paid for.${spec.area ? ' That hazard is an area one: one call already paid every body at this site.' : ''}`);
+    L.push(`THE HAZARD HERE HAS ALREADY GONE OFF: hazard_damage is refused until ${budget.until}. Say what the Cohort did to it and move on: never describe it going off a second time, and never describe harm that nothing paid for on this turn.${spec.area ? ' That hazard is an area one: one call already paid every body at this site.' : ''}`);
   }
   if ((site.encounter || []).length) {
     L.push('');
@@ -113,7 +113,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   if (!here.length) L.push('None are present yet.');
   for (const c of here) {
     const health = c.segments != null ? `Segments ${c.segments}/${c.segMax}` : `MI ${c.mi}/${c.miMax}`;
-    if (c.down) { L.push(`- ${c.name} (id "${c.cid}"): DESTROYED. It is out of the scene: it cannot act, block the way or be struck. Describe it only as wreckage. ${c.harvested ? 'Already harvested.' : 'Not yet harvested: an organism may harvest it (harvest tool).'}`); continue; }
+    if (c.down) { L.push(`- ${c.name} (id "${c.cid}"): DESTROYED. It is out of the scene: it cannot act, block the way or be struck. Describe it only as wreckage. ${c.harvested ? 'Already harvested.' : 'Not yet harvested: an organism may call `harvest` with its id.'}`); continue; }
     if (c.stoodDown) { L.push(`- ${c.name} (id "${c.cid}"): STOOD DOWN (${c.stoodDown.why}). It is present but not fighting: it takes no turns and does not block the way. If a player strikes it, it rejoins the fight.`); continue; }
     L.push(`- ${c.name} (id "${c.cid}", block ${c.blockId}): ${health}; band ${c.band}${c.conditions.length ? `; ${c.conditions.map((x) => x.name).join(', ')}` : ''}`);
   }
@@ -128,7 +128,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       .filter(([id, b]) => b && b.name && danger.includes(b.name) && !inScene.has(String(id).toLowerCase()))
       .map(([, b]) => b.name);
     if (named.length) {
-      L.push(`PRINTED HERE BUT NOT YET IN THE SCENE: ${named.join(', ')}. They ARE at this site: the page puts them here, so never tell a player they are not. They are simply not in the Ledger yet, so they cannot act, block or be struck until you bring them in. The moment the fiction reaches one (a player looks for it, asks about it, approaches it, or attacks it), call bring_creatures first, then describe it. A player who attacks one starts the Pulse War: bring it in, then start_pulse_war.`);
+      L.push(`PRINTED HERE BUT NOT YET IN THE SCENE: ${named.join(', ')}. They ARE at this site: the page puts them here, so never tell a player they are not. They are simply not in the scene yet, so they cannot act, block or be struck until you bring them in. The moment the fiction reaches one (a player looks for it, asks about it, approaches it, or attacks it), call bring_creatures first, then describe it. A player who attacks one starts the Pulse War: bring it in, then start_pulse_war.`);
     }
   }
 
@@ -143,7 +143,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       const item = Lt.queue.find((x) => x.id === Lt.offer.itemId) || Lt.queue[0];
       const name = (id) => (state.organisms[id] || {}).name || id;
       L.push(`# SHARING OUT THE HARVEST: ${name(Lt.offer.orgId)} is choosing whether to take a ${item.grade} Specimen from ${item.from}; ${Lt.queue.length - 1} more after it. Picking order: ${Lt.order.map(name).join(', ')}.`);
-      L.push('The players take or pass on their own screens, and whoever is offered goes to the back of the order either way. Never choose for them, and never say who got what: the Engine records it as they pick.');
+      L.push('The players take or pass on their own screens, and whoever is offered goes to the back of the order either way. Never choose for them, and never say who got what: it is written down as they pick, and the players see it on their own screens.');
       L.push('');
     } else if ((Lt.order || []).length > 1) {
       L.push(`Picking order for the next harvest: ${Lt.order.map((id) => (state.organisms[id] || {}).name || id).join(', ')}.`);
@@ -172,7 +172,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   // What the Ledger already paid for, from the Vector's own trigger lists: the players saw these
   // lines, so the Director must not spend its one advance on the same Clock or narrate it again.
   const paid = (state.log || []).filter((e) => e.kind === 'clock').slice(-4);
-  if (paid.length) L.push(`Clocks the Ledger moved itself (the players were told): ${paid.map((e) => e.text).join(' | ')}`);
+  if (paid.length) L.push(`Clocks this site has already moved (the players were told): ${paid.map((e) => e.text).join(' | ')}`);
   L.push('CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.');
 
   L.push('');
@@ -204,7 +204,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down && !c.stoodDown);
     if (up.length) L.push(`Still fighting: ${up.map((c) => c.name).join(', ')}. While any of these is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do. A creature that has yielded, fled or was never fighting does not belong in this list: use creature_stand_down for it, with the reason.`);
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
-    else if (cur) L.push('It is a player\'s turn: they act on their own screen. Do not use any creature tool now (no creature_move, creature_strike, creature_special, creature_reserve): creatures act only on their own turns. Narrate and ask.');
+    else if (cur) L.push('It is a player\'s turn: they act on their own screen. Do not act for any creature now — no creature_move, creature_strike, creature_special, creature_reserve. Creatures act only on their own turns. Narrate and ask.');
   } else {
     L.push('# NO PULSE WAR. Pulse Points do not exist right now: do not mention them.');
   }
@@ -265,7 +265,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const recent = state.log.slice(-8).filter((l) => ['act', 'hit', 'clock', 'scene', 'rest', 'award', 'danger'].includes(l.kind));
   if (recent.length) {
     L.push('');
-    L.push('# WHAT THE ENGINE JUST RECORDED');
+    L.push('# WHAT JUST GOT PAID (the players saw these lines)');
     for (const l of recent) L.push(`- ${l.text}`);
   }
 
@@ -280,7 +280,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 
   L.push('');
   if (hostNote) L.push(`# NOTE FROM THE HOST (follow it): ${hostNote}`);
-  L.push(`# YOUR MOVE${reason ? ` (${reason})` : ''}. Use tools if the world must change, then narrate in plain text and end on one question.`);
+  L.push(`# YOUR MOVE${reason ? ` (${reason})` : ''}. If the world must change, make the calls that pay for it first, then narrate in plain text and end on one question.`);
   return L.join('\n');
 }
 
@@ -366,6 +366,15 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
 // The machinery, as the table must not hear it. Deliberately not "the page": instructions.md tells
 // the Director to use that sentence when the players want something off the page.
 export const MACHINERY = /Director-only|site notes|\bthe notes\b|briefing|\btool\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
+
+// The same rule, aimed at the prose WE hand the Director. Run 1 of the 13 Nov gate said "Next
+// briefing will carry the Soft Field" to the players — a string of ours, quoted back — and a test now
+// holds every tool description and refusal path to MACHINERY. The briefing is the largest block of our
+// prose there is, so its own lines are held here. Two words MACHINERY flags are deliberately out: the
+// model cannot act without reading its tool names, and the Vector's page prose, quoted verbatim into
+// the briefing, legitimately writes "the harvest tool" (the Toll-Vent's Pays line) and "the Ledger's
+// room" (a Lesson line). "the Ledger" is therefore caught only doing Engine verbs, exactly as above.
+export const BRIEFING_LEAK = /Director-only|site notes|\bthe notes\b|\bbriefing\b|\bthe Engine\b|the Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)/i;
 
 // A number attached to a damage type, or "takes N damage". Deliberately narrow: the check only
 // fires when no tool hurt anyone this turn, so a paid blow or a hazard is never flagged.

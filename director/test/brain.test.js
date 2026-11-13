@@ -8,7 +8,7 @@ import { newSession, apply, restart, hazardBudget } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS, hazardSpec } from '../brain/tools.js';
-import { directorTurn, briefing, checkNarration, asksRollInWords, MACHINERY } from '../brain/director.js';
+import { directorTurn, briefing, checkNarration, asksRollInWords, MACHINERY, BRIEFING_LEAK } from '../brain/director.js';
 import { createDirector } from '../brain/manager.js';
 import { gemini, pickDefaultModel } from '../brain/gemini.js';
 
@@ -63,8 +63,8 @@ test('a turn works on a copy: the live Ledger is untouched until committed', asy
   assert.equal(r.state.story.at(-1).kind, 'narration');
   assert.equal(r.refusals, 0);
   assert.deepEqual(r.flags, []);
-  // The briefing carried the Director-only notes and the player's words.
-  assert.match(make.seen[0], /Director-only notes/);
+  // The briefing carried the site's private notes and the player's words.
+  assert.match(make.seen[0], /FOR YOU ALONE AT THIS SITE/);
   assert.match(make.seen[0], /I shoulder through the wound lip/);
   assert.match(make.seen[0], /NO PULSE WAR/);
 });
@@ -957,11 +957,13 @@ test('the briefing says there is no Tally Post at the Toll-Vent, and names where
   assert.ok(!/A Tally Post stands here/.test(b), 'no post line where there is no post');
 });
 
-test('the briefing says the Engine pays the printed harvest Codon itself, so it is never an award', () => {
+test('the briefing says the cut itself pays the printed harvest Codon, so it is never an award', () => {
   // The site's Pays prose names "1.5 Codon each", and twice in the bench the Director tried to
-  // pay what the Engine had already paid at the cut.
+  // pay what the cut had already paid. Wording matters here: this line is read by the model and can
+  // be repeated at the table, so it names no machinery (see the briefing sweep).
   const b = briefing(seated(), scenario, bestiary, {});
-  assert.match(b, /The Engine pays these at the cut: 1.5 Codon for each harvested gnaw swarm; 3 Codon for each harvested fold sentinel/);
+  assert.match(b, /Paid at the cut, to the whole Cohort: 1.5 Codon for each harvested gnaw swarm; 3 Codon for each harvested fold sentinel/);
+  assert.match(b, /the cut itself does the paying/);
   assert.match(b, /Never call award for these amounts/);
   assert.match(b, /Killing one pays nothing/);
 });
@@ -1181,6 +1183,46 @@ test('nothing we say to the Director teaches it the words we then flag at the ta
     const words = [t.description, ...Object.values(t.parameters.properties).flatMap((p) => [p.description, p.items && p.items.description].filter(Boolean))];
     for (const d of words) assert.ok(!MACHINERY.test(String(d)), `${t.name}: "${d}" names the machinery`);
   }
+});
+
+test('the briefing we write about this site holds to the same rule as the narration', () => {
+  // The leaks the gate has caught are all sentences of ours: "Next briefing will carry the Soft
+  // Field" was the change_site description quoted back at the players. The tool strings are swept
+  // above; the briefing is the biggest block of our own prose the model reads, so its lines are
+  // swept here — across the branches that only show up mid-scene, where a stale sentence hides.
+  const sweep = (text, label) => {
+    for (const line of text.split('\n')) assert.ok(!BRIEFING_LEAK.test(line), `${label}: the briefing would teach a leak — ${line}`);
+  };
+
+  sweep(briefing(seated(), scenario, bestiary, {}), 'the Toll-Vent: no post, nothing paid');
+  sweep(briefing(apply(seated(), { type: 'scene.set', siteId: 'soft-field' }, ctx('host')), scenario, bestiary, {}), 'the Soft Field: post, priced choice, creatures printed but not in the scene');
+
+  // A Pulse War with the hazard already spent: the ALL-CAPS condition line, the budget line, the
+  // acting-creature lines and the log block at the bottom.
+  const war = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }], ownDice: { wall: 6, eyes: 6, 'Order I: Lytic Swarms': 1 } }, ctx('host', null));
+  const H = toolbox({ state: war, scenario, bestiary, rng, now: 0 });
+  H.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket' });
+  H.state = apply(H.state, { type: 'fight.end' }, ctx('host', null));
+  sweep(briefing(H.state, scenario, bestiary, {}), 'a spent hazard and a closed fight');
+
+  // A body down and uncut, which is where the harvest invitation is written.
+  const D = toolbox({ state: apply(seated(), { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null)), scenario, bestiary, rng, now: 0 });
+  D.state.creatures[Object.keys(D.state.creatures)[0]].down = true;
+  sweep(briefing(D.state, scenario, bestiary, {}), 'a destroyed creature');
+
+  // A site cut, the sharing queue with a player offered, and a printed reward paid at this site.
+  const A = toolbox({ state: apply(seated(), { type: 'scene.set', siteId: 'soft-field' }, ctx('host')), scenario, bestiary, rng, now: 0 });
+  A.run('harvest', { organism: 'eyes' });
+  for (const q of [...A.state.requests]) {
+    A.state = apply(A.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) }, ctx('player', 'p2'));
+  }
+  if (A.state.loot && A.state.loot.offer) sweep(briefing(A.state, scenario, bestiary, {}), 'the harvest going round the Cohort');
+  A.state = shareAll(A.state);
+  A.run('award', { why: 'a clean crossing', codon: 20, organisms: ['eyes'] });
+  sweep(briefing(A.state, scenario, bestiary, {}), 'already paid at this site');
+
+  // The memory blocks, a host note and the reason the turn was called.
+  sweep(briefing(seated(), scenario, bestiary, { reason: 'the table answered', hostNote: 'Keep it quiet.', chapters: [{ site: 'The Toll-Vent', text: 'The Cohort got in under a promise.' }] }), 'chronicle, host note and reason');
 });
 
 test('the Engine budgets a hazard per Cycle inside a Pulse War, and per scene outside one', () => {
