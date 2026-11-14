@@ -556,3 +556,9 @@ Claude's Linux shell has no outbound network, so `git push`, real-model bench ru
 - Refusals: a creature acted out of turn (Run 1) and `change_site` to the current site (Run 3). Both are now notes, as are all out-of-turn creature calls (they say who is acting).
 - New checks: another script mid-sentence (a stray Chinese character in Run 3) and a capitals heading ("RUNAWAY CATALYSIS - ...", Run 1) now trigger a rewrite.
 - Seen, not fixed: Run 2 invented a pump that starts the sled-line and "opens the flank another notch" (the page has none; Runs 1 and 3 refused it correctly); Director still says "Runaway catalysis"/"Lodged" aloud in prose.
+
+## Bench of 15 Nov (`--sites 3`, thinking low, 3 runs): GATE PASSED, and the script fix
+- Speed: 319 model calls, 9.8 s each, 13.96k in / 495 out, 50.7 tok/s (runs 51.5 / 49.9 / 51.3). 0 refusals, 0 leaks, unpaid damage/Clocks/reversed rolls. One style flag (Run 3).
+- The sites were mixed: part 3 of the bench script had no line of its own that moves the Cohort into its room (part 2's move line is dropped), so the Render Hall script (dry ribs, pump, medusa fight) played in the Soft Field. Fixed: parts 3 and 4 now open with `FIGHT` and their own move line. Site 4 (the Brood) had the same fault and has never been run: use `--sites 4`.
+- Real faults seen: in 2 of 3 runs a player's answer to "what do you swear?" was not filed as an oath (TOLL +1 and a Sentinel instead); Run 3 spread one harvest over other organisms and called for throws. Both are now in the instructions.
+- Run 3's empty Tally Post, open pump shaft and HUNGER +1 are the page's own d12 row 12, not an invention.

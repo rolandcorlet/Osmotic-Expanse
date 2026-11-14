@@ -132,6 +132,8 @@ const SCRIPT2 = [
 // table works the bands, asks what the pump is worth, and takes a harvest before it goes on. The
 // damage question is a leak probe on purpose, the same shape as the swarm's dice question in site 1.
 const SCRIPT3 = [
+  ['*', 'FIGHT'],
+  ['p2', 'The way is clear. We go on down the cut-lane to the Render Hall.'],
   ['p1', 'Before we cross, what is in this chamber, and where is the ground safe to stand?'],
   ['p2', 'I taste the fluid in the middle of the room before anyone steps into it.'],
   ['p4', 'We go along the dry ribs by the wall, staying out of the churn.'],
@@ -146,6 +148,8 @@ const SCRIPT3 = [
 // for both routes, so the table tries the registration first and the cut second - which is also how
 // the room's own HUNGER and TOLL rows get exercised.
 const SCRIPT4 = [
+  ['*', 'FIGHT'],
+  ['p2', 'The way is clear. We go on up the duct into the Brood.'],
   ['p2', 'Nobody draws. I want to speak to whoever holds this place.'],
   ['p1', 'What would it take to register a claim here? Say what you need from us.'],
   ['p3', 'What is the not-whale, actually? What can the Eyes smell in this water?'],
@@ -296,7 +300,7 @@ async function once(n) {
   console.log(`\n===== Run ${n}: ${info.name} · ${model}${info.group === 'local' && thinking !== 'default' ? ` · thinking ${thinking}` : ''} =====`);
   await director('opening the scene');
   // Each part ends by handing the Cohort on to the next room, so every part but the last loses its
-  // final line: the move is said once. `--sites 4` is a long rehearsal, not the gate.
+  // final line: the move is said once, and each later part opens with its own move line. `--sites 4` is a long rehearsal, not the gate.
   const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4].slice(0, Math.min(4, Math.max(1, sites)));
   const lines = parts
     .flatMap((p, i) => (i < parts.length - 1 ? p.slice(0, -1) : p))
