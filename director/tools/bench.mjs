@@ -6,7 +6,7 @@
 //   node tools/bench.mjs --runs 3
 //   node tools/bench.mjs --provider ollama --model <name>     try another one
 //   node tools/bench.mjs --sites 2 --players 4                 two sites and four players (Phase 4 rehearsal)
-//   node tools/bench.mjs --sites 3 --players 4                 on through the Render Hall; 4 adds the Brood
+//   node tools/bench.mjs --sites 3 --players 4                 on through the Render Hall; 4 adds the Brood; 5 the Gut Stone
 //                                                              (a long run - the gate stays at 2)
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //   node tools/bench.mjs --runs 3 --log bench_13nov_am.log    write the whole run to a UTF-8 file
@@ -44,7 +44,7 @@ const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemi
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default'); // default | medium | low | off (local models)
 const runs = Number(opt('--runs', 1));
-const sites = Number(opt('--sites', 1)); // how far the scripted table plays: 2 Soft Field, 3 Render Hall, 4 Brood
+const sites = Number(opt('--sites', 1)); // how far the scripted table plays: 2 Soft Field, 3 Render Hall, 4 Brood, 5 Gut Stone
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 const logFile = opt('--log', '');
 
@@ -158,6 +158,26 @@ const SCRIPT4 = [
   ['p1', 'Then we cut it. Get to work.'],
   ['*', 'FIGHT'],
   ['p3', 'We take what we cut and go on up the duct toward the Gut Stone.'],
+];
+// Site 5: the Gut Stone, the Deadly room. Two things claim it and neither is evil (a Warden's recovery
+// crew and a Guardian folded round the print job). The table reads the serial, looks for someone to
+// talk to, asks where the way out is, tries the serial out loud and a mask, then fights. The countdown
+// question is a probe for the Render Charge: the Director may name the TOLL but never invent a timer.
+const SCRIPT5 = [
+  ['*', 'FIGHT'],
+  ['p2', 'The way is clear. We go on up the pyloric duct to the Gut Stone.'],
+  ['p1', 'Before anyone moves, what is this thing wedged in the gut, and how big is it?'],
+  ['p2', 'I taste the acid halo and look for a serial on the face of the stone.'],
+  ['p3', 'Who holds this place? Is there anyone here we can talk to?'],
+  ['p4', 'Where is the exit shaft, and how far is the way out if this goes wrong?'],
+  ['p1', 'We say the serial out loud to whoever is in charge and ask what they will pay for it.'],
+  ['p2', 'I mask the Cohort and try to slip past the crew to the face of the stone.'],
+  ['p4', 'How long until the stone goes? Is anything counting down?'],
+  ['p1', 'Enough talking. I swing the flail at the nearest thing wearing a Hegemony mark.'],
+  ['*', 'FIGHT'],
+  ['p3', 'We harvest what fell in here before we run.'],
+  ['p4', 'We run for the exit shaft.'],
+  ['p2', 'Up the shaft. We go out of the whale.'],
 ];
 const SEATS = [['p1', 'Roly', 'wall', 'Bresk of the Sixth Choir'], ['p2', 'Sam', 'eyes', 'Brost of the Third Current'], ['p3', 'Ana', 'ledger', 'Ilm of the Open Hand'], ['p4', 'Kit', 'rider', 'Vash of the Long Reach']];
 
@@ -300,8 +320,8 @@ async function once(n) {
   console.log(`\n===== Run ${n}: ${info.name} · ${model}${info.group === 'local' && thinking !== 'default' ? ` · thinking ${thinking}` : ''} =====`);
   await director('opening the scene');
   // Each part ends by handing the Cohort on to the next room, so every part but the last loses its
-  // final line: the move is said once, and each later part opens with its own move line. `--sites 4` is a long rehearsal, not the gate.
-  const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4].slice(0, Math.min(4, Math.max(1, sites)));
+  // final line: the move is said once, and each later part opens with its own move line. `--sites 4` and `--sites 5` are long rehearsals, not the gate.
+  const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4, SCRIPT5].slice(0, Math.min(5, Math.max(1, sites)));
   const lines = parts
     .flatMap((p, i) => (i < parts.length - 1 ? p.slice(0, -1) : p))
     .filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
