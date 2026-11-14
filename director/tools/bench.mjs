@@ -157,6 +157,7 @@ const SCRIPT4 = [
   ['p2', 'If we cannot register it, what is the brood worth cut?'],
   ['p1', 'Then we cut it. Get to work.'],
   ['*', 'FIGHT'],
+  ['p3', 'We harvest what fell in here before we go on.'],
   ['p3', 'We take what we cut and go on up the duct toward the Gut Stone.'],
 ];
 // Site 5: the Gut Stone, the Deadly room. Two things claim it and neither is evil (a Warden's recovery
@@ -330,9 +331,19 @@ async function once(n) {
     const o = Object.values(s.organisms).find((x) => x.playerId === pid);
     console.log(`\n${o.name.toUpperCase()}: ${text}`);
     lastSaid = text.toLowerCase();
+    const siteBefore = s.scene.siteId;
     act('player', pid, { type: 'say', text });
     await director('a player spoke');
     await settle();
+    // A move the Director only asked about ("does anyone cut before you go?") is said again once, so a
+    // later part never plays in the room before it.
+    if (/^The way is clear\./.test(text) && s.scene.siteId === siteBefore) {
+      console.log(`\n${o.name.toUpperCase()}: Yes. Nothing more to cut. We go now.`);
+      lastSaid = 'we go now';
+      act('player', pid, { type: 'say', text: 'Yes. Nothing more to cut. We go now.' });
+      await director('a player spoke');
+      await settle();
+    }
   }
   console.log(`\nRun ${n}: ${tally.turns} Director turns, ${(tally.ms / tally.turns / 1000).toFixed(1)} s each on average, ${tally.tokensIn} tokens in, ${tally.tokensOut} out.`);
   console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}${Object.keys(tally.refusedBy).length ? ` — by call: ${Object.entries(tally.refusedBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);

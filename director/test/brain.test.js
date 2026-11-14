@@ -1540,6 +1540,7 @@ test('15 Nov: a creature\'s Integrity said as a fraction is a leak, a player\'s 
   const flags = (t) => checkNarration(t, s).map((f) => `${f.kind}: ${f.text}`);
   assert.ok(flags('The dagger tears the flank wider. Nineteen of twenty-two. Brost, what now?').some((f) => /^leak/.test(f)));
   assert.ok(!flags('Bresk is at seventeen of thirty-nine, still standing. Ilm, what now?').some((f) => /^leak/.test(f)));
+  assert.ok(!flags('TOLL reads five of five. Vash, what now?').some((f) => /^leak/.test(f)), 'a Clock is not a creature');
 });
 
 test('15 Nov: a clerk\'s question that closes the beat counts as ending on a question', () => {

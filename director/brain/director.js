@@ -376,7 +376,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // "Nineteen of twenty-two" said of a creature is its Membrane Integrity read out as a fraction.
   const BIGW = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|thirty|forty|fifty`;
   const FRACTION = new RegExp(`\\b(?:${BIGW})\\s+(?:of|out of)\\s+(?:${BIGW})\\b`, 'i');
-  if (sentences.some((sn) => FRACTION.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
+  if (sentences.some((sn) => FRACTION.test(sn) && !/\b(?:CARCASS|TOLL|HUNGER|Clocks?|Oaths?|Lysis|Countdown|Stress|Pulse Points?)\b/i.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
   if (/(?<!\b(?:on|off|across|down|from|flip|flips|flipped|turn|turns|turned)\s)\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
