@@ -382,10 +382,11 @@ test('a turn that uses its tools and never speaks gets one fresh try', async () 
   assert.match(r.narration, /water waits/);
 });
 
-test('a turn that never speaks in either try says so plainly', async () => {
+test('a turn that never speaks still hands the table a plain line instead of stalling', async () => {
   const s = apply(seated(), { type: 'say', text: 'What can I taste?' }, ctx('player', 'p2'));
-  const make = scripted([{ text: '' }, { text: '' }, { text: '' }, { text: '' }]);
-  await assert.rejects(directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' }), /never said anything/);
+  const make = scripted([{ text: '' }, { text: '' }, { text: '' }, { text: '' }, { text: '' }, { text: '' }]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.match(r.narration, /What does the Cohort do\?|what do you do\?/i);
 });
 
 test('the briefing gives the creature costs during a Pulse War', () => {
@@ -1532,4 +1533,18 @@ test('14 Nov (fifth bench): another script and a capitals heading are flagged, a
   const T = toolbox({ state: seated(), scenario, bestiary, rng });
   const r = T.run('change_site', { site: T.site().id });
   assert.ok(!r.refused && /already at/.test(r.note));
+});
+
+test('15 Nov: a creature\'s Integrity said as a fraction is a leak, a player\'s own is not', () => {
+  const s = seated();
+  const flags = (t) => checkNarration(t, s).map((f) => `${f.kind}: ${f.text}`);
+  assert.ok(flags('The dagger tears the flank wider. Nineteen of twenty-two. Brost, what now?').some((f) => /^leak/.test(f)));
+  assert.ok(!flags('Bresk is at seventeen of thirty-nine, still standing. Ilm, what now?').some((f) => /^leak/.test(f)));
+});
+
+test('15 Nov: a clerk\'s question that closes the beat counts as ending on a question', () => {
+  const s = seated();
+  const flags = (t) => checkNarration(t, s).map((f) => f.text);
+  assert.ok(!flags('Nine-Folds taps the page. "A Name, a witness, a signature. Who puts their mark to my ledger?"').some((f) => /^Does not end/.test(f)));
+  assert.ok(flags('Nine-Folds taps the page and waits.').some((f) => /^Does not end/.test(f)));
 });

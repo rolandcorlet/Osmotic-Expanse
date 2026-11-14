@@ -10,7 +10,7 @@ import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
-const MAX_STEPS = 10;
+const MAX_STEPS = 16;
 
 // ---- the briefing: everything the model may know, rebuilt from data every turn ----
 export function briefing(state, scenario, bestiary, { reason = '', hostNote = '', chapters = [] } = {}) {
@@ -373,6 +373,10 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // player, so it only counts when no player is named in the sentence.
   const HITNUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\\s+points?\\s+of\\s+(?:\\w+\\s+)?damage\\b`, 'i');
   if (sentences.some((sn) => HITNUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
+  // "Nineteen of twenty-two" said of a creature is its Membrane Integrity read out as a fraction.
+  const BIGW = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|thirty|forty|fifty`;
+  const FRACTION = new RegExp(`\\b(?:${BIGW})\\s+(?:of|out of)\\s+(?:${BIGW})\\b`, 'i');
+  if (sentences.some((sn) => FRACTION.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
   if (/(?<!\b(?:on|off|across|down|from|flip|flips|flipped|turn|turns|turned)\s)\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
@@ -383,7 +387,9 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const q = (text.replace(/"[^"]*"|“[^”]*”/g, ' ').match(/\?/g) || []).length;
   // With a throw in the air the table is already waiting on one screen, so a beat that only holds
   // ("nothing else moves until it lands") needs no question of its own.
-  if (q === 0 && !moved && !pend.length) flags.push({ kind: 'style', text: 'Does not end on a question.' });
+  // A clerk's question that closes the beat (...ledger?") is still the question the table answers.
+  const endsOnQuestion = /\?["”']?\s*$/.test(text);
+  if (q === 0 && !endsOnQuestion && !moved && !pend.length) flags.push({ kind: 'style', text: 'Does not end on a question.' });
   if (q > 1) flags.push({ kind: 'style', text: `Asks ${q} questions; it should ask one.` });
   if (pend.length) {
     const first = (n) => String(n).split(/\s+/)[0];
@@ -522,7 +528,23 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     nudged = true;
     reply = await chat.send('You have not said anything to the table yet. Narrate now, in plain text, and end on one question.');
   }
-  if (!narration) return null;
+  // A turn that ran out of steps (a long run of creature turns) or stayed silent after the nudge:
+  // ask once more with no tools to call, and if even that is empty say the one thing the table needs,
+  // so a fight never stalls on a quiet model.
+  if (!narration) {
+    try {
+      const last = await chat.send('Stop calling tools. Say now, in two to four short sentences of plain text, what the table sees, and end on one question to one named organism.');
+      usage.in += last.usage.in;
+      usage.out += last.usage.out;
+      narration = String(last.text || '').trim();
+    } catch (e) { /* fall through to the plain line */ }
+  }
+  if (!narration) {
+    const f = T.state.fight ? T.fightBrief() : null;
+    const who = f && f.acting_now && !/^nobody/.test(f.acting_now) ? f.acting_now : '';
+    narration = who ? `${who}, it is your turn. What do you do?` : 'What does the Cohort do?';
+    calls.push({ name: '(plain line)', args: {}, result: { note: 'The Director said nothing; the Engine asked the table what is next.' } });
+  }
   narration = narration.replace(/\*\*/g, '').trim();
   const moved = T.state.scene.siteId !== state.scene.siteId;
   let flags = checkNarration(narration, T.state, { moved, since: state.seq });

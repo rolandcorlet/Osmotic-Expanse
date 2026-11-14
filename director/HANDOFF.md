@@ -562,3 +562,9 @@ Claude's Linux shell has no outbound network, so `git push`, real-model bench ru
 - The sites were mixed: part 3 of the bench script had no line of its own that moves the Cohort into its room (part 2's move line is dropped), so the Render Hall script (dry ribs, pump, medusa fight) played in the Soft Field. Fixed: parts 3 and 4 now open with `FIGHT` and their own move line. Site 4 (the Brood) had the same fault and has never been run: use `--sites 4`.
 - Real faults seen: in 2 of 3 runs a player's answer to "what do you swear?" was not filed as an oath (TOLL +1 and a Sentinel instead); Run 3 spread one harvest over other organisms and called for throws. Both are now in the instructions.
 - Run 3's empty Tally Post, open pump shaft and HUNGER +1 are the page's own d12 row 12, not an invention.
+
+## Bench of 15 Nov, second (`--sites 4`, 3 runs): sites 3 and 4 now play in their own rooms
+- Runs 1 and 3 went Toll-Vent, Soft Field, Render Hall, Brood and ended at the Gut Stone (97 and 108 turns, 0 refusals, 0 leaks). Run 2 stalled in the Render Hall: the Director made tool calls and then said nothing, twice. The oath fix held (Run 2 filed Bresk's promise).
+- Speed: 505 model calls, 9.6 s each, 14.4k in / 525 out, 54.8 tok/s (runs 54.3 / 54.1 / see Run 2 stall).
+- Fixes: a turn that ran out of steps (limit raised 10 -> 16) or stayed silent now gets one last "stop calling tools, say it" ask, then a plain line from the Engine, so a fight never stalls. A creature's Integrity said as a fraction ("Nineteen of twenty-two") is now a leak. A clerk's question that closes the beat inside quotation marks counts as ending on a question (4 false "Does not end" flags in Run 3).
+- Still open: Run 2's Sentinel brought in unasked right after a filed oath, "Five dice against..." read aloud before a throw.
