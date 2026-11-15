@@ -1,0 +1,428 @@
+// The Director host, prototype. Run it on one computer; every phone, tablet and
+// laptop on the same network opens the address it prints.
+//
+//   node server.js              start, or carry on the saved session
+//   node server.js --new        start a fresh session
+//   node server.js --port 9000  use another port
+//   node server.js --online     also open a link for players outside your network
+//                               (needs the free cloudflared program)
+//   node server.js --public-url https://example  show this address as the outside link
+//                               (for your own port forward or tunnel)
+//
+// No installs: this file uses only what ships with Node 18 or later.
+
+import http from 'node:http';
+import os from 'node:os';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
+
+import { newSession, newGameId, restart, apply, viewFor, RuleError } from './engine/ledger.js';
+import { createMemory } from './brain/memory.js';
+import { systemRng } from './engine/dice.js';
+import { vectorById, vectorList, DEFAULT_VECTOR } from './data/vectors.js';
+import { createDirector } from './brain/manager.js';
+import { createVoice } from './brain/voice.js';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const args = process.argv.slice(2);
+const flag = (name) => args.includes(name);
+const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && args[i + 1] ? args[i + 1] : dflt; };
+
+const PORT = Number(opt('--port', process.env.PORT || 8787));
+const SAVE_DIR = opt('--saves', join(here, 'saves'));
+const SAVE = join(SAVE_DIR, 'session.json');
+const bestiary = JSON.parse(readFileSync(join(here, 'data', 'bestiary.json'), 'utf8'));
+// Everything said in each game, kept on disk and searched (brain/memory.js).
+const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
+const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state });
+const rng = systemRng();
+
+// ---------------------------------------------------------------- the session
+let hostKey = opt('--host-key', '');
+let tableCode = opt('--table-code', '').toUpperCase(); // asked of anyone joining from outside the home network
+let publicUrl = opt('--public-url', '').replace(/\/+$/, '');
+let state = null;
+const history = []; // earlier Ledgers, for the host's Undo
+// The Vector being played. A saved session brings its own; --vector chooses one for a fresh start.
+let vector = vectorById(opt('--vector', DEFAULT_VECTOR)) || vectorById(DEFAULT_VECTOR);
+let scenario = vector.scenario;
+function useVector(v) { vector = v; scenario = v.scenario; }
+
+function load() {
+  if (!flag('--new') && existsSync(SAVE)) {
+    try {
+      const saved = JSON.parse(readFileSync(SAVE, 'utf8'));
+      const was = saved.state && vectorById(saved.state.scenarioId);
+      if (was) {
+        useVector(was);
+        state = saved.state;
+        hostKey = hostKey || saved.hostKey || '';
+        tableCode = tableCode || saved.tableCode || '';
+      }
+    } catch (e) {
+      console.log('The saved session could not be read; starting a new one.');
+    }
+  }
+  if (!state) state = newSession(scenario);
+  if (!state.gameId) state.gameId = newGameId(); // a game saved before games had their own history
+  if (!state.cast) state.cast = {};
+  if (!state.improv) state.improv = 'callbacks';
+  memory.observe(null, state);
+  if (!hostKey) hostKey = randomBytes(3).toString('hex').toUpperCase();
+  if (!tableCode) tableCode = Array.from(randomBytes(4), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+  save();
+}
+
+let saveTimer = null;
+function save() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      mkdirSync(SAVE_DIR, { recursive: true });
+      const tmp = `${SAVE}.tmp`;
+      writeFileSync(tmp, JSON.stringify({ hostKey, tableCode, savedAt: new Date().toISOString(), state }));
+      renameSync(tmp, SAVE);
+    } catch (e) {
+      console.log(`Could not save the session: ${e.message}`);
+    }
+  }, 150);
+}
+
+// ------------------------------------------------------------- live screens
+const screens = new Set(); // { res, role, pid }
+
+let director = null; // the AI Director: created once the session is loaded
+
+function payloadFor(role, pid) {
+  const view = viewFor(state, role, pid);
+  return director ? { ...view, director: director.view(role) } : view;
+}
+
+function send(screen) {
+  screen.res.write(`event: state\ndata: ${JSON.stringify(payloadFor(screen.role, screen.pid))}\n\n`);
+}
+
+function broadcast() {
+  for (const sc of screens) {
+    try { send(sc); } catch (e) { screens.delete(sc); }
+  }
+}
+
+setInterval(() => {
+  for (const sc of screens) {
+    try { sc.res.write(': still here\n\n'); } catch (e) { screens.delete(sc); }
+  }
+}, 20000).unref();
+
+// ------------------------------------------------------------------ helpers
+// A device on the home network joins freely. Anything arriving from outside it
+// (a port forward, or the --online link) must carry the table code.
+function isLocal(req) {
+  if (req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.headers.forwarded) return false;
+  const ip = String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  if (ip === '::1' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('169.254.')) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+  return /^f[cde]/i.test(ip); // private and link-local IPv6
+}
+
+function codeOk(q) {
+  return String(q.t || '').toUpperCase() === tableCode;
+}
+
+function access(req, q) {
+  if (q.role === 'host') {
+    return q.key && String(q.key).toUpperCase() === hostKey ? { role: 'host' } : { error: 'That host key is not right.', need: 'key' };
+  }
+  if (!isLocal(req) && !codeOk(q)) return { error: 'This table needs its table code.', need: 'code' };
+  return { role: q.role === 'player' && q.pid ? 'player' : 'table' };
+}
+
+function addresses() {
+  const out = [];
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const n of list || []) if (n.family === 'IPv4' && !n.internal) out.push(n.address);
+  }
+  return out;
+}
+
+const FILES = {
+  '/app.js': ['public/app.js', 'text/javascript'],
+  '/app.css': ['public/app.css', 'text/css'],
+  '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
+  '/engine/odds.js': ['engine/odds.js', 'text/javascript'],
+};
+const PAGES = new Set(['/', '/table', '/play', '/host']);
+
+function json(res, code, body) {
+  const text = JSON.stringify(body);
+  res.writeHead(code, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+  res.end(text);
+}
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > 65536) { reject(new Error('too large')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (e) { reject(e); }
+    });
+    req.on('error', reject);
+  });
+}
+
+// Raw bytes (a clip from the talk button), capped.
+function readBytes(req, max) {
+  return new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > max) { reject(new Error('too large')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
+function act(role, pid, action) {
+  if (action.type === 'undo') {
+    if (role !== 'host') throw new RuleError('Only the host can undo.');
+    if (!history.length) throw new RuleError('Nothing to undo.');
+    const seq = state.seq;
+    const was = state;
+    state = history.pop();
+    const undoneAfter = state.seq;
+    state.seq = seq + 1; // screens must see a newer Ledger, never an older one
+    useVector(vectorById(state.scenarioId) || vector); // undoing a new game brings its Vector back
+    changed(was, state, { undoneAfter });
+    return;
+  }
+  if (action.type === 'session.new') {
+    if (role !== 'host') throw new RuleError('Only the host can start a new game.');
+    const next = action.vectorId ? vectorById(action.vectorId) : vector;
+    if (!next) throw new RuleError(`There is no Vector called "${action.vectorId}".`);
+    if (director && director.busy && director.busy()) throw new RuleError('The Director is in the middle of a turn. Wait for it, or set it to Off, then start the new game.');
+    history.push(state);
+    const seq = state.seq;
+    const old = state;
+    useVector(next);
+    state = restart(old, scenario, { keepPlayers: !!action.keepPlayers });
+    state.seq = seq + 1;
+    if (director) director.reset();
+    changed(old, state);
+    return;
+  }
+  const next = apply(state, action, { role, pid, rng, now: Date.now(), scenario, bestiary });
+  history.push(state);
+  if (history.length > 60) history.shift();
+  const prev = state;
+  state = next;
+  changed(prev, state);
+}
+
+// Every change to the Ledger goes into the game's history. Leaving a site closes a chapter.
+function changed(prev, next, opts = {}) {
+  memory.observe(prev, next, opts);
+  if (opts.undoneAfter == null && prev && director && prev.gameId === next.gameId && prev.scene.siteId !== next.scene.siteId) {
+    director.chapter({ siteId: prev.scene.siteId, why: 'left' });
+  }
+}
+
+// The Director's finished turn becomes the live Ledger.
+function commit(next) {
+  history.push(state);
+  if (history.length > 60) history.shift();
+  const prev = state;
+  state = next.seq > state.seq ? next : { ...next, seq: state.seq + 1 };
+  changed(prev, state);
+  save();
+  broadcast();
+}
+
+// Player actions the Director should answer.
+const ANSWERED = { say: 'a player spoke', roll: 'a roll was made', 'turn.end': 'a turn ended' };
+
+// ------------------------------------------------------------------- server
+const server = http.createServer(async (req, res) => {
+  const url = new URL(req.url, 'http://x');
+  const q = Object.fromEntries(url.searchParams);
+  try {
+    if (req.method === 'GET' && PAGES.has(url.pathname)) {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(readFileSync(join(here, 'public', 'index.html')));
+      return;
+    }
+    if (req.method === 'GET' && FILES[url.pathname]) {
+      const [file, type] = FILES[url.pathname];
+      res.writeHead(200, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store' });
+      res.end(readFileSync(join(here, file)));
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/info') {
+      const out = { title: scenario.title, port: PORT, addresses: addresses(), voice: voice.publicView() };
+      const trusted = isLocal(req) || codeOk(q) || (q.key && String(q.key).toUpperCase() === hostKey);
+      if (trusted && publicUrl) out.online = `${publicUrl}/play?t=${tableCode}`;
+      json(res, 200, out);
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/scenario') {
+      const who = access(req, q);
+      if (!who.role) { json(res, 403, who); return; }
+      const role = who.role;
+      if (role === 'host') {
+        const blocks = Object.values(bestiary).map((b) => ({
+          id: b.id, name: b.name, order: b.order, cls: b.cls, tier: b.tier, statLine: b.statLine, traits: b.traits,
+          special: b.special, weakness: b.weakness, harvest: b.harvest, tactics: b.tactics, segments: b.segments,
+        }));
+        json(res, 200, { ...scenario, bestiary: blocks, vectors: vectorList(), voice: voice.hostView() });
+      } else {
+        json(res, 200, vector.publicScenario(scenario));
+      }
+      return;
+    }
+    // The same view as the live stream, fetched once: the page falls back to this when a tunnel or proxy holds the stream back.
+    if (req.method === 'GET' && url.pathname === '/api/poll') {
+      const who = access(req, q);
+      if (!who.role) { json(res, 403, who); return; }
+      json(res, 200, payloadFor(who.role, q.pid || null));
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/api/events') {
+      const who = access(req, q);
+      if (!who.role) { json(res, 403, who); return; }
+      const role = who.role;
+      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.write(': ' + ' '.repeat(2048) + '\n\n'); // padding so a buffering proxy flushes the first event
+      const screen = { res, role, pid: q.pid || null };
+      screens.add(screen);
+      send(screen);
+      req.on('close', () => screens.delete(screen));
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/action') {
+      const body = await readBody(req);
+      const who = access(req, body);
+      if (!who.role) { json(res, 403, who); return; }
+      const role = who.role;
+      try {
+        act(role, body.pid || null, body.action || {});
+      } catch (e) {
+        if (e instanceof RuleError || /dice|die/i.test(e.message)) { json(res, 200, { ok: false, error: e.message }); return; }
+        throw e;
+      }
+      save();
+      broadcast();
+      const type = (body.action || {}).type;
+      if (director && ANSWERED[type] && (role === 'player' || type === 'say')) director.playerActed(ANSWERED[type]);
+      json(res, 200, { ok: true, seq: state.seq });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/voice/say') {
+      const body = await readBody(req);
+      const who = access(req, body);
+      if (!who.role) { json(res, 403, who); return; }
+      const out = await voice.say(body.text);
+      if (!out.ok) { json(res, 200, out); return; }
+      res.writeHead(200, { 'content-type': out.type, 'cache-control': 'no-store' });
+      res.end(out.bytes);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/voice/hear') {
+      const who = access(req, q);
+      if (who.role !== 'player') { json(res, 403, who.role ? { error: 'Only a seated player can talk.' } : who); return; }
+      let bytes;
+      try { bytes = await readBytes(req, voice.limits.MAX_CLIP); } catch (e) { json(res, 200, { ok: false, error: 'That was too long. Keep it under about a minute.' }); return; }
+      json(res, 200, await voice.hear(bytes, String(req.headers['content-type'] || 'audio/webm').split(';')[0]));
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/api/director') {
+      const body = await readBody(req);
+      const who = access(req, { ...body, role: 'host' });
+      if (!who.role) { json(res, 403, who); return; }
+      if (body.op === 'voice') { voice.configure(body); json(res, 200, { ok: true }); return; }
+      await director.op(body);
+      json(res, 200, { ok: true });
+      return;
+    }
+    json(res, 404, { error: 'Not found.' });
+  } catch (e) {
+    console.error(e);
+    json(res, 500, { error: 'The Director host hit a problem. See its window for details.' });
+  }
+});
+
+// --online: ask cloudflared for a temporary public address that leads to this host.
+function startTunnel() {
+  const line = '-'.repeat(62);
+  let child;
+  try {
+    child = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], { stdio: ['ignore', 'pipe', 'pipe'] });
+  } catch (e) {
+    child = null;
+  }
+  const missing = () => {
+    console.log(line);
+    console.log(' --online needs the free "cloudflared" program, and it was not found.');
+    console.log(' Windows: open a Command Prompt and run');
+    console.log('     winget install --id Cloudflare.cloudflared');
+    console.log(' then close this window and start again.');
+    console.log(' Play on your own network still works meanwhile.');
+    console.log(line);
+  };
+  if (!child) { missing(); return; }
+  child.on('error', missing);
+  const read = (buf) => {
+    const m = String(buf).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    if (m && publicUrl !== m[0]) {
+      publicUrl = m[0];
+      console.log(line);
+      console.log(' For players anywhere (send them this link):');
+      console.log(`   Join           ${publicUrl}/play?t=${tableCode}`);
+      console.log(' The link changes each time the host is started with --online.');
+      console.log(line);
+    }
+  };
+  child.stdout.on('data', read);
+  child.stderr.on('data', read);
+  child.on('exit', (code) => { if (publicUrl) console.log(` The outside link has closed (cloudflared stopped${code ? `, code ${code}` : ''}).`); publicUrl = opt('--public-url', ''); });
+  const stop = () => { try { child.kill(); } catch (e) { /* already gone */ } };
+  process.on('exit', stop);
+  process.on('SIGINT', () => process.exit(0));
+  process.on('SIGTERM', () => process.exit(0));
+}
+
+load();
+director = createDirector({ getState: () => state, commit, act: (a) => { act('host', null, a); save(); broadcast(); }, memory, getScenario: () => scenario, bestiary, saveDir: SAVE_DIR, rng, onChange: broadcast });
+director.init();
+server.listen(PORT, '0.0.0.0', () => {
+  const ips = addresses();
+  const line = '-'.repeat(62);
+  console.log(line);
+  console.log(' The Osmotic Expanse - Director v3');
+  console.log(` Vector: ${scenario.title}`);
+  console.log(line);
+  console.log(' On this computer:');
+  console.log(`   Host console   http://localhost:${PORT}/host?key=${hostKey}`);
+  console.log(`   Table screen   http://localhost:${PORT}/table`);
+  if (ips.length) {
+    console.log(' For players, on the same Wi-Fi or network:');
+    for (const ip of ips) console.log(`   Join           http://${ip}:${PORT}/play`);
+  } else {
+    console.log(' No network address found: other devices cannot join yet.');
+  }
+  if (publicUrl) console.log(` Outside link:    ${publicUrl}/play?t=${tableCode}`);
+  console.log(` Host key: ${hostKey}   (keep it to yourself)`);
+  console.log(` Table code: ${tableCode}   (asked of anyone joining from outside your network)`);
+  console.log(' Close this window, or press Ctrl+C, to stop. The session is saved.');
+  console.log(line);
+  if (flag('--online')) startTunnel();
+});
