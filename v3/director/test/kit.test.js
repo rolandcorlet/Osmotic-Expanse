@@ -298,3 +298,12 @@ test('QUORUM is in the Director\'s reach and its cards are complete', async () =
   assert.ok(T.run('look_up', { about: 'we call in a favour from the ledger' }).cards.some((c) => /Ledger/.test(c.name)));
   assert.ok(T.run('look_up', { about: 'duel champion' }).cards.some((c) => /duel/i.test(c.name)));
 });
+
+test('the Core rules are in the Director\'s reach, and the v3 books build from the same data', async () => {
+  const { CORE } = await import('../data/kit/core.js');
+  assert.ok(CORE.length >= 16);
+  for (const q of CORE) assert.ok(q.plain.length > 10 && q.when && q.who && q.rule.length >= 3 && q.table.length > 40 && q.ch, q.id);
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  assert.ok(T.run('look_up', { about: 'what happens when I hit zero health, dying' }).cards.some((c) => /dying/i.test(c.name)));
+  assert.ok(T.run('look_up', { about: 'how hard is it threshold' }).cards.some((c) => /Threshold/.test(c.name)));
+});

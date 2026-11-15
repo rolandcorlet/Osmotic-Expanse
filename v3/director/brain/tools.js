@@ -551,7 +551,7 @@ export const TOOLS = [
   },
   {
     name: 'look_up',
-    description: 'Look up how this world works before you answer: a law (the seven Precepts), a custom (the Register, Oaths, proof, class, yielding), how society runs (Standing, the six organs and seven offices of a colony, a Quorum vote, a Convocation, the Ledger of favours, trials, duels, festivals, charters), or what a word means in plain words. Use it when a player asks "what does that mean?", "is that legal?", "how would people here react?", or tries something the site does not cover and you need to know what the world would do. It returns short cards; say them in your own words.',
+    description: 'Look up how this world and its rules work before you answer: a core rule in plain words (the one roll, how hard something is, what a failed roll costs, health and Stress, going down and dying, how a fight runs, harvest, Oaths, rest), a law (the seven Precepts), a custom (the Register, Oaths, proof, class, yielding), how society runs (Standing, the six organs and seven offices of a colony, a Quorum vote, a Convocation, the Ledger of favours, trials, duels, festivals, charters), or what a word means in plain words. Use it when a player asks "what does that mean?", "is that legal?", "how would people here react?", or tries something the site does not cover and you need to know what the world would do. It returns short cards; say them in your own words.',
     parameters: obj({ about: S('A few words, for example "lying about who you are", "unlisted", "what is a Tally Post".') }, ['about']),
     run(a, T) {
       const cards = lookUp(a.about, (T.scenario.kit || {}).glossary || []);

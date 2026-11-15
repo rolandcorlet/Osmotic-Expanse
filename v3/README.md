@@ -15,7 +15,7 @@ Nothing outside this folder was changed. `director/` (the first Director) and
 | `plan/01-DIRECTOR-SKILLS.md` | Research: what a human Director brings to a table. 23 skills, each with what the AI needs from the books and Engine. |
 | `plan/02-ENGINE-V3-PLAN.md` | What Engine v3 needs, what it keeps, what it adds. |
 | `plan/03-BOOK-MAKEOVER-PROMPTS.md` | System prompts for the next edition of the Core Rulebook, Player's Atlas, Bestiary and Codex, Society, and any Vector. |
-| `books/` | v3 table editions: three Vectors, QUORUM, Society Rules and Social Norms, and a players' quick start. Built from the same data the Director uses (`node books/build-vectors.mjs`, `build-society.mjs`, `build-quorum.mjs`). |
+| `books/` | v3 table editions: the Core Rulebook, the Lytic Bestiary, three Vectors, QUORUM, Society Rules and Social Norms, and a players' quick start. Built from the same data the Director uses (`node books/build-vectors.mjs`, `build-society.mjs`, `build-quorum.mjs`, `build-core.mjs`). |
 | `director/` | The game. Run this. |
 
 ## Run it
@@ -77,8 +77,10 @@ Clock names (CARCASS, TOLL, HUNGER) read from the Vector instead. The plan for
 that is in `plan/02`. *What the Water Owed* is a story, not a Vector, so it has
 no kit; it remains the source for Society.
 
-Not yet done: the full prose rewrite of the Core Rulebook, Atlas, Bestiary and
-Codex. The prompts for it are in `plan/03`; the players' quick start, the
+The Core Rulebook and the Lytic Bestiary now have v3 table editions (18 rule
+cards; all 68 creatures re-laid-out with an opening for each Order). Not yet
+done: the Player's Atlas and the Director's Codex, and the full prose rewrite of
+every book. The prompts for it are in `plan/03`; the players' quick start, the
 Society table edition and the QUORUM table edition (17 cards covering what a
 table needs; the full book remains the reference for the rest) are the first pieces.
 

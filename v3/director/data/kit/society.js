@@ -2,6 +2,7 @@
 // new: what it is in plain words, what people say, what happens if you break it, and how it comes
 // up at the table. The Director reaches these through look_up, so they cost nothing until needed.
 import { QUORUM } from './quorum.js';
+import { CORE } from './core.js';
 
 export const PRECEPTS = [
   { n: 1, id: 'containment', name: 'Containment', plain: 'Nobody enters a colony without being read at the gate.', enforcer: 'the Wardens and the Membrane', says: ['"Hold still for the reading."', '"Unread is unwelcome."'], broken: 'A fine or a day sealed up; opening an illegal door gets the tool cut out of you.', inPlay: ['a gate that reads everyone', 'smuggling', 'a hidden pipe'] },
@@ -34,6 +35,7 @@ export function lookUp(query, glossary = []) {
   for (const p of PRECEPTS) { const s = score(`${p.name} ${p.plain} ${p.inPlay.join(' ')} precept law`.toLowerCase()); if (s) hits.push({ s, card: { kind: `Precept ${p.n}`, name: p.name, in_plain_words: p.plain, enforced_by: p.enforcer, people_say: p.says, if_broken: p.broken, comes_up_as: p.inPlay } }); }
   for (const p of NORMS) { const s = score(`${p.name} ${p.plain} ${p.inPlay.join(' ')}`.toLowerCase()); if (s) hits.push({ s, card: { kind: 'custom', name: p.name, in_plain_words: p.plain, people_say: p.says, if_broken: p.broken || undefined, comes_up_as: p.inPlay } }); }
   for (const q of QUORUM) { const s = score(`${q.name} ${q.plain} ${q.when} ${q.id.replace(/-/g, ' ')}`.toLowerCase()); if (s) hits.push({ s, card: { kind: `society rule (${q.ch})`, name: q.name, in_plain_words: q.plain, use_it_when: q.when, the_rule: q.rule, sounds_like: q.table } }); }
+  for (const q of CORE) { const s = score(`${q.name} ${q.plain} ${q.when} ${q.id.replace(/-/g, ' ')}`.toLowerCase()); if (s) hits.push({ s, card: { kind: `core rule (${q.ch})`, name: q.name, in_plain_words: q.plain, use_it_when: q.when, the_rule: q.rule, sounds_like: q.table } }); }
   for (const g of glossary) { const s = score(`${g.word} ${g.plain}`.toLowerCase()) + (words.includes(g.word.toLowerCase()) ? 3 : 0); if (s) hits.push({ s, card: { kind: 'word', name: g.word, in_plain_words: g.plain } }); }
   return hits.sort((a, b) => b.s - a.s).slice(0, 4).map((h) => h.card);
 }
