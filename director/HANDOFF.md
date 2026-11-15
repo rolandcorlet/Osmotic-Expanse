@@ -656,3 +656,14 @@ Not fixed / for Roly:
 - Wrong-seat question: after the rewrite, if the model still asks the wrong player, the Engine drops that last paragraph and asks whoever is on turn (`fixSeat`).
 - Git remote updated to the moved repository.
 - Engine v2: Gut Stone Warden fight (TOLL 3) reaches an ending on 30 seeds (test added). Book edit requests copied to `engine-redesign/BOOK-EDIT-REQUESTS.md`.
+
+## Twelfth bench: second full five-stage run (15 Nov 2026, full2.log)
+168 Director turns, 362 calls at 10.2 s, 15.5k tokens in and 623 out per call, 60.9 tok/s. **0 hard rescues, 0 soft, 0 leaks, 0 buried bodies, 0 unpaid damage, 0 unpaid Clocks, 0 reversed rolls.** Gate failed on one refusal only: `award` with 0 Codon and 0 Substrate ("A G Specimen"). The Engine set the closing question three times (the wrong-seat fix working). Ended at the Gut Stone, TOLL 5, all four at 0-8 MI.
+
+Fixed (160 tests):
+- `award` of nothing is a note, not a refusal.
+- Creature numbers that slipped past: "still hangs at twelve", "two points of structure left" (four times), bare "Three damage." Now leak flags.
+- The Render Charge fired on arrival at the Gut Stone (TOLL was already 5), then `hazard_damage` was called eight more times and narrated firing again. The Engine answered each with a note; the briefing now says the charge has fired once and only the race is left.
+- `fixSeat` now works on a single paragraph; the pending-throw check reads only the closing paragraph (two false flags).
+
+For Roly: TOLL reached 5 before the Gut Stone scene began (the Director spent its own +1 on TOLL at the Brood on top of the Engine's), so the Warden parley and the stone were skipped and the module went straight to the race, then a fight was started after it. Whether the Director should be allowed to spend its discretionary Clock move on TOLL at 3 or more is a design call.

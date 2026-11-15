@@ -72,6 +72,11 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     const spec = hazardSpec(site);
     L.push(`THE HAZARD HERE HAS ALREADY GONE OFF: hazard_damage is refused until ${budget.until}. Say what the Cohort did to it and move on: never describe it going off a second time, and never describe harm that nothing paid for on this turn.${spec.area ? ' That hazard is an area one: one call already paid every body at this site.' : ''}`);
   }
+  // The one-time ending. Bench 15 Nov (second five-stage run): after it had fired, hazard_damage was
+  // called eight more times and the charge was narrated firing again and again.
+  if (/\bthe carcass ends\b/i.test(String(hz.text || '')) && (state.hazards || {})[site.id]) {
+    L.push('THE CHARGE HERE HAS FIRED, ONCE, AND IS OVER. Never call hazard_damage again at this site and never describe it firing, detonating or contracting again. What is left is the race out: one ask_for_roll for each organism still up, then the ending. Do not start a new scene, bring new creatures or open a parley here.');
+  }
   if ((site.encounter || []).length) {
     L.push('');
     L.push('## Creatures printed for this site (bring_creatures uses these block ids)');
@@ -293,11 +298,18 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 
 // Drop the last paragraph (the question to the wrong player) and ask the one on turn. Null when nothing
 // would be left to say.
-export function fixSeat(text, name) {
+export function fixSeat(text, name, wrong = '') {
+  const ask = `${String(name).split(/\s+/)[0]}, what do you spend your Pulse Points on?`;
   const paras = String(text).trim().split(/\n\s*\n/);
-  if (paras.length < 2) return null;
-  paras.pop();
-  return `${paras.join('\n\n')}\n\n${String(name).split(/\s+/)[0]}, what do you spend your Pulse Points on?`;
+  if (paras.length >= 2) { paras.pop(); return `${paras.join('\n\n')}\n\n${ask}`; }
+  // One paragraph: cut from where it turns to the wrong player ("Bresk, four Pulse Points. What ...").
+  const w = String(wrong).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (!w) return null;
+  const hits = [...paras[0].matchAll(new RegExp(`(?:^|[.!?]\\s+)(${w}\\b\\s*[,\u2014\u2013:-])`, 'g'))];
+  if (!hits.length) return null;
+  const h = hits[hits.length - 1];
+  const head = paras[0].slice(0, h.index + h[0].length - h[1].length).trim();
+  return head ? `${head}\n\n${ask}` : null;
 }
 
 // ---- checks on what the Director wrote, before anyone sees it --------------------
@@ -384,6 +396,15 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // player, so it only counts when no player is named in the sentence.
   const HITNUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\\s+points?\\s+of\\s+(?:\\w+\\s+)?damage\\b`, 'i');
   if (sentences.some((sn) => HITNUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
+  // Bench 15 Nov (second five-stage run), none of them caught: "Bleeder A still hangs at twelve",
+  // "two points of structure left", and a bare "Three damage." said of a creature.
+  const BIGN = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty`;
+  const AT_NUM = new RegExp(`\\b(?:hangs|sits|stands|holds|is|rests)\\s+at\\s+(?:${BIGN})\\b(?!\\s+(?:of|Pulse|points?\\b))`, 'i');
+  if (kinds.length && sentences.some((sn) => { const m = sn.match(AT_NUM); return m && ownedByCreature(sn, m); })) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
+  const STRUCT = new RegExp(`\\b(?:${BIGN})\\s+points?\\s+of\\s+(?:structure|membrane|integrity|purchase|body|itself)\\b`, 'i');
+  if (sentences.some((sn) => STRUCT.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:he|his|him|she|her|you|your)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
+  const BARE_DMG = new RegExp(`\\b(?:${BIGN})\\s+damage\\b`, 'i');
+  if (kinds.length && text.split(/\n\s*\n/).some((para) => BARE_DMG.test(para) && !people.some((p) => para.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
   // "Five MI of what's left holding it together" is a creature's Membrane Integrity as a number (bench 15 Nov).
   // A paragraph that opens by addressing a player ("Brost - four points in your hands. One MI.") talks about that player.
   const playerPara = (sn) => { const para = text.split(/\n\s*\n/).find((pp) => pp.includes(sn)) || ''; return people.some((p) => new RegExp(`^${p}\\b\\s*[,\u2014\u2013:-]`, 'i').test(para.trim())); };
@@ -411,7 +432,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     const first = (n) => String(n).split(/\s+/)[0];
     const firstName = (n) => first(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const waiters = pend.map((a) => first(a.name).toLowerCase());
-    const lastQ = (text.match(/[^?]*\?/g) || []).pop() || '';
+    // Only the closing paragraph: a name earlier in the text is scenery (bench 15 Nov, twice).
+    const lastQ = text.trim().split(/\n\s*\n/).pop() || '';
     const other = Object.values(state.organisms || {}).find((o) => o.playerId && !waiters.includes(first(o.name).toLowerCase()) && new RegExp(`\\b${firstName(o.name)}\\b`, 'i').test(lastQ));
     if (other) flags.push({ kind: 'style', text: `Puts a new question to ${other.name} while ${pend.map((a) => a.name).join(' and ')} still has a throw in the air.` });
   }
@@ -660,7 +682,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // knows whose turn it is, so it sets the closing question itself rather than ship the wrong one.
   const seat = flags.find((f) => /^Puts the question to/.test(f.text) && f.turnOf);
   if (seat) {
-    const fixed = fixSeat(narration, seat.turnOf);
+    const fixed = fixSeat(narration, seat.turnOf, (seat.text.match(/^Puts the question to (.+?), but/) || [])[1] || '');
     if (fixed) { narration = fixed; flags = flags.filter((f) => f !== seat).concat([{ kind: 'note', text: `The Engine set the closing question to ${seat.turnOf}, whose turn it is.` }]); }
   }
   if (flags.some(isLeak)) rescues.push({ kind: 'held-leak', hard: true, text: `A leak survived the rewrite and would be held for the host: ${flags.filter(isLeak).map((f) => f.text).join(' ')}` });

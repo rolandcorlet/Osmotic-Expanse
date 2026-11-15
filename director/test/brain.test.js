@@ -1686,3 +1686,20 @@ test('the Engine sets the closing question to whoever is on turn when the model 
   assert.equal(out, 'The claw misses.\n\nBrost, what do you spend your Pulse Points on?');
   assert.equal(fixSeat('One paragraph only?', 'Brost'), null);
 });
+
+test('bench 15 Nov (second five-stage): creature numbers the checks let through', () => {
+  const f = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const leak = (t) => checkNarration(t, f).filter((x) => x.kind === 'leak').length;
+  assert.ok(leak('The swarm still hangs at twelve, halves barely kissing.\n\nBresk, what now?') >= 1);
+  assert.ok(leak('The swarm tumbles on, two points of structure left holding a shape.\n\nBresk, what now?') >= 1);
+  assert.ok(leak('Three damage. The first real cut on that coat.\n\nBresk, what now?') >= 1);
+  assert.equal(leak('The swarm bites. Two damage. Bresk sits at twenty-nine of thirty-nine.\n\nBresk, what now?'), 0);
+  assert.equal(leak('The swarm sits at Mid, turning.\n\nBresk, what now?'), 0);
+});
+
+test('bench 15 Nov (second five-stage): the seat fix works on one paragraph, and an award of nothing is a note', () => {
+  assert.equal(fixSeat('The cut lands. Bleeder C stays whole. Bresk, four Pulse Points. What do you spend on?', 'Vash of the Long Reach', 'Bresk of the Sixth Choir'), 'The cut lands. Bleeder C stays whole.\n\nVash, what do you spend your Pulse Points on?');
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  const r = T.run('award', { codon: 0, substrate: 0, why: 'A G Specimen' });
+  assert.ok(r.note && !r.refused);
+});

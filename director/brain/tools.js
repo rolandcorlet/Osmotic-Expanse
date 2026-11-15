@@ -415,7 +415,8 @@ export const TOOLS = [
       const codon = Number(a.codon) || 0;
       const sub = Math.trunc(Number(a.substrate) || 0);
       if (codon < 0 || sub < 0) return { refused: 'An award cannot be negative.' };
-      if (!codon && !sub) return { refused: 'Give a Codon or Substrate amount.' };
+      // Nothing to pay is not a rule break (bench 15 Nov: an award of 0 "for a G Specimen" failed the gate on its own).
+      if (!codon && !sub) return { note: 'No amount was given, so nothing was paid and nothing changed. Specimens come from harvest, not from award; award pays only the Codon or Substrate this site prints.' };
       // Ruling (12 Nov 2026): the Director pays only what this site prints under Pays.
       const printed = printedPays(T.site());
       const auto = Object.entries(T.site().harvestPays || {}).find(([, x]) => Number(x.codon) === codon);
