@@ -634,3 +634,19 @@ Still open: one turn in four needs a rewrite (the main cost in time); "Elite" an
 
 ## Phase 6 started (15 Nov, see PHASE6.md)
 Scope agreed with Roly: first slice is the no-rescue run; "full Vector" = The First Carve only. Built: `rescues` on every Director turn (hard: plain-line, held-leak, stall; soft: silent/out-of-steps, retry); bench prints and gates on hard rescues (`--sites 5` full run is now the Phase 6 gate); 158 tests pass. Next: Roly's full five-stage bench log.
+
+## Tenth bench: first full five-stage run (15 Nov 2026, full.log)
+One run, 169 Director turns, 368 calls at 10.3 s, 15.5k tokens in and 649 out per call, 62.7 tok/s. Ended at the Gut Stone with CARCASS 1, TOLL 5, HUNGER 4 and all four players at 0-1 MI. Gate not passed: 2 hard rescues (both held leaks), 3 unpaid-damage narrations, 2 soft rescues (out-of-steps), 7 style flags, 0 refusals, 0 unpaid Clocks, 0 reversed rolls.
+
+Fixed (tests added, 157 pass):
+- Held leak "Counts a swarm's Segments or sections": the line was about a player ("two more sections of what he was"). Sentences with he/him/his/she/her/you and no it/they are no longer a creature's count.
+- Held leak "number of MI": "Brost - four points in your hands. One MI." A paragraph that opens by addressing a player is that player's.
+- Out-of-steps (soft, twice): a seven-creature round (Warden, two Bleeders, four Gnats) used all 16 steps. The budget is now 16 plus 3 per creature in the scene (capped at 12 creatures).
+- Buried body missed "stops being Brost", "goes clear", "Brost is a bloom", and fired falsely on "where the lurkers died, Brost's dagger". The verb now has to belong to the player (name within 50 characters, not possessive).
+- Oath kept, narrated broken: the roll met 12 against 12, settle_oath said kept, the table heard "the fold judged the promise thin" and a scar and debt, and the chronicle recorded it. New rule flag "Reverses an Oath the Engine just settled as kept" (fixable by rewrite).
+- ask_for_roll for a Strike during a Pulse War ("Flail the Protease Warden") gave a free extra throw to a player whose turn it was not. It now answers with a note.
+
+Not fixed / for Roly:
+- The Gut Stone Warden (Threshold 15, three dice at Stress 5-7) was hit in 3 of about 22 throws; all four players ended at 0-1 MI. That is the Deadly fight working, not a defect, but the no-rescue run is likely to end there every time with this party.
+- A second and third Render Charge hazard_damage call was made after the war (bench lines 1150 and 1161). The Engine answered with a note; no flag counts it.
+- Wrong-seat question flagged 3 times; the rewrite did not always fix it.

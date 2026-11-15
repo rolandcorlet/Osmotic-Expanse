@@ -1645,3 +1645,38 @@ test('15 Nov (seventh bench): the Render Charge pays everyone in one firing and 
   assert.match(second.note, /single ending|already gone off/);
   assert.equal(T.refusals, 0);
 });
+
+test('bench 15 Nov (five-stage): lines the checks misread or missed', () => {
+  const s = seated();
+  const has = (t, re) => checkNarration(t, s).some((x) => re.test(x.text));
+  // "died" belongs to the lurkers, the dagger to Brost: not a burial.
+  assert.ok(!has('The sugar-current runs thick where the lurkers died, Brost’s dagger still buried in one of them. Bresk, what now?', /dead or dissolved/));
+  assert.ok(!has("The sugar-current runs thick where the lurkers died, Bresk's dagger still buried in one of them. Ilm, what now?", /dead or dissolved/));
+  // the burials the first pass missed
+  assert.ok(has("Bresk's shape thins, goes clear, and stops being Bresk. Ilm, what now?", /dead or dissolved/));
+  assert.ok(has('Bresk is gone. A bloom of chemistry spreads. Ilm, what now?', /dead or dissolved/));
+  // a player's own sections and MI are not a creature's health track
+  assert.ok(!has('The collapse has cost him two more sections of what he was. Ilm, what now?', /Segments or sections/));
+  assert.ok(!has('Bresk — four points in your hands. One MI. What do you spend them on?', /MI, which is its health/));
+  assert.ok(has('The swarm has one MI left. Bresk, what now?', /MI, which is its health/));
+  const fs = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  assert.ok(checkNarration('The swarm is six small segments. Bresk, what now?', fs).some((x) => /Segments or sections/.test(x.text)));
+});
+
+test('bench 15 Nov (five-stage): an Oath the Engine kept is not narrated broken', () => {
+  const s = seated();
+  s.seq = 10;
+  s.log.push({ seq: 11, kind: 'award', text: 'Bresk of the Sixth Choir keeps the Oath: "I shoulder through". Cohesion 1.' });
+  const f = checkNarration('The fold judged the promise thin, and Bresk carries the scar. Ilm, what now?', s, { since: 10 });
+  assert.ok(f.some((x) => x.kind === 'rule' && /^Reverses an Oath/.test(x.text)));
+  assert.ok(!checkNarration('The fold nods; the promise is kept. Ilm, what now?', s, { since: 10 }).some((x) => /^Reverses an Oath/.test(x.text)));
+});
+
+test('bench 15 Nov (five-stage): a Strike is not a check to ask for in a Pulse War', () => {
+  const s = seated();
+  const f = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const T = toolbox({ state: f, scenario, bestiary, rng });
+  const r = T.run('ask_for_roll', { organism: 'wall', baseline: 'VSC', threshold: 12, what_for: 'Flail the nearest swarm' });
+  assert.ok(r.note && /not a check/.test(r.note));
+  assert.equal(f.requests.length, 0);
+});

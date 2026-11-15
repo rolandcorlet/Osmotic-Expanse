@@ -360,6 +360,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const segSentence = sentences.find((sn) => {
     // A Clock has segments too ("CARCASS ticks forward one segment"): that is the table's own count.
     if (/\b(?:CARCASS|TOLL|HUNGER)\b|\bClocks?\b/.test(sn)) return false;
+    // A creature is "it" or "they"; "him", "her", "you" mean a player (bench 15 Nov: "two more sections of what he was").
+    if (/\b(?:he|him|his|she|her|hers|you|your)\b/i.test(sn) && !/\b(?:it|its|they|them|their)\b/i.test(sn)) return false;
     const m = sn.match(SEGMENTS);
     if (!m && !SEGMENTS_OF_CREATURE.test(sn)) return false;
     if (m && ownedByCreature(sn, m)) return true;
@@ -374,12 +376,14 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const HITNUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\\s+points?\\s+of\\s+(?:\\w+\\s+)?damage\\b`, 'i');
   if (sentences.some((sn) => HITNUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
   // "Five MI of what's left holding it together" is a creature's Membrane Integrity as a number (bench 15 Nov).
+  // A paragraph that opens by addressing a player ("Brost - four points in your hands. One MI.") talks about that player.
+  const playerPara = (sn) => { const para = text.split(/\n\s*\n/).find((pp) => pp.includes(sn)) || ''; return people.some((p) => new RegExp(`^${p}\\b\\s*[,\u2014\u2013:-]`, 'i').test(para.trim())); };
   const MINUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\\d+)\\s+MI\\b`, 'i');
-  if (sentences.some((sn) => MINUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him|your|you)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number of MI, which is its health.' });
+  if (sentences.some((sn) => MINUM.test(sn) && !playerPara(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him|your|you)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number of MI, which is its health.' });
   // "Nineteen of twenty-two" said of a creature is its Membrane Integrity read out as a fraction.
   const BIGW = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|thirty|forty|fifty`;
   const FRACTION = new RegExp(`\\b(?:${BIGW})\\s+(?:of|out of)\\s+(?:${BIGW})\\b`, 'i');
-  if (sentences.some((sn) => FRACTION.test(sn) && !/\b(?:CARCASS|TOLL|HUNGER|Clocks?|Oaths?|Lysis|Countdown|Stress|Pulse Points?)\b/i.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
+  if (sentences.some((sn) => FRACTION.test(sn) && !playerPara(sn) && !/\b(?:CARCASS|TOLL|HUNGER|Clocks?|Oaths?|Lysis|Countdown|Stress|Pulse Points?)\b/i.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
   if (/(?<!\b(?:on|off|across|down|from|flip|flips|flipped|turn|turns|turned)\s)\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
   if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
@@ -451,11 +455,20 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // Stone): "His countdown is full ... The only witness to the whale's gut-lock is gone" after a missed
   // throw and no call; Vash was at 3 MI, kept acting for two Cycles and the table heard him buried.
   // Only a tool kills a body.
+  const BURIAL = '(?:dissolv(?:es|ed|ing)|(?:is|was|are|were) (?:dead|gone)|dies|died|unspools?|taken apart|takes? \\w+ apart|lets go|countdown is full|Total Lysis took|stops being \\w+|goes clear|(?:is|was) a bloom)';
   const buried = Object.values(state.organisms || {}).filter((o) => o.playerId && !(o.countdownMax && o.countdown >= o.countdownMax)).filter((o) => {
     const fn = String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return sentences.some((sn) => new RegExp(`\\b${fn}\\b`).test(sn) && /\b(?:dissolv(?:es|ed|ing)|(?:is|was|are|were) (?:dead|gone)|dies|died|unspools?|taken apart|takes? \w+ apart|lets go|countdown is full|Total Lysis took)\b/i.test(sn));
+    // The verb has to belong to the player: the name (not possessive) within 50 characters before it,
+    // or the verb leading straight into "where Brost stood". "the lurkers died ... Brost's dagger" is not a burial.
+    return sentences.some((sn) => new RegExp(`\\b${fn}\\b(?!['\u2019]s)[^.]{0,50}\\b${BURIAL}\\b|\\b${BURIAL}\\b[^.]{0,20}\\bwhere ${fn} stood|\\b(?:stops|ceases) (?:being|to be) ${fn}\\b|\\b${fn}['\u2019]s (?:shape|body|bulk|membrane|frame)\\b[^.]{0,40}\\b(?:goes clear|thins to nothing|comes apart for good)`, 'i').test(sn));
   });
   if (buried.length) flags.push({ kind: 'rule', text: `Says ${buried.map((o) => o.name).join(' and ')} is dead or dissolved, but the Engine has them standing.` });
+  // An Oath the Engine settled as kept this turn, narrated as broken (bench 15 Nov: the roll met the
+  // Threshold, settle_oath said kept, and the table heard "the fold judged the promise thin").
+  if ((state.log || []).some((e) => e.seq > since && /keeps the Oath/.test(String(e.text)))
+    && sentences.some((sn) => /\b(?:promise|oath|witness|fold)\b/i.test(sn) && /\b(?:broken|breaks|broke|forsworn|thin|failed to keep|scar|debt)\b/i.test(sn))) {
+    flags.push({ kind: 'rule', text: 'Reverses an Oath the Engine just settled as kept: it narrates the promise as broken.' });
+  }
   const CLOCK = /\b(CARCASS|TOLL|HUNGER)\b/;
   const CLOCK_MOVE = /\b(moves?|moved|moving|tick(?:s|ed|ing)?|climb(?:s|ed|ing)?|advance[sd]?|advancing|rewind[sd]?|rewinding|drop(?:s|ed|ing)?|falls?|fallen|step(?:s|ped)?|jump(?:s|ed|ing)?|slid(?:e[sd]?|den)|nudge[sd]?|settle[sd]?|creep(?:s|ed|ing)?|spike[sd]?)\b/i;
   const clockLines = (state.log || []).filter((e) => e.kind === 'clock').slice(-12).map((e) => String(e.text)).join(' | ');
@@ -536,7 +549,10 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // step in for the model. Hard ones are what the gate counts; soft ones are reported.
   const rescues = [];
   let ranOut = true;
-  for (let step = 0; step < MAX_STEPS; step++) {
+  // A creature round costs two or three calls a creature (move, strike, end turn): a squad of seven
+  // ran out of 16 twice in the 15 Nov five-stage bench.
+  const maxSteps = MAX_STEPS + 3 * Math.min(12, Object.keys(state.creatures || {}).length);
+  for (let step = 0; step < maxSteps; step++) {
     usage.in += reply.usage.in;
     usage.out += reply.usage.out;
     if (reply.calls.length) {
@@ -564,7 +580,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // ask once more with no tools to call, and if even that is empty say the one thing the table needs,
   // so a fight never stalls on a quiet model.
   if (!narration) {
-    rescues.push({ kind: ranOut ? 'out-of-steps' : 'silent', hard: false, text: ranOut ? `The Director used all ${MAX_STEPS} steps on tool calls without narrating.` : 'The Director stayed silent even after being asked to narrate.' });
+    rescues.push({ kind: ranOut ? 'out-of-steps' : 'silent', hard: false, text: ranOut ? `The Director used all ${maxSteps} steps on tool calls without narrating.` : 'The Director stayed silent even after being asked to narrate.' });
     try {
       const last = await chat.send('Stop calling tools. Say now, in two to four short sentences of plain text, what the table sees, and end on one question to one named organism.');
       usage.in += last.usage.in;

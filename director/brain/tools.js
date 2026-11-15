@@ -137,6 +137,11 @@ export const TOOLS = [
       if (!o) return noOrg(a.organism, T.state);
       const at = Math.trunc(Number(a.threshold));
       if (!(at >= 8 && at <= 28)) return { refused: 'A Threshold is between 8 and 28: use the ladder (8, 12, 16, 20) or a number the page prints here.' };
+      // In a Pulse War a Strike is rolled by the table on the player's own turn; asking for it as a check
+      // gives a free extra throw (bench 15 Nov: "Flail the Protease Warden" asked of a player whose turn it was not).
+      if (T.state.fight && /\b(?:flail|strike|swing|stab|slash|attack|lunge|thrust|hack|cleave|claw at|drive the (?:dagger|blade))\b/i.test(String(a.what_for))) {
+        return { note: `A Strike in a Pulse War is not a check you ask for: the player Strikes on their own turn, and the table rolls it. Nothing changed. Acting now: ${T.fightBrief().acting_now}. Put the question to them.`, ...T.fightBrief() };
+      }
       if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { refused: `${o.name} already has a roll waiting. Wait for it.` };
       const before = T.state.rolls.length;
       const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: listOf(a.modifiers), unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
