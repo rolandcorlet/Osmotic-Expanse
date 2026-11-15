@@ -402,6 +402,18 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     const other = Object.values(state.organisms || {}).find((o) => o.playerId && !waiters.includes(first(o.name).toLowerCase()) && new RegExp(`\\b${firstName(o.name)}\\b`, 'i').test(lastQ));
     if (other) flags.push({ kind: 'style', text: `Puts a new question to ${other.name} while ${pend.map((a) => a.name).join(' and ')} still has a throw in the air.` });
   }
+  // Whose turn it is. Bench 15 Nov (Gut Stone): Ilm was asked "what do you spend them on?" while Vash's
+  // turn was the one waiting. In a Pulse War the closing question goes to the organism on turn.
+  if (state.fight && state.fight.turn && !pend.length) {
+    const cur = state.fight.actors[state.fight.turn];
+    const me = cur && cur.kind === 'org' ? (state.organisms || {})[cur.id] : null;
+    if (me && me.playerId) {
+      const lastQ2 = (text.match(/[^?]*\?/g) || []).pop() || '';
+      const nm = (o) => String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const named2 = Object.values(state.organisms || {}).filter((o) => o.playerId && new RegExp(`\\b${nm(o)}\\b`).test(lastQ2.slice(0, 60)));
+      if (named2.length === 1 && named2[0].id !== me.id) flags.push({ kind: 'style', text: `Puts the question to ${named2[0].name}, but it is ${me.name}'s turn.`, turnOf: me.name });
+    }
+  }
   // The same paragraph twice. Bench 14 Nov, run 3: a miss was narrated with the very words of the miss
   // before it, three rolls running, whatever the dice said. Four-word runs shared with a recent line.
   const shingles = (t) => { const w = String(t).toLowerCase().replace(/[^a-z0-9' ]+/g, ' ').split(/\s+/).filter(Boolean); const out = new Set(); for (let i = 0; i + 4 <= w.length; i++) out.add(w.slice(i, i + 4).join(' ')); return out; };
@@ -568,7 +580,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const buriedF = (f) => f.kind === 'rule' && /is dead or dissolved, but the Engine/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
+  const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -585,6 +597,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     if (flags.some((f) => /^Repeats an earlier/.test(f.text))) asks.push('It repeats words you already used in an earlier line: say what is new this time, as this roll changed it, in fresh words.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
+    const wrongSeat = flags.find((f) => /^Puts the question to/.test(f.text));
+    if (wrongSeat) asks.push(`It puts the closing question to the wrong player: it is ${wrongSeat.turnOf}'s turn. End on one question for ${wrongSeat.turnOf}.`);
     if (flags.some((f) => /^Puts a new question/.test(f.text))) {
       const w = [...new Set((T.state.requests || []).map((r) => ((r.kind === 'incoming' ? r.target : r.actor) || {}).name).filter(Boolean))];
       asks.push(`A throw is still in the air (${w.join(', ')}), so nobody else's turn has come and you do not know the outcome. Do not put a choice to anyone else, and do not describe what happens next. Keep the beat on the throw and end on one question for ${w[0]} about it.`);

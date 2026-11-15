@@ -423,6 +423,7 @@ test('the leak check catches a creature\'s health as a number, but not a player\
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }, { blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
   // The bite below is real, so the "damage the Engine never paid" check stays out of this test's way.
   s = apply(s, { type: 'damage', target: { kind: 'org', id: 'wall' }, amount: 6, dtype: 'Kinetic' }, ctx('host', null));
+  s = { ...s, fight: { ...s.fight, turn: null } }; // whose turn it is is not under test here
   const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
   assert.deepEqual(kinds('The Fold Sentinel groans as its integrity drops to seven. Brost, what now?'), ['leak']);
   assert.deepEqual(kinds('The sentinel oozes brine down to a single point of MI. Bresk, what now?'), ['leak']);
@@ -525,6 +526,11 @@ test('stand down: a creature that is not fighting leaves the fight, and striking
   assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).refused, /stood down/);
   // A player strikes it: it is back in, and the fight cannot be ended by the Director.
   const who = T.state.fight.actors[T.state.fight.turn].id;
+  const onTurn = T.state.organisms[who].name.split(' ')[0];
+  const other = Object.values(T.state.organisms).find((o) => o.playerId && o.id !== who);
+  const wrong = checkNarration(`The water tightens. ${other.name.split(' ')[0]}, what do you do?`, T.state);
+  assert.ok(wrong.some((f) => /Puts the question to/.test(f.text)), 'question to the wrong seat is flagged');
+  assert.ok(!checkNarration(`The water tightens. ${onTurn}, what do you do?`, T.state).some((f) => /Puts the question to/.test(f.text)));
   const pid = T.state.organisms[who].playerId;
   T.state = apply(T.state, { type: 'strike', organismId: who, targetId: cid }, ctx('player', pid));
   assert.equal(T.state.creatures[cid].stoodDown, null);
@@ -1073,6 +1079,7 @@ test('the Director never says how many dice a creature rolls, least of all in a 
   s = apply(s, { type: 'creature.add', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
   s = apply(s, { type: 'fight.start' }, ctx('host', null));
   assert.ok(s.fight, 'a Pulse War is running');
+  s = { ...s, fight: { ...s.fight, turn: null } }; // whose turn it is is not under test here
   const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
   assert.deepEqual(kinds('It rolls three dice at you. Bresk of the Sixth Choir, what now?'), ['leak']);
   assert.deepEqual(kinds('The swarm rolls 3 dice. Bresk of the Sixth Choir, what do you do?'), ['leak']);

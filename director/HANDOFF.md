@@ -617,3 +617,9 @@ Still open: one turn in four needs a rewrite (the main cost in time); "Elite" an
 - Gate: 1 refusal (creature_strike at far after a Render Charge scatter). Now a `note` ("cannot strike yet, nothing changed, Drift first"), not a refusal.
 - New narration check: a player body narrated dead/dissolved ("countdown is full ... is gone") while the Engine has MI > 0 and the Countdown not full -> `rule` flag, fixable with one rewrite. Vash was buried at 3 MI and kept acting for two Cycles.
 - Seen, not fixed: Director often addresses the wrong seat at the end of a turn (Ilm named while Vash acts); the second Render Charge hazard_damage was met by the one-shot note but the model still narrated a second slam; scripted players all hit the Warden (Threshold 15) so the Deadly fight is a wipe by script design.
+
+### Follow-up to the eighth bench (not yet benched)
+- New fixable style flag "Puts the question to X, but it is Y's turn": in a Pulse War with a player on turn and no throw in the air, a closing question naming a different player triggers one rewrite aimed at the player on turn. Two older tests set `fight.turn = null` so they stay about leaks only.
+- Still open: the Director narrating a second Render Charge slam after the one-shot note (prose ignores the note; no check yet).
+
+- Instructions now carry two lines: a hazard that has gone off has gone off (no second slam in prose), and a body is alive until a tool says otherwise.
