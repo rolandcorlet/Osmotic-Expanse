@@ -631,3 +631,6 @@ Still open: one turn in four needs a rewrite (the main cost in time); "Elite" an
   - "Autophagic Collapse" spoken aloud is now a rule-name style flag (fixable).
   - Wrong-seat flag had false positives (it read the first 60 characters of the last question and found a name used earlier in the text). It now takes the last sentence of the last paragraph that opens with a player's name as a vocative ("Vash — ...").
 - Still open: Director invents extra Collapses; tells players "signal you're done and let the current pass" (turn machinery in prose); a second Render Charge `hazard_damage` after the war ended is met by the note but the prose still describes a second flush.
+
+## Phase 6 started (15 Nov, see PHASE6.md)
+Scope agreed with Roly: first slice is the no-rescue run; "full Vector" = The First Carve only. Built: `rescues` on every Director turn (hard: plain-line, held-leak, stall; soft: silent/out-of-steps, retry); bench prints and gates on hard rescues (`--sites 5` full run is now the Phase 6 gate); 158 tests pass. Next: Roly's full five-stage bench log.

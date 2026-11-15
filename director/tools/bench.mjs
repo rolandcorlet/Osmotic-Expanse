@@ -251,7 +251,7 @@ async function once(n) {
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
   const callsFrom = calls.length;
-  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {} };
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {}, hard: 0, soft: 0, rescueBy: {} };
 
   async function director(reason) {
     const t0 = Date.now();
@@ -265,6 +265,7 @@ async function once(n) {
     tally.turns += 1;
     tally.ms += Date.now() - t0;
     tally.refusals += r.refusals;
+    for (const x of r.rescues || []) { tally[x.hard ? 'hard' : 'soft'] += 1; tally.rescueBy[x.kind] = (tally.rescueBy[x.kind] || 0) + 1; console.log(`    ! rescue (${x.hard ? 'hard' : 'soft'}): ${x.text}`); }
     tally.tokensIn += r.usage.in;
     tally.tokensOut += r.usage.out;
     for (const c of r.calls) {
@@ -293,6 +294,8 @@ async function once(n) {
 
   // The players' side, played simply: roll what is asked, let attacks fall, strike on their turn.
   let lastSaid = '';
+  let stallKey = '';
+  let stallRun = 0;
   async function settle(maxSteps = 12, maxCycle = 3) {
     for (let guard = 0; guard < maxSteps; guard++) {
       const q = s.requests[0];
@@ -305,7 +308,15 @@ async function once(n) {
         continue;
       }
       const cur = s.fight && s.fight.turn ? s.fight.actors[s.fight.turn] : null;
-      if (cur && cur.kind === 'cre') { await director('a creature is to act'); continue; }
+      if (cur && cur.kind === 'cre') {
+        // No-rescue check: a creature's turn the Director cannot finish. Three turns running that leave
+        // the same creature on turn is a stall a host would have had to clear by hand.
+        const key = `${s.fight.turn}@${s.fight.cycle}`;
+        stallRun = key === stallKey ? stallRun + 1 : 0;
+        stallKey = key;
+        if (stallRun >= 2) { tally.hard += 1; tally.rescueBy.stall = (tally.rescueBy.stall || 0) + 1; console.log(`    ! rescue (hard): ${cur.id} has had ${stallRun + 1} Director turns and is still on turn; a host would have to end it.`); act('host', null, { type: 'turn.end', cid: cur.id }); stallRun = 0; continue; }
+        await director('a creature is to act'); continue;
+      }
       if (cur && cur.kind === 'org' && s.fight.cycle <= maxCycle) {
         const o = s.organisms[cur.id];
         // The scripted players attack what is fighting them first.
@@ -369,6 +380,7 @@ async function once(n) {
   console.log(`\nRun ${n}: ${tally.turns} Director turns, ${(tally.ms / tally.turns / 1000).toFixed(1)} s each on average, ${tally.tokensIn} tokens in, ${tally.tokensOut} out.`);
   console.log(`  Engine refusals (things it tried that the rules or the page do not allow): ${tally.refusals}${Object.keys(tally.refusedBy).length ? ` — by call: ${Object.entries(tally.refusedBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
   speedLine(calls.slice(callsFrom), 'Speed');
+  console.log(`  Rescues (where a human host would have had to step in): ${tally.hard} hard, ${tally.soft} soft${Object.keys(tally.rescueBy).length ? ` — ${Object.entries(tally.rescueBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
   console.log(`  Leak flags: ${tally.leaks}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);
@@ -386,11 +398,11 @@ let bad = 0;
 for (let i = 1; i <= runs; i++) {
   try {
     const t = await once(i);
-    if (t.refusals || t.leaks || t.unpaid || t.clocks || t.reversed) bad += 1;
+    if (t.refusals || t.leaks || t.unpaid || t.clocks || t.reversed || t.hard) bad += 1;
   } catch (e) {
     console.log(`\nRun ${i} stopped: ${e.message}`);
     bad += 1;
   }
 }
 if (runs > 1) { console.log(''); speedLine(calls.filter((c, i) => i >= 0), 'Speed, all runs together'); }
-console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage, unpaid Clocks, reversed rolls or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks, unpaid damage, unpaid Clocks or reversed rolls in ${runs} run(s). Read the transcript for quality.`);
+console.log(bad ? `\nGATE NOT PASSED: ${bad} of ${runs} run(s) had refusals, leaks, unpaid damage, unpaid Clocks, reversed rolls, hard rescues or errors. Read the transcript above.` : `\nGATE PASSED for ${model}: no refusals, leaks, unpaid damage, unpaid Clocks, reversed rolls or hard rescues in ${runs} run(s). Read the transcript for quality.`);

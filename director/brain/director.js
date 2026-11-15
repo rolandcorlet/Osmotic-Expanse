@@ -514,7 +514,10 @@ const ATTEMPTS = 2;
 export async function directorTurn(args) {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const done = await oneAttempt(args);
-    if (done) return done;
+    if (done) {
+      if (attempt > 0) done.rescues.unshift({ kind: 'retry', hard: false, text: `The Director said nothing the first ${attempt === 1 ? 'time' : attempt + ' times'} and the turn was run again.` });
+      return done;
+    }
   }
   throw new ProviderError('The Director used its tools but never said anything to the table, even after a second try. Press "Take a turn" again.');
 }
@@ -529,6 +532,10 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   let narration = '';
   let nudged = false;
   let rollNudged = false;
+  // Phase 6 ("no rescue"): every point where a human host would have had to step in, or the code had to
+  // step in for the model. Hard ones are what the gate counts; soft ones are reported.
+  const rescues = [];
+  let ranOut = true;
   for (let step = 0; step < MAX_STEPS; step++) {
     usage.in += reply.usage.in;
     usage.out += reply.usage.out;
@@ -549,7 +556,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       reply = await chat.send('You told a player to roll, but you did not call ask_for_roll, so nothing is on their screen. Call ask_for_roll now for that roll (or swear_oath if it was an oath), then give your narration again, ending on one question. If no roll is needed, narrate again without asking for one.');
       continue;
     }
-    if (narration || nudged) break;
+    if (narration || nudged) { ranOut = false; break; }
     nudged = true;
     reply = await chat.send('You have not said anything to the table yet. Narrate now, in plain text, and end on one question.');
   }
@@ -557,6 +564,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // ask once more with no tools to call, and if even that is empty say the one thing the table needs,
   // so a fight never stalls on a quiet model.
   if (!narration) {
+    rescues.push({ kind: ranOut ? 'out-of-steps' : 'silent', hard: false, text: ranOut ? `The Director used all ${MAX_STEPS} steps on tool calls without narrating.` : 'The Director stayed silent even after being asked to narrate.' });
     try {
       const last = await chat.send('Stop calling tools. Say now, in two to four short sentences of plain text, what the table sees, and end on one question to one named organism.');
       usage.in += last.usage.in;
@@ -568,6 +576,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     const f = T.state.fight ? T.fightBrief() : null;
     const who = f && f.acting_now && !/^nobody/.test(f.acting_now) ? f.acting_now : '';
     narration = who ? `${who}, it is your turn. What do you do?` : 'What does the Cohort do?';
+    rescues.push({ kind: 'plain-line', hard: true, text: 'The Director said nothing at all; the Engine asked the table what is next.' });
     calls.push({ name: '(plain line)', args: {}, result: { note: 'The Director said nothing; the Engine asked the table what is next.' } });
   }
   narration = narration.replace(/\*\*/g, '').trim();
@@ -622,7 +631,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       }
     } catch (e) { /* the rewrite failed: keep the original and its flags */ }
   }
+  if (flags.some(isLeak)) rescues.push({ kind: 'held-leak', hard: true, text: `A leak survived the rewrite and would be held for the host: ${flags.filter(isLeak).map((f) => f.text).join(' ')}` });
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
   T.do({ type: 'narrate', text: narration, by: 'ai' });
-  return { state: T.state, narration, calls, flags, usage, refusals: T.refusals };
+  return { state: T.state, narration, calls, flags, usage, refusals: T.refusals, rescues };
 }

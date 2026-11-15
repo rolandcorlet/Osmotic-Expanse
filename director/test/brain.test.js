@@ -414,6 +414,16 @@ test('a turn that never speaks still hands the table a plain line instead of sta
   const make = scripted([{ text: '' }, { text: '' }, { text: '' }, { text: '' }, { text: '' }, { text: '' }]);
   const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
   assert.match(r.narration, /What does the Cohort do\?|what do you do\?/i);
+  assert.ok(r.rescues.some((x) => x.kind === 'plain-line' && x.hard), 'a plain line is a hard rescue');
+});
+
+test('Phase 6: a clean turn needs no rescue, a held leak is a hard one', async () => {
+  const s = apply(seated(), { type: 'say', text: 'What can I taste?' }, ctx('player', 'p2'));
+  const clean = await directorTurn({ state: s, scenario, bestiary, provider: scripted([{ text: 'The water is sweet and warm. Bresk, what do you do?' }])(), rng, reason: 'test' });
+  assert.deepEqual(clean.rescues, []);
+  const leaky = 'The swarm has MT 12 and rolls 3d. Bresk, what do you do?';
+  const held = await directorTurn({ state: s, scenario, bestiary, provider: scripted([{ text: leaky }, { text: leaky }])(), rng, reason: 'test' });
+  assert.ok(held.rescues.some((x) => x.kind === 'held-leak' && x.hard));
 });
 
 test('the briefing gives the creature costs during a Pulse War', () => {
