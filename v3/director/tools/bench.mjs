@@ -284,7 +284,7 @@ async function once(n) {
       if (f.kind === 'rule' && !/^The Engine refused/.test(f.text)) {
         // Harm nobody paid for, and a Clock named as moving that nothing moved: the same fault in two
         // shapes, tallied apart so a gate read says which one the table heard.
-        if (/^Names (CARCASS|TOLL|HUNGER)/.test(f.text)) tally.clocks += 1;
+        if (/^Names (CARCASS|TOLL|HUNGER|the count)/.test(f.text)) tally.clocks += 1;
         else if (/^Reverses /.test(f.text)) tally.reversed += 1;
         else if (/is dead or dissolved, but the Engine/.test(f.text)) tally.buried += 1;
         else tally.unpaid += 1;
@@ -294,6 +294,7 @@ async function once(n) {
   }
 
   // The players' side, played simply: roll what is asked, let attacks fall, strike on their turn.
+  let stallSeq = 0;
   let lastSaid = '';
   let stallKey = '';
   let stallRun = 0;
@@ -304,6 +305,9 @@ async function once(n) {
         const pid = q.kind === 'incoming' ? s.organisms[q.target.id].playerId : s.organisms[q.actor.id].playerId;
         act('player', pid, { type: 'roll', requestId: q.id });
         const r = s.rolls[s.rolls.length - 1];
+        const fresh = s.log.filter((e) => e.seq > (stallSeq || 0) && (e.kind === 'clock' || /Oath|Total Lysis|Render Cascade|Stress/.test(e.text))).slice(-6);
+        stallSeq = s.seq;
+        for (const e of fresh) console.log(`  (engine) ${e.text}`);
         console.log(`  (roll) ${r.who}: ${r.dice.join(',')} = ${r.total} against ${r.at}: ${r.success ? `success, Overflow ${r.overflow}` : `short by ${r.shortBy}`}`);
         await director('a roll was made');
         continue;

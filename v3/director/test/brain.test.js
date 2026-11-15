@@ -1712,3 +1712,12 @@ test('the Director cannot advance TOLL itself once it stands at 3 or more', () =
   assert.equal(T.state.clocks.TOLL.filled, 3);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: -1, why: 'a toll chit' }).now, '2/5');
 });
+
+test('the count in the walls may not shorten unless a Clock moved', () => {
+  const s = newSession(scenario);
+  const said = 'The count in the walls has lost another click. Vash, what do you do?';
+  assert.ok(checkNarration(said, s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
+  assert.ok(!checkNarration('The count in the walls holds steady. Vash, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
+  const moved = { ...s, seq: 5, log: [{ seq: 4, kind: 'clock', text: 'TOLL moves to 4 of 5: the fight carried.' }] };
+  assert.ok(!checkNarration(said, moved, { since: 3 }).some((x) => /count in the walls/.test(x.text)));
+});

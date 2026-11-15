@@ -8,6 +8,8 @@ Write two things.
 
 CHAPTER: one paragraph, at most 120 words, past tense, of what happened: who did what, what was agreed or promised, what was taken, what was left undone. Use the names the table used. Plain words, no rules terms, no dice, no numbers except money and counts the table was told.
 
+One rule for the CHAPTER and the CAST: record only what was stated. If a person was left in danger, they stay in danger in the chronicle. Do not write that anyone died, drowned or was saved unless the narration said so.
+
 CAST: a JSON list of at most 8 entries worth remembering later, each with one short fact. Only things that were actually said. Include: people and factions the Cohort MET or dealt with (a clerk, a rival crew, a guild), places that are not one of the Vector's sites (a particular stall, a hidden chamber), and threads still unresolved (a debt, a promise, a grudge, a secret, a claim, a favour owed). Never include: the players' own organisms; any part of their names (in "Bresk of the Sixth Choir", "Sixth Choir" is part of a name, not a faction); the Vector's sites themselves; game rules or reminders. Use exactly this form:
 [{"name": "...", "kind": "person|faction|place|thread", "fact": "..."}]
 If there is nothing, write [].
