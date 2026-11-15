@@ -227,6 +227,7 @@ Pool you will use: **Synthesis 4+2 = 6d** — **8d with the Harvest Claw's +2** 
 Array → **DFF 5 · OSM 4 · RTC 3 · AFF 3 · VSC 1**. Hull 4.
 MI **20** · ATP **14** · PP **7** · MT **15** · Flow **8** Drifts · Countdown **5** · Slots 1.
 Pathways: Fluid Navigation 2, Pulse Discipline 1, Concealment 1, Signal Discourse 1. Kit: **Peptide Blade** (20 S, Lytic BD 3, Fluid, Silent) · **Lipid Weave Wrap** (20 S, soak 1, +5 MI → MI 25).
+**Rides It Out** *(v3, 16 Nov 2026; every Flagellan has it)*: each Inhibitor the Rider rolls marks Stress only three times in four (d4 per 1; on a 1 it marks none).
 **First move:** *"Get on."* Slip stream and Momentum are the Cohort's movement and their answer to *"can we get out?"* — which in this Vector is the answer to the Render Charge.
 **Lesson flag:** **bands, Drifts, and Flow** — and the honest terror of VSC 1: one Momentum hit and the Rider is at Dormancy. The table learns to *fear a shoving contest with a door*.
 

@@ -18,7 +18,7 @@ export const kit = {
   hands: {
     wall: 'The tough one. You stand in front and take the hits so your friends do not. Strong, hard to hurt, slow. Pick this if you like protecting people.',
     ledger: 'The clever one. You make and mend things, patch up the wounded, and know what everything is worth. Pick this if you like solving problems and getting paid.',
-    rider: 'The fast one. You move through moving water like nobody else, act first and get out of trouble quickly. Fragile. Pick this if you like daring moves.',
+    rider: 'The fast one. You move through moving water like nobody else, act first and get out of trouble quickly. You shrug off strain better than anyone: a bad roll costs you Stress less often. Fragile. Pick this if you like daring moves.',
     eyes: 'The sharp one. You notice what others miss, sneak, and smell a lie. Pick this if you like finding things out.',
   },
 

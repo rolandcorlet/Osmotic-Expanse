@@ -148,6 +148,17 @@ function addresses() {
   return out;
 }
 
+function artFor(blockId) {
+  if (!blockId) return null;
+  const dir = join(here, 'public', 'creatures');
+  const own = join(dir, `${blockId}.webp`);
+  if (existsSync(own)) return own;
+  const order = String((bestiary[blockId] || {}).order || '').match(/^Order ([IVX]+)/);
+  const shared = order ? join(dir, `order-${order[1]}.webp`) : '';
+  return shared && existsSync(shared) ? shared : null;
+}
+const artList = () => Object.fromEntries(Object.keys(bestiary).filter((id) => artFor(id)).map((id) => [id, 1]));
+
 const FILES = {
   '/app.js': ['public/app.js', 'text/javascript'],
   '/app.css': ['public/app.css', 'text/css'],
@@ -261,6 +272,15 @@ const server = http.createServer(async (req, res) => {
       res.end(readFileSync(join(here, 'public', 'index.html')));
       return;
     }
+    // v3: creature pictures for the player and table screens. A block with no portrait of its own
+    // falls back to its Order's picture where one exists.
+    if (req.method === 'GET' && url.pathname.startsWith('/creatures/')) {
+      const file = artFor((url.pathname.match(/^\/creatures\/([a-z0-9-]+)\.webp$/) || [])[1]);
+      if (!file) { res.writeHead(404); res.end(); return; }
+      res.writeHead(200, { 'content-type': 'image/webp', 'cache-control': 'public, max-age=86400' });
+      res.end(readFileSync(file));
+      return;
+    }
     if (req.method === 'GET' && FILES[url.pathname]) {
       const [file, type] = FILES[url.pathname];
       res.writeHead(200, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store' });
@@ -283,9 +303,9 @@ const server = http.createServer(async (req, res) => {
           id: b.id, name: b.name, order: b.order, cls: b.cls, tier: b.tier, statLine: b.statLine, traits: b.traits,
           special: b.special, weakness: b.weakness, harvest: b.harvest, tactics: b.tactics, segments: b.segments,
         }));
-        json(res, 200, { ...scenario, bestiary: blocks, vectors: vectorList(), voice: voice.hostView() });
+        json(res, 200, { ...scenario, bestiary: blocks, vectors: vectorList(), voice: voice.hostView(), art: artList() });
       } else {
-        json(res, 200, vector.publicScenario(scenario));
+        json(res, 200, { ...vector.publicScenario(scenario), art: artList() });
       }
       return;
     }

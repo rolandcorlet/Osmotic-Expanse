@@ -305,3 +305,13 @@ details>summary{cursor:pointer;color:var(--dim);font-size:13px}
 @keyframes fpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 @media (prefers-reduced-motion:reduce){.face .mem,.face .inner,.face .cil{animation:none!important}}
 @media (max-height:700px){.face{width:80px}}
+
+/* v3: pictures of the creatures in the scene */
+.pics{position:fixed;inset:0;z-index:45;display:grid;place-items:center;padding:14px;background:color-mix(in srgb,var(--bg) 86%,transparent)}
+.picsin{width:min(1100px,100%);max-height:100%;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.picgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:10px}
+.pic{margin:0;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pic img{display:block;width:100%;aspect-ratio:1/1;object-fit:cover}
+.pic .nopic{aspect-ratio:1/1;display:grid;place-items:center;color:var(--dim)}
+.pic figcaption{display:flex;flex-direction:column;gap:2px;padding:8px 10px}
+.pic.gone img{filter:grayscale(1) brightness(.6)}

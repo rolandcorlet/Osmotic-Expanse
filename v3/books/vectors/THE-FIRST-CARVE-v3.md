@@ -288,7 +288,8 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 | AT | Action Threshold. The number your dice must reach. Higher is harder. |
 | MT | Membrane Threshold. How hard you are to hit. |
 | Overflow | How far you beat the number by. More Overflow buys a better result. |
-| Inhibitor | A die that rolled 1. It counts for nothing and gives you 1 Stress. |
+| Inhibitor | A die that rolled 1. It counts for nothing and gives you 1 Stress. (Flagellans take that Stress only three times in four.) |
+| Flagellan | One of the six lineages: the fast, restless people of the great currents. They ride out strain: a rolled 1 costs them Stress only three times in four. |
 | Pulse War | A fight, played in turns. |
 | Cycle | One round of a fight: everyone acts once. |
 | PP | Pulse Points. What you spend to act on your turn. Moving, striking and defending all cost some. |

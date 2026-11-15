@@ -307,3 +307,44 @@ test('the Core rules are in the Director\'s reach, and the v3 books build from t
   assert.ok(T.run('look_up', { about: 'what happens when I hit zero health, dying' }).cards.some((c) => /dying/i.test(c.name)));
   assert.ok(T.run('look_up', { about: 'how hard is it threshold' }).cards.some((c) => /Threshold/.test(c.name)));
 });
+
+test('Total Lysis is real: a full Countdown ends the organism, and nothing brings it back', () => {
+  let s = seated();
+  const host = ctx('host', null);
+  ['Bresk of the Choir', 'Ilm of the Hand', 'Vash of the Reach', 'Brost of the Current'].forEach((n, i) => { Object.values(s.organisms).filter((o) => o.playerId)[i].name = n; });
+  const pid = s.organisms.rider.playerId;
+  s.organisms.rider.countdown = s.organisms.rider.countdownMax - 2;
+  s.organisms.rider.stress = 7;
+  s = apply(s, { type: 'request.check', organismId: 'rider', baseline: 'DFF', pathway: '', at: 12, label: 'one swing too many', mods: [], unhurried: false }, host);
+  const q = s.requests[0];
+  s = apply(s, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(1) }, ctx('player', pid));
+  const r = s.organisms.rider;
+  assert.ok(r.lysed, 'Stress 8 collapsed him and the Countdown filled');
+  assert.equal(r.mi, 0);
+  assert.ok(r.dormant);
+  assert.match(briefing(s, scenario, bestiary), /DEAD \(Total Lysis\)/);
+  assert.throws(() => apply(s, { type: 'harvest', organismId: 'rider' }, ctx('player', pid)), /cannot act/);
+  assert.equal(checkNarration(`What was ${s.organisms.rider.name.split(' ')[0]} is everywhere in the water now. ${s.organisms.rider.name.split(' ')[0]} is gone. Bresk, what now?`, s).filter((f) => /dead or dissolved/.test(f.text)).length, 0, 'saying a dead organism is dead is not a false burial');
+});
+
+test('house rule: a Flagellan marks Stress from a rolled 1 about three times in four; others always', () => {
+  const run = (hand) => {
+    let total = 0;
+    for (let seed = 1; seed <= 300; seed++) {
+      const r = makeRng(seed);
+      const c = (role, pid) => ({ role, pid, rng: r, now: 0, scenario, bestiary });
+      let s = newSession(scenario);
+      s = apply(s, { type: 'join', name: 'A' }, c('player', 'p1'));
+      s = apply(s, { type: 'zero.agree' }, c('player', 'p1'));
+      s = apply(s, { type: 'claim', organismId: hand, name: 'Test One' }, c('player', 'p1'));
+      s = apply(s, { type: 'request.check', organismId: hand, baseline: 'RTC', pathway: '', at: 12, label: 'x', mods: [], unhurried: false }, c('host', null));
+      const q = s.requests[0];
+      s = apply(s, { type: 'roll', requestId: q.id, dice: [1, ...Array(q.pool.dice - 1).fill(6)] }, c('player', 'p1'));
+      total += s.organisms[hand].stress;
+    }
+    return total;
+  };
+  assert.equal(run('wall'), 300);
+  const rider = run('rider');
+  assert.ok(rider > 195 && rider < 255, `the Rider marked ${rider} of 300`);
+});

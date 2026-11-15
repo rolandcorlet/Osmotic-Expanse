@@ -67,6 +67,7 @@
 
 - Dice = your Baseline score + a Pathway (skill) that fits + modifiers. Never fewer than 1 die.
 - Each 1 is an Inhibitor: it scores nothing and marks 1 Stress on you.
+- Flagellans (v3): each 1 marks Stress only three times in four. The Engine rolls for it; on paper, roll a d4 per 1 and ignore the Stress on a 1.
 - Add up the rest. If the total reaches the Threshold, you succeed.
 - Overflow is how far you beat it by. It always buys something.
 - Runaway Catalysis: no 1s and at least two 6s. Your effect counts twice, with a bonus.
@@ -430,7 +431,8 @@
 | AT | Action Threshold. The number your dice must reach. Higher is harder. |
 | MT | Membrane Threshold. How hard you are to hit. |
 | Overflow | How far you beat the number by. More Overflow buys a better result. |
-| Inhibitor | A die that rolled 1. It counts for nothing and gives you 1 Stress. |
+| Inhibitor | A die that rolled 1. It counts for nothing and gives you 1 Stress. (Flagellans take that Stress only three times in four.) |
+| Flagellan | One of the six lineages: the fast, restless people of the great currents. They ride out strain: a rolled 1 costs them Stress only three times in four. |
 | Pulse War | A fight, played in turns. |
 | Cycle | One round of a fight: everyone acts once. |
 | PP | Pulse Points. What you spend to act on your turn. Moving, striking and defending all cost some. |

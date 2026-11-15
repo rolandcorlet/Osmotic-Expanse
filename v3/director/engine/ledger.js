@@ -448,8 +448,19 @@ function addStress(s, ctx, o, n, why) {
   if (why) say(s, ctx, `${o.name} marks ${n} Stress (${why}). Stress is ${o.stress}: ${R.stressNote(o.stress)}.`, 'stress');
 }
 
+// The lineage is the first word of the Phenotype line ("Flagellan Current Rider").
+export const FLAGELLAN_STRESS_CHANCE = 0.75;
+const isFlagellan = (o) => /^flagellan\b/i.test(String((o && (o.lineage || o.phenotype)) || ''));
+
 function checkLysis(s, ctx, o) {
-  if (o.countdown >= o.countdownMax) say(s, ctx, `${o.name}'s Lysis Countdown is full: Total Lysis (CORE 5.6).`, 'danger');
+  if (o.countdown < o.countdownMax || o.lysed) return;
+  // v3 (bench 16 Nov): the Countdown filled, the table was told Vash had dissolved, and the Engine
+  // still had him at 20 MI taking turns. Total Lysis is now a state: the body is gone and stays gone.
+  o.lysed = true;
+  o.dormant = true;
+  o.mi = 0;
+  s.requests = (s.requests || []).filter((q) => !(q.actor.kind === 'org' && q.actor.id === o.id));
+  say(s, ctx, `${o.name}'s Lysis Countdown is full: Total Lysis (CORE 5.6). ${o.name} is dead and takes no further part.`, 'danger');
 }
 
 // THE FIRST CARVE 3.1-3.3 print what the *place* pays on its own: "Advance +1 when: ... the Cohort
@@ -789,8 +800,14 @@ function resolve(s, ctx, req, ownDice) {
     const o = s.organisms[req.actor.id];
     stressBefore = o.stress;
     if (read.inhibitors && !req.practice) {
-      addStress(s, ctx, o, read.inhibitors, `${read.inhibitors} Inhibitor${read.inhibitors > 1 ? 's' : ''}`);
-      entry.stressMarked = read.inhibitors;
+      // v3 house rule (Roly, 16 Nov 2026): Flagellans ride strain the way they ride a current. Each
+      // Inhibitor a Flagellan rolls marks Stress three times in four; the Engine throws for each one.
+      let marks = read.inhibitors;
+      if (isFlagellan(o)) { marks = 0; for (let i = 0; i < read.inhibitors; i++) if ((ctx.rng || Math.random)() < FLAGELLAN_STRESS_CHANCE) marks += 1; }
+      const shed = read.inhibitors - marks;
+      if (marks) addStress(s, ctx, o, marks, `${read.inhibitors} Inhibitor${read.inhibitors > 1 ? 's' : ''}${shed ? `, ${shed} ridden out (Flagellan: Rides It Out)` : ''}`);
+      else if (shed) say(s, ctx, `${o.name} rides out ${shed} Inhibitor${shed > 1 ? 's' : ''} with no Stress (Flagellan: Rides It Out).`, 'stress');
+      entry.stressMarked = marks;
       entry.stressNow = o.stress;
     }
     if (!read.success && stressBefore >= 7 && !req.practice) {
@@ -2184,6 +2201,7 @@ const HANDLERS = {
       needControl(s, ctx, a.organismId);
       const o = org(s, a.organismId);
       const t = org(s, a.targetId);
+      if (t.lysed) throw new RuleError(`${t.name} is past stabilising: the Countdown filled and the body is gone (CORE 5.6).`);
       if (!t.dormant) throw new RuleError(`${t.name} is not Dormant.`);
       if (o.dormant) throw new RuleError(`${o.name} is Dormant and cannot act.`);
       const act = actorOf(s, 'org', o.id);

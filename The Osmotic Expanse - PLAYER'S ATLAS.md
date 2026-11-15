@@ -94,7 +94,7 @@ Starting at Level 6 (Stage II)? Take the Phenotype's Stage I **and** II features
 
 **Concept:** a courier who delivers messages into places messages are not wanted, and who is very good at arriving fast and loudly.
 
-1. **Lineage: Flagellan** (the Rowed). +1 DFF, −1 VSC. Gift: *Current Sense*. Frailty: *Obligate Drifter*. Bonded Domain: **Osmotic**.
+1. **Lineage: Flagellan** (the Rowed). +1 DFF, −1 VSC. Gift: *Current Sense*, and *Rides It Out* (each Inhibitor marks Stress 3 times in 4). Frailty: *Obligate Drifter*. Bonded Domain: **Osmotic**.
 2. **Baselines:** array 4,4,3,3,2 → DFF 4(+1)=**5**, RTC 4, OSM 3, AFF 3, VSC 2(−1)=**1**.
    VSC 1 is a real cost: MI will be thin, and Siss cannot be pushed around without consequence. *Good. That is the character.*
 3. **Phenotype: Current Rider** (Flagellan tradition). Hull 4, Bonded Osmotic, Pathways: Fluid Navigation 2, Pulse Discipline 1, Concealment 1. Signature mechanic: **Momentum Reserve**.
@@ -117,7 +117,7 @@ Each lineage is a body plan **and** a politics. In the Expanse, you cannot hide 
 | :-- | :-- | :-- | :-- | :-- | :-- |
 | **Amoeban** | +1 RTC, −1 OSM | no fixed shape | Lytic | *Reshape* | *Unwalled* |
 | **Epithalian** | +1 VSC, −1 DFF | sheets, walls, layers | Protean | *Draw Tight* | *Set* |
-| **Flagellan** | +1 DFF, −1 VSC | lashes, fins, wake | Osmotic | *Current Sense* | *Obligate Drifter* |
+| **Flagellan** | +1 DFF, −1 VSC | lashes, fins, wake | Osmotic | *Current Sense*; *Rides It Out* (each Inhibitor marks Stress 3 times in 4) | *Obligate Drifter* |
 | **Lysosan** | +1 OSM, −1 AFF | latent, doubled, quiet | Somatic | *Latency* | *Registered* |
 | **Immunan** | +1 AFF, −1 RTC | recognising, marking, ranks | Galvanic | *Self/Kin* | *Literal* |
 | **Barophil** | +1 VSC, −1 DFF | dense, slow, patient | Thermic | *Hardened* | *Slow Reaction* |
@@ -150,6 +150,7 @@ Born in the Great Flows. Flagellans move or they sulk; a stationary Flagellan is
 
 * **Baselines:** DFF +1, VSC −1.
 * **Body:** **Current Sense** — once per scene, declare a line of fluid anywhere you can smell or see: for the next 2 Cycles, you and any ally touching that line gain **+1 PP** and **+2 Drifts**, and one Osmotic effect you create along it costs 0 ATP.
+* **Rides It Out** *(v3, 16 Nov 2026)*: a Flagellan sheds strain the way it sheds a current. Each **Inhibitor** (a die showing 1) you roll marks Stress only **three times in four**: for each 1, roll a d4, and on a 1 that Inhibitor marks no Stress. It still scores nothing. The AI Director's Engine makes this roll for you.
 * **Frailty — Obligate Drifter:** if you begin a Pulse Cycle having not moved since your last turn, you gain no PP that Cycle (only Reactive Osmosis is available). In a Reconstitution you must spend at least one Fugue Interval moving.
 * **Natural apparatus:** flagellar strike (Lash, Contact, BD 2/4/6/8/10, Kinetic) and a push-off: once per scene, moving 3 Drifts away costs 0 PP and does not provoke a Flank Breach.
 * **Viewed as:** freelancers and smugglers. The Flow Guilds are almost entirely Flagellan.

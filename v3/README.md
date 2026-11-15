@@ -62,6 +62,13 @@ The bench now also reports how many secrets the Cohort learned.
   word, law or custom.
 - **Society as cards.** The seven Precepts and ten customs, playable.
 
+## House rules added in v3
+
+- **Rides It Out** (16 Nov 2026): every Flagellan marks Stress from a rolled 1 only three times in four. Written into the Player's Atlas and The First Carve (the `.md` originals), the v3 Core Rulebook, quick start, picture book and the Engine.
+- **Loud fights** cost TOLL half the time in The First Carve.
+- **People with no stat block** are struck with one roll, never a Pulse War.
+- **Total Lysis** ends an organism when its Countdown fills.
+
 ## Status, honestly
 
 | Vector | Book (v3) | Director's kit | Runs in the host |

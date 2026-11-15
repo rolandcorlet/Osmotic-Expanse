@@ -405,8 +405,23 @@ function bandMap() {
     return `<div class="band"><span class="bn">${b.name}<small>${range} Drifts</small></span><span class="row">${toks}</span></div>`;
   }).join('');
   const cohort = Object.values(state.organisms).filter((o) => o.playerId).map((o) => `<span class="tok org${o.dormant ? ' down' : ''}">${esc(o.name)}${o.band ? ` <small>${esc(o.band)}</small>` : ''}</span>`).join(' ');
-  return `<section class="card"><h3>Distance from the Cohort</h3><div class="bands">${rows}
+  // v3: a button on the player, table and host screens to see what is in the scene.
+  const seen = here.filter((c) => !c.hidden);
+  const picBtn = seen.length ? `<span class="right"><button class="btn sm" data-act="pics.on">Show pictures</button></span>` : '';
+  return `${ui.pics ? picturesHtml(seen) : ''}<section class="card"><h3>Distance from the Cohort${picBtn}</h3><div class="bands">${rows}
     <div class="band cohort"><span class="bn">The Cohort</span><span class="row">${cohort || '<span class="faint small">no organisms yet</span>'}</span></div></div></section>`;
+}
+
+function picturesHtml(list) {
+  const kinds = [];
+  for (const c of list) { let k = kinds.find((x) => x.blockId === c.blockId); if (!k) kinds.push(k = { blockId: c.blockId, name: String(c.name).replace(/\s+[A-Z]$/, ''), all: [] }); k.all.push(c); }
+  const cards = kinds.map((k) => {
+    const has = sc.art && sc.art[k.blockId];
+    const up = k.all.filter((c) => !c.down).length;
+    const note = k.all.length > 1 ? `${k.all.length} here${up < k.all.length ? `, ${k.all.length - up} down` : ''}` : (k.all[0].down ? 'down' : (k.all[0].looks || ''));
+    return `<figure class="pic${up ? '' : ' gone'}">${has ? `<img alt="${esc(k.name)}" src="/creatures/${esc(k.blockId)}.webp">` : '<div class="nopic">No picture yet</div>'}<figcaption><b>${esc(k.name)}</b>${note ? `<span class="dim small">${esc(note)}</span>` : ''}</figcaption></figure>`;
+  }).join('');
+  return `<div class="pics" data-act="pics.off"><div class="picsin"><div class="row"><b>In this scene</b><span class="grow"></span><button class="btn sm" data-act="pics.off">Close</button></div><div class="picgrid">${cards || '<div class="empty">Nothing to see here yet.</div>'}</div></div></div>`;
 }
 
 function pips(pp, max, waiting) {
@@ -786,7 +801,7 @@ function playHtml(o) {
   const bodies = creaturesHere().filter((c) => c.down && !c.harvested);
   const cut = site().harvest;
   const canHarvest = (bodies.length || cut) && !o.dormant;
-  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}${sw('zero', 'Session zero')}</div>`);
+  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}${sw('zero', 'Session zero')}${creaturesHere().length ? '<button class="btn sm" data-act="pics.on">Show pictures</button>' : ''}</div>${ui.pics ? picturesHtml(creaturesHere()) : ''}`);
   if (ui.show.zero) out.push(zeroCard());
   if (ui.show.scene) out.push(sceneCard());
   if (ui.show.harvest && canHarvest) {
@@ -821,7 +836,7 @@ function fightCard(o) {
   const curName = current ? (current.kind === 'org' ? state.organisms[current.id].name : (state.creatures[current.id] || {}).name) : '';
   const canAct = (a.status === 'acting' || a.status === 'holding') && !o.dormant;
   let banner;
-  if (o.dormant) banner = '<div class="turn">You are Dormant. An ally at Contact can stabilise you.</div>';
+  if (o.dormant) banner = o.lysed ? '<div class="turn">Total Lysis: your organism is gone. Talk to the Director about what comes next.</div>' : '<div class="turn">You are Dormant. An ally at Contact can stabilise you.</div>';
   else if (a.status === 'acting') banner = '<div class="turn mine">Your turn</div>';
   else if (a.status === 'holding') banner = `<div class="turn mine">Holding ${a.pp} PP. Step back in after anyone else acts.</div>`;
   else if (a.status === 'done') banner = `<div class="turn">You are done this Cycle${curName ? `. ${esc(curName)} is acting.` : '.'}</div>`;
@@ -1255,6 +1270,8 @@ function hostWho() {
 
 const ACT = {
   tab: (d) => { ui.tab = d.t; },
+  'pics.on': () => { ui.pics = true; },
+  'pics.off': () => { ui.pics = false; },
   'p.show': (d) => { ui.show[d.what] = !ui.show[d.what]; },
   'zero.agree': () => send({ type: 'zero.agree' }),
   'zero.add': () => { const t = (ui.zero.line || '').trim(); if (!t) return; send({ type: 'zero.line', text: t }); ui.zero.line = ''; },

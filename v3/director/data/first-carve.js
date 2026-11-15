@@ -40,7 +40,7 @@ const hands = [
     kit: ['Lipid Weave Wrap (soak 1, +5 MI, already counted)'],
     tie: 'You were riding the whale when its gut locked. You are the only witness.',
     firstMove: '"Get on."',
-    notes: 'MI is 20, or 25 with the Wrap. Purse: 40 S less the Blade (20) and the Wrap (20). Oath boxes are not printed for this Hand.',
+    notes: 'MI is 20, or 25 with the Wrap. Purse: 40 S less the Blade (20) and the Wrap (20). Oath boxes are not printed for this Hand. Flagellan, so Rides It Out: each Inhibitor marks Stress three times in four (v3).',
   },
   {
     id: 'eyes', hand: 'The Eyes', phenotype: 'Lysosan Pathogen Scout', level: 1,
