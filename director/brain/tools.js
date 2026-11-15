@@ -60,7 +60,7 @@ export function hazardSpec(site) {
     standing: PER_CYCLE.test(text),
     // An area hazard pays every body in one firing ("1 band shift to all in the chamber"), so the
     // Director never has to call it once per organism. Only the page's own words make it area.
-    area: /\ball (?:in|around) the chamber\b|\bthe whole (?:chamber|field|carcass)\b|\bto all\b|\beveryone in it\b/i.test(text),
+    area: /\ball (?:in|around) the chamber\b|\bthe whole (?:chamber|field|carcass)\b|\bto all\b|\beveryone in it\b|\bthe carcass ends\b/i.test(text),
     // A Clock-gated hazard may not go off before the Clock reaches the printed segment.
     clockGate: gate ? { clock: gate[1].toUpperCase(), at: Number(gate[2]) } : null,
     // Conditions the same note prices alongside the damage — the Toll-Vent prints "Effect: 6
@@ -310,6 +310,11 @@ export const TOOLS = [
       if (spec.clockGate) {
         const c = T.state.clocks[spec.clockGate.clock];
         if (c && c.filled < spec.clockGate.at) return { refused: `${T.site().name}: the page fires this hazard at ${spec.clockGate.clock} ${spec.clockGate.at}, and ${c.name} is at ${c.filled}. It has not triggered yet.` };
+      }
+      // "The carcass ends" is a one-time detonation, then a chase: once it has fired there is no second
+      // blast, only the race out (bench 15 Nov: it went off in four Cycles running and killed the table).
+      if (/\bthe carcass ends\b/i.test(spec.text) && (T.state.hazards || {})[T.site().id]) {
+        return { note: `The ${T.site().name} hazard has already gone off, and the page prints it as a single ending, not a repeating blast. Nothing changed. Narrate the race out through the exit and put the cost on throws (ask_for_roll), never a second detonation.` };
       }
       const trig = lower(a.trigger);
       if (!trig) return { refused: `Name what set the hazard off: "failed roll", or the words printed in the Trigger line here (${spec.trigger || 'this site prints no Trigger clause: it runs on its own notes or a Clock'}).` };

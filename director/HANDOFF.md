@@ -594,3 +594,20 @@ Still open: rules words aloud on occasion, ~1 in 5 turns rewritten, "eight Lytic
 - A creature with 0 Pulse Points trying to Drift is a note (end its turn). The repeat-area-hazard note also covers "once per scene" outside a Pulse War.
 - instructions.md: asked how much a hazard hurts, answer in the world, never as a number or damage type; describing a hazard is not firing it.
 - 153 tests pass.
+
+## 15 Nov: seventh bench (`--sites 5`, 1 run, log 5caaae82): the whole carve plays through
+
+All five sites played start to finish; the table was wiped by the Gut Stone (Deadly: Warden + 2 Bleeders + 4 Gnats + the Render Charge). The bench saved `--from 2..5` tables as designed.
+
+Numbers: 416 model calls, 10.4 s each, ~15.4k in / 608 out per call, 58.3 tok/s; 215 Director turns at 20.2 s. About one turn in four was rewritten once (length, dice read out, or no closing question).
+
+Gate: 4 refusals, all `hazard_damage` on the Gut Stone. Cause: the Render Charge ("the carcass ends") was not read as an area hazard, so the Director called it once per organism and again every Cycle.
+
+Fixes:
+- The Render Charge is an area hazard (`hazardSpec.area` matches "the carcass ends"): one call pays everyone and shifts the bands.
+- A "carcass ends" hazard goes off once per scene: later calls are a note that says to narrate the race out and price it in throws.
+- New leak check: a creature's MI as a number ("Five MI of what's left", "Three MI of structure"), skipping sentences about a person (name, she/he/her/his/you/your). The bench had four of these and the gate reported 0 leaks.
+- New style flag: an encounter code aloud ("This is the Gut Stone. E5."). The Gut Stone's `play` note told the model to say E5; it now says to say "Deadly", never the code.
+- 155 tests pass.
+
+Still open: one turn in four needs a rewrite (the main cost in time); "Elite" and "Autophagic Collapse" spoken aloud; the scripted players hit the Warden (Threshold 15) with everyone, so the Deadly fight is a wipe by design of the script, not a Director fault.

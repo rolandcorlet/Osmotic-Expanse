@@ -373,6 +373,9 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // player, so it only counts when no player is named in the sentence.
   const HITNUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\\s+points?\\s+of\\s+(?:\\w+\\s+)?damage\\b`, 'i');
   if (sentences.some((sn) => HITNUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
+  // "Five MI of what's left holding it together" is a creature's Membrane Integrity as a number (bench 15 Nov).
+  const MINUM = new RegExp(`\\b(?:${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|\\d+)\\s+MI\\b`, 'i');
+  if (sentences.some((sn) => MINUM.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him|your|you)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number of MI, which is its health.' });
   // "Nineteen of twenty-two" said of a creature is its Membrane Integrity read out as a fraction.
   const BIGW = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|thirty|forty|fifty`;
   const FRACTION = new RegExp(`\\b(?:${BIGW})\\s+(?:of|out of)\\s+(?:${BIGW})\\b`, 'i');
@@ -414,7 +417,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (/[*_#]{2,}|^\s*[-*]\s/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; it should be plain text.' });
   // A heading in capitals ("RUNAWAY CATALYSIS - ...") is the rulebook talking, not the table.
   if (/^\s*[A-Z]{3,}(?:\s+[A-Z]{3,})+\b/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; a heading in capitals is the rulebook talking.' });
-  if (/\brunaway catalysis\b|\bLodged (?:property|trait)\b/i.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; names a rule (Runaway Catalysis or Lodged) aloud.' });
+  if (/\brunaway catalysis\b|\bLodged (?:property|trait)\b|\bE[1-9]\b/i.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; names a rule (Runaway Catalysis, Lodged or an encounter code like E5) aloud.' });
   // The model sometimes slips into another script mid-sentence.
   if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0400-\u04ff]/.test(text)) flags.push({ kind: 'style', text: 'Contains characters from another language.' });
   // Harm the table can hear but the Engine never paid for. Bench 13 Nov, run 2: the gas pocket was

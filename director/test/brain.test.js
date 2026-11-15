@@ -1578,3 +1578,26 @@ test('15 Nov (sixth bench): a creature with no Pulse Points cannot Drift, and th
   assert.equal(r.refused, undefined);
   assert.equal(T.refusals, 0);
 });
+
+test('15 Nov (seventh bench): a creature\'s MI said as a number is a leak, an encounter code aloud is a style flag', () => {
+  const s = seated();
+  const flags = (t) => checkNarration(t, s).map((f) => `${f.kind}: ${f.text}`);
+  assert.ok(flags('It hangs at Near. Five MI of what is left holds it together. Brost, what now?').some((f) => /^leak/.test(f)));
+  assert.ok(!flags('Bresk is torn open, his MI almost gone. Vash, what now?').some((f) => /^leak/.test(f)));
+  assert.ok(!flags('You have twelve MI left and the wall is coming in. Vash, what now?').some((f) => /^leak/.test(f)));
+  assert.ok(flags('This is the Gut Stone. E5. Deadly. Ilm, what does the Cohort do?').some((f) => /encounter code/.test(f)));
+});
+
+test('15 Nov (seventh bench): the Render Charge pays everyone in one firing and goes off once, not every Cycle', () => {
+  let s = seated();
+  s = apply(s, { type: 'scene.set', siteId: 'gut-stone' }, ctx('host'));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  T.state.clocks.TOLL.filled = 5;
+  const first = T.run('hazard_damage', { organism: 'wall', amount: 20, type: 'Kinetic', trigger: 'TOLL 5: the Render Charge fires', why: 'the charge goes' });
+  assert.equal(first.refused, undefined);
+  assert.ok((first.also_paid || []).length > 1, 'every body at the site was paid in the same firing');
+  const second = T.run('hazard_damage', { organism: 'eyes', amount: 20, type: 'Kinetic', trigger: 'TOLL 5: the Render Charge fires', why: 'again' });
+  assert.equal(second.refused, undefined);
+  assert.match(second.note, /single ending|already gone off/);
+  assert.equal(T.refusals, 0);
+});

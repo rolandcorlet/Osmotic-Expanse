@@ -220,7 +220,7 @@ const sites = [
     harvestPays: { 'protease-warden': { codon: 14 }, 'cytoplasmic-bleeder': { codon: 3 }, 'antigen-gnat': { codon: 1.5 } },
     host: {
       cite: 'Vector §8.5',
-      play: 'Two things claim this room and neither is evil: a Lattice Guardian folded around the print job, and a Hegemony recovery team under a Protease Warden. Announce E5 as Deadly before it starts. The exit is the scene: if TOLL hits 5 the Render Charge fires and the last ten minutes are a chase.',
+      play: 'Two things claim this room and neither is evil: a Lattice Guardian folded around the print job, and a Hegemony recovery team under a Protease Warden. Announce it as Deadly before it starts, in those words (never an encounter code). The exit is the scene: if TOLL hits 5 the Render Charge fires and the last ten minutes are a chase.',
       danger: 'E5, Deadly: 1 Protease Warden + 2 Cytoplasmic Bleeders + 4 Antigen Gnats = 12 BSP, against a Deadly budget of 13 for a Cohort of four.',
       wants: 'The Warden wants the canister intact. The Guardian wants the job complete.',
       weakness: 'The Warden\'s kit runs on Marks: Masked, Latency or a scent dampener turns it into a plain bruiser. Break its supports and it withdraws to report. Convince the Guardian the job is complete and it goes quiet.',
