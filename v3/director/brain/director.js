@@ -425,6 +425,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // Bench 15 Nov (second five-stage run), none of them caught: "Bleeder A still hangs at twelve",
   // "two points of structure left", and a bare "Three damage." said of a creature.
   const BIGN = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty`;
+  const HOLDS = new RegExp(`\\b(?:${BIGN}|\\d+)\\s*(?:\\/\\s*\\d+\\s+)?of whatever\\b|\\b(?:${BIGN}|\\d+)\\s+(?:of\\s+(?:${BIGN}|\\d+)\\s+)?clusters?\\s+(?:left|remain(?:s|ing)?|where|thick)\\b|\\b(?:${BIGN}|\\d+)\\s+of\\s+(?:${BIGN}|\\d+)\\s+clusters\\b`, 'i');
+  if (Object.values(state.creatures || {}).some((c) => c.siteId === state.scene.siteId) && HOLDS.test(text)) flags.push({ kind: 'leak', text: 'Counts what is left of a creature, which is its health track.' });
   const AT_NUM = new RegExp(`\\b(?:hangs|sits|stands|holds|is|rests)\\s+at\\s+(?:${BIGN})\\b(?!\\s+(?:of|Pulse|points?\\b))`, 'i');
   if (kinds.length && sentences.some((sn) => { const m = sn.match(AT_NUM); return m && ownedByCreature(sn, m); })) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   const STRUCT = new RegExp(`\\b(?:${BIGN})\\s+points?\\s+of\\s+(?:structure|membrane|integrity|purchase|body|itself)\\b`, 'i');
@@ -515,9 +517,11 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const BURIAL = '(?:dissolv(?:es|ed|ing)|(?:is|was|are|were) (?:dead|gone)|dies|died|unspools?|taken apart|takes? \\w+ apart|lets go|countdown is full|Total Lysis took|stops being \\w+|goes clear|(?:is|was) a bloom)';
   const buried = Object.values(state.organisms || {}).filter((o) => o.playerId && !(o.countdownMax && o.countdown >= o.countdownMax)).filter((o) => {
     const fn = String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // v3 bench 16 Nov: "the whole Rider simply stops being a single shape" then "the place where Vash was".
+    const hw = (String(o.hand || '').split(/\s+/).pop() || 'zzzz').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // The verb has to belong to the player: the name (not possessive) within 50 characters before it,
     // or the verb leading straight into "where Brost stood". "the lurkers died ... Brost's dagger" is not a burial.
-    return sentences.some((sn) => new RegExp(`\\b${fn}\\b(?!['\u2019]s)[^.]{0,50}\\b${BURIAL}\\b|\\b${BURIAL}\\b[^.]{0,20}\\bwhere ${fn} stood|\\b(?:stops|ceases) (?:being|to be) ${fn}\\b|\\b${fn}['\u2019]s (?:shape|body|bulk|membrane|frame)\\b[^.]{0,40}\\b(?:goes clear|thins to nothing|comes apart for good)`, 'i').test(sn));
+    return sentences.some((sn) => new RegExp(`\\b${fn}\\b(?!['\u2019]s)[^.]{0,50}\\b${BURIAL}\\b|\\b${BURIAL}\\b[^.]{0,20}\\bwhere ${fn} stood|\\b(?:stops|ceases) (?:being|to be) ${fn}\\b|\\b${fn}['\u2019]s (?:shape|body|bulk|membrane|frame)\\b[^.]{0,40}\\b(?:goes clear|thins to nothing|comes apart for good|(?:is )?gone)|\\bwhere ${fn} was\\b|\\b(?:the )?(?:whole )?${hw}\\b[^.]{0,40}\\bstops being\\b`, 'i').test(sn));
   });
   if (buried.length) flags.push({ kind: 'rule', text: `Says ${buried.map((o) => o.name).join(' and ')} is dead or dissolved, but the Engine has them standing.` });
   // An Oath the Engine settled as kept this turn, narrated as broken (bench 15 Nov: the roll met the

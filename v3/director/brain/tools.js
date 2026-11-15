@@ -302,6 +302,15 @@ export const TOOLS = [
     run(a, T) {
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism, T.state);
+      {
+        // v3 bench 16 Nov: Osk fell into the haze and the damage was charged to Ilm. A bystander has no
+        // sheet: what happens to them is told, never paid by a player's organism.
+        const k = ((T.scenario.kit || {}).sites || {})[T.site().id];
+        const why = String(a.why || '');
+        const mine = [o.name, o.hand].some((n) => n && why.toLowerCase().includes(String(n).split(/\s+/).pop().toLowerCase())) || why.toLowerCase().includes(String(o.name).split(/\s+/)[0].toLowerCase());
+        const other = (k ? k.people : []).map((p) => (p.name.match(/[A-Z][a-z]+(?:-[A-Z][a-z]+)?/g) || []).pop()).filter((n) => n && new RegExp(`\\b${n}\\b`).test(why));
+        if (other.length && !mine) return { refused: `That harm is ${other[0]}'s, not ${o.name}'s. A bystander has no sheet: describe what happens to them in words, and call hazard_damage only for an organism who is in the hazard themselves.` };
+      }
       const amount = Math.trunc(Number(a.amount));
       if (!(amount >= 1 && amount <= 20)) return { refused: 'Hazard damage is between 1 and 20: use the printed number.' };
       // The Engine keeps the hazard to what the page prints: the Trigger and Effect clauses are

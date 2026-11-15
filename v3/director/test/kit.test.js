@@ -158,3 +158,24 @@ test('bench 16 Nov (iq3_s): a leaking sentence is cut instead of holding the rep
   assert.equal(scrubLeaks('Nothing wrong here. Vash, what now?', leaks), '');
   assert.match(briefing(s, scenario, bestiary), /can only see, taste and test what is here/);
 });
+
+test('bench 16 Nov (third): a burial by Hand name is caught, creature counts leak, a bystander cannot be charged to a player', () => {
+  let s = seated();
+  s = apply(s, { type: 'scene.set', siteId: 'render-hall' }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng });
+  T.run('bring_creatures', { block: 'detritus-feeder', count: 2, band: 'near' });
+  const rider = Object.values(T.state.organisms).find((o) => o.id === 'rider');
+  const first = rider.name.split(' ')[0];
+  const rule = (t) => checkNarration(t, T.state).filter((f) => /dead or dissolved/.test(f.text)).length;
+  assert.ok(rule('The flank membranes lose their definition, then the whole Rider simply stops being a single shape. Bresk, what now?'));
+  assert.ok(rule(`The current where ${first} was is just sweetness now. Bresk, what now?`));
+  assert.equal(rule(`${first} rides the current clear of the churn. Bresk, what now?`), 0);
+  const leak = (t) => checkNarration(t, T.state).filter((f) => f.kind === 'leak').length;
+  assert.ok(leak('It rights itself. Nine/22 of whatever holds it together. Bresk, what now?'));
+  assert.ok(leak('Shoal B is three clusters where eight arrived. Bresk, what now?'));
+  assert.ok(leak('Shoal A is hurt: five of eight clusters left. Bresk, what now?'));
+  assert.equal(leak('Two clusters of small things nibble the lip. Bresk, what now?'), 0);
+  const before = T.state.organisms.ledger.mi;
+  assert.match(T.run('hazard_damage', { organism: 'ledger', amount: 8, type: 'Lytic', trigger: 'entering Mid band', why: 'Osk tumbles through the enzyme haze' }).refused, /bystander has no sheet/);
+  assert.equal(T.state.organisms.ledger.mi, before);
+});
