@@ -220,7 +220,7 @@ export const TOOLS = [
       if (!c) return noCre(a.creature, T.state);
       const o = findOrg(T.state, a.target);
       if (!o) return noOrg(a.target, T.state);
-      if (c.band === 'far' || c.band === 'loose') return { refused: `${c.name} is at ${c.band}: it must Drift closer before it can strike.` };
+      if (c.band === 'far' || c.band === 'loose') return { note: `${c.name} is at ${c.band}, so it cannot strike yet. Nothing changed. Drift it closer with creature_move first (it needs the Pulse Points), or end its turn with end_creature_turn.`, ...T.fightBrief() };
       const act = T.state.fight ? T.state.fight.actors[`cre:${c.cid}`] : null;
       // A swarm bites once per 2 Segments (CORE 4.13): the first Strike costs 2 PP, further bites in the allowance cost none.
       const cost = c.segments != null && act && act.strikes > 0 ? 0 : 2;

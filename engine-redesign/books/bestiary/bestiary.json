@@ -1,0 +1,7744 @@
+{
+ "meta": {
+  "title": "The Lytic Bestiary, Engine-ready edition",
+  "version": "0.1 draft, 15 November 2026",
+  "count": 68,
+  "full": 10
+ },
+ "conventions": [
+  "A creature's MI already includes its size class.",
+  "Standards, Elites and Catastrophes may Deflect (Membrane Threshold +4) for a held Pulse Point; swarm clusters may, single Segments may not.",
+  "A creature's damage is Overflow + BD + Effect Value - target soak, minimum 1, as for organisms.",
+  "Creatures spend Pulse Points exactly as players do. One that has spent them all has no Reserve.",
+  "A swarm makes one Strike per two live Segments, at most three. Segments return 1 per Cycle unless the ground is Dry or the swarm is Brittle.",
+  "A wound-ladder step is chosen by the Engine from the share of MI (or Segments) left: over 80%, 60-80%, 35-60%, 15-35%, under 15%, destroyed. The Director is given the phrase, never the number."
+ ],
+ "scriptWords": {
+  "when": [
+   [
+    "always",
+    "true"
+   ],
+   [
+    "first-turn",
+    "its first turn of the fight"
+   ],
+   [
+    "cycle:N",
+    "the Cycle number is N"
+   ],
+   [
+    "pp>=N",
+    "it has at least N Pulse Points"
+   ],
+   [
+    "foe-in:<band>",
+    "an organism that is Up is in that band of it"
+   ],
+   [
+    "no-foe-in-reach",
+    "no organism that is Up is within its attack band"
+   ],
+   [
+    "attached",
+    "it has a Barb or Lattice on a host"
+   ],
+   [
+    "corpse-in-contact",
+    "a destroyed creature or Dormant organism is in Contact"
+   ],
+   [
+    "corpse-at-site",
+    "one is anywhere at the site"
+   ],
+   [
+    "marked-foe-in:<band>",
+    "a Marked organism is in that band"
+   ],
+   [
+    "ally-hit-marked",
+    "an ally has just hit a Marked organism"
+   ],
+   [
+    "hurt",
+    "it is at \"torn\" or worse"
+   ],
+   [
+    "was-attacked",
+    "it was attacked since its last turn"
+   ],
+   [
+    "uses-left:<special>",
+    "the special has uses left"
+   ],
+   [
+    "did-hit",
+    "one of its Strikes hit this turn"
+   ],
+   [
+    "not-braced",
+    "it has not braced this Cycle"
+   ]
+  ],
+  "target": [
+   [
+    "nearest",
+    "the closest organism that is Up; ties: lowest MI"
+   ],
+   [
+    "slowest",
+    "lowest Flow; ties: nearest"
+   ],
+   [
+    "loudest",
+    "highest Stress; ties: the last organism to roll"
+   ],
+   [
+    "marked",
+    "a Marked organism, else the nearest"
+   ],
+   [
+    "holding-reserve",
+    "an organism holding a Reserve; else nearest"
+   ],
+   [
+    "host",
+    "the organism it is attached to"
+   ],
+   [
+    "read-target",
+    "the organism it used Read on"
+   ],
+   [
+    "crosser",
+    "an organism that entered its Held zone, else the nearest in Contact"
+   ],
+   [
+    "struck",
+    "the organism it hit this turn"
+   ],
+   [
+    "corpse",
+    "the nearest destroyed creature or Dormant organism"
+   ],
+   [
+    "zone",
+    "the zone it stands in or guards"
+   ]
+  ],
+  "do": [
+   [
+    "strike:<target>",
+    "Strike that target (as many Strikes as its Pulse Points and Segments allow)"
+   ],
+   [
+    "special:<id>:<target>",
+    "use that special"
+   ],
+   [
+    "drift:toward:<target>",
+    "Drift one band toward it"
+   ],
+   [
+    "drift:away",
+    "Drift one band outward"
+   ],
+   [
+    "drift:through",
+    "Drift one band along its line toward the far exit"
+   ],
+   [
+    "brace",
+    "take its Brace trait"
+   ],
+   [
+    "reserve",
+    "hold 1 Pulse Point as a Reserve"
+   ],
+   [
+    "announce",
+    "no action: the Director narrates its intent (a cue, costs nothing)"
+   ],
+   [
+    "end",
+    "end its turn"
+   ]
+  ]
+ },
+ "classWords": {
+  "Swarmling": "a swarm, a cluster, a shoal: name its body",
+  "Standard": "name the creature",
+  "Elite": "the one the others follow",
+  "Catastrophe": "name it, and say the room changes"
+ },
+ "tierTemplates": {
+  "Swarmling": {
+   "mt": "11+T",
+   "mi": "6+4T",
+   "bd": "T",
+   "soak": "floor((T-1)/2)",
+   "pool": "2+T",
+   "pp": 2,
+   "segments": "4+2T"
+  },
+  "Standard": {
+   "mt": "12+T",
+   "mi": "14+8T",
+   "bd": "1+T",
+   "soak": "T",
+   "pool": "3+T",
+   "pp": 3
+  },
+  "Elite": {
+   "mt": "13+T",
+   "mi": "28+16T",
+   "bd": "2+T",
+   "soak": "T+2",
+   "pool": "4+T",
+   "pp": 4
+  },
+  "Catastrophe": {
+   "mt": "10+T",
+   "mi": "70+40T",
+   "bd": "4+T",
+   "soak": "T+3",
+   "pool": "4+T",
+   "pp": 5
+  }
+ },
+ "budgets": {
+  "bsp": {
+   "Swarmling": 1,
+   "Standard": 2,
+   "Elite": 4,
+   "Catastrophe": 10
+  },
+  "perCohortOfFour": [
+   {
+    "levels": "1-4",
+    "tier": 1,
+    "easy": 5,
+    "standard": 7,
+    "hard": 10,
+    "deadly": 13
+   },
+   {
+    "levels": "5-8",
+    "tier": 2,
+    "easy": 7,
+    "standard": 9,
+    "hard": 12,
+    "deadly": 15
+   },
+   {
+    "levels": "9-12",
+    "tier": 3,
+    "easy": 8,
+    "standard": 10,
+    "hard": 12,
+    "deadly": 16
+   },
+   {
+    "levels": "13-16",
+    "tier": 4,
+    "easy": 9,
+    "standard": 11,
+    "hard": 14,
+    "deadly": 17
+   },
+   {
+    "levels": "17-20",
+    "tier": 5,
+    "easy": 10,
+    "standard": 12,
+    "hard": 14,
+    "deadly": 16
+   }
+  ],
+  "sizeFactor": {
+   "3": 0.75,
+   "4": 1,
+   "5": 1.2,
+   "6+": 1.4
+  }
+ },
+ "directorLists": [
+  {
+   "ruling": "How a creature reacts when spoken to",
+   "choose": [
+    "ignores",
+    "listens",
+    "names its price (from its record)",
+    "turns hostile"
+   ]
+  },
+  {
+   "ruling": "What a creature does when its script says \"announce\"",
+   "choose": [
+    "states its aim in world words: narration only"
+   ]
+  },
+  {
+   "ruling": "A Director-run creature's turn",
+   "choose": [
+    "only the actions and specials its record lists, with their printed costs"
+   ]
+  },
+  {
+   "ruling": "Standing a creature down",
+   "choose": [
+    "only when a \"stops\" trigger in its record is true; the Engine does it, the Director narrates it"
+   ]
+  }
+ ],
+ "orders": {
+  "Order I: Lytic Swarms": {
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten."
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ]
+  },
+  "Order II: Protein Sentinels": {
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts."
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ]
+  },
+  "Order III: Nutrient Drifters": {
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight."
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ]
+  },
+  "Order IV: Pathogenic Wraiths": {
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win."
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ]
+  },
+  "Order V: Osmotic Brutes": {
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill."
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ]
+  },
+  "Order VI: Immune Sentinels": {
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death."
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ]
+  },
+  "Order VII: Anomalies": {
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director."
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ]
+  }
+ },
+ "creatures": [
+  {
+   "id": "gnaw-swarm",
+   "name": "Gnaw Swarm",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "Mesoscopic cluster",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Lytic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 6,
+    "flow": null,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the C is worth 15 S; a Cohort that ignores these bodies is throwing money away"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "flows over everything, bites once per Cycle per two segments, and cannot be frightened.",
+   "weaknessText": "area damage, Dry Zones, and any Thermal effect end Segments 1-for-1 with no Overflow needed.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "scent-led",
+     "name": "Scent-Led",
+     "effect": {
+      "cannotStay": "Blind",
+      "longerThan": "1 Cycle",
+      "if": "it has smelled the target"
+     }
+    },
+    {
+     "id": "corrodes",
+     "name": "Corrodes",
+     "effect": {
+      "onHit": {
+       "targetSoak": -1,
+       "until": "repaired",
+       "max": -3
+      }
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "swarm-over",
+     "name": "Swarm Over",
+     "pp": 2,
+     "target": "one organism in Contact",
+     "range": "contact",
+     "effect": {
+      "strikes": "one per live Segment",
+      "dice": -2
+     },
+     "save": null
+    }
+   ],
+   "consequence": "Lytic: -1 soak until repaired (its Corrodes trait)",
+   "run": "engine",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2 and foe-in:contact",
+     "do": "special:swarm-over:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "leavesFor": "whatever the site says it wants (at the Toll-Vent: water)"
+   },
+   "weakTo": [
+    "area damage",
+    "Dry Zones",
+    "Thermic: each removes Segments 1 for 1"
+   ],
+   "ladder": [
+    "a tight, seething coat of soft segments",
+    "a few segments peeled loose",
+    "ragged, shedding pieces in the current",
+    "a torn net of stragglers",
+    "one last clump still biting",
+    "soft pieces tumbling apart"
+   ],
+   "hitWords": [
+    "it flows over the limb and bites",
+    "a dozen small mouths find the seam"
+   ],
+   "missWords": [
+    "it breaks around the blow and re-forms",
+    "it bites water"
+   ],
+   "look": [
+    "It is many small things in one slime coat; a solid blow takes pieces off it.",
+    "It bites slowly and eats armour; it cannot be frightened.",
+    "Heat, dry ground or anything that hits a whole area undoes it fastest."
+   ]
+  },
+  {
+   "id": "detritus-feeder",
+   "name": "Detritus Feeder",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Lytic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 6,
+    "flow": null,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "run it as Tier 2 in the Wastes and it yields C4 / G1, Codon 3.5 — which is why Reclaimer crews count the ground before they count the swarm"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "ignores the fight, eats the battlefield. In a long fight, a Feeder becomes four Feeders.",
+   "weaknessText": "if you deny it corpses (burn them, salt them, take them) it becomes a nuisance instead of a threat.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "acid-immune",
+     "name": "Acid-Immune",
+     "effect": {
+      "damageTaken": {
+       "Lytic": 0
+      }
+     }
+    },
+    {
+     "id": "harvest-instinct",
+     "name": "Harvest Instinct",
+     "effect": {
+      "prefers": "a corpse over an organism"
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "render",
+     "name": "Render",
+     "pp": 2,
+     "target": "a corpse in Contact",
+     "range": "contact",
+     "effect": {
+      "corpseHarvestGrade": -1,
+      "selfSegments": 2
+     },
+     "save": null
+    }
+   ],
+   "consequence": "Lytic: -1 soak until repaired",
+   "run": "engine",
+   "script": [
+    {
+     "when": "corpse-in-contact and pp>=2",
+     "do": "special:render:corpse"
+    },
+    {
+     "when": "corpse-at-site",
+     "do": "drift:toward:corpse"
+    },
+    {
+     "when": "foe-in:contact and pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "when no corpse is left at the site: it drifts off",
+    "ignoresOrganisms": "unless one stands on a corpse or strikes it"
+   },
+   "weakTo": [
+    "having no corpses to eat: burn, salt or take them"
+   ],
+   "ladder": [
+    "fat and busy",
+    "a swath torn out of it",
+    "split, leaking what it ate",
+    "a sagging sack dragging itself",
+    "a husk, one blow from flat",
+    "two deflated halves"
+   ],
+   "hitWords": [
+    "it rasps across whatever is nearest",
+    "it bites in passing"
+   ],
+   "missWords": [
+    "it is not really aiming at you",
+    "it turns back to the dead"
+   ],
+   "look": [
+    "It is here for the dead, not for you.",
+    "Every body it eats makes it bigger and the body worth less.",
+    "Acid does nothing to it."
+   ]
+  },
+  {
+   "id": "protease-locusts",
+   "name": "Protease Locusts",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Swarmling",
+   "tier": 2,
+   "size": "",
+   "numbers": {
+    "mt": 13,
+    "mi": 14,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Lytic",
+    "pool": 4,
+    "pp": 2,
+    "segments": 8,
+    "flow": null,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 3.5,
+    "bsp": 1,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "arrives as a sound, strips a site's organic structure in four Cycles, and leaves before the Wardens do.",
+   "weaknessText": "Turbid or Dry terrain grounds them; Hypertonic air costs them 1 PP per Cycle.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "cloud-flight",
+     "name": "Cloud Flight",
+     "text": "Flow 5; ignores ground terrain",
+     "needsRecord": true
+    },
+    {
+     "id": "enzyme-rain",
+     "name": "Enzyme Rain",
+     "text": "when a Strike hits, splashes 1 Lytic to everything in the band",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "bloom-chorus",
+     "name": "Bloom Chorus",
+     "pp": 3,
+     "limit": "once per Pulse War",
+     "text": "all Locust swarms in the region (Director's count, usually 2–5 tokens) Strike the same target at once, adding +1 Overflow each.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "cytoplasmic-bleeder",
+   "name": "Cytoplasmic Bleeder",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Microscopic-Mesoscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Lytic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its Greater Organ is the Tap Valve: Lytic family, +2 soak, and a Minor Cost of hunger"
+   },
+   "sayClass": "name the creature",
+   "tactics": "finds the slowest organism, attaches, and lets its allies do the killing.",
+   "weaknessText": "Detach is one OSM contest (AT 14) or a Thermal/Lytic burn; Phagocyte Engulfment is fatal.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "attach",
+     "name": "Attach",
+     "effect": {
+      "onHit": {
+       "barb": 1
+      },
+      "whileAttached": {
+       "freeStrike": {
+        "target": "host",
+        "dice": -1,
+        "per": "Cycle"
+       }
+      },
+      "detach": [
+       {
+        "pool": "OSM",
+        "threshold": 14,
+        "contest": true
+       },
+       {
+        "damageType": [
+         "Thermic",
+         "Lytic"
+        ],
+        "on": "the Bleeder"
+       }
+      ]
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "tap",
+     "name": "Tap",
+     "pp": 2,
+     "target": "its host",
+     "range": "attached",
+     "effect": {
+      "drainMi": 3,
+      "healSelf": 3
+     },
+     "uses": 3,
+     "per": "fight",
+     "save": null
+    }
+   ],
+   "consequence": "Lytic: Brittle",
+   "run": "engine",
+   "script": [
+    {
+     "when": "attached and pp>=2 and uses-left:tap",
+     "do": "special:tap:host"
+    },
+    {
+     "when": "attached",
+     "do": "strike:host"
+    },
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:slowest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:slowest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never while attached; drifts off if its host goes Dormant and no other organism is Up"
+   },
+   "weakTo": [
+    "being burned off (Thermic or Lytic)",
+    "a strong sense of self: OSM contest at 14 to detach"
+   ],
+   "ladder": [
+    "long, soft and whole",
+    "a tear along its flank",
+    "gutted, trailing clear fluid",
+    "slack, barely turning",
+    "a ribbon held together by one thread",
+    "gone flat and empty"
+   ],
+   "hitWords": [
+    "a barb sinks in and it rides",
+    "it lashes and clings"
+   ],
+   "missWords": [
+    "it skids off and pulls back for another pass",
+    "the barb finds only water"
+   ],
+   "look": [
+    "It looks for whoever cannot get away, then holds on.",
+    "Once it is on you it drinks; it has only so much thirst.",
+    "Burn it off, or will it off."
+   ]
+  },
+  {
+   "id": "enzymatic-horror",
+   "name": "Enzymatic Horror",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Lytic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the Pristine Sequence is Acid Gland: the raw material of Acidic Corrosor kit"
+   },
+   "sayClass": "name the creature",
+   "tactics": "walks at the armour. It will pick the most armoured opponent, every time.",
+   "weaknessText": "Mucoid-family grafts are immune to its Corrodes; Diver Gradient or a Desiccation zone halves its Surge.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "acidic-surge",
+     "name": "Acidic Surge",
+     "text": "Core VII: once per Cycle, everything in Contact takes 5 Lytic",
+     "needsRecord": true
+    },
+    {
+     "id": "corrodes",
+     "name": "",
+     "text": "Corrodes",
+     "needsRecord": true
+    },
+    {
+     "id": "testate-soft",
+     "name": "Testate-Soft",
+     "text": "Lytic weapons gain +2 against armour-wearers nearby",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "dissolve-armour",
+     "name": "Dissolve Armour",
+     "pp": 3,
+     "limit": null,
+     "text": "one target in Contact: its grafts lose 2 soak permanently (reparable by a Smith or a Nucleoid rite) and it gains Brittle.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "autolytic-hulk",
+   "name": "Autolytic Hulk",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Lytic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "it wants to be hit while you are close. Deny it that and it is just slow.",
+   "weaknessText": "killing it far from anyone; Desiccation (no fluid to rupture with); freezing.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "autophagic",
+     "name": "Autophagic",
+     "text": "when it takes 8+ damage, its next Strike gains +2 BD — it converts damage to appetite",
+     "needsRecord": true
+    },
+    {
+     "id": "segment-split",
+     "name": "Segment Split",
+     "text": "at 0 MI it does not die: it splits into 2 Swarmlings at full Segments, and the fight continues",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "rupture-burst",
+     "name": "Rupture Burst",
+     "pp": 4,
+     "limit": "once",
+     "text": "it detonates: `8 + Overflow` Lytic to everything in its band, then becomes a Swarmling with 6 Segments.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "swarm-of-nine-mouths",
+   "name": "Swarm Of Nine Mouths",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Elite",
+   "tier": 2,
+   "size": "Macroscopic colony",
+   "numbers": {
+    "mt": 15,
+    "mi": 60,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Lytic",
+    "pool": 6,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 8,
+     "G": 3,
+     "P": 2,
+     "T": 1
+    },
+    "codon": 14,
+    "bsp": 4,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "Cycle 1 reads your armour, Cycle 2 picks the type you cannot soak, Cycle 3 eats someone.",
+   "weaknessText": "its Segment count is its action economy: area effects do not just damage it, they silence its specials.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "nine-digestions",
+     "name": "Nine Digestions",
+     "text": "each Cycle it chooses one damage type — Lytic, Thermal, Osmotic — and its attacks become that type; it reads what the Cohort is armoured against first",
+     "needsRecord": true
+    },
+    {
+     "id": "cannot-be-flank-breached",
+     "name": "",
+     "text": "Cannot be Flank-Breached",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "devour",
+     "name": "Devour",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "a Dormant or grappled creature is consumed: it goes to Total Lysis, and the Swarm gains +12 MI and one of the victim's Harvest traits for the rest of the fight.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "lysophage",
+   "name": "Lysophage",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Lytic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the Terminal Codon is why a Hegemony foundry will pay 600 S for this kill"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "disarms, then eats. A Lysophage fight that lasts six Cycles has left the Cohort unarmed.",
+   "weaknessText": "fight it without Apparatus (Lash-and-soak, Bursts, Desiccation); Smith Overcharge on its own dissolved gear.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "enzyme-corridor",
+     "name": "Enzyme Corridor",
+     "text": "the fluid in a line 4 Drifts long becomes Acidic for its allies and costs the Cohort 3 Lytic/Cycle",
+     "needsRecord": true
+    },
+    {
+     "id": "graft-eater",
+     "name": "Graft-Eater",
+     "text": "a hit removes 1 point of a target's graft soak permanently until repaired",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "digest-apparatus",
+     "name": "Digest Apparatus",
+     "pp": 3,
+     "limit": null,
+     "text": "one target's Apparatus in Contact is dissolved (durability roll 2d6, ≤7 destroys). It gains +1 BD for the rest of the fight.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "recession-feeder",
+   "name": "Recession Feeder",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Standard",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 16,
+    "mi": 46,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Lytic",
+    "pool": 7,
+    "pp": 3,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 7,
+     "G": 4,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 30,
+    "bsp": 2,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "walks into a bloom and ends it, then turns on whoever is standing nearest.",
+   "weaknessText": "it is losing. A Cohort that feeds it (a corpse, a sacrificial animal, a colony's store) can lead a Recession Feeder somewhere useful.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "anti-bloom",
+     "name": "Anti-Bloom",
+     "text": "all regeneration, Segment regrowth, and healing within 6 Drifts of it stops",
+     "needsRecord": true
+    },
+    {
+     "id": "starving",
+     "name": "Starving",
+     "text": "it is always at 1 ATP; it will abandon any objective to eat",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "draw-in",
+     "name": "Draw In",
+     "pp": 4,
+     "limit": null,
+     "text": "everything in a 5-Drift zone is pulled 1 band toward it and takes 6 Osmotic; it then heals 1 MI per creature affected.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "bloom-matriarch",
+   "name": "Bloom Matriarch",
+   "order": "Order I: Lytic Swarms",
+   "cls": "Catastrophe",
+   "tier": 2,
+   "size": "Vast",
+   "numbers": {
+    "mt": 12,
+    "mi": 60,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Lytic",
+    "pool": 6,
+    "pp": 5,
+    "segments": null,
+    "flow": 2,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 7,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 21,
+    "bsp": 10,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "arrives, roots, and grows the fight. Every Cycle it is unaddressed, the encounter's BSP increases by 2.",
+   "weaknessText": "its brood is its clock: kill the sac, not the swarm, and it loses a phase. It cannot leave — a Cohort that breaks the ground under it (pump, flood, collapse) can drown the whole fight.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "brood-sac",
+     "name": "Brood Sac",
+     "text": "at the end of each Cycle, spawns 1 Swarmling T2 with half Segments; the sac must be cut — a Strike at AT 16, 20 S of acid, or a Breacher's charge to stop the spawning",
+     "needsRecord": true
+    },
+    {
+     "id": "rooted",
+     "name": "Rooted",
+     "text": "it cannot be pushed; its Folds anchor it to the ground",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "bloom-surge",
+     "name": "Bloom Surge",
+     "pp": 5,
+     "limit": "once per phase",
+     "text": "all its Swarmlings act immediately, and the ground in a 6-Drift zone becomes a spore bed (4 Lytic/Cycle).",
+     "needsRecord": true
+    },
+    {
+     "id": "chemical-veil",
+     "name": "Chemical Veil",
+     "pp": 3,
+     "limit": null,
+     "text": "for 2 Cycles, Lytic damage to the Matriarch is halved; the veil can be stripped by any Dry effect, Thermal burn, or a Smith's Tune (AT 16).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to eat",
+   "morale": {
+    "stops": "never",
+    "note": "Hunger does not frighten.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "whole and seething",
+    "thinned at one edge",
+    "ragged, pieces peeling away",
+    "a loose scatter barely holding",
+    "one last cluster",
+    "drifting wreckage"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "chaperone-drone",
+   "name": "Chaperone Drone",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Kinetic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 4,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "folded chaperone protein is the cheapest Fibrous graft material there is: 20 S at market"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "builds walls, fixes friends, bites occasionally.",
+   "weaknessText": "ignore the drones and cut what they are repairing. They will spend the whole fight on maintenance.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "folding",
+     "name": "Folding",
+     "text": "it can fold a corpse, a door, or a piece of terrain into a barrier: integrity 12, blocks a line",
+     "needsRecord": true
+    },
+    {
+     "id": "loyal-to-structure",
+     "name": "Loyal to Structure",
+     "text": "it will repair a damaged Sentinel or Fold before attacking",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "assist-fold",
+     "name": "Assist Fold",
+     "pp": 2,
+     "limit": null,
+     "text": "gives an adjacent Sentinel +2 soak until the end of the Cycle.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "fold-sentinel",
+   "name": "Fold Sentinel",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 2,
+    "bracedMt": 2,
+    "bd": 2,
+    "type": "Kinetic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the Greater Organ is a Brace Node: +2 soak, −1 Flow, Fibrous"
+   },
+   "sayClass": "name the creature",
+   "tactics": "plants itself at the chokepoint and dares you. It is not stupid; it is doing its job.",
+   "weaknessText": "get behind it (Flank Breach: −2 MT) — a braced Sentinel cannot turn, and a Navigator's shear or a Rider's Slip is the answer.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "brace",
+     "name": "Brace",
+     "effect": {
+      "cannotDrift": true,
+      "mt": 2,
+      "usesBracedSoak": true
+     }
+    },
+    {
+     "id": "load-bearing",
+     "name": "Load-Bearing",
+     "effect": {
+      "when": "takes 10+ from one hit",
+      "then": {
+       "cannotBePushed": true,
+       "cycles": 2
+      }
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "present",
+     "name": "Present",
+     "pp": 3,
+     "target": "a zone 3 Drifts wide that it guards",
+     "range": "contact",
+     "effect": {
+      "zone": "Held",
+      "cycles": 3,
+      "onCross": {
+       "condition": "Marked",
+       "ppPerDrift": 1
+      }
+     },
+     "save": null
+    }
+   ],
+   "consequence": "Kinetic: Jostled",
+   "run": "engine",
+   "script": [
+    {
+     "when": "first-turn and pp>=3",
+     "do": "special:present:zone"
+    },
+    {
+     "when": "foe-in:contact and pp>=2",
+     "do": "strike:crosser"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when shown a valid claim (the site lists them), or when nothing is left to guard",
+    "neverDrifts": true
+   },
+   "weakTo": [
+    "an attack from behind it: Membrane Threshold -2",
+    "being moved off its post"
+   ],
+   "ladder": [
+    "broad, braced and unmarked",
+    "a crease along one strut",
+    "a long seam weeping clear fluid",
+    "the head dipping, struts trembling",
+    "a post half-driven out, one blow from folding",
+    "struts snapped, settling against the wall"
+   ],
+   "hitWords": [
+    "the flat of it slams across",
+    "it shoulders you back without leaving its post"
+   ],
+   "missWords": [
+    "it swings and does not follow",
+    "the blow stops where its post ends"
+   ],
+   "look": [
+    "It holds a way and will not leave it; it cannot turn.",
+    "It is doing a job: show it the right to pass and it stands aside.",
+    "From behind it is easy to hit."
+   ]
+  },
+  {
+   "id": "ribbon-warden",
+   "name": "Ribbon Warden",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Kinetic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "herds you along the bridge into a knot where its allies are.",
+   "weaknessText": "fight it off-ribbon, cut the ribbon under it (integrity 30), or hand it a legal reason to leave (Bridge law is real: an Oath invoked on a bridge must be answered).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "bridge-bound",
+     "name": "Bridge-Bound",
+     "text": "on a ribbon it has Flow 6 and cannot be pushed; off one, Flow 2 and −2 to all pools",
+     "needsRecord": true
+    },
+    {
+     "id": "tether",
+     "name": "Tether",
+     "text": "a hit tethers the target to the bridge: DFF −2 until it breaks the tether, AT 15",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "shear-call",
+     "name": "Shear Call",
+     "pp": 3,
+     "limit": null,
+     "text": "the ribbon vibrates: everything on it makes a DFF contest at AT 14 or is Jostled and pushed off into the drop.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "lattice-guardian",
+   "name": "Lattice Guardian",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Elite",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 60,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Kinetic",
+    "pool": 6,
+    "pp": 4,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 8,
+     "G": 3,
+     "P": 2,
+     "T": 1
+    },
+    "codon": 14,
+    "bsp": 4,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "Pristine Lattice Rule: needed for Protein Weaver Cathedral Folds and for a Smith's Masterwork bracing"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "arrives, builds, waits. The encounter begins when the Cohort decides whether to fight it on its terms.",
+   "weaknessText": "drag the fight out of the lattice (push, shear, a Rider carrying the Cohort out); Desiccation cracks it (soak −2, and the lattice collapses at integrity 20).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "zone-claim",
+     "name": "Zone Claim",
+     "text": "it declares a 4-Drift lattice on entering: it gains +2 soak, +2 MT, and any Cohesion spending inside the lattice costs double",
+     "needsRecord": true
+    },
+    {
+     "id": "unmoving-order",
+     "name": "Unmoving Order",
+     "text": "it never Drifts; it extends",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "cage-fold",
+     "name": "Cage Fold",
+     "pp": 4,
+     "limit": null,
+     "text": "one creature in Near is Sequestered in a protein cage (Core IV Sequester; escape AT 16 or the cage's integrity 40 destroyed).",
+     "needsRecord": true
+    },
+    {
+     "id": "chain-of-command",
+     "name": "Chain of Command",
+     "pp": 1,
+     "limit": null,
+     "text": "all Sentinels in its lattice gain +1 Overflow on their next hit.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "tensile-jailer",
+   "name": "Tensile Jailer",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Kinetic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "takes out the Cohort's formation, not its MI: separates, walls, delivers one person to the authority it serves.",
+   "weaknessText": "split it from its walls (area effects, a Brute's push); any Lytic damage to its sheets drops their integrity to 0.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "restraint",
+     "name": "Restraint",
+     "text": "its hits apply Anchor: target cannot Drift; escape VSC contest AT 15",
+     "needsRecord": true
+    },
+    {
+     "id": "wall-build",
+     "name": "Wall-Build",
+     "text": "can raise a sheet wall, integrity 30, in one action — this is how it splits a Cohort apart",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "deliver",
+     "name": "Deliver",
+     "pp": 3,
+     "limit": null,
+     "text": "a held creature is thrown: 2 bands, 8 Kinetic, and it lands where the Jailer chooses (often into a hazard, a vat, or the outside of a membrane).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "knot-marshal",
+   "name": "Knot Marshal",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Kinetic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "it does not need to win. It needs to observe and report, and then the state arrives.",
+   "weaknessText": "kill it before it Files (Silent strikes, Concealment first, or simply winning in three Cycles); its junction can be destroyed (structure integrity 60).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "traffic-law",
+     "name": "Traffic Law",
+     "text": "inside a junction it controls, it decides band order: one ally per Cycle may be moved 1 band by the Marshal — including forcibly away",
+     "needsRecord": true
+    },
+    {
+     "id": "register-eye",
+     "name": "Register Eye",
+     "text": "it sees Marks, forgeries, and Unwalled disguises: +2 to any contest to identify a fake",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "queue",
+     "name": "Queue",
+     "pp": 5,
+     "limit": "once",
+     "text": "all hostiles in a 5-Drift zone are Held (AT 16 to break) and the Marshal's side acts one extra full Cycle.",
+     "needsRecord": true
+    },
+    {
+     "id": "file",
+     "name": "File",
+     "pp": 2,
+     "limit": null,
+     "text": "it records the Cohort chemically: a Warden or Hegemony response Clock advances by 1 even if the fight ends in the Cohort's favour.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "cathedral-warden",
+   "name": "Cathedral Warden",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Catastrophe",
+   "tier": 3,
+   "size": "Vast",
+   "numbers": {
+    "mt": 13,
+    "mi": 80,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 7,
+    "type": "Kinetic",
+    "pool": 7,
+    "pp": 5,
+    "segments": null,
+    "flow": 2,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 15,
+     "G": 9,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 45,
+    "bsp": 10,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "fortifies, and expects you to come to it. Give it four Cycles and the encounter becomes a siege.",
+   "weaknessText": "Phase 3 is the answer: the Cathedral was built around someone. Stop, talk, or extract them, and the whole structure stops functioning — its walls go slack and its allies leave.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "living-structure",
+     "name": "Living Structure",
+     "text": "its Folds are walls with integrity 60 each; it can raise two per Cycle",
+     "needsRecord": true
+    },
+    {
+     "id": "sacred-ground",
+     "name": "Sacred Ground",
+     "text": "inside its shrine, all hostiles' Bursts cost +1 ATP and Oath boxes cannot be spent",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "consecrate",
+     "name": "Consecrate",
+     "pp": 5,
+     "limit": null,
+     "text": "a 8-Drift zone becomes Held: viscosity 3, all Sentinel allies gain +2 soak, and the Cohort pays +1 PP per Drift.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "prion-husk",
+   "name": "Prion Husk",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Kinetic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "harvesting a Husk is how a Hegemony foundry gets destroyed: the specimen refolds the print line"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "walks into a site and unmaking it. It is not a predator; it is an infection of form.",
+   "weaknessText": "it cannot regenerate and cannot be reasoned with; Desiccation and Thermal (denaturing) are the only defences that scale. Fire works.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "misfold",
+     "name": "Misfold",
+     "text": "a hit that deals 10+ damage spreads: one nearby ally of the Cohort — chosen by the Director, not the player — must make an OSM contest at AT 18 or gain Brittle",
+     "needsRecord": true
+    },
+    {
+     "id": "wrongness-immunity",
+     "name": "Wrongness Immunity",
+     "text": "Genetic effects, Mark, and Hijack fail: there is nothing there to rewrite",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "template",
+     "name": "Template",
+     "pp": 4,
+     "limit": null,
+     "text": "it touches a structure or corpse and it refolds: integrity halved, and a Swarmling of the Order's choice emerges.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "amyloid-bulwark",
+   "name": "Amyloid Bulwark",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 8,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Osmotic",
+    "pool": 6,
+    "pp": 4,
+    "segments": null,
+    "flow": 1,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "it wins by being there. The fight is a route-planning problem with a body.",
+   "weaknessText": "it is a wall, not a combatant: go around, or Desiccate (Sediment stops; soak −4), or a Breacher's charge (Core Atlas: halve soak for 2 Cycles) is the intended answer.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "wall",
+     "name": "Wall",
+     "text": "it occupies 3 bands of a line: nothing crosses without a contest; attacks against it from Far are at −2 dice",
+     "needsRecord": true
+    },
+    {
+     "id": "sediment",
+     "name": "Sediment",
+     "text": "each Cycle it grows: +6 MI, and its zone shrinks by 1 Drift",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "set",
+     "name": "Set",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "it hardens: immunity to push and to Kinetic damage for 3 Cycles, and everything attempting to move through its band takes 10 Osmotic.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "bridge-builder",
+   "name": "Bridge Builder",
+   "order": "Order II: Protein Sentinels",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Vast",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 0,
+    "bsp": 0,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "builds. Continuously. Even during a fight, unless provoked.",
+   "weaknessText": "irrelevant; do not fight it. You cannot afford the political cost, and it has allies.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "not-hostile-unless-its-work-is-interfered-with-it-prints-ribbon-10-drifts-of-new-bridge-per-fugue-interval-and-its-ribbon-is-load-bearing-law",
+     "name": "Not hostile unless its work is interfered with. It prints ribbon: 10 Drifts of new bridge per Fugue Interval, and its ribbon is load-bearing law",
+     "text": "Bridge jurisdiction applies wherever it builds",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "offer",
+     "name": "Offer",
+     "pp": 0,
+     "limit": null,
+     "text": "if the Cohort helps it (2 Synthesis actions, or defending it for 3 Cycles), it will extend a ribbon to somewhere the Cohort names — an offer that can solve a campaign problem and start three others.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to hold the line",
+   "morale": {
+    "stops": "when its post is satisfied or gone",
+    "note": "Stands down for a valid claim; the site says what counts.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "square and unmarked",
+    "scored along one plate",
+    "a strut cracked, weeping",
+    "leaning, struts failing",
+    "one blow from folding",
+    "collapsed in pieces"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "plankton-cloud",
+   "name": "Plankton Cloud",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Lytic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 8,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "20 S of raw nutrient paste, and the base material of half the Vial catalogue"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "grows. That is the whole encounter: you have four Cycles before this becomes six tokens.",
+   "weaknessText": "one Thermal or Lytic Burst ends a Cloud; Desiccation ends a Cloud; standing perfectly still often works.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "bloom-threshold",
+     "name": "Bloom-Threshold",
+     "text": "in nutrient-rich or Hypotonic water it doubles at the end of each Cycle unless the zone is Dry, hot, or contested",
+     "needsRecord": true
+    },
+    {
+     "id": "blind-filter-feed",
+     "name": "Blind Filter-Feed",
+     "text": "ignores organisms unless they are in its band and moving",
+     "needsRecord": true
+    }
+   ],
+   "specials": [],
+   "consequence": null,
+   "run": "engine",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "drifter-shoal",
+   "name": "Drifter Shoal",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "Microscopic each, Mesoscopic cluster",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Kinetic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 8,
+    "flow": 6,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "arrives with the flow, eats the place, leaves before the fight ends.",
+   "weaknessText": "cut off the current, or harvest the Barren ground afterwards (Barren zones yield salt, worth more than the Shoal).",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "current-riders",
+     "name": "Current-Riders",
+     "effect": {
+      "inFlow": {
+       "dice": 2,
+       "cannotBePushed": true
+      }
+     }
+    },
+    {
+     "id": "shoal-sense",
+     "name": "Shoal Sense",
+     "effect": {
+      "when": "any Drifter at the site is attacked",
+      "then": {
+       "allDrifters": "drift:away",
+       "bands": 1
+      }
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "graze",
+     "name": "Graze",
+     "pp": 2,
+     "target": "its own zone",
+     "range": "self",
+     "effect": {
+      "zone": "Barren",
+      "healSelf": 4
+     },
+     "save": null
+    }
+   ],
+   "consequence": "Kinetic: Jostled",
+   "run": "engine",
+   "script": [
+    {
+     "when": "hurt and pp>=2",
+     "do": "special:graze:zone"
+    },
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"a wisp\"; leaves at the start of the next Cycle after it has Grazed, if not attacked since"
+   },
+   "weakTo": [
+    "still water: cut off the current and it loses its edge",
+    "area effects"
+   ],
+   "ladder": [
+    "fat with the flow, moving as one",
+    "thinner on one side",
+    "half-peeled, trailing a pale stream",
+    "a ragged crescent",
+    "a wisp",
+    "a wide drift of broken filaments"
+   ],
+   "hitWords": [
+    "the whole cluster slams through like a wave",
+    "it rakes past and is already turning"
+   ],
+   "missWords": [
+    "the current carries it wide",
+    "it breaks around you"
+   ],
+   "look": [
+    "It rides the current and the current fights for it.",
+    "Hit one and they all shy back a little.",
+    "It came to eat the place, not you; it will strip the ground and go."
+   ]
+  },
+  {
+   "id": "yolk-bloom",
+   "name": "Yolk Bloom",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Swarmling",
+   "tier": 2,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 14,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Osmotic",
+    "pool": 4,
+    "pp": 2,
+    "segments": 8,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 3.5,
+    "bsp": 1,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the richest ATP source in the game: 3 S each and one free ATP for whoever consumes it raw — the survival food of the Rim"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "explodes at the end. Standing near one when it dies is a mistake.",
+   "weaknessText": "area effects at range; anything that dries it; Engulfment (a Phagocyte Guard loves these).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "brood-sac",
+     "name": "Brood-Sac",
+     "text": "at 0 Segments it does not die: it bursts into 1d4 new Swarmlings at 2 Segments each — kill the sac at range",
+     "needsRecord": true
+    },
+    {
+     "id": "rich",
+     "name": "Rich",
+     "text": "every point of damage it takes spills 1 Substrate onto the ground; a Cohort that kills it fast gets paid twice",
+     "needsRecord": true
+    }
+   ],
+   "specials": [],
+   "consequence": null,
+   "run": "engine",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "glaze-medusa",
+   "name": "Glaze Medusa",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Osmotic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the sting-line specimen is the basis of Needle Dagger barbs and of the Glaze Vial"
+   },
+   "sayClass": "name the creature",
+   "tactics": "drifts through, stings whoever is in the way, marks them for later.",
+   "weaknessText": "viscosity — a Thick or Gel zone collapses its field; Turbid water makes it blind and it flees.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "stinging-line",
+     "name": "Stinging Line",
+     "effect": {
+      "zone": "its band, 3 Drifts trailing",
+      "onEnter": {
+       "damage": 4,
+       "type": "Osmotic",
+       "condition": "Jostled"
+      }
+     }
+    },
+    {
+     "id": "transparent",
+     "name": "Transparent",
+     "effect": {
+      "concealmentDice": 2,
+      "in": "clear water"
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "glaze",
+     "name": "Glaze",
+     "pp": 3,
+     "when": "it has just hit",
+     "target": "the organism it struck",
+     "range": "contact",
+     "effect": {
+      "allPoolsDice": -2,
+      "scentTrail": "a Tide"
+     },
+     "save": null,
+     "note": "The book gives no duration for the -2; proposed: until a Synthesise action cleans it."
+    }
+   ],
+   "consequence": "Osmotic: Flaccid",
+   "run": "engine",
+   "script": [
+    {
+     "when": "pp>=3 and did-hit",
+     "do": "special:glaze:struck"
+    },
+    {
+     "when": "foe-in:contact and pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "drift:through"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees if the water turns Turbid; otherwise drifts through and leaves by the far exit after two Cycles"
+   },
+   "weakTo": [
+    "thick or gel water: its field collapses",
+    "turbid water: it is blind and flees"
+   ],
+   "ladder": [
+    "clear as the water, trailing long lines",
+    "one line cut short",
+    "bell torn, lines tangled",
+    "pulsing unevenly, sinking",
+    "a rag of bell",
+    "a slick dissolving"
+   ],
+   "hitWords": [
+    "a line you never saw draws across you",
+    "the glaze clings where it touched"
+   ],
+   "missWords": [
+    "the lines drift past",
+    "it pulses on without noticing"
+   ],
+   "look": [
+    "You can hardly see it; taste finds it better than eyes.",
+    "Its trailing lines sting whoever crosses them.",
+    "What it touches smells of it for a long time. Thick or muddy water ruins it."
+   ]
+  },
+  {
+   "id": "grazing-leech",
+   "name": "Grazing Leech",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Kinetic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "engorged Leeches carry the host's chemistry: an Ash reader will pay 40 S for a Leech that fed on a specific organism"
+   },
+   "sayClass": "name the creature",
+   "tactics": "attaches to the biggest thing in the band and rides the fight out.",
+   "weaknessText": "Thermal, Lytic, or Salt (Desiccation kills an engorged Leech outright). Do not pull them off with Strikers; pull them off with fire.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "slow-thirst",
+     "name": "Slow Thirst",
+     "text": "each Cycle it is attached to something, it drains 2 ATP and 2 MI; it does not need to Strike to feed",
+     "needsRecord": true
+    },
+    {
+     "id": "slippery",
+     "name": "Slippery",
+     "text": "MT +2 while attached",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "engorge",
+     "name": "Engorge",
+     "pp": 3,
+     "limit": null,
+     "text": "having fed, it grows: +10 MI and +1 BD, and it detaches with a wound: the host loses 1 point of graft soak (Corrodes).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "vacuum-ray",
+   "name": "Vacuum Ray",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Osmotic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 6,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the intake organ is the raw material of Vacuole grafts and of every Desiccation Specialist's dreams"
+   },
+   "sayClass": "name the creature",
+   "tactics": "rearranges the Cohort, then eats the one who was out of position.",
+   "weaknessText": "Anchor and Immovable features (it cannot move what won't move); a Brute's counter-push; anything braced.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "intake",
+     "name": "Intake",
+     "text": "as a 2-PP action it creates a suction cone 4 Drifts long: everything in it is pulled 1 band and takes 4 Osmotic; small creatures are pulled two",
+     "needsRecord": true
+    },
+    {
+     "id": "fast-angler",
+     "name": "Fast Angler",
+     "text": "it can bait: a false corpse appears in Far band, and the Cohort's Chemoreception reads it as fresh",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "drain-field",
+     "name": "Drain Field",
+     "pp": 4,
+     "limit": null,
+     "text": "a zone's fluid is drawn out for 2 Cycles: Dry Zone rules apply (Core Atlas, Desiccation), and the Ray heals 2 MI per creature affected per Cycle.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "filter-back",
+   "name": "Filter Back",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Vast",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Osmotic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 2,
+    "freqMod": -2
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "a cleaned Filter Back is worth 300 S to any colony with a waste problem; harvesting one while clogged yields one Pristine Sequence per absorbed hazard"
+   },
+   "sayClass": "name the creature",
+   "tactics": "walks into a battlefield and eats the terrain. Then uses it.",
+   "weaknessText": "feed it deliberately (two hazards, then it is clogged and slow), then break its integrity (structure-equivalent: 50).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "living-sieve",
+     "name": "Living Sieve",
+     "text": "it processes the region: any hazard in a 6-Drift zone is absorbed into it at the start of its turn — spores, acid, spore beds, even Lytic zones; the Filter Back then has that hazard and can vent it",
+     "needsRecord": true
+    },
+    {
+     "id": "slow",
+     "name": "Slow",
+     "text": "Frequency −2",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "vent",
+     "name": "Vent",
+     "pp": 3,
+     "limit": null,
+     "text": "it releases one absorbed hazard at full strength in a band of its choice.",
+     "needsRecord": true
+    },
+    {
+     "id": "clog",
+     "name": "Clog",
+     "pp": 0,
+     "limit": null,
+     "text": "while it holds two or more hazards, it loses its Vent and gains −2 MT: this is the intended tactic.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "tidal-strainer",
+   "name": "Tidal Strainer",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Vast",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Osmotic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "a Strainer's Pristine Sequence is Current Rule: a Smith or Engineer can write a region's flow into a Relic"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "picks where the fight happens, then drowns the Cohort there.",
+   "weaknessText": "a Navigator's Redirect (contested RTC, AT 16) beats it, and the Cohort should have one; Desiccation to stop the current; attack its integrity (90) rather than its MI if you have a Breacher.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "current-binder",
+     "name": "Current-Binder",
+     "text": "it makes the current: it can set a 6-Drift channel's flow to any one direction at the start of its turn, and everyone else's Fluid Navigation is now contested against it",
+     "needsRecord": true
+    },
+    {
+     "id": "deep-lung",
+     "name": "Deep-Lung",
+     "text": "immune to pressure, cold, and Hypertonic layers",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "lock",
+     "name": "Lock",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "for 3 Cycles the flow in its zone is fixed: any attempt to move against it costs double PP and anyone failing is swept 2 bands into whatever the channel ends in.",
+     "needsRecord": true
+    },
+    {
+     "id": "filter-feed",
+     "name": "Filter Feed",
+     "pp": 2,
+     "limit": null,
+     "text": "heals 8 MI and removes one condition; it can do this while doing anything else (it is a filter-feeder: eating is not an action).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "the-fat-cardinal",
+   "name": "The Fat Cardinal",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Osmotic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "eats the scene, then negotiates with what is left.",
+   "weaknessText": "bait. It can be led by putting something valuable in front of it. A Cardinal that has gorged is slow (Flow −2) and its Sequester special is spent.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "hoard-body",
+     "name": "Hoard-Body",
+     "text": "it stores everything it has eaten: at any time the Cohort can see, and attempt to cut out, one thing it has swallowed — a person, a Relic, 200 S, a Pristine Sequence",
+     "needsRecord": true
+    },
+    {
+     "id": "gluttony",
+     "name": "Gluttony",
+     "text": "it will always spend an action to eat something valuable rather than to attack",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "gorge",
+     "name": "Gorge",
+     "pp": 4,
+     "limit": null,
+     "text": "swallows a creature in Contact whole: it is Sequestered (Core IV) inside it; the Cardinal gains +20 MI and the victim must break out at AT 18, or be digested at 10 Lytic per Cycle.",
+     "needsRecord": true
+    },
+    {
+     "id": "ransom",
+     "name": "Ransom",
+     "pp": 0,
+     "limit": null,
+     "text": "if the Cohort parley, the Cardinal will return what it has swallowed — for a price in Substrate, Specimens, or an Oath. It always keeps one thing back.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "drift-whale",
+   "name": "Drift Whale",
+   "order": "Order III: Nutrient Drifters",
+   "cls": "Catastrophe",
+   "tier": 4,
+   "size": "Vast (the largest living thing in the Expanse)",
+   "numbers": {
+    "mt": 14,
+    "mi": 90,
+    "soak": 7,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 8,
+    "type": "Osmotic",
+    "pool": 8,
+    "pp": 5,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 18,
+     "G": 11,
+     "P": 5,
+     "T": 2
+    },
+    "codon": 90,
+    "bsp": 10,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "migrates. The fight is usually against its migration, not against it.",
+   "weaknessText": "it does not want to fight. Drive it off with a Thermal wall, a Dry region, or a Navigator's Redirect; or reach Phase 3 and talk to the passengers, who have been living inside a god and have opinions about the surface.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "mass",
+     "name": "Mass",
+     "text": "its band is 4 Drifts wide; anything in the same band as a moving Whale is pushed and takes 8 Osmotic",
+     "needsRecord": true
+    },
+    {
+     "id": "ecosystem",
+     "name": "Ecosystem",
+     "text": "it hosts 6 Swarmlings of the Director's choice, which act inside the fight for free",
+     "needsRecord": true
+    },
+    {
+     "id": "protected",
+     "name": "Protected",
+     "text": "in three regions, killing one is a capital crime: the Wardens will File you, not fight you",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "breach",
+     "name": "Breach",
+     "pp": 5,
+     "limit": "once per phase",
+     "text": "it rolls: everything within 6 Drifts makes a Fluid Navigation contest at AT 18 or is thrown 3 bands and takes 14 Osmotic.",
+     "needsRecord": true
+    },
+    {
+     "id": "song",
+     "name": "Song",
+     "pp": 0,
+     "limit": null,
+     "text": "every Drifter in the region knows where it is. Which means: every Drifter in the region can be led somewhere by it.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to feed and be gone",
+   "morale": {
+    "stops": "flees at \"failing\", or once fed",
+    "note": "It was never here to fight.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "fat and unhurried",
+    "nicked, trailing a thread",
+    "torn, listing in the flow",
+    "half its bulk gone",
+    "a wisp",
+    "scattered on the current"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "hijack-mite",
+   "name": "Hijack Mite",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "Microscopic",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Genetic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 4,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the sequence is worth more than the body: an Underground forger pays 60 S for an intact Mite lattice"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "attaches to whoever uses a Reactive Osmosis, because that is where the Reserve is.",
+   "weaknessText": "Antigen Discipline, Immune Sentinel presence, any Dry Zone, and burning the host's coat (a Thermal effect on the host kills attached Mites for 2 Lytic each).",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "attach",
+     "name": "Attach",
+     "effect": {
+      "onHit": {
+       "lattice": 1
+      },
+      "whileAttached": {
+       "atHostTurnStart": {
+        "spendsHostReserve": true,
+        "healSelf": 4
+       }
+      }
+     }
+    },
+    {
+     "id": "small",
+     "name": "Small",
+     "effect": {
+      "mt": 2,
+      "while": "unattached"
+     }
+    }
+   ],
+   "specials": [],
+   "consequence": "Genetic: Hijacked (through its Lattice)",
+   "run": "engine",
+   "script": [
+    {
+     "when": "attached",
+     "do": "end"
+    },
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:holding-reserve"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:holding-reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "never while attached; dies with a burned host coat (2 Lytic each from a Thermic effect on the host)"
+   },
+   "weakTo": [
+    "Antigen Discipline",
+    "Dry Zones",
+    "heat on the host's coat"
+   ],
+   "ladder": [
+    "a scatter of bright specks",
+    "fewer of them",
+    "a thin, uneven scatter",
+    "a few specks clinging",
+    "one or two",
+    "dull flecks"
+   ],
+   "hitWords": [
+    "something small lands and threads itself in",
+    "a speck settles where you were holding back"
+   ],
+   "missWords": [
+    "they skitter off the membrane",
+    "too small to see miss"
+   ],
+   "look": [
+    "Specks that go for whoever is holding something in reserve.",
+    "Once in, they spend what you were saving.",
+    "Heat on your own coat kills them."
+   ]
+  },
+  {
+   "id": "lattice-leech",
+   "name": "Lattice Leech",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Swarmling",
+   "tier": 2,
+   "size": "",
+   "numbers": {
+    "mt": 13,
+    "mi": 14,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Genetic",
+    "pool": 4,
+    "pp": 2,
+    "segments": 6,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 3.5,
+    "bsp": 1,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "picks the specialist, not the warrior.",
+   "weaknessText": "resource-light Phenotypes (a Guard with no track to steal is a bad target); Desiccation; anything that makes it spill (Kinetic push) drops stored points.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "signal-thief",
+     "name": "Signal Thief",
+     "text": "a hit steals one class resource point: an Etch level, a Broadcast Charge, a Turgor charge, a Lock, a Fold Token — the target loses it, the Leech stores it, and can spend it as its own Special",
+     "needsRecord": true
+    },
+    {
+     "id": "detachable",
+     "name": "Detachable",
+     "text": "it does not need to survive to have succeeded",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "spend",
+     "name": "Spend",
+     "pp": 2,
+     "limit": null,
+     "text": "uses a stolen resource at +1 Effect Value against its holder.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "receptor-lurker",
+   "name": "Receptor Lurker",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Genetic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "receptor tissue: the base of Antigen Hood and of every Immune Sentinel graft"
+   },
+   "sayClass": "name the creature",
+   "tactics": "Cycle 1 reads, Cycle 2 announces, Cycle 3 cancels your best thing.",
+   "weaknessText": "it must be near to read; blind it with Turbid water or a Scent Dampener and it becomes a mediocre brawler.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "read",
+     "name": "Read",
+     "effect": {
+      "free": true,
+      "range": "near",
+      "learns": [
+       "one Burst the target knows",
+       "one Vial it carries",
+       "one condition it can shed"
+      ],
+      "then": "announce"
+     }
+    },
+    {
+     "id": "camouflage",
+     "name": "Camouflage",
+     "effect": {
+      "readsAs": "neutral",
+      "unless": {
+       "pool": "OSM + Chemoreception",
+       "threshold": 14
+      }
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "read",
+     "name": "Read",
+     "pp": 0,
+     "target": "one organism in Near",
+     "range": "near",
+     "effect": {
+      "learns": "see the Read trait",
+      "marksAs": "read-target"
+     },
+     "save": null
+    },
+    {
+     "id": "preempt",
+     "name": "Preempt",
+     "pp": 3,
+     "target": "the organism it has Read",
+     "range": "near",
+     "effect": {
+      "condition": "Locked",
+      "cycles": 2,
+      "on": "one printed feature of the target"
+     },
+     "save": {
+      "pool": "OSM",
+      "threshold": 14,
+      "onSuccess": "none"
+     }
+    }
+   ],
+   "consequence": "Genetic: Hijacked",
+   "run": "engine",
+   "script": [
+    {
+     "when": "cycle:1",
+     "do": "special:read:nearest"
+    },
+    {
+     "when": "cycle:2",
+     "do": "announce"
+    },
+    {
+     "when": "pp>=3 and foe-in:near",
+     "do": "special:preempt:read-target"
+    },
+    {
+     "when": "hurt and pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "foe-in:contact and pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "stands down at \"one blow from gone\" if it has not been struck this Cycle; withdraws if blinded (Turbid water, a scent dampener)"
+   },
+   "weakTo": [
+    "being blinded: it must be Near to read",
+    "a plain fight: without its reading it is a poor brawler"
+   ],
+   "ladder": [
+    "flat, featureless, patient",
+    "its surface split",
+    "torn wide, leaking dark threads",
+    "listing, slow to turn its blind face",
+    "held together by habit",
+    "caved in and still"
+   ],
+   "hitWords": [
+    "it touches, and something of yours answers to it",
+    "a flat hand of it closes on you"
+   ],
+   "missWords": [
+    "it simply is not where the blow went",
+    "it reaches and you are already past"
+   ],
+   "look": [
+    "It is reading you, and it will tell you what it means to do.",
+    "First it reads, then it says, then it shuts one of your tools.",
+    "Blind it and it is nothing much."
+   ]
+  },
+  {
+   "id": "signal-wraith",
+   "name": "Signal Wraith",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Genetic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its P1 is the Voice Lattice: a Smith or Engineer can build it into a Relic that speaks for the dead, which is a crime in four regions"
+   },
+   "sayClass": "name the creature",
+   "tactics": "fights the Cohort's coordination: splits them with false orders and lets the Wardens do the killing.",
+   "weaknessText": "an Antigen Detector's assay (AT 14 + tier) exposes it instantly; a Register Arch flags it; Immunans gain +2 against its contests.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "voice-theft",
+     "name": "Voice-Theft",
+     "text": "it can imitate any Signal action it has heard — including a Pheromological Messenger's Broadcast Charges, a Commander's Cascade call, or an ally's Frequency order",
+     "needsRecord": true
+    },
+    {
+     "id": "false-flag",
+     "name": "False Flag",
+     "text": "its attacks carry the victim's chemical signature: Wardens and Sentinels will hunt the impersonated organism, not the Wraith",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "counter-signal",
+     "name": "Counter-Signal",
+     "pp": 3,
+     "limit": null,
+     "text": "cancels one ally action in Mid band by issuing a contradictory order (the target must win a Frequency contest at AT 15 or spend the PP and do nothing).",
+     "needsRecord": true
+    },
+    {
+     "id": "wear-the-dead",
+     "name": "Wear the Dead",
+     "pp": 4,
+     "limit": "once",
+     "text": "takes a corpse's chemistry: it can pass as a specific dead organism for a Tide, including its Oath standing.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "false-self",
+   "name": "False Self",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Elite",
+   "tier": 2,
+   "size": "size of whoever it is wearing",
+   "numbers": {
+    "mt": 15,
+    "mi": 60,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Genetic",
+    "pool": 6,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 8,
+     "G": 3,
+     "P": 2,
+     "T": 1
+    },
+    "codon": 14,
+    "bsp": 4,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "does not fight until it must. Runs the social ground first.",
+   "weaknessText": "an assay, an Argument (Precept 6), the real person being present and naming them, or a detail only the real person would know (this costs no dice: it is a scene).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "it-is-an-npc-you-have-me",
+     "name": "",
+     "text": "It is an NPC you have met. Choose one established face from the campaign: this is that organism, chemically, to within an assay at AT 18. It has their memories as of nine Beats ago.",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "alibi",
+     "name": "Alibi",
+     "pp": 0,
+     "limit": null,
+     "text": "if the Cohort cannot prove it is a False Self, it will go to a Warden arch and have them arrested for assault on a registered citizen.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "mimicry-bloom",
+   "name": "Mimicry Bloom",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Mesoscopic cloud",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Genetic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "a Bloom's coat is the source of the Adaptive graft family: +1 soak to one type, −2 to another; the Hegemony wants this patent"
+   },
+   "sayClass": "name the creature",
+   "tactics": "lets you hit it once. Then it hits you back with your own weapon.",
+   "weaknessText": "the second and third attacks in a round should be a different type from the first; a Smith's Tune or a Burst change forces it to re-learn; Desiccation ends the coat.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "adaptive-coat",
+     "name": "Adaptive Coat",
+     "text": "the first damage type that hits it each Pulse War is resisted: halve it; the second type is normal; the third and later are full — rotate your damage types",
+     "needsRecord": true
+    },
+    {
+     "id": "spores",
+     "name": "Spores",
+     "text": "leaves a spore bed behind it: 4 Genetic/Cycle, and the bed reads whoever walks through it",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "learn",
+     "name": "Learn",
+     "pp": 3,
+     "limit": null,
+     "text": "copies one Strike it has been hit by and returns it at +1 Overflow, same type, same BD.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "the-alms",
+   "name": "The Alms",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Genetic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 0,
+    "bsp": 0,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "does not fight. Wins.",
+   "weaknessText": "the edits are visible to a Sequence Reading at AT 16 (and the Cohort can Mend them); the only answer is social — expose what it is doing to the people it is saving, and let them choose.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "it-is-helping-it-heals",
+     "name": "",
+     "text": "It is helping. It heals Dormant organisms, removes conditions, pays Oath boxes, and asks for nothing. Every host it saves it also edits, gently, one small thing: a preference, a loyalty, a memory of a conversation.",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "charitable",
+     "name": "Charitable",
+     "pp": 2,
+     "limit": null,
+     "text": "heals an ally 12 MI and removes one condition; the host gains one Quiet Edit (the Director chooses: they now trust the Wraith, they have forgotten an ally's name, or they prefer a faction's company).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "retroviral-choir",
+   "name": "Retroviral Choir",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Mesoscopic colony",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Genetic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its T1 is a Terminal Codon of the Congregation: the material for resynthesising a Total-Lysed organism — the reason three factions will hire the Cohort to kill this"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "turns the neighbourhood into its action economy. It travels where people are.",
+   "weaknessText": "the Choir needs hosts near you: fight it in a Dry Zone, a Cold Field, or an empty region and it starves; Immunosuppression gear (Antigen Hood) denies its hits; Desiccation, Thermal, and anything that empties the room.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "congregation",
+     "name": "Congregation",
+     "text": "it is many: Sequester and Engulfment hold only 2 of it; area effects are the only way to affect the whole",
+     "needsRecord": true
+    },
+    {
+     "id": "inheritance",
+     "name": "Inheritance",
+     "text": "a creature it hits gains one Inserted Verse: at the start of its next Pulse War, the Director may spend the Verse to make the Cohort's enemy know one of their features",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "chorus",
+     "name": "Chorus",
+     "pp": 4,
+     "limit": "once per Pulse War",
+     "text": "all organisms within 6 Drifts that have been hit by the Choir act one Cycle out of order, at the Choir's Frequency, against whoever they choose. (This can include allies of the Cohort. It should.)",
+     "needsRecord": true
+    },
+    {
+     "id": "mend-the-host",
+     "name": "Mend the Host",
+     "pp": 2,
+     "limit": null,
+     "text": "heals 10 MI and removes one condition from any host it has touched. It uses this to keep useful people alive.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "prion-shepherd",
+   "name": "Prion Shepherd",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Genetic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the Pristine Sequences are the Underground's most wanted object; the Hegemony will print anything they contain, and that is the problem"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "fights with other people's lives, and is patient about it.",
+   "weaknessText": "kill the controlled ones and leave the Shepherd (it has no allies left to spend); Anomalies, Anomaly gear, and Denial effects work on it when nothing else Genetic does; its own emptiness means a Detector cannot assay it, which cuts both ways.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "wrongness",
+     "name": "Wrongness",
+     "text": "all Genetic and Somatic effects against it fail; it has no readable sequence — Chemoreception reads it as empty space",
+     "needsRecord": true
+    },
+    {
+     "id": "herd",
+     "name": "Herd",
+     "text": "it moves with 2d4 controlled organisms, all of which it can refold",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "rewrite",
+     "name": "Rewrite",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "one controlled organism becomes a Hijacked version of a Cohort member's Phenotype (uses one Phenotype feature at Stage II, at the Cohort's Level). It keeps it for the rest of the fight.",
+     "needsRecord": true
+    },
+    {
+     "id": "cull",
+     "name": "Cull",
+     "pp": 3,
+     "limit": null,
+     "text": "one controlled organism detonates: `10 + Overflow` Genetic to a band and the Shepherd heals.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "vector-baron",
+   "name": "Vector Baron",
+   "order": "Order IV: Pathogenic Wraiths",
+   "cls": "Catastrophe",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 14,
+    "mi": 80,
+    "soak": 7,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 8,
+    "type": "Genetic",
+    "pool": 8,
+    "pp": 5,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 18,
+     "G": 11,
+     "P": 5,
+     "T": 2
+    },
+    "codon": 90,
+    "bsp": 10,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the Seed is the Act II prize: a Pristine Sequence that can restart something. Both the Hegemony and the Choir want it. Read the Sixth Precept before you take it."
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "governs. It has a constituency. Its war is a policy.",
+   "weaknessText": "Phase 1 is the real fight — its court is its body. Save the court and the Baron is alone in Phase 3. Desiccation and Dry regions stop its Bloom. Anything that makes a region uninhabitable starves it: this is the only Catastrophe in this book a Desiccation Specialist can beat outright.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "region-speaker",
+     "name": "Region-Speaker",
+     "text": "its Signals reach an entire region: it can broadcast to every host it has touched across a whole locale, once per Tide",
+     "needsRecord": true
+    },
+    {
+     "id": "latent-court",
+     "name": "Latent Court",
+     "text": "four NPCs it has already touched — use established faces; the Cohort may save them rather than kill them, and this is the intended ending of the fight",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "bloom-trigger",
+     "name": "Bloom Trigger",
+     "pp": 5,
+     "limit": null,
+     "text": "every Vector, Insert, and controlled organism within a region activates at once (Core Atlas, Pathogen Scout's Stage III at region scale, −1 EV each).",
+     "needsRecord": true
+    },
+    {
+     "id": "grant-audience",
+     "name": "Grant Audience",
+     "pp": 0,
+     "limit": null,
+     "text": "it will negotiate. It wants three things: safe passage out of the region, a host it can keep, and the Cohort's silence. It will pay in Terminal Codon and truths.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to be someone else",
+   "morale": {
+    "stops": "withdraws when revealed or at \"failing\"",
+    "note": "It needs a host more than a win.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "smooth and unreadable",
+    "a seam showing",
+    "split, leaking threads",
+    "coming apart, slow to turn",
+    "held together by habit",
+    "a slack ruin"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "crystal-growth",
+   "name": "Crystal Growth",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Swarmling",
+   "tier": 2,
+   "size": "Mesoscopic cluster",
+   "numbers": {
+    "mt": 13,
+    "mi": 14,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Osmotic",
+    "pool": 4,
+    "pp": 2,
+    "segments": 6,
+    "flow": 1,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 3.5,
+    "bsp": 1,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "raw salt of the best grade: 3 S per Segment, and the base of every Neutraliser"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "makes the battlefield worse and waits.",
+   "weaknessText": "water (a Hypotonic zone dissolves it), Thermal, and patience: it cannot follow you.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "salt-bloom",
+     "name": "Salt-Bloom",
+     "text": "at the end of each Cycle it grows 1 Segment if it is in Hypertonic or Dry ground; it also crystallises the ground: the zone becomes rough — viscosity +1 for everyone else",
+     "needsRecord": true
+    },
+    {
+     "id": "brittle",
+     "name": "Brittle",
+     "text": "Thermal damage removes Segments 1-for-1, no Overflow needed",
+     "needsRecord": true
+    }
+   ],
+   "specials": [],
+   "consequence": null,
+   "run": "engine",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "turgor-ram",
+   "name": "Turgor Ram",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Kinetic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the ram organ is the source of the Momentum property on Weight Apparatus; a Smith pays 40 S"
+   },
+   "sayClass": "name the creature",
+   "tactics": "chooses the charge lane before the fight starts. Watch where it positions in Cycle 1 and you will know where it intends to kill someone.",
+   "weaknessText": "brace, Anchor, Gel terrain (kills its Momentum), and being not where it wants you to be: a Rider or Navigator can spend its charge for you.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "charge",
+     "name": "Charge",
+     "text": "3+ Drifts in a straight line then Strike: +2 dice and +4 damage — Momentum, exactly as Core IV",
+     "needsRecord": true
+    },
+    {
+     "id": "dense",
+     "name": "Dense",
+     "text": "cannot be pushed by anything with VSC less than 4",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "gore-and-throw",
+     "name": "Gore-and-Throw",
+     "pp": 3,
+     "limit": null,
+     "text": "on a hit, the target is thrown one band and takes 6 Kinetic; if it strikes a wall or structure, +8 Kinetic and the structure takes 10.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "flaccid-haunter",
+   "name": "Flaccid Haunter",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Osmotic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the drain organ: +2 Osmotic soak, and the raw material of every Siphon graft"
+   },
+   "sayClass": "name the creature",
+   "tactics": "grapples the armoured one, drains them, and lets their own soak fail them.",
+   "weaknessText": "Mucoid family (immune to its drain), Desiccation (it cannot draw from something already dry), and any build with low ATP expenditure — a pure Strike-and-Drift Cohort starves it out.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "wither",
+     "name": "Wither",
+     "text": "a hit inflicts Flaccid: −2 VSC and reach −1 for 2 Cycles; the Haunter prefers armour, because armoured organisms have the most water to draw",
+     "needsRecord": true
+    },
+    {
+     "id": "leak",
+     "name": "Leak",
+     "text": "its own body vents: everything in Contact takes 3 Osmotic at the end of its turn",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "pressure-drain",
+     "name": "Pressure Drain",
+     "pp": 4,
+     "limit": null,
+     "text": "a target in Contact loses 3 ATP and the Haunter gains the difference as temporary MI (max 15).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "pore-breaker",
+   "name": "Pore Breaker",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Kinetic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its bore-organ is worth 120 S to a Hegemony foundry; the Warden Circles consider possession of one a felony"
+   },
+   "sayClass": "name the creature",
+   "tactics": "ignores the Cohort and dismantles the building they are standing in.",
+   "weaknessText": "do not fight it inside anything you want to keep. It cannot break what is already open, so fight it in the open water where its special is wasted.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "membrane-eater",
+     "name": "Membrane-Eater",
+     "text": "it can Strike structures, walls, doors, Folds, and hatches: such objects use MT 5, braced 8; its hits add +8 damage against them",
+     "needsRecord": true
+    },
+    {
+     "id": "breacher",
+     "name": "Breacher",
+     "text": "a struck structure gains a hole: a new opening, and the region's pressure differential then does the rest — 10 Osmotic and a band shift for anything nearby",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "flood",
+     "name": "Flood",
+     "pp": 5,
+     "limit": "once",
+     "text": "it opens a wall deliberately: 3 band shift toward the breach and 14 Osmotic to everything in the path.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "tidal-anchor",
+   "name": "Tidal Anchor",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Vast",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Osmotic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 1,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "anchor tissue: +2 Bulk capacity, and the base of Pore Locks and Brace Node grafts"
+   },
+   "sayClass": "name the creature",
+   "tactics": "becomes the terrain and dare you to cross.",
+   "weaknessText": "do not be dragged: Anchor and Immovable features, bracing, and holding onto a Protein Weaver's sheet. Kill it from Far (MT 15 is the lowest Elite-adjacent number in the Order) — this is the Order's glass cannon, in the sense that it is a fortress with no windows.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "immoveable",
+     "name": "Immoveable",
+     "text": "cannot be pushed, thrown, or relocated by any means; it refuses",
+     "needsRecord": true
+    },
+    {
+     "id": "channel",
+     "name": "Channel",
+     "text": "it sets the flow in its own band and adjacent bands: it can reverse it once per Cycle — the current in the fight is its action",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "undertow",
+     "name": "Undertow",
+     "pp": 4,
+     "limit": null,
+     "text": "everything in a 5-Drift line is dragged 2 bands toward it and takes 8 Osmotic; anyone who hits a hazard takes it at +2.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "salt-horror",
+   "name": "Salt Horror",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Osmotic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its salts are Legendary-grade reagents: a Smith or Engineer will empty the Cohort's purse for them"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "makes the region unlivable, then waits for the Cohort to come to it.",
+   "weaknessText": "water (in a Hypotonic zone its aura inverts: −2 to its own pools and it must move constantly), Thermal, and Desiccation Specialists (a Dry Zone steals its economy entirely — the two of them are natural enemies and the Bestiary's most interesting duel).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "desiccating-aura",
+     "name": "Desiccating Aura",
+     "text": "a 4-Drift zone: Hypertonic rules for non-Barophils — DFF pools −2, PP −1, heals halved — and every creature starting its turn inside gives the Horror 2 Substrate",
+     "needsRecord": true
+    },
+    {
+     "id": "salt-armour",
+     "name": "Salt Armour",
+     "text": "Lytic damage against it is reduced by 4; Thermal burns it for +4",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "brine-lance",
+     "name": "Brine Lance",
+     "pp": 3,
+     "limit": null,
+     "text": "a line attack: 12 Osmotic, target becomes Flaccid, and the ground along the line crystallises into a Crystal Growth (Swarmling) that persists.",
+     "needsRecord": true
+    },
+    {
+     "id": "ransom",
+     "name": "Ransom",
+     "pp": 0,
+     "limit": null,
+     "text": "it trades: water for information, passage, or Specimens. It is reasonable, patient, and will absolutely honour the deal. It will also follow you for three Beats to make sure you do not lie.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "desiccation-hulk",
+   "name": "Desiccation Hulk",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Vast",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Kinetic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 2,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "turns a fight into an attrition test and knows exactly how much MI each side has left.",
+   "weaknessText": "its own special punishes it in water (fight it in a current); Desiccation immunity gear; a Weaver's sheet-wall can block its aura's line of effect.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "thirst-body",
+     "name": "Thirst Body",
+     "text": "healing and regeneration do not work on it while it is in a Dry or Hypertonic zone; in water it regenerates 4 MI/Cycle",
+     "needsRecord": true
+    },
+    {
+     "id": "slaking",
+     "name": "Slaking",
+     "text": "each time it takes Osmotic damage, its next Strike gains +2 BD and drains 3 MI extra",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "dry-out",
+     "name": "Dry Out",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "a 6-Drift zone becomes Dry for 3 Cycles: no healing for anyone, no regeneration, no Segment regrowth, no spore or hazard creation, and every Sustained Reaction costs +1 ATP.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "brine-colossus",
+   "name": "Brine Colossus",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Osmotic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "three hazard organs: a Weaver's dream, a Smith's year's work, and the reason a foundry would fund a Cohort's entire Vector"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "arrives and makes the whole encounter about physics.",
+   "weaknessText": "it is slow: MT 17 is high but its pools are only 8 dice and a Cohort with range can ignore it for four Cycles; Desiccation strips its hazards; Thermal to the Cold layer, Lytic to the Acidic layer — it must be disassembled element by element.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "weight-of-the-world",
+     "name": "Weight of the World",
+     "text": "Vast: attacks against it from Mid or farther are at −1 die; it cannot be pushed; its Momentum hits deal +8 and throw two bands",
+     "needsRecord": true
+    },
+    {
+     "id": "layered",
+     "name": "Layered",
+     "text": "its body is stratified: it is simultaneously Hypertonic, Acidic, and Cold — three hazards at once, all in Contact",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "ballast",
+     "name": "Ballast",
+     "pp": 3,
+     "limit": null,
+     "text": "it anchors a region: for 3 Cycles nothing in a 10-Drift zone can be pushed, thrown, or displaced — including the Cohort's own tactics. This shuts down Riders, Brutes, and Navigators at once.",
+     "needsRecord": true
+    },
+    {
+     "id": "rime",
+     "name": "Rime",
+     "pp": 2,
+     "limit": null,
+     "text": "8 Osmotic to a band, and the band becomes viscous for 2 Cycles (PP +1 cost for everyone).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "deep-pressure-horror",
+   "name": "Deep Pressure Horror",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Elite",
+   "tier": 5,
+   "size": "Vast",
+   "numbers": {
+    "mt": 18,
+    "mi": 108,
+    "soak": 7,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 7,
+    "type": "Kinetic",
+    "pool": 9,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 14,
+     "G": 6,
+     "P": 5,
+     "T": 2
+    },
+    "codon": 120,
+    "bsp": 4,
+    "threshold": 28,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "walks into your site, reads its seams, and opens the one that hurts most.",
+   "weaknessText": "open water with nothing sealed (its signature special is wasted), Anomaly effects, and leaving the region: it cannot follow into low pressure without losing 3 soak and 2 BD. A Cohort that retreats to the Mid-Strata has beaten it.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "pressure-legibility",
+     "name": "Pressure Legibility",
+     "text": "it knows every sealed space within 10 Drifts and which of them can be opened; its fight-plan is structural",
+     "needsRecord": true
+    },
+    {
+     "id": "barophil-hard",
+     "name": "Barophil-Hard",
+     "text": "thermal and pressure hazards do nothing to it; cold effects fail",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "implosion",
+     "name": "Implosion",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "one sealed or braced space within 10 Drifts fails: 20 Kinetic to everything within 6 Drifts, every structure in the zone loses half integrity, and everything not braced is thrown 2 bands.",
+     "needsRecord": true
+    },
+    {
+     "id": "brace-denial",
+     "name": "Brace Denial",
+     "pp": 3,
+     "limit": null,
+     "text": "for 2 Cycles, bracing gives no benefit in its zone. (This is the counter to the entire anti-Brute strategy. It is why this block is T5.)",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "vacuole-behemoth",
+   "name": "Vacuole Behemoth",
+   "order": "Order V: Osmotic Brutes",
+   "cls": "Catastrophe",
+   "tier": 5,
+   "size": "Vast",
+   "numbers": {
+    "mt": 15,
+    "mi": 100,
+    "soak": 8,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 9,
+    "type": "Osmotic",
+    "pool": 9,
+    "pp": 5,
+    "segments": null,
+    "flow": 2,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 21,
+     "G": 13,
+     "P": 6,
+     "T": 3
+    },
+    "codon": 180,
+    "bsp": 10,
+    "threshold": 28,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "it is a place that becomes a fight when robbed. It has time. It has always had time.",
+   "weaknessText": "do not fight the sac: open it, take what is inside, and leave; Phase 3 is a conversation. Thermal and Desiccation both weaken its store. It cannot move fast: a Cohort that stays out of Contact for six Cycles can simply end the encounter by leaving with the treasure, which is the correct answer and the one players rarely think of.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "living-vault",
+     "name": "Living Vault",
+     "text": "its interior holds sealed things: old dead in perfect state, a Nucleoid sample, a Warden key — the Cohort can cut things out mid-fight with a Synthesis contest at AT 20, and each cut ends one of its phase options",
+     "needsRecord": true
+    },
+    {
+     "id": "pressure-store",
+     "name": "Pressure Store",
+     "text": "each Cycle it grows: +10 MI; at Phase 2's start it vents: 24 Osmotic to a 10-Drift zone",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "empty-the-sac",
+     "name": "Empty the Sac",
+     "pp": 5,
+     "limit": null,
+     "text": "it releases one stored hazard, creature, or object per PP spent, at full strength. This is a tool the Cohort can turn on the Behemoth's enemies if they negotiate.",
+     "needsRecord": true
+    },
+    {
+     "id": "storage-law",
+     "name": "Storage Law",
+     "pp": 0,
+     "limit": null,
+     "text": "it does not attack organisms that present a valid Warden storage token. This is a whole solution to the encounter.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to move you",
+   "morale": {
+    "stops": "when the Cohort has left its ground",
+    "note": "It wants the space, not the kill.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "swollen with pressure",
+    "dented",
+    "split and venting",
+    "sagging, pressure failing",
+    "one blow from bursting",
+    "burst and spent"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "antigen-gnat",
+   "name": "Antigen Gnat",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Swarmling",
+   "tier": 1,
+   "size": "Microscopic",
+   "numbers": {
+    "mt": 12,
+    "mi": 10,
+    "soak": 0,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 1,
+    "type": "Kinetic",
+    "pool": 3,
+    "pp": 2,
+    "segments": 4,
+    "flow": 6,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 3,
+     "G": 1,
+     "P": 0,
+     "T": 0
+    },
+    "codon": 1.5,
+    "bsp": 1,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "Warden inquisitors buy intact Gnats at 25 S: they are reagents, and a Cohort that harvests them is technically selling surveillance equipment"
+   },
+   "sayClass": "a swarm, a cluster, a shoal: name its body",
+   "tactics": "swarms the biggest chemical signal in the room and paints the target for the real fight.",
+   "weaknessText": "area effects, Desiccation, and simply not being hit: they must touch to Mark, so Reactive Osmosis and MT denial work well.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "read",
+     "name": "Read",
+     "effect": {
+      "onHit": {
+       "condition": "Marked",
+       "lasts": "scene"
+      }
+     }
+    },
+    {
+     "id": "alarm",
+     "name": "Alarm",
+     "effect": {
+      "when": "a Gnat is destroyed",
+      "then": {
+       "allGnats": "drift:toward:that zone",
+       "dice": 1,
+       "cycles": 2
+      }
+     }
+    }
+   ],
+   "specials": [],
+   "consequence": "Kinetic: none (its hit Marks instead)",
+   "run": "engine",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:loudest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:loudest"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "never; scatters only if thrown past Loose"
+   },
+   "weakTo": [
+    "area effects",
+    "not being touched: Deflect and a high Membrane Threshold"
+   ],
+   "ladder": [
+    "a loose cloud of rust-bright motes",
+    "the cloud thinner",
+    "patchy, turning unevenly",
+    "a handful still circling",
+    "three or four motes",
+    "specks on the current"
+   ],
+   "hitWords": [
+    "a mote lands, and you can feel yourself being read",
+    "the cloud brushes you and brightens"
+   ],
+   "missWords": [
+    "it orbits and does not land",
+    "the cloud parts round the swing"
+   ],
+   "look": [
+    "It goes to the loudest body in the room.",
+    "Its touch does not hurt; it paints you for the others.",
+    "Kill one and the rest come faster."
+   ]
+  },
+  {
+   "id": "clonal-sentinel",
+   "name": "Clonal Sentinel",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Standard",
+   "tier": 1,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 13,
+    "mi": 22,
+    "soak": 1,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 2,
+    "type": "Voltaic",
+    "pool": 4,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 4,
+     "G": 1,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 3,
+    "bsp": 2,
+    "threshold": 12,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "clone tissue is the basis of every Immunosuppression graft: Antigen Hood, and the Hegemony pays well for it"
+   },
+   "sayClass": "name the creature",
+   "tactics": "a squad of identical bodies, each one cheap, all of them smarter than the last.",
+   "weaknessText": "spread the damage across different targets — Clonals share what they learn, which means a Cohort using one damage type hands the whole squad a resistance by Cycle 2. Rotate damage types.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "clone-sync",
+     "name": "Clone-Sync",
+     "text": "all Clonals in range share one Mark pool: a Mark on one is a Mark on all, and when one learns a resistance — +2 soak vs one type — all of them have it",
+     "needsRecord": true
+    },
+    {
+     "id": "recognise",
+     "name": "Recognise",
+     "text": "free action: knows whether an organism is registered, masked, or altered",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "escalate",
+     "name": "Escalate",
+     "pp": 2,
+     "limit": null,
+     "text": "after an ally hits the same target twice, the second ally's next Strike gains +2 dice (a two-person Cascade, and the entry point to Immunan tactics).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "phagocyte-marshal",
+   "name": "Phagocyte Marshal",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Standard",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 14,
+    "mi": 30,
+    "soak": 2,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 3,
+    "type": "Kinetic",
+    "pool": 5,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 5,
+     "G": 2,
+     "P": 1,
+     "T": 0
+    },
+    "codon": 7,
+    "bsp": 2,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "protects the registers and arrests the problem. It would genuinely rather arrest you.",
+   "weaknessText": "split it from its charges (push, shear, a Rider); Lytic damage against a Marshal carrying a prisoner is a way to kill the prisoner too — the Cohort will have to decide.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "bulwark",
+     "name": "Bulwark",
+     "text": "allies in Contact gain +2 MT",
+     "needsRecord": true
+    },
+    {
+     "id": "engulfment",
+     "name": "Engulfment",
+     "text": "as the Immunan Phenotype, Core Atlas: absorb an attack aimed at an ally in Contact, then contest VSC to Sequester the attacker",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "detain",
+     "name": "Detain",
+     "pp": 3,
+     "limit": null,
+     "text": "a creature at half MI or lower is held instead of damaged: it cannot act, and the Marshal begins moving it toward a register arch. Breaking out: VSC contest AT 15, or an ally's help.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "cytokine-screamer",
+   "name": "Cytokine Screamer",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Voltaic",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the scream-organ: a Resonator component; a Phase Bell built around one is worth 700 S"
+   },
+   "sayClass": "name the creature",
+   "tactics": "it is a force multiplier with legs. Fights escalate around it.",
+   "weaknessText": "kill it early (its specials are expensive and it has mediocre soak for its tier); Desiccation and Cold end its field; silence gear (Signal Dampener) denies its Broadcast.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "broadcast",
+     "name": "Broadcast",
+     "text": "its Signal actions cannot be countered while it is at 50% MI or higher: a Messenger's Counter-Signal must win the contest outright",
+     "needsRecord": true
+    },
+    {
+     "id": "inflammation-field",
+     "name": "Inflammation Field",
+     "text": "its band burns: 4 Thermal to everything in Contact at the end of its turn, allies included — it does not care",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "call-the-response",
+     "name": "Call the Response",
+     "pp": 3,
+     "limit": null,
+     "text": "every Sentinel in the region gains +1 PP this Cycle and +1 die on their next Strike. Once per fight. This is the action that turns an encounter into a wave.",
+     "needsRecord": true
+    },
+    {
+     "id": "fever",
+     "name": "Fever",
+     "pp": 4,
+     "limit": null,
+     "text": "a 5-Drift zone warms: Thermal hazards at 6 damage for 2 Cycles, and all healing in the zone is halved.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "graft-inquisitor",
+   "name": "Graft Inquisitor",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Standard",
+   "tier": 4,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 16,
+    "mi": 46,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Kinetic",
+    "pool": 7,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 7,
+     "G": 4,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 30,
+    "bsp": 2,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "reads you, names what is illegal about you, and then fights with the law already on its side.",
+   "weaknessText": "be lawful (the Cohort's best defence is paperwork), or win in three Cycles (it has only 3 PP and one big special).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "audit",
+     "name": "Audit",
+     "text": "free action: it reads every graft and Apparatus on an organism — family, grade, licence status, Gene-Debt balance",
+     "needsRecord": true
+    },
+    {
+     "id": "contraband",
+     "name": "Contraband",
+     "text": "it may seize an unlicensed item from a held or Dormant creature; a Warden lawful fight ends with the Cohort poorer",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "revoke",
+     "name": "Revoke",
+     "pp": 4,
+     "limit": "once",
+     "text": "one grafted Harvest trait is suppressed for the rest of the scene (the target's graft loses its benefit and its Minor Cost still applies — this is the worst action in the Bestiary, and it is aimed at Chimeric and harvested builds).",
+     "needsRecord": true
+    },
+    {
+     "id": "parley",
+     "name": "Parley",
+     "pp": 0,
+     "limit": null,
+     "text": "it will accept a legal argument. An Antigen Detector, a Forged token, an Argument (Precept 6), or a valid licence ends the encounter without combat.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "protease-warden",
+   "name": "Protease Warden",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Elite",
+   "tier": 2,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 60,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "Kinetic",
+    "pool": 6,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 8,
+     "G": 3,
+     "P": 2,
+     "T": 1
+    },
+    "codon": 14,
+    "bsp": 4,
+    "threshold": 16,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "the Antigen Register Pristine Sequence: Hive Mask material, and the single most requested Specimen in the Atlas"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "a squad leader. It marks, cascades, and retreats to report.",
+   "weaknessText": "a Viral Mimic or Unwalled Lysosan is invisible to its whole kit: the Warden becomes a plain bruiser. Mark-denial (Scent Dampener, Masked, Latency) is the counter; the Warden's MT 15 is the highest in the Order but not unattackable.",
+   "converted": "full",
+   "traits": [
+    {
+     "id": "antigen-register",
+     "name": "Antigen Register",
+     "effect": {
+      "marksLast": "scene",
+      "shedCannotRemove": [
+       "Marked"
+      ],
+      "seesThroughTerrain": "at a register arch"
+     }
+    },
+    {
+     "id": "brace-at-need",
+     "name": "Brace at need",
+     "effect": {
+      "oncePer": "Cycle",
+      "mt": 2,
+      "cannotDrift": true,
+      "nextStrikeDice": 2
+     }
+    }
+   ],
+   "specials": [
+    {
+     "id": "cascade",
+     "name": "Cascade",
+     "pp": 1,
+     "when": "an ally hits an organism it has Marked",
+     "target": "that organism",
+     "range": "any",
+     "effect": {
+      "allyFreeStrike": true,
+      "overflow": 1
+     },
+     "save": null
+    },
+    {
+     "id": "purge",
+     "name": "Purge",
+     "pp": 4,
+     "target": "one Marked organism in Mid",
+     "range": "mid",
+     "effect": {
+      "damage": 10,
+      "type": "Voltaic",
+      "convertsConditionsTo": "Locked"
+     },
+     "save": null
+    }
+   ],
+   "consequence": "Kinetic: push 1 Drift per 4 Overflow",
+   "run": "engine",
+   "script": [
+    {
+     "when": "marked-foe-in:mid and pp>=4",
+     "do": "special:purge:marked"
+    },
+    {
+     "when": "ally-hit-marked and pp>=1",
+     "do": "special:cascade:marked"
+    },
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "foe-in:contact and pp>=3 and not-braced",
+     "do": "brace"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:marked"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"kit hanging open\", or when every ally of its squad is destroyed; stands down if it has what it came for (the site says what)"
+   },
+   "weakTo": [
+    "anything that denies its Marks: Masked, a scent dampener, Latency",
+    "losing its squad"
+   ],
+   "ladder": [
+    "pale kit unmarked, register arm raised",
+    "one thin weeping line",
+    "a second line; plates grinding",
+    "kit hanging open, arm lowered",
+    "barely upright behind its brace",
+    "folded over and still"
+   ],
+   "hitWords": [
+    "pale plating grinds through",
+    "it plants, swings and files the result"
+   ],
+   "missWords": [
+    "the blow is caught on a rib of plating",
+    "it notes the attempt and does not lean"
+   ],
+   "look": [
+    "It leads the others; it reads the room before it moves.",
+    "Everything it does runs on marking you. Unmarked, it is only strong.",
+    "Break its squad and it leaves to report."
+   ]
+  },
+  {
+   "id": "complement-herald",
+   "name": "Complement Herald",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "Macroscopic",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Voltaic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "builds a chain reaction and waits for the Cohort to stand in a row.",
+   "weaknessText": "the lattice is broken by the Sequestered themselves: an ally inside can act at −2 dice and cut outward. Do not let it Mark three people at once — spread Marks by taking the cheap ones (Gnats, Clonals) early.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "cascade-reserves",
+     "name": "Cascade Reserves",
+     "text": "it holds 4 Reserve PP and spends them on Cascades — a Herald's presence roughly doubles a Sentinel squad's action economy",
+     "needsRecord": true
+    },
+    {
+     "id": "membrane-lattice",
+     "name": "Membrane Lattice",
+     "text": "its Marked targets are outlined: allies may attack them through walls and Gel at full bonus",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "membrane-attack",
+     "name": "Membrane Attack",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "up to three Marked creatures within Mid are Sequestered in a protein lattice (escape AT 18, or destroy integrity 50). Allied attacks against Sequestered targets gain +2 dice and cannot be defended by Reactive Osmosis.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "inflammatory-tempest",
+   "name": "Inflammatory Tempest",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Thermic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "fever organs: the Thermic domain's finest material, and a Barophil Thermal Diver's entire ambition"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "arrives, makes the region unlivable, and drowns the Cohort in bodies.",
+   "weaknessText": "it cannot stop recruiting, which means it cannot be flanked usefully — but its own reinforcements block its lines of effect. Cold, Desiccation, and any Dry zone end Fevered Ground; a Navigator's shear can turn its push against it. It burns its own allies: it is on bad terms with every other Order.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "recruitment",
+     "name": "Recruitment",
+     "text": "each Cycle it gains 1d3 Clonal Sentinels as it calls the response; the reinforcements arrive at Flow 6 and act immediately",
+     "needsRecord": true
+    },
+    {
+     "id": "fevered-ground",
+     "name": "Fevered Ground",
+     "text": "its zone: viscosity +1, Thermal 6/Cycle to non-immunes, all healing halved, and its allies gain +1 PP per Cycle there",
+     "needsRecord": true
+    },
+    {
+     "id": "swelling",
+     "name": "Swelling",
+     "text": "each Cycle: everything within 4 Drifts is pushed 1 band and the zone shrinks — it physically expands the battlefield",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "storm",
+     "name": "Storm",
+     "pp": 5,
+     "limit": null,
+     "text": "14 Thermal to a 8-Drift zone, all creatures in it are pushed 2 bands, and the zone becomes a Thermal hazard for 3 Cycles (8 damage/Cycle).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "tolerance-priest",
+   "name": "Tolerance Priest",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Elite",
+   "tier": 5,
+   "size": "Mesoscopic, unarmoured, unsettlingly gentle",
+   "numbers": {
+    "mt": 18,
+    "mi": 108,
+    "soak": 7,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 7,
+    "type": "Genetic",
+    "pool": 9,
+    "pp": 4,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 14,
+     "G": 6,
+     "P": 5,
+     "T": 2
+    },
+    "codon": 120,
+    "bsp": 4,
+    "threshold": 28,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its T1 is the Tolerance Codon: the only known material that can restore a revoked graft. Three factions will buy it sight unseen, and one will kill for it."
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "does not fight. Reclassifies.",
+   "weaknessText": "it must speak: Silence gear, a Counter-Signal, or killing it in two Cycles (it has no armour, no brace, and its Flow is only 4). Its power depends on there being Sentinels nearby: fight it where the state is absent, and it is a soft old thing with very high MI.",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "self-kin-absolute",
+     "name": "Self/Kin, Absolute",
+     "text": "it cannot be attacked first: any hostile action against it marks 2 Stress on the attacker and immediately Mark-flags them for every Sentinel in the region",
+     "needsRecord": true
+    },
+    {
+     "id": "tolerance",
+     "name": "Tolerance",
+     "text": "it can declare any organism self: for the rest of the scene all Sentinels and Anomalies that recognise treat that organism as own tissue — including, horrifyingly, the Cohort's own allies if the Priest declares them",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "forgiveness",
+     "name": "Forgiveness",
+     "pp": 4,
+     "limit": null,
+     "text": "one creature of the Cohort is declared self: they cannot be attacked by Order VI entities, and they cannot attack them either. It does this to your best damage-dealer. It does this smiling.",
+     "needsRecord": true
+    },
+    {
+     "id": "autoimmune-word",
+     "name": "Autoimmune Word",
+     "pp": 5,
+     "limit": "once per Pulse War",
+     "text": "one Cohort graft turns: its Minor Cost doubles, its benefit reverses for 3 Cycles, and it cannot be removed until a Nucleoid-grade Mend.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "engine-basic",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "clonal-line",
+   "name": "Clonal Line",
+   "order": "Order VI: Immune Sentinels",
+   "cls": "Catastrophe",
+   "tier": 3,
+   "size": "Vast (a colony in one body-count)",
+   "numbers": {
+    "mt": 13,
+    "mi": 80,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 7,
+    "type": "Kinetic",
+    "pool": 7,
+    "pp": 5,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 15,
+     "G": 9,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 45,
+    "bsp": 10,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "harvesting the Line means harvesting a colony. The Ash will not bless it, the Wardens will hunt it, and the Hegemony will quietly ask for samples. This kill should cost the Cohort a faction."
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "it is a slow invasion of one organism repeated until it fills the region.",
+   "weaknessText": "the founder-body (Phase 3) is a person with a name, a colony, and legal standing; the Line's whole kit fails against an Unregistered Cohort, which is a real cost (an unregistered Cohort cannot enter a hab).",
+   "converted": "numbers",
+   "traits": [
+    {
+     "id": "one-antigen",
+     "name": "One Antigen",
+     "text": "the Line has a single chemical identity: every attack that hits it teaches all of it — the Cohort must rotate types or hand it immunity",
+     "needsRecord": true
+    },
+    {
+     "id": "registered-ground",
+     "name": "Registered Ground",
+     "text": "inside a registered region the Line can invoke law: the Cohort's own Oath boxes become evidence",
+     "needsRecord": true
+    }
+   ],
+   "specials": [
+    {
+     "id": "response",
+     "name": "Response",
+     "pp": 5,
+     "limit": null,
+     "text": "all its Clonals in the region Strike simultaneously at +2 dice, and every Marked creature in the Cohort gains Locked.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "to recognise and purge",
+   "morale": {
+    "stops": "withdraws to report at \"failing\" or when its squad is gone",
+    "note": "A report is worth more than a death.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "pale kit unmarked",
+    "one thin weeping line",
+    "plates cracked, moving stiffly",
+    "kit hanging open",
+    "barely upright",
+    "folded and still"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "rulebreak-instance",
+   "name": "Rulebreak Instance",
+   "order": "Order VII: Anomalies",
+   "cls": "Standard",
+   "tier": 3,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 15,
+    "mi": 38,
+    "soak": 3,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 4,
+    "type": "",
+    "pool": 6,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 6,
+     "G": 3,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 15,
+    "bsp": 2,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name the creature",
+   "tactics": "",
+   "weaknessText": "",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "absorb",
+     "name": "Absorb",
+     "pp": 2,
+     "limit": null,
+     "text": "each Inhibitor rolled by any creature in its zone heals it 4 MI.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "the-same-twice",
+   "name": "The Same, Twice",
+   "order": "Order VII: Anomalies",
+   "cls": "Standard",
+   "tier": 4,
+   "size": "Mesoscopic",
+   "numbers": {
+    "mt": 16,
+    "mi": 46,
+    "soak": 4,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Kinetic",
+    "pool": 7,
+    "pp": 3,
+    "segments": null,
+    "flow": 4,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 7,
+     "G": 4,
+     "P": 2,
+     "T": 0
+    },
+    "codon": 30,
+    "bsp": 2,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "harvesting both bodies at once is the only way to get the P2; the Hegemony has a standing order for it"
+   },
+   "sayClass": "name the creature",
+   "tactics": "",
+   "weaknessText": "",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "choose",
+     "name": "Choose",
+     "pp": 3,
+     "limit": null,
+     "text": "one body becomes fully real (all MI, all specials), the other becomes potential: it can only be hurt, not hurt, and if destroyed the real one loses 20 MI.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "the-unnumbered",
+   "name": "The Unnumbered",
+   "order": "Order VII: Anomalies",
+   "cls": "Elite",
+   "tier": 3,
+   "size": "size and shape: whatever the Cohort last counted",
+   "numbers": {
+    "mt": 16,
+    "mi": 76,
+    "soak": 5,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 5,
+    "type": "Osmotic",
+    "pool": 7,
+    "pp": 4,
+    "segments": null,
+    "flow": 5,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 10,
+     "G": 4,
+     "P": 3,
+     "T": 1
+    },
+    "codon": 30,
+    "bsp": 4,
+    "threshold": 20,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "",
+   "weaknessText": "",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "borrow-a-number",
+     "name": "Borrow a Number",
+     "pp": 4,
+     "limit": null,
+     "text": "it takes a number from a creature's stat (player chooses which number to lose 1 from: MI, MT, Flow, or PP for the scene). The Anomaly does not say which it will take. It always takes the one that matters.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "reverse-bloom",
+   "name": "Reverse Bloom",
+   "order": "Order VII: Anomalies",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Vast, beautiful, wrong",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Lytic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 1,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "a Reverse Bloom's Pristine Sequence is the only known material that can un-grow a Parasitic graft — and the price of one is the reason some colonies have gone to war"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "",
+   "weaknessText": "it cannot move and it is happy, which means a Cohort that leaves takes no damage. Its rule is its only defence.",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "unmake",
+     "name": "Unmake",
+     "pp": 5,
+     "limit": null,
+     "text": "one structure or organism in its zone returns to an earlier state: −1 Stage for a Phenotype NPC, one Graft Slot lost permanently, or a site loses its last four Cycles of construction.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "inverted-lung",
+   "name": "Inverted Lung",
+   "order": "Order VII: Anomalies",
+   "cls": "Elite",
+   "tier": 4,
+   "size": "Vast",
+   "numbers": {
+    "mt": 17,
+    "mi": 92,
+    "soak": 6,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 6,
+    "type": "Osmotic",
+    "pool": 8,
+    "pp": 4,
+    "segments": null,
+    "flow": 2,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 12,
+     "G": 5,
+     "P": 4,
+     "T": 2
+    },
+    "codon": 60,
+    "bsp": 4,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "an Inverted Lung's organ is the core of the AE Crucible upgrade line: the Hegemony will trade a favour for one"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "",
+   "weaknessText": "it wants the Cohort to be careful. Be reckless for three Cycles, and it has nothing.",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "suffocate",
+     "name": "Suffocate",
+     "pp": 3,
+     "limit": null,
+     "text": "for 2 Cycles the rule inverts again for one target: their actions cost double and their rests heal nothing.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "the-long-echo",
+   "name": "The Long Echo",
+   "order": "Order VII: Anomalies",
+   "cls": "Elite",
+   "tier": 5,
+   "size": "invisible unless it is acting",
+   "numbers": {
+    "mt": 18,
+    "mi": 108,
+    "soak": 7,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 7,
+    "type": "any",
+    "pool": 9,
+    "pp": 4,
+    "segments": null,
+    "flow": 6,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 14,
+     "G": 6,
+     "P": 5,
+     "T": 2
+    },
+    "codon": 120,
+    "bsp": 4,
+    "threshold": 28,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "its P5 is a memory of the future: a Ribozyme Engineer can write it into a template, and the resulting Relic's Gene-Debt is measured in Beats you will not have"
+   },
+   "sayClass": "the one the others follow",
+   "tactics": "",
+   "weaknessText": "",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "repeat",
+     "name": "Repeat",
+     "pp": 4,
+     "limit": null,
+     "text": "one action the Cohort took two Cycles ago happens again, at −2 dice, against whoever the Echo chooses.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "the-quiet",
+   "name": "The Quiet",
+   "order": "Order VII: Anomalies",
+   "cls": "Catastrophe",
+   "tier": 4,
+   "size": "Vast, still, patient",
+   "numbers": {
+    "mt": 14,
+    "mi": 80,
+    "soak": 7,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 8,
+    "type": "Genetic",
+    "pool": 8,
+    "pp": 5,
+    "segments": null,
+    "flow": 0,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": {
+     "C": 18,
+     "G": 11,
+     "P": 5,
+     "T": 2
+    },
+    "codon": 90,
+    "bsp": 10,
+    "threshold": 24,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": null
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "",
+   "weaknessText": "Phase 3. It cannot act then, and whatever it asks is answerable: the Cohort's honest answers end the encounter in their favour. This is a fight that the table should be allowed to win by talking, and it will be the best scene of the campaign.",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "silence",
+     "name": "Silence",
+     "pp": 5,
+     "limit": null,
+     "text": "a Cohesion spend by the Cohort is forbidden for 3 Cycles; a Bonded pair is Locked apart.",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  },
+  {
+   "id": "curator-manifestation",
+   "name": "Curator Manifestation",
+   "order": "Order VII: Anomalies",
+   "cls": "Catastrophe",
+   "tier": 5,
+   "size": "size: too large to be in the water",
+   "numbers": {
+    "mt": 15,
+    "mi": 110,
+    "soak": 9,
+    "bracedSoak": 0,
+    "bracedMt": 0,
+    "bd": 9,
+    "type": "Genetic",
+    "pool": 10,
+    "pp": 5,
+    "segments": null,
+    "flow": 3,
+    "freqMod": 0
+   },
+   "harvest": {
+    "specimens": null,
+    "codon": 0,
+    "bsp": 0,
+    "threshold": 28,
+    "requires": "destroyed; harvester Up and at Contact",
+    "note": "none. There is nothing to harvest. Any attempt is a Core Clock segment and a Total Lysis with no body left."
+   },
+   "sayClass": "name it, and say the room changes",
+   "tactics": "arrives late, uninvited, and unkillable. It resolves the encounter. Your job as Director is to make it interesting rather than fatal: it has a policy, and policies have preferences.",
+   "weaknessText": "Apotheosis. A Cohort at Core Clock 5 with Apotheotic Choices can contest its Thresholds at AT 28 (Nucleoid) and, on a Runaway Catalysis, force it to ask a question instead of acting — which is the closest thing to a wound a Curator has.",
+   "converted": "numbers",
+   "traits": [],
+   "specials": [
+    {
+     "id": "filing",
+     "name": "Filing",
+     "pp": 5,
+     "limit": "once per phase",
+     "text": "one Cohort member is recorded: they gain an Attention mark, and the next Manifestation the Cohort meets treats them as a known quantity (its specials target them by name, and its negotiation offers are addressed to them personally).",
+     "needsRecord": true
+    }
+   ],
+   "consequence": null,
+   "run": "director",
+   "script": [
+    {
+     "when": "no-foe-in-reach",
+     "do": "drift:toward:nearest"
+    },
+    {
+     "when": "pp>=3",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=2",
+     "do": "strike:nearest"
+    },
+    {
+     "when": "pp>=1",
+     "do": "reserve"
+    },
+    {
+     "when": "always",
+     "do": "end"
+    }
+   ],
+   "wants": "unknown",
+   "morale": {
+    "stops": "director",
+    "note": "Run by the Director.",
+    "from": "order-default"
+   },
+   "ladder": [
+    "wrong in a way that holds",
+    "the wrongness flickers",
+    "unravelling at the edges",
+    "half of it no longer there",
+    "a last insistence",
+    "gone, and the water forgets"
+   ],
+   "ladderFrom": "order-default",
+   "hitWords": [],
+   "missWords": [],
+   "look": []
+  }
+ ]
+}

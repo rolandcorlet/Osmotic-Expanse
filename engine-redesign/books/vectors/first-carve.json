@@ -1,0 +1,1522 @@
+{
+ "id": "first-carve",
+ "title": "The First Carve",
+ "levels": "1",
+ "cohortSize": 4,
+ "hands": [
+  "wall",
+  "ledger",
+  "rider",
+  "eyes"
+ ],
+ "premise": "A whale lies dead across the channel with a wound cut in its flank. Everything worth having is inward and upstream, and the way back out is the same way.",
+ "sessionZero": [
+  "Players see all three Clocks.",
+  "Nothing carried out is worth anything unless it passed a Tally Post.",
+  "The Gut Stone is Deadly and will be announced as such."
+ ],
+ "clocks": [
+  {
+   "id": "CARCASS",
+   "segments": 6,
+   "shownToPlayers": true,
+   "says": "The whale is digesting itself. The value clock.",
+   "stages": [
+    "fresh",
+    "weeping",
+    "bloated",
+    "sloughing",
+    "sour",
+    "gaslock",
+    "the whale goes over"
+   ],
+   "atFull": "whale-goes-over"
+  },
+  {
+   "id": "TOLL",
+   "segments": 5,
+   "shownToPlayers": true,
+   "says": "The Render Charge is on a schedule. The law clock.",
+   "stages": [],
+   "atFull": null,
+   "note": "At 5 the Render Charge fires (Gut Stone hazard)."
+  },
+  {
+   "id": "HUNGER",
+   "segments": 4,
+   "shownToPlayers": true,
+   "says": "Everything in the Reach can smell a wound. The danger clock.",
+   "stages": [
+    "only tells",
+    "signs at every panel",
+    "Gnaw Swarms at the wounds",
+    "Detritus Feeders render the dead",
+    "the Render Cascade"
+   ],
+   "atFull": "render-cascade"
+  }
+ ],
+ "clockTriggers": [
+  {
+   "event": "panel-opens",
+   "clock": "CARCASS",
+   "change": 1,
+   "limit": "per-scene",
+   "site": "any",
+   "cite": "3.1"
+  },
+  {
+   "event": "reconstitution",
+   "clock": "CARCASS",
+   "change": 1,
+   "limit": "none",
+   "site": "any"
+  },
+  {
+   "event": "pulse-war-starts",
+   "clock": "TOLL",
+   "change": 1,
+   "limit": "none",
+   "site": "any",
+   "cite": "3.2"
+  },
+  {
+   "event": "pulse-war-starts",
+   "clock": "HUNGER",
+   "change": 1,
+   "limit": "none",
+   "site": "any",
+   "cite": "3.3"
+  },
+  {
+   "event": "body-cut",
+   "clock": "HUNGER",
+   "change": 1,
+   "limit": "none",
+   "site": "any",
+   "cite": "3.3",
+   "gap": "The coded Vector names HUNGER for a body cut and for a body left, without the sign. Proposed +1 for each, once per site for \"left\"."
+  },
+  {
+   "event": "body-left",
+   "clock": "HUNGER",
+   "change": 1,
+   "limit": "per-scene",
+   "site": "any",
+   "cite": "3.3"
+  },
+  {
+   "event": "oath-kept",
+   "clock": "TOLL",
+   "change": -1,
+   "limit": "none",
+   "site": "any",
+   "gap": "The sign is not in the coded data. Proposed -1: a kept promise buys time with the law."
+  },
+  {
+   "event": "toll-refused",
+   "clock": "TOLL",
+   "change": 1,
+   "limit": "per-scene",
+   "site": "toll-vent",
+   "cite": "8.1"
+  },
+  {
+   "event": "toll-settled",
+   "clock": "TOLL",
+   "change": -1,
+   "limit": "per-scene",
+   "site": "toll-vent",
+   "cite": "8.1 (the toll chit)"
+  },
+  {
+   "event": "pump-opened",
+   "clock": "CARCASS",
+   "change": -1,
+   "limit": "per-session",
+   "site": "render-hall",
+   "cite": "8.3"
+  },
+  {
+   "event": "pump-opened",
+   "clock": "HUNGER",
+   "change": 1,
+   "limit": "per-session",
+   "site": "render-hall",
+   "cite": "8.3"
+  },
+  {
+   "event": "pump-opened",
+   "clock": "TOLL",
+   "change": 1,
+   "limit": "per-session",
+   "site": "render-hall",
+   "cite": "8.3",
+   "gap": "\"TOLL +1 if the Guild sees it\": the barge crew are Guild-licensed and present, so proposed always, unless the crew have been sent away."
+  },
+  {
+   "event": "brood-cut",
+   "clock": "HUNGER",
+   "change": 2,
+   "limit": "per-scene",
+   "site": "brood",
+   "cite": "8.4"
+  },
+  {
+   "event": "brood-cut",
+   "clock": "TOLL",
+   "change": 1,
+   "limit": "per-scene",
+   "site": "brood",
+   "cite": "8.4"
+  }
+ ],
+ "directorClockAllowance": "one segment per Clock per session (Vector 3.4)",
+ "sites": [
+  {
+   "id": "toll-vent",
+   "name": "The Toll-Vent",
+   "cite": "8.1",
+   "readAloud": "A torn flank panel the size of a town square, the channel's current running through it. Folded out of the whale's own gristle is a customs post: a chitin gate, a queue of drones, a toll board priced in Specimens. Beyond the gate a cut-lane runs down into the carcass.",
+   "medium": {
+    "tonic": "isotonic",
+    "viscosity": 1,
+    "flow": 2,
+    "modifiers": []
+   },
+   "zones": [
+    {
+     "id": "wound-lip",
+     "name": "The wound lip",
+     "band": "near",
+     "tags": [],
+     "note": "the torn edge you must cross; the gas pocket is under it"
+    },
+    {
+     "id": "customs-fold",
+     "name": "The drone customs fold",
+     "band": "contact",
+     "tags": [],
+     "note": "the gate"
+    }
+   ],
+   "exits": [
+    {
+     "to": "soft-field",
+     "name": "the cut-lane down",
+     "open": "needs:way-open",
+     "note": "way-open is set by toll-settled, by crossing, or when the Sentinel is destroyed"
+    },
+    {
+     "to": "walked-away",
+     "name": "back out to the Toll Reach",
+     "open": "not-in-fight"
+    }
+   ],
+   "creatures": [
+    {
+     "block": "fold-sentinel",
+     "count": 1,
+     "band": "contact",
+     "present": "on-arrival",
+     "stance": "guarding",
+     "hostileOn": [
+      "toll-refused"
+     ],
+     "standsDownOn": [
+      "toll-settled"
+     ],
+     "note": "It does not start the fight. If the Cohort has paid or sworn it stands aside even after a strike."
+    },
+    {
+     "block": "gnaw-swarm",
+     "count": 2,
+     "band": "near",
+     "present": "on-arrival",
+     "stance": "indifferent",
+     "hostileOn": [
+      "strike"
+     ],
+     "leavesOn": [
+      "offer-water"
+     ],
+     "note": "They want drink, not violence."
+    }
+   ],
+   "npcs": [
+    {
+     "id": "gate-drones",
+     "name": "the customs drones",
+     "wants": "the toll, in any printed form",
+     "offers": [],
+     "says": [
+      "the three prices on the board"
+     ]
+    }
+   ],
+   "interactables": [
+    {
+     "id": "taste-water",
+     "name": "Taste the water from the wound",
+     "action": "sense",
+     "pool": "OSM + Chemoreception",
+     "threshold": "standard",
+     "unhurried": true,
+     "onSuccess": [
+      "reveal:2",
+      "discover:gas-pocket"
+     ],
+     "onFailure": [
+      "nothing"
+     ]
+    },
+    {
+     "id": "pay-specimens",
+     "name": "Pay the toll in Specimens",
+     "action": null,
+     "needs": "2 C per body",
+     "onSuccess": [
+      "flag:toll-settled",
+      "flag:way-open",
+      "event:toll-settled"
+     ],
+     "once": true
+    },
+    {
+     "id": "pay-substrate",
+     "name": "Pay the toll in Substrate",
+     "action": null,
+     "needs": "15 S per body",
+     "onSuccess": [
+      "flag:toll-settled",
+      "flag:way-open",
+      "event:toll-settled"
+     ],
+     "once": true
+    },
+    {
+     "id": "swear-toll",
+     "name": "Swear a promise at the witness-seam",
+     "action": "swear",
+     "needs": "a free Oath box; the promise in the player's words; owed to Order II",
+     "onSuccess": [
+      "oath:file",
+      "flag:toll-settled",
+      "flag:way-open",
+      "event:toll-settled"
+     ],
+     "once": true,
+     "gap": "The Core Rite takes an hour and 10 S; here the promise is taken on the spot. Proposed: a quick oath is allowed at a printed witness-seam, costs the Oath box only, and the answer to \"what do you promise?\" is filed at once."
+    },
+    {
+     "id": "force-gate",
+     "name": "Shoulder through the gate",
+     "action": "drift",
+     "pool": "VSC + Vigour",
+     "threshold": "standard",
+     "onAttempt": [
+      "event:toll-refused"
+     ],
+     "onSuccess": [
+      "flag:way-open"
+     ],
+     "onFailure": [
+      "the Sentinel Strikes the crosser"
+     ],
+     "cite": "lesson 1: the crossing at AT 12"
+    },
+    {
+     "id": "offer-water",
+     "name": "Give the swarms water",
+     "action": "synthesise",
+     "needs": "clean water: one Vial of any kind emptied, or 1 S of foam",
+     "onSuccess": [
+      "leaves:gnaw-swarm"
+     ],
+     "gap": "The Vector says a swarm offered water leaves but not where the water comes from. Proposed cost as shown."
+    },
+    {
+     "id": "vent-pocket",
+     "name": "Vent the gas pocket slowly",
+     "action": "synthesise",
+     "needs": "discovered:gas-pocket",
+     "onSuccess": [
+      "disarm:gas-pocket"
+     ]
+    }
+   ],
+   "nothingElse": "The drones sell nothing and there is no other way through the flank here.",
+   "hazards": [
+    {
+     "id": "gas-pocket",
+     "name": "Gas pocket under the lip",
+     "tier": 1,
+     "discovery": "taste-water",
+     "trigger": [
+      "kinetic-hit",
+      "strike",
+      "momentum"
+     ],
+     "clockGate": null,
+     "amount": 6,
+     "type": "Kinetic",
+     "targets": "site",
+     "save": null,
+     "conditions": [
+      "Jostled"
+     ],
+     "bandShift": 1,
+     "frequency": "per-cycle",
+     "counter": [
+      "vent-pocket",
+      "Brace reaction: no damage halved twice, and 2 free Drifts"
+     ],
+     "afterFiring": null
+    }
+   ],
+   "harvest": {
+    "site": null
+   },
+   "awards": [
+    {
+     "id": "in-clean",
+     "on": "arrive:soft-field with flag:toll-settled and fold-sentinel not destroyed",
+     "codon": 15,
+     "once": true
+    }
+   ],
+   "secrets": [
+    {
+     "tier": 1,
+     "text": "Bare patches of old biomass on the wound lip."
+    },
+    {
+     "tier": 2,
+     "text": "The floor is humming: something light is welling up under the lip."
+    },
+    {
+     "tier": 2,
+     "text": "The drone fold faces the wrong way: its gate points inward."
+    }
+   ],
+   "danger": {
+    "rating": "Easy",
+    "bsp": 6,
+    "announce": false
+   },
+   "lesson": "The roll."
+  },
+  {
+   "id": "soft-field",
+   "name": "The Soft Field",
+   "cite": "8.2, 7.2",
+   "readAloud": "Hanging sheets of lipid, cut lanes sweet with Guild claim-line, tally-sleds empty on their cable. At the centre stands the Tally Post, where a cut is weighed, graded and stamped. The tools are stacked and unblooded.",
+   "medium": {
+    "tonic": "isotonic",
+    "viscosity": 1,
+    "flow": 1,
+    "modifiers": []
+   },
+   "zones": [
+    {
+     "id": "near-panels",
+     "name": "The near panels",
+     "band": "mid",
+     "tags": [],
+     "note": "the Medusa nest is in one of them"
+    },
+    {
+     "id": "far-panels",
+     "name": "The far panels",
+     "band": "far",
+     "tags": [],
+     "note": "clean, unclaimed"
+    },
+    {
+     "id": "tally-post",
+     "name": "The Tally Post",
+     "band": "near",
+     "tags": [],
+     "note": "centre of the field"
+    },
+    {
+     "id": "slough",
+     "name": "Slough patches",
+     "band": "mid",
+     "tags": [
+      "difficult"
+     ],
+     "note": "visible after CARCASS 1"
+    }
+   ],
+   "exits": [
+    {
+     "to": "render-hall",
+     "name": "the cut-lane to the stomach",
+     "open": "not-in-fight"
+    },
+    {
+     "to": "left-with-cut",
+     "name": "the sled-cable to the surface",
+     "open": "not-in-fight"
+    },
+    {
+     "to": "toll-vent",
+     "name": "back up the cut-lane",
+     "open": "not-in-fight"
+    }
+   ],
+   "creatures": [
+    {
+     "block": "glaze-medusa",
+     "count": 2,
+     "band": "mid",
+     "present": "on-arrival",
+     "stance": "guarding",
+     "hostileOn": [
+      "enter-zone:near-panels",
+      "strike"
+     ],
+     "note": "Defending a nest. A Cohort that takes the far panels gets the same harvest with less blood."
+    },
+    {
+     "block": "hijack-mite",
+     "count": 2,
+     "band": "mid",
+     "present": "on:enter-zone:near-panels",
+     "stance": "hostile"
+    },
+    {
+     "block": "hijack-mite",
+     "count": 2,
+     "band": "mid",
+     "present": "on:enter-zone:near-panels",
+     "stance": "hostile",
+     "needs": "visited:render-hall",
+     "gap": "\"Add 2 more Mites once the Cohort has got Lesson 4.\" Proposed test: the Render Hall has been visited."
+    }
+   ],
+   "npcs": [
+    {
+     "id": "tally-clerk",
+     "name": "the Tally Post clerk",
+     "wants": "a cut it can stamp under some claim",
+     "offers": [
+      {
+       "id": "priced-choice",
+       "gives": "a stamp",
+       "price": "one row of the d12 table, rolled once"
+      }
+     ],
+     "says": [
+      "the ledger's last entry: CLAIM VOID - SEE NETH",
+      "unstamped, the cut is worth nothing outside"
+     ]
+    }
+   ],
+   "pricedChoice": {
+    "roll": "d12, once, when the Cohort first reaches the post",
+    "rows": [
+     {
+      "on": [
+       1,
+       2
+      ],
+      "offer": "stamp under the first crew's void claim",
+      "effects": [
+       "flag:claim-void-crew"
+      ],
+      "price": "the Ash call it grave-robbing; the Guild will not notice for two Beats"
+     },
+     {
+      "on": [
+       3,
+       4
+      ],
+      "offer": "stamp under Tallow Ring's second sale",
+      "effects": [
+       "flag:claim-second-sale"
+      ],
+      "price": "free; the first buyer's crew will come to collect"
+     },
+     {
+      "on": [
+       5,
+       6
+      ],
+      "offer": "a Guild tally-stamp",
+      "effects": [
+       "haul:-1/3",
+       "clock:TOLL:-1",
+       "flag:claim-guild"
+      ],
+      "price": "a third of the haul"
+     },
+     {
+      "on": [
+       7,
+       8
+      ],
+      "offer": "an Ash Unwasted seal on the panel being cut",
+      "effects": [
+       "grade:+1",
+       "flag:claim-ash"
+      ],
+      "price": "the cut is slower: that panel does not rewind CARCASS",
+      "gap": "\"CARCASS -1 for that panel only\" is unclear. Proposed: the panel-opens trigger is skipped for that cut."
+     },
+     {
+      "on": [
+       9
+      ],
+      "offer": "a drone licence: Order II stamps it",
+      "effects": [
+       "clock:TOLL:-1",
+       "flag:registered-order-ii"
+      ],
+      "price": "the drones consider you registered, including for what the brood needs"
+     },
+     {
+      "on": [
+       10
+      ],
+      "offer": "no stamp: the clerk is a client of Neth",
+      "effects": [],
+      "price": "a Signal Discourse roll at Standard, or 10 to 30 S in samples, fixes it",
+      "gap": "The contest is not specified. Proposed: AFF + Signal Discourse at Standard, or pay 20 S."
+     },
+     {
+      "on": [
+       11
+      ],
+      "offer": "a stamp now for a favour at the Gut Stone",
+      "effects": [
+       "flag:claim-favour",
+       "flag:owes-clerk"
+      ],
+      "price": "the favour arrives at the Gut Stone"
+     },
+     {
+      "on": [
+       12
+      ],
+      "offer": "the post is empty, the scale still warm",
+      "effects": [
+       "clock:HUNGER:+1",
+       "reveal:pump-shaft-open"
+      ],
+      "price": "someone was here minutes ago"
+     }
+    ]
+   },
+   "interactables": [
+    {
+     "id": "read-ledger",
+     "name": "Read the post's ledger",
+     "action": null,
+     "onSuccess": [
+      "reveal:2",
+      "roll:priced-choice"
+     ]
+    },
+    {
+     "id": "scout-far",
+     "name": "Scout the far panels",
+     "action": "sense",
+     "pool": "DFF + Fluid Navigation",
+     "threshold": "common",
+     "unhurried": true,
+     "onSuccess": [
+      "flag:far-lane-marked",
+      "advantage:cut-panel"
+     ],
+     "gap": "No Threshold is printed. Proposed Common."
+    },
+    {
+     "id": "cut-panel",
+     "name": "Cut a hanging panel",
+     "action": "harvest",
+     "pool": "OSM or RTC + Synthesis",
+     "threshold": "standard",
+     "unhurried": true,
+     "needs": "far panels, or the nest dealt with",
+     "onSuccess": [
+      "yield:site",
+      "event:panel-opens"
+     ],
+     "onFailure": [
+      "yield:substrate-only"
+     ],
+     "cite": "Tier 1: AT 12"
+    },
+    {
+     "id": "stamp-cut",
+     "name": "Have the cut weighed and stamped",
+     "action": null,
+     "needs": "unstamped Specimens and any claim flag",
+     "onSuccess": [
+      "stamp:all",
+      "award:stamped"
+     ],
+     "once": false
+    },
+    {
+     "id": "drop-panel",
+     "name": "Cut a panel loose to cloud the lane",
+     "action": "strike",
+     "needs": "a Kinetic hit with 4+ Overflow on a panel",
+     "onSuccess": [
+      "site-modifier:all pools -2 dice",
+      "blind:glaze-medusa"
+     ],
+     "cite": "8.2 weakness"
+    },
+    {
+     "id": "salt-slough",
+     "name": "Salt a slough patch",
+     "action": "synthesise",
+     "needs": "salt",
+     "onSuccess": [
+      "disarm:slough"
+     ]
+    },
+    {
+     "id": "salt-cache",
+     "name": "Take the first crew's salt cache",
+     "action": null,
+     "needs": "found:salt-cache",
+     "onSuccess": [
+      "gain:60 S of salt",
+      "note: salt spent rewinds CARCASS by 1"
+     ],
+     "gap": "Where the cache is and how it is found is not in the coded data. Proposed: revealed by scout-far."
+    }
+   ],
+   "nothingElse": "The stacked tools are ordinary and the sleds are empty; nothing else here can be worked.",
+   "hazards": [
+    {
+     "id": "slough",
+     "name": "Slough patches",
+     "tier": 1,
+     "discovery": "seen once CARCASS is 1 or more",
+     "trigger": [
+      "in-zone:slough"
+     ],
+     "clockGate": {
+      "clock": "CARCASS",
+      "at": 3
+     },
+     "amount": 1,
+     "type": "Lytic",
+     "targets": "zone:slough",
+     "save": null,
+     "conditions": [],
+     "bandShift": 0,
+     "soak": 1,
+     "frequency": "standing",
+     "counter": [
+      "cross on the hanging panels",
+      "salt-slough"
+     ],
+     "afterFiring": null,
+     "note": "Below CARCASS 3 it only slows: -1 Drift per move, and soak 1 for a body standing in it."
+    }
+   ],
+   "harvest": {
+    "site": {
+     "what": "the hanging lipid panels",
+     "tier": 1,
+     "threshold": "standard",
+     "yield": "C1 to each organism in the picking order per panel; grade by CARCASS",
+     "event": "panel-opens",
+     "gap": "The grade-by-CARCASS table is in Vector 7.2 and was not in the coded data. The yield shown is what the benches paid."
+    }
+   },
+   "awards": [
+    {
+     "id": "stamped",
+     "on": "stamp-cut",
+     "codon": 20,
+     "once": true
+    }
+   ],
+   "secrets": [
+    {
+     "tier": 1,
+     "text": "A tally-sled loaded with nothing but tools."
+    },
+    {
+     "tier": 2,
+     "text": "A sweet current coming up from deeper in."
+    },
+    {
+     "tier": 2,
+     "text": "A drone escort moving into the whale, not out."
+    },
+    {
+     "tier": 3,
+     "text": "A stamped cut is 40 to 120 S, only if the claim stands."
+    }
+   ],
+   "danger": {
+    "rating": "Easy",
+    "bsp": 6,
+    "announce": false
+   },
+   "lesson": "The harvest. This is the Ledger's room."
+  },
+  {
+   "id": "render-hall",
+   "name": "The Render Hall",
+   "cite": "8.3",
+   "readAloud": "The stomach is still warm and still churning; the fluid pulls at you. A Hegemony pump barge and its crew of nine run a hose near the entrance. Dry ribs line the wall. At the bottom lies the still, hot and quiet.",
+   "medium": {
+    "tonic": "hypertonic",
+    "viscosity": 2,
+    "flow": 3,
+    "modifiers": [
+     {
+      "id": "wrong-tonic",
+      "dice": -1,
+      "unless": "prepared",
+      "gap": "Printed as \"-1 to -2 unless prepared\". Proposed: -1; -2 for a body in the churn; a Neutraliser or an Osmotic Filter counts as prepared."
+     }
+    ]
+   },
+   "zones": [
+    {
+     "id": "pump",
+     "name": "The pump",
+     "band": "near",
+     "tags": [],
+     "note": "the barge and its hose; loud"
+    },
+    {
+     "id": "churn",
+     "name": "The churn",
+     "band": "mid",
+     "tags": [
+      "current",
+      "difficult"
+     ],
+     "note": "drags a body 1 band per Cycle unless it wins Fluid Navigation at Standard"
+    },
+    {
+     "id": "enzyme-floor",
+     "name": "The mid floor",
+     "band": "mid",
+     "tags": [],
+     "note": "the Enzyme Field"
+    },
+    {
+     "id": "dry-ribs",
+     "name": "The dry ribs",
+     "band": "mid",
+     "tags": [
+      "advantage:strike"
+     ],
+     "note": "walkable along the wall, out of the field and the churn"
+    },
+    {
+     "id": "still",
+     "name": "The still",
+     "band": "contact",
+     "tags": [],
+     "note": "at the bottom; the first crew's four bodies"
+    }
+   ],
+   "exits": [
+    {
+     "to": "brood",
+     "name": "the pyloric channels, up",
+     "open": "not-in-fight"
+    },
+    {
+     "to": "left-with-cut",
+     "name": "the pump shaft",
+     "open": "not-in-fight"
+    },
+    {
+     "to": "soft-field",
+     "name": "back down the cut-lane",
+     "open": "not-in-fight"
+    }
+   ],
+   "creatures": [
+    {
+     "block": "cytoplasmic-bleeder",
+     "count": 3,
+     "band": "mid",
+     "present": "on-arrival",
+     "stance": "hunting",
+     "hostileOn": [
+      "enter-zone:enzyme-floor",
+      "enter-zone:churn",
+      "strike",
+      "pump-opened"
+     ],
+     "note": "They want the warm fluid and the plasma in it."
+    },
+    {
+     "block": "detritus-feeder",
+     "count": 2,
+     "band": "contact",
+     "present": "on-arrival",
+     "stance": "indifferent",
+     "hostileOn": [
+      "strike"
+     ],
+     "note": "At the still, on the first crew. In a fight they Render the four bodies, one each per turn."
+    }
+   ],
+   "npcs": [
+    {
+     "id": "barge-crew",
+     "name": "the Hegemony pump crew (nine)",
+     "wants": "to finish the shift",
+     "offers": [],
+     "says": [
+      "what the pump does",
+      "they are Guild-licensed and will see who touched it"
+     ]
+    },
+    {
+     "id": "osk",
+     "name": "Pump-Hand Osk",
+     "wants": "not to die",
+     "stats": {
+      "mt": 12,
+      "mi": 24
+     },
+     "scripted": "Taken by the churn on the Cycle after loud:render-hall: he goes Dormant with a Countdown running.",
+     "offers": [],
+     "says": [
+      "once stabilised: where the Gut Stone lies"
+     ]
+    }
+   ],
+   "interactables": [
+    {
+     "id": "taste-haze",
+     "name": "Taste the haze on the mid floor",
+     "action": "sense",
+     "pool": "OSM + Chemoreception",
+     "threshold": {
+      "printed": 14
+     },
+     "unhurried": true,
+     "onSuccess": [
+      "discover:enzyme-field",
+      "reveal:2"
+     ]
+    },
+    {
+     "id": "walk-ribs",
+     "name": "Go along the dry ribs",
+     "action": "drift",
+     "onSuccess": [
+      "move:dry-ribs"
+     ],
+     "note": "No roll. Avoids the field and the churn."
+    },
+    {
+     "id": "open-pump",
+     "name": "Seize or open the pump",
+     "action": "synthesise",
+     "pool": "RTC + Synthesis, or VSC + Vigour to seize it",
+     "threshold": "standard",
+     "onSuccess": [
+      "event:pump-opened",
+      "disarm:enzyme-field",
+      "site-modifier:creatures -2 dice",
+      "reveal:pump-shaft-open"
+     ],
+     "onFailure": [
+      "the crew turn hostile to the attempt"
+     ],
+     "gap": "No pool or Threshold is printed, nor a number for \"both Orders lose their footing\". Proposed as shown."
+    },
+    {
+     "id": "read-dead",
+     "name": "Read the first crew's bodies",
+     "action": "sense",
+     "pool": "OSM + Sequence Reading",
+     "threshold": "standard",
+     "unhurried": true,
+     "needs": "at the still; a body not yet Rendered",
+     "onSuccess": [
+      "reveal:3",
+      "flag:knows-stone"
+     ],
+     "gap": "Printed as \"worth a read, not a haul\" with no roll. Proposed as shown. Benches: the Feeders Rendered all four before anyone read them."
+    },
+    {
+     "id": "stabilise-osk",
+     "name": "Stabilise Osk",
+     "action": "stabilise",
+     "pool": "RTC + Synthesis",
+     "threshold": {
+      "printed": 13
+     },
+     "needs": "Osk Dormant; at Contact",
+     "onSuccess": [
+      "flag:knows-stone",
+      "award:stranger"
+     ],
+     "cite": "AT 12 + Level"
+    }
+   ],
+   "nothingElse": "Only the pump can be worked here; the ribs, the hose and the barge do nothing else.",
+   "hazards": [
+    {
+     "id": "enzyme-field",
+     "name": "Enzyme Field",
+     "tier": 2,
+     "discovery": "taste-haze",
+     "trigger": [
+      "enter-zone:enzyme-floor",
+      "strike:in-zone:enzyme-floor"
+     ],
+     "clockGate": null,
+     "amount": 8,
+     "type": "Lytic",
+     "targets": "one",
+     "save": null,
+     "conditions": [],
+     "bandShift": 0,
+     "soakLoss": 1,
+     "frequency": "per-cycle",
+     "counter": [
+      "open-pump",
+      "walk-ribs"
+     ],
+     "afterFiring": null
+    },
+    {
+     "id": "churn-drag",
+     "name": "The churn",
+     "tier": 2,
+     "discovery": "seen",
+     "trigger": [
+      "in-zone:churn"
+     ],
+     "clockGate": null,
+     "amount": 0,
+     "type": null,
+     "targets": "one",
+     "save": {
+      "pool": "DFF + Fluid Navigation",
+      "threshold": "standard",
+      "onSuccess": "none"
+     },
+     "conditions": [],
+     "bandShift": 1,
+     "frequency": "per-cycle",
+     "counter": [
+      "walk-ribs"
+     ],
+     "afterFiring": null
+    }
+   ],
+   "harvest": {
+    "site": null
+   },
+   "awards": [
+    {
+     "id": "stranger",
+     "on": "stabilise-osk",
+     "codon": 20,
+     "once": true
+    }
+   ],
+   "secrets": [
+    {
+     "tier": 1,
+     "text": "Everything in the stomach is scoured clean except one warm, swollen plug."
+    },
+    {
+     "tier": 2,
+     "text": "The haze has a sheen: it strips membrane."
+    },
+    {
+     "tier": 3,
+     "text": "From the still you can see where the plug lies: the far curve of the gut."
+    }
+   ],
+   "danger": {
+    "rating": "Standard",
+    "bsp": 8,
+    "announce": false
+   },
+   "lesson": "The Pulse War: terrain is the main character."
+  },
+  {
+   "id": "brood",
+   "name": "The Brood of the Not-Whale",
+   "cite": "8.4",
+   "readAloud": "A chamber that should not exist in a dead animal: warm, lit and sweet. Three hundred blind juveniles, whale-shaped but wrong, circle a warm shard of slag. At the gate a grey drone elder has set up a customs post, with forms.",
+   "medium": {
+    "tonic": "isotonic",
+    "viscosity": 1,
+    "flow": 1,
+    "modifiers": []
+   },
+   "zones": [
+    {
+     "id": "customs-post",
+     "name": "The customs post",
+     "band": "contact",
+     "tags": [],
+     "note": "at the gate"
+    },
+    {
+     "id": "brood-channels",
+     "name": "The brood-channels",
+     "band": "mid",
+     "tags": [
+      "current"
+     ],
+     "note": "a sweet current"
+    },
+    {
+     "id": "nursery",
+     "name": "The fold-nursery",
+     "band": "far",
+     "tags": [],
+     "note": "around the warm shard"
+    }
+   ],
+   "exits": [
+    {
+     "to": "gut-stone",
+     "name": "the pyloric duct",
+     "open": "not-in-fight"
+    },
+    {
+     "to": "render-hall",
+     "name": "back the way you came",
+     "open": "not-in-fight"
+    }
+   ],
+   "creatures": [
+    {
+     "block": "receptor-lurker",
+     "count": 2,
+     "band": "near",
+     "present": "on:brood-cut",
+     "stance": "hostile",
+     "alsoPresentOn": [
+      "strike"
+     ]
+    },
+    {
+     "block": "drifter-shoal",
+     "count": 3,
+     "band": "mid",
+     "present": "on:brood-cut",
+     "stance": "hostile",
+     "alsoPresentOn": [
+      "strike"
+     ]
+    }
+   ],
+   "npcs": [
+    {
+     "id": "nine-folds",
+     "name": "Nine-Folds, the drone elder",
+     "wants": "the brood registered: a witness, a signature, and a body that can hold paper",
+     "offers": [
+      {
+       "id": "register",
+       "gives": "a Name, the Choir's goodwill and a G Specimen",
+       "price": "the Cohort signs the claim of what the not-whale is"
+      },
+      {
+       "id": "tell",
+       "gives": "what the brood is",
+       "price": "a registration signature"
+      }
+     ],
+     "says": [
+      "what the brood is worth cut: 400 to 900 S, and what it costs"
+     ]
+    }
+   ],
+   "interactables": [
+    {
+     "id": "smell-brood",
+     "name": "Smell what the brood is",
+     "action": "sense",
+     "pool": "OSM + Chemoreception",
+     "threshold": "standard",
+     "unhurried": true,
+     "onSuccess": [
+      "reveal:3",
+      "award:not-whale",
+      "flag:knows-brood"
+     ],
+     "gap": "No Threshold printed. Proposed Standard."
+    },
+    {
+     "id": "register",
+     "name": "Register the brood",
+     "action": null,
+     "needs": "flag:knows-brood or Nine-Folds' telling; one organism signs",
+     "setPiece": "registration",
+     "onSuccess": [
+      "event:brood-registered",
+      "flag:named",
+      "gain:1 G"
+     ]
+    },
+    {
+     "id": "cut-brood",
+     "name": "Cut the brood",
+     "action": "harvest",
+     "pool": "OSM or RTC + Synthesis",
+     "threshold": "standard",
+     "onAttempt": [
+      "event:brood-cut"
+     ],
+     "onSuccess": [
+      "gain:400 + 100 x Overflow S, to 900"
+     ],
+     "gap": "\"400 to 900 S\" has no rule for the amount. Proposed: 400 plus 100 per point of Overflow, capped at 900."
+    }
+   ],
+   "nothingElse": "The shard is only warm; the forms mean nothing unless signed.",
+   "hazards": [],
+   "harvest": {
+    "site": null
+   },
+   "awards": [
+    {
+     "id": "not-whale",
+     "on": "smell-brood or offer:tell",
+     "codon": 25,
+     "once": true
+    }
+   ],
+   "secrets": [
+    {
+     "tier": 1,
+     "text": "The juveniles have six fins where a Drifter has four."
+    },
+    {
+     "tier": 2,
+     "text": "The room feels like being asked questions."
+    },
+    {
+     "tier": 3,
+     "text": "The brood's chemistry matches the slag, not the whale: the whale was herding it."
+    }
+   ],
+   "danger": {
+    "rating": "Standard",
+    "bsp": 7,
+    "announce": false,
+    "note": "Only if the brood is startled."
+   },
+   "lesson": "The law and the ledger."
+  },
+  {
+   "id": "gut-stone",
+   "name": "The Gut Stone",
+   "cite": "8.5",
+   "readAloud": "A plug of fused slag, gut-crud and salt, thirty Drifts across, wedged in the curve of the gut. It is warm. A field of shards drifts before it and an acid halo clings to its face. One shaft leads up.",
+   "medium": {
+    "tonic": "mixed",
+    "viscosity": 3,
+    "flow": 4,
+    "modifiers": []
+   },
+   "zones": [
+    {
+     "id": "stone-face",
+     "name": "The stone face",
+     "band": "contact",
+     "tags": [],
+     "note": "inside the acid halo"
+    },
+    {
+     "id": "shard-field",
+     "name": "The shard field",
+     "band": "mid",
+     "tags": [
+      "difficult"
+     ],
+     "note": "everything cuts",
+     "gap": "\"Difficult ground; everything cuts\" has no numbers. Proposed: Drifting through costs 1 extra Pulse Point; no damage."
+    },
+    {
+     "id": "exit-shaft",
+     "name": "The exit shaft",
+     "band": "far",
+     "tags": [],
+     "note": "up to the Render Hall's pump"
+    }
+   ],
+   "exits": [
+    {
+     "to": "escaped",
+     "name": "the exit shaft",
+     "open": "always",
+     "note": "during the chase this is the finish line"
+    },
+    {
+     "to": "brood",
+     "name": "the pyloric duct",
+     "open": "not-in-fight"
+    }
+   ],
+   "creatures": [
+    {
+     "block": "protease-warden",
+     "count": 1,
+     "band": "mid",
+     "present": "on-arrival",
+     "stance": "will-talk",
+     "hostileOn": [
+      "strike",
+      "take:canister"
+     ],
+     "standsDownOn": [
+      "flag:serial-carried",
+      "clock:TOLL:5"
+     ],
+     "note": "It wants the canister intact. Neither claimant is evil."
+    },
+    {
+     "block": "cytoplasmic-bleeder",
+     "count": 2,
+     "band": "mid",
+     "present": "on-arrival",
+     "stance": "guarding",
+     "hostileOn": [
+      "strike"
+     ]
+    },
+    {
+     "block": "antigen-gnat",
+     "count": 4,
+     "band": "far",
+     "present": "on-arrival",
+     "stance": "guarding",
+     "hostileOn": [
+      "strike"
+     ]
+    },
+    {
+     "block": "lattice-guardian",
+     "count": 1,
+     "band": "contact",
+     "present": "on:take:canister",
+     "stance": "guarding",
+     "standsDownOn": [
+      "flag:job-complete"
+     ],
+     "gap": "The play note names a Lattice Guardian folded around the print job, but it is not in the encounter list or the 12 BSP. Proposed: it wakes only if the canister is taken, and is not counted in the rating."
+    }
+   ],
+   "npcs": [
+    {
+     "id": "warden",
+     "name": "the Protease Warden's recovery team",
+     "wants": "the canister intact",
+     "offers": [
+      {
+       "id": "carry-serial",
+       "gives": "200 + 50 x Overflow S, to 400, on delivery",
+       "price": "carry the serial into a Hegemony office and say it aloud"
+      }
+     ],
+     "says": [
+      "a price, once the serial is said aloud"
+     ]
+    }
+   ],
+   "interactables": [
+    {
+     "id": "find-serial",
+     "name": "Taste the halo and find the serial",
+     "action": "sense",
+     "pool": "OSM + Chemoreception",
+     "threshold": "standard",
+     "unhurried": true,
+     "onSuccess": [
+      "reveal:3",
+      "flag:knows-serial"
+     ],
+     "gap": "No Threshold printed. Proposed Standard."
+    },
+    {
+     "id": "say-serial",
+     "name": "Say the serial aloud to the Warden",
+     "action": null,
+     "needs": "flag:knows-serial",
+     "onSuccess": [
+      "offer:carry-serial"
+     ]
+    },
+    {
+     "id": "accept-carry",
+     "name": "Agree to carry the serial",
+     "action": "swear",
+     "needs": "offer:carry-serial",
+     "onSuccess": [
+      "oath:file",
+      "flag:serial-carried"
+     ]
+    },
+    {
+     "id": "slip-past",
+     "name": "Mask the Cohort and slip to the stone face",
+     "action": "drift",
+     "pool": "OSM + Concealment",
+     "threshold": "severe",
+     "onSuccess": [
+      "move:stone-face unseen"
+     ],
+     "onFailure": [
+      "all organisms Marked"
+     ],
+     "gap": "No Threshold printed. Proposed Severe (the Warden reads the room for a living); failure Marks the Cohort."
+    },
+    {
+     "id": "convince-guardian",
+     "name": "Convince the Guardian the job is complete",
+     "action": null,
+     "needs": "the Guardian awake",
+     "setPiece": "registration",
+     "onSuccess": [
+      "flag:job-complete"
+     ],
+     "gap": "No procedure printed. Proposed: the same three-exchange procedure as the brood."
+    }
+   ],
+   "nothingElse": "The stone itself cannot be cut: slag, salt and acid.",
+   "hazards": [
+    {
+     "id": "render-charge",
+     "name": "The Render Charge",
+     "tier": null,
+     "discovery": "the TOLL Clock; players see it",
+     "trigger": [
+      "clock:TOLL:5"
+     ],
+     "clockGate": {
+      "clock": "TOLL",
+      "at": 5
+     },
+     "amount": 20,
+     "type": "Kinetic",
+     "targets": "site",
+     "save": null,
+     "conditions": [],
+     "bandShift": 2,
+     "frequency": "once",
+     "counter": [
+      "be gone before TOLL 5"
+     ],
+     "afterFiring": "setPiece:the-race"
+    }
+   ],
+   "harvest": {
+    "site": null
+   },
+   "awards": [],
+   "secrets": [
+    {
+     "tier": 1,
+     "text": "The stone is warm, and something inside it leaks."
+    },
+    {
+     "tier": 2,
+     "text": "Two things claim this room: an armoured recovery team, and something folded still inside the stone."
+    },
+    {
+     "tier": 3,
+     "text": "The canister's serial is in a format retired before your lineage was written."
+    }
+   ],
+   "danger": {
+    "rating": "Deadly",
+    "bsp": 12,
+    "announce": true
+   },
+   "lesson": "The ending."
+  }
+ ],
+ "setPieces": [
+  {
+   "id": "the-race",
+   "kind": "chase",
+   "cite": "Core 4.14",
+   "steps": [
+    "The Pulse War ends. Creatures not at the stone face stand down; the Warden leaves with the flow.",
+    "Each Cycle every organism that is Up rolls DFF + Fluid Navigation at Standard. A carrier of a Dormant body rolls 1 die fewer.",
+    "Success: move one band toward the exit shaft. Failure: stay.",
+    "An organism at the shaft is out. After 3 Cycles the curve closes: anyone not out is lost with the carcass."
+   ],
+   "rolls": "DFF + Fluid Navigation, Standard",
+   "win": "ending:escaped",
+   "lose": "ending:carcass-ends",
+   "gap": "The Vector says only \"Not survived: raced\", and the Core chase is three lines. Benches improvised it and asked a Dormant organism for a throw. Proposed procedure as shown; the 3-Cycle limit is mine."
+  },
+  {
+   "id": "registration",
+   "kind": "exchange",
+   "cite": "Core 11.2 (Stakes Ladder)",
+   "steps": [
+    "The Director states what success buys before any roll.",
+    "Three exchanges. In each, one organism speaks and rolls AFF + Signal Discourse at Standard.",
+    "Two successes: the claim is signed. Fewer: the offer stands but its price rises one step."
+   ],
+   "rolls": "AFF + Signal Discourse, Standard",
+   "win": "the interactable's onSuccess",
+   "lose": "no change; may be tried once more at a cost",
+   "gap": "The Vector says \"three exchanges, Stakes Ladder visible\" with no roll. Proposed as shown."
+  }
+ ],
+ "endings": [
+  {
+   "id": "escaped",
+   "when": "at least one organism leaves by the exit shaft after the Render Charge",
+   "says": "Out of the whale, with whatever you carried."
+  },
+  {
+   "id": "left-with-cut",
+   "when": "the Cohort leaves by the sled-cable or pump shaft",
+   "says": "You leave with your cut; stamped or not decides what it was worth."
+  },
+  {
+   "id": "walked-away",
+   "when": "the Cohort leaves by the Toll Reach",
+   "says": "The queue closes behind you."
+  },
+  {
+   "id": "carcass-ends",
+   "when": "the race is lost, or every organism is Dormant when the Render Charge fires",
+   "says": "The carcass ends with you in it."
+  },
+  {
+   "id": "whale-goes-over",
+   "when": "CARCASS is full",
+   "says": "The whale goes over; nothing left in it is worth cutting.",
+   "gap": "What \"the whale goes over\" does to a Cohort still inside is not in the coded data."
+  },
+  {
+   "id": "render-cascade",
+   "when": "HUNGER is full",
+   "says": "The Render Cascade: everything in the Reach arrives at once.",
+   "gap": "No procedure in the coded data."
+  }
+ ],
+ "briefings": {
+  "toll-vent": "SITE: The Toll-Vent. A torn flank panel the size of a town square, the channel's current running through it. Folded out of the whale's own gristle is a customs post: a chitin gate, a queue of drones, a toll board priced in Specimens. Beyond the gate a cut-lane runs down into the carcass.\nHERE: 1 Fold Sentinel (guarding; looks: broad, braced and unmarked); 2 Gnaw Swarm (indifferent; looks: a tight, seething coat of soft segments).\nWHO: the customs drones wants the toll, in any printed form.\nCAN BE DONE: Taste the water from the wound; Pay the toll in Specimens; Pay the toll in Substrate; Swear a promise at the witness-seam; Shoulder through the gate; Give the swarms water; Vent the gas pocket slowly. The drones sell nothing and there is no other way through the flank here.\nWAYS OUT: the cut-lane down; back out to the Toll Reach.\nSEEN ON ARRIVAL: Bare patches of old biomass on the wound lip.\nTEACHES: The roll.",
+  "soft-field": "SITE: The Soft Field. Hanging sheets of lipid, cut lanes sweet with Guild claim-line, tally-sleds empty on their cable. At the centre stands the Tally Post, where a cut is weighed, graded and stamped. The tools are stacked and unblooded.\nHERE: 2 Glaze Medusa (guarding; looks: clear as the water, trailing long lines).\nWHO: the Tally Post clerk wants a cut it can stamp under some claim.\nCAN BE DONE: Read the post's ledger; Scout the far panels; Cut a hanging panel; Have the cut weighed and stamped; Cut a panel loose to cloud the lane; Salt a slough patch; Take the first crew's salt cache. The stacked tools are ordinary and the sleds are empty; nothing else here can be worked.\nWAYS OUT: the cut-lane to the stomach; the sled-cable to the surface; back up the cut-lane.\nSEEN ON ARRIVAL: A tally-sled loaded with nothing but tools.\nTEACHES: The harvest. This is the Ledger's room.",
+  "render-hall": "SITE: The Render Hall. The stomach is still warm and still churning; the fluid pulls at you. A Hegemony pump barge and its crew of nine run a hose near the entrance. Dry ribs line the wall. At the bottom lies the still, hot and quiet.\nHERE: 3 Cytoplasmic Bleeder (hunting; looks: long, soft and whole); 2 Detritus Feeder (indifferent; looks: fat and busy).\nWHO: the Hegemony pump crew (nine) wants to finish the shift; Pump-Hand Osk wants not to die.\nCAN BE DONE: Taste the haze on the mid floor; Go along the dry ribs; Seize or open the pump; Read the first crew's bodies; Stabilise Osk. Only the pump can be worked here; the ribs, the hose and the barge do nothing else.\nWAYS OUT: the pyloric channels, up; the pump shaft; back down the cut-lane.\nSEEN ON ARRIVAL: Everything in the stomach is scoured clean except one warm, swollen plug.\nTEACHES: The Pulse War: terrain is the main character.",
+  "brood": "SITE: The Brood of the Not-Whale. A chamber that should not exist in a dead animal: warm, lit and sweet. Three hundred blind juveniles, whale-shaped but wrong, circle a warm shard of slag. At the gate a grey drone elder has set up a customs post, with forms.\nHERE: no creatures in sight.\nWHO: Nine-Folds, the drone elder wants the brood registered: a witness, a signature, and a body that can hold paper.\nCAN BE DONE: Smell what the brood is; Register the brood; Cut the brood. The shard is only warm; the forms mean nothing unless signed.\nWAYS OUT: the pyloric duct; back the way you came.\nSEEN ON ARRIVAL: The juveniles have six fins where a Drifter has four.\nTEACHES: The law and the ledger.",
+  "gut-stone": "SITE: The Gut Stone. A plug of fused slag, gut-crud and salt, thirty Drifts across, wedged in the curve of the gut. It is warm. A field of shards drifts before it and an acid halo clings to its face. One shaft leads up.\nHERE: 1 Protease Warden (will-talk; looks: pale kit unmarked, register arm raised); 2 Cytoplasmic Bleeder (guarding; looks: long, soft and whole); 4 Antigen Gnat (guarding; looks: a loose cloud of rust-bright motes).\nWHO: the Protease Warden's recovery team wants the canister intact.\nCAN BE DONE: Taste the halo and find the serial; Say the serial aloud to the Warden; Agree to carry the serial; Mask the Cohort and slip to the stone face; Convince the Guardian the job is complete. The stone itself cannot be cut: slag, salt and acid.\nWAYS OUT: the exit shaft; the pyloric duct.\nSEEN ON ARRIVAL: The stone is warm, and something inside it leaks.\nSAY FIRST: \"This is Deadly.\"\nTEACHES: The ending."
+ }
+}

@@ -102,7 +102,7 @@ test('a creature\'s turn: move, strike with real dice, bite within the swarm all
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'far' }], ownDice: { wall: 1, eyes: 1, 'Order I: Lytic Swarms': 6 } }, ctx('host'));
   const T = toolbox({ state: s, scenario, bestiary, rng });
   const cid = Object.keys(s.creatures)[0];
-  assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).refused, /must Drift closer/);
+  assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).note, /cannot strike yet/);
   assert.equal(T.run('creature_move', { creature: cid, band: 'contact' }).pulse_points_left, 1);
   assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).refused, /costs 2 PP/);
   T.do({ type: 'set', target: { kind: 'cre', id: cid }, field: 'pp', value: 2 });
@@ -113,6 +113,15 @@ test('a creature\'s turn: move, strike with real dice, bite within the swarm all
   assert.equal(typeof T.run('creature_strike', { creature: cid, target: 'eyes' }).hit, 'boolean'); // second bite: no PP
   const after = T.run('end_creature_turn', { creature: cid });
   assert.match(after.acting_is, /a player/);
+});
+
+test('a standing player is not narrated dead or dissolved', () => {
+  const s = seated();
+  const bresk = Object.values(s.organisms).find((o) => /Bresk/.test(o.name));
+  assert.ok(bresk && bresk.mi > 0);
+  const f = checkNarration('Bresk dissolves into the halo, gone for good. Ilm, what do you do?', s);
+  assert.ok(f.some((x) => x.kind === 'rule' && /dead or dissolved/.test(x.text)));
+  assert.ok(!checkNarration('Bresk staggers, leaking, still on his feet. Ilm, what do you do?', s).some((x) => /dissolved/.test(x.text)));
 });
 
 test('narration checks', () => {

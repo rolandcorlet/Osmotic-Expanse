@@ -1,0 +1,186 @@
+{
+ "fields": [
+  {
+   "field": "header",
+   "holds": "id, title, levels, cohortSize, hands[], sessionZero[], premise (2 sentences, read aloud)",
+   "usedBy": "Engine, players"
+  },
+  {
+   "field": "clocks[]",
+   "holds": "id, segments, shownToPlayers, says, stages[], atFull (ending id)",
+   "usedBy": "Engine, players"
+  },
+  {
+   "field": "clockTriggers[]",
+   "holds": "event, clock, change, limit (per-scene | per-session | none), site (or \"any\")",
+   "usedBy": "Engine. Nothing else moves a Clock except the Director's one discretionary segment per Clock per session."
+  },
+  {
+   "field": "events",
+   "holds": "The closed list of event ids that triggers, hazards and awards may name.",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].id, name, readAloud",
+   "holds": "2 to 4 sentences of what a body sees on arrival",
+   "usedBy": "players"
+  },
+  {
+   "field": "sites[].medium",
+   "holds": "tonic, viscosity, flow, modifiers[] (Core modifier ids the site applies)",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].zones[]",
+   "holds": "id, name, band, tags[] (cover, squeezed, current, difficult, advantage:<action>), note",
+   "usedBy": "Engine, players"
+  },
+  {
+   "field": "sites[].exits[]",
+   "holds": "to (site id or ending id), name, open (always | not-in-fight | needs:<flag>), oneWay",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].creatures[]",
+   "holds": "block, count, band, present (on-arrival | on:<event>), stance (hostile | guarding | hunting | indifferent | will-talk), hostileOn[] (events), standsDownOn[] (flags or events), leavesOn[]",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].npcs[]",
+   "holds": "id, name, wants, offers[] {id, gives, price}, says[] (facts it will state, and for what)",
+   "usedBy": "Director briefing; prices to Engine"
+  },
+  {
+   "field": "sites[].interactables[]",
+   "holds": "id, name, action (Core action id), pool, threshold (ladder id or {printed}), unhurried, needs, onSuccess[], onFailure[], reveals (secret tier), once",
+   "usedBy": "Engine builds the Director's tools from this list"
+  },
+  {
+   "field": "sites[].nothingElse",
+   "holds": "A sentence the Director may use when a player tries something unlisted.",
+   "usedBy": "Director"
+  },
+  {
+   "field": "sites[].hazards[]",
+   "holds": "id, name, tier, discovery, trigger[] (event ids), clockGate, amount, type, targets (one | zone:<id> | site), save, conditions[], bandShift, soak, frequency (per-cycle | per-scene | once | standing), counter[], afterFiring",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].harvest",
+   "holds": "site {what, tier, threshold, yield, event} or null; creatures pay what the Bestiary prints",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].awards[]",
+   "holds": "id, on (event or flag), codon, once",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "sites[].secrets[]",
+   "holds": "tier (1 seen on arrival, 2 on a look or taste, 3 on a successful read), text",
+   "usedBy": "Director briefing, released by the Engine"
+  },
+  {
+   "field": "sites[].danger",
+   "holds": "rating (Easy | Standard | Hard | Deadly), bsp, announce (true when the rating must be said aloud first)",
+   "usedBy": "Engine checks it against the Codex budget"
+  },
+  {
+   "field": "sites[].lesson",
+   "holds": "What the site teaches the table.",
+   "usedBy": "Director"
+  },
+  {
+   "field": "setPieces[]",
+   "holds": "id, kind (chase | countdown | exchange), steps[], rolls, win, lose",
+   "usedBy": "Engine"
+  },
+  {
+   "field": "endings[]",
+   "holds": "id, when (state test), says",
+   "usedBy": "Engine"
+  }
+ ],
+ "events": [
+  {
+   "id": "arrive:<site>",
+   "means": "the Cohort enters a site"
+  },
+  {
+   "id": "pulse-war-starts",
+   "means": "a Pulse War begins (the Vector calls this \"loud\")"
+  },
+  {
+   "id": "strike",
+   "means": "any Strike is made at the site"
+  },
+  {
+   "id": "kinetic-hit",
+   "means": "a Kinetic hit lands"
+  },
+  {
+   "id": "momentum",
+   "means": "a Momentum Strike is made"
+  },
+  {
+   "id": "enter-zone:<zone>",
+   "means": "a body enters the zone"
+  },
+  {
+   "id": "in-zone:<zone>",
+   "means": "a body starts its turn in the zone"
+  },
+  {
+   "id": "body-cut",
+   "means": "a destroyed creature or the site is harvested"
+  },
+  {
+   "id": "body-left",
+   "means": "the Cohort leaves a site with a destroyed creature uncut"
+  },
+  {
+   "id": "panel-opens",
+   "means": "a site harvest opens new tissue"
+  },
+  {
+   "id": "oath-filed",
+   "means": "an Oath is filed"
+  },
+  {
+   "id": "oath-kept",
+   "means": "a filed Oath is kept at a cost"
+  },
+  {
+   "id": "toll-refused",
+   "means": "a body crosses the gate with no claim"
+  },
+  {
+   "id": "toll-settled",
+   "means": "the toll is paid or sworn"
+  },
+  {
+   "id": "pump-opened",
+   "means": "the pump is seized or opened"
+  },
+  {
+   "id": "brood-cut",
+   "means": "the brood is harvested"
+  },
+  {
+   "id": "brood-registered",
+   "means": "the claim is signed"
+  },
+  {
+   "id": "clock:<id>:<n>",
+   "means": "that Clock reaches n"
+  },
+  {
+   "id": "reconstitution",
+   "means": "the Cohort takes a Fugue Interval rest"
+  },
+  {
+   "id": "loud:<site>",
+   "means": "a Breach, a Dormancy or a Countdown box at that site"
+  }
+ ]
+}

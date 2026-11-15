@@ -611,3 +611,9 @@ Fixes:
 - 155 tests pass.
 
 Still open: one turn in four needs a rewrite (the main cost in time); "Elite" and "Autophagic Collapse" spoken aloud; the scripted players hit the Warden (Threshold 15) with everyone, so the Deadly fight is a wipe by design of the script, not a Director fault.
+
+## Eighth bench (0394dd46, `--from 5`, Gut Stone, run 1)
+- Speed: 156 model calls, 11.0 s each, 16279 tokens in / 761 out per call, 69.4 tok/s; 63 Director turns at 27.2 s.
+- Gate: 1 refusal (creature_strike at far after a Render Charge scatter). Now a `note` ("cannot strike yet, nothing changed, Drift first"), not a refusal.
+- New narration check: a player body narrated dead/dissolved ("countdown is full ... is gone") while the Engine has MI > 0 and the Countdown not full -> `rule` flag, fixable with one rewrite. Vash was buried at 3 MI and kept acting for two Cycles.
+- Seen, not fixed: Director often addresses the wrong seat at the end of a turn (Ilm named while Vash acts); the second Render Charge hazard_damage was met by the one-shot note but the model still narrated a second slam; scripted players all hit the Warden (Threshold 15) so the Deadly fight is a wipe by script design.

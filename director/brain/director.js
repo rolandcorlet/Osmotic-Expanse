@@ -434,6 +434,15 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // only, so "the toll board" and "the carcass bursts" are not Clocks. A Clock named in a recent log
   // line counts as paid: the page says its own moves out loud, and a Director repeating one a beat
   // later is faithful rather than inventive.
+  // A player's body narrated as dissolved or dead while the Engine has it standing. Bench 15 Nov (Gut
+  // Stone): "His countdown is full ... The only witness to the whale's gut-lock is gone" after a missed
+  // throw and no call; Vash was at 3 MI, kept acting for two Cycles and the table heard him buried.
+  // Only a tool kills a body.
+  const buried = Object.values(state.organisms || {}).filter((o) => o.playerId && o.mi > 0 && !(o.countdownMax && o.countdown >= o.countdownMax)).filter((o) => {
+    const fn = String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return sentences.some((sn) => new RegExp(`\\b${fn}\\b`).test(sn) && /\b(?:dissolv(?:es|ed|ing)|(?:is|was|are|were) (?:dead|gone)|dies|died|unspools?|taken apart|countdown is full)\b/i.test(sn));
+  });
+  if (buried.length) flags.push({ kind: 'rule', text: `Says ${buried.map((o) => o.name).join(' and ')} is dead or dissolved, but the Engine has them standing.` });
   const CLOCK = /\b(CARCASS|TOLL|HUNGER)\b/;
   const CLOCK_MOVE = /\b(moves?|moved|moving|tick(?:s|ed|ing)?|climb(?:s|ed|ing)?|advance[sd]?|advancing|rewind[sd]?|rewinding|drop(?:s|ed|ing)?|falls?|fallen|step(?:s|ped)?|jump(?:s|ed|ing)?|slid(?:e[sd]?|den)|nudge[sd]?|settle[sd]?|creep(?:s|ed|ing)?|spike[sd]?)\b/i;
   const clockLines = (state.log || []).filter((e) => e.kind === 'clock').slice(-12).map((e) => String(e.text)).join(' | ');
@@ -556,13 +565,15 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   // flags stand (and a leak is held for the host).
   const isLeak = (f) => f.kind === 'leak';
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
+  const buriedF = (f) => f.kind === 'rule' && /is dead or dissolved, but the Engine/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
+  const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
     if (flags.some(unpaid)) asks.push('It describes harm that nothing paid for this turn: nobody was hurt. Say only what your calls actually did, and put no damage number in the scene.');
+    if (flags.some(buriedF)) asks.push('It says a player\'s body is dead or dissolved, but the Engine has them standing: only a tool can end a body. Keep them alive and hurting, and say no one is gone.');
     if (flags.some(unpaidClock)) asks.push('It names a Clock moving when nothing moved it: no Clock changed. Name only a Clock the page actually moved, with the segments it stands at, or say nothing about Clocks at all.');
     if (flags.some(reversed)) asks.push('It describes the opposite of a throw the page has already passed: that throw succeeded and the player saw the total on their own screen. Say what the success did - and what it cost, if the page priced a cost - and do not undo it.');
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: use two to four short sentences, under 90 words, keeping only what the players need to act.');
@@ -587,6 +598,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style' || f.kind === 'rule').length;
       if (again && !again.some(isLeak) && bad(again) < bad(flags)) {
         const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery'
+          : flags.some(buriedF) ? 'the first draft buried a body the Engine still had standing'
           : flags.some(unpaid) ? 'the first draft described damage the Engine never paid'
             : flags.some((f) => /^Puts a new question/.test(f.text)) ? 'the first draft moved the table on while a throw was still in the air'
               : 'the first draft ran long, read out dice, or did not end on a question';

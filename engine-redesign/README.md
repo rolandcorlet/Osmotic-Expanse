@@ -49,6 +49,7 @@ So the redesign aim is: every fact the Engine must enforce is printed once as da
 | `03-bestiary-and-codex-prompt.md` | Prompt for the Lytic Bestiary and Director's Codex: creature records, scripts, wound ladders. |
 | `04-vector-format-prompt.md` | Prompt for the campaign module format, using The First Carve as the test case. |
 | `05-engine-redesign-prompt.md` | Prompt for the Engine and Director rebuild that consumes the four outputs above. |
+| `books/` | A first pass at the outputs of prompts 1 to 4: Engine-ready editions of the Core, the Player's Atlas, the Bestiary and the Vector format with The First Carve. Start at `books/README.md`. |
 
 Each prompt stands alone: paste it into a fresh session with the named book attached. Run 1 to 4 in any order; run 5 last.
 

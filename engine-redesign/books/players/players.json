@@ -1,0 +1,3232 @@
+{
+ "meta": {
+  "title": "The Player's Atlas, Engine-ready edition",
+  "version": "0.1 draft, 15 November 2026",
+  "sources": [
+   "PLAYER'S ATLAS",
+   "CORE RULEBOOK ch. IX",
+   "director/data/first-carve.js (Hands)"
+  ]
+ },
+ "creation": {
+  "array": [
+   4,
+   4,
+   3,
+   3,
+   2
+  ],
+  "baselineMin": 1,
+  "baselineMax": 5,
+  "extraPathways": {
+   "count": 2,
+   "rank": 1
+  },
+  "pathwayMaxAtCreation": 2,
+  "substrate": 40,
+  "loan": {
+   "amount": 100,
+   "interest": "5 S per Beat"
+  }
+ },
+ "formulas": [
+  {
+   "id": "miMax",
+   "name": "Max Membrane Integrity",
+   "formula": "12 + VSC*4 + Hull + 2*(Level-1) + 6 per Stage past I + graft and Adaptation bonuses"
+  },
+  {
+   "id": "atpMax",
+   "name": "Max ATP",
+   "formula": "8 + RTC*2"
+  },
+  {
+   "id": "pp",
+   "name": "Pulse Points per turn",
+   "formula": "2 + DFF + modifiers"
+  },
+  {
+   "id": "mt",
+   "name": "Membrane Threshold",
+   "formula": "10 + DFF + graft, size and condition modifiers"
+  },
+  {
+   "id": "flow",
+   "name": "Flow (Drifts per Drift action)",
+   "formula": "3 + DFF"
+  },
+  {
+   "id": "countdown",
+   "name": "Lysis Countdown boxes",
+   "formula": "VSC + ceil(Hull/2) + 2"
+  },
+  {
+   "id": "oath",
+   "name": "Oath boxes",
+   "formula": "AFF"
+  },
+  {
+   "id": "bulk",
+   "name": "Bulk capacity",
+   "formula": "VSC*5 (+1 per Growth)"
+  },
+  {
+   "id": "slots",
+   "name": "Graft Slots",
+   "formula": "1 + 1 per Stage past I"
+  },
+  {
+   "id": "baseline",
+   "name": "Homeostatic Baseline of a pool",
+   "formula": "dice * 3"
+  }
+ ],
+ "actions": [
+  {
+   "id": "strike",
+   "name": "Strike",
+   "pp": 2,
+   "pool": "by Apparatus class: Weight VSC + Membrane Penetration; Lash DFF + Membrane Penetration; Projector DFF or RTC + Membrane Penetration; Resonator RTC + Catalysis; plus the Apparatus bonus",
+   "against": "target Membrane Threshold",
+   "target": "one body in the weapon's band",
+   "legal": "own turn; +1 PP if Heavy"
+  },
+  {
+   "id": "drift",
+   "name": "Drift",
+   "pp": 1,
+   "pool": null,
+   "target": "a band",
+   "legal": "own turn; leaving Contact with a foe there invites a Flank Breach"
+  },
+  {
+   "id": "reserve",
+   "name": "Hold a Reserve",
+   "pp": 1,
+   "pool": null,
+   "target": "self",
+   "legal": "own turn; one held at a time (two with Twin Reserve)"
+  },
+  {
+   "id": "vent",
+   "name": "Vent",
+   "pp": 1,
+   "atp": 2,
+   "pool": null,
+   "target": "self",
+   "legal": "own turn"
+  },
+  {
+   "id": "sense",
+   "name": "Sense",
+   "pp": 1,
+   "pool": "OSM + Chemoreception",
+   "against": "the hidden thing's DFF + Concealment, or the site's printed Threshold",
+   "target": "the site or one body",
+   "legal": "own turn"
+  },
+  {
+   "id": "use-vial",
+   "name": "Use a Vial",
+   "pp": 2,
+   "pool": null,
+   "target": "self or an ally at Contact",
+   "legal": "own turn (a Synthesise action); free outside a fight"
+  },
+  {
+   "id": "stabilise",
+   "name": "Stabilise",
+   "pp": 2,
+   "pool": "RTC + Synthesis",
+   "against": "12 + target Level",
+   "target": "a Dormant ally at Contact",
+   "legal": "own turn (a Synthesise action)"
+  },
+  {
+   "id": "harvest",
+   "name": "Harvest",
+   "pp": 2,
+   "pool": "OSM or RTC + Synthesis (+2 dice with a Harvesting tool)",
+   "against": "tier*4 + 8 or the printed number",
+   "target": "a destroyed creature at Contact, or the site where its record allows",
+   "legal": "own turn, or 10 minutes outside a fight (then no roll if pool*3 meets the Threshold)"
+  },
+  {
+   "id": "remove-lodged",
+   "name": "Pull a Lodged weapon",
+   "pp": 2,
+   "pool": null,
+   "target": "self or an ally at Contact",
+   "legal": "own turn (a Synthesise action); deals 4 damage"
+  },
+  {
+   "id": "burst",
+   "name": "Burst",
+   "pp": "3-5",
+   "atp": "same",
+   "pool": "RTC + Catalysis (or the Burst's own)",
+   "target": "by Burst",
+   "legal": "own turn; knows the Burst; not Locked",
+   "needsRecord": true
+  },
+  {
+   "id": "overdrive",
+   "name": "Overdrive",
+   "pp": 0,
+   "pool": null,
+   "target": "one of your own rolls",
+   "legal": "before the roll; 4 ATP for +2 dice or 4 MI for +4 dice and 1 Stress; once per roll"
+  },
+  {
+   "id": "assist",
+   "name": "Assist",
+   "pp": 0,
+   "pool": null,
+   "target": "an ally's roll",
+   "legal": "same Pathway, in reach; +1 die, at most two helpers"
+  },
+  {
+   "id": "swear",
+   "name": "Swear an Oath",
+   "pp": 0,
+   "pool": null,
+   "target": "who it is owed to",
+   "legal": "a witness the site lists is present; an Oath box is free"
+  },
+  {
+   "id": "end-turn",
+   "name": "End turn",
+   "pp": 0,
+   "pool": null,
+   "target": "self",
+   "legal": "own turn; no roll pending"
+  },
+  {
+   "id": "react",
+   "name": "React (Deflect, Inhibit, Brace, Shed, Flank Breach)",
+   "pp": "the held Reserve",
+   "pool": null,
+   "target": "the triggering attack or effect",
+   "legal": "holding a Reserve; one reaction per Cycle"
+  }
+ ],
+ "apparatus": [
+  {
+   "id": "chitin-flail",
+   "name": "Chitin Flail",
+   "cls": "Weight",
+   "band": "Contact",
+   "bd": [
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "bonusDice": 1,
+   "type": "Kinetic",
+   "props": [
+    "Heavy",
+    "Braced"
+   ],
+   "propNotes": [],
+   "cost": 15
+  },
+  {
+   "id": "osmotic-maul",
+   "name": "Osmotic Maul",
+   "cls": "Weight",
+   "band": "Contact",
+   "bd": [
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "bonusDice": 0,
+   "type": "Osmotic",
+   "props": [
+    "Heavy",
+    "Pushing"
+   ],
+   "propNotes": [
+    "Pushing (push +1 band)"
+   ],
+   "cost": 25
+  },
+  {
+   "id": "pressure-ram",
+   "name": "Pressure Ram",
+   "cls": "Weight",
+   "band": "Contact",
+   "bd": [
+    5,
+    7,
+    9,
+    11,
+    13
+   ],
+   "bonusDice": -1,
+   "type": "Kinetic",
+   "props": [
+    "Heavy",
+    "Two-handed",
+    "Braced",
+    "on Momentum +2 dice"
+   ],
+   "propNotes": [],
+   "cost": 60
+  },
+  {
+   "id": "bony-flail-of-the-wastes",
+   "name": "Bony Flail of the Wastes",
+   "cls": "Weight",
+   "band": "Near",
+   "bd": [
+    4,
+    6,
+    8,
+    10,
+    12
+   ],
+   "bonusDice": 1,
+   "type": "Lytic",
+   "props": [
+    "Reach",
+    "Acidic"
+   ],
+   "propNotes": [
+    "Reach (Near)",
+    "Acidic (−1 soak to target, permanent until repaired)"
+   ],
+   "cost": 220
+  },
+  {
+   "id": "peptide-blade",
+   "name": "Peptide Blade",
+   "cls": "Lash",
+   "band": "Contact",
+   "bd": [
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "bonusDice": 1,
+   "type": "Lytic",
+   "props": [
+    "Fluid",
+    "Silent"
+   ],
+   "propNotes": [],
+   "cost": 20
+  },
+  {
+   "id": "cilia-saw",
+   "name": "Cilia Saw",
+   "cls": "Lash",
+   "band": "Contact",
+   "bd": [
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "bonusDice": 1,
+   "type": "Kinetic",
+   "props": [
+    "Fluid",
+    "Serrated"
+   ],
+   "propNotes": [
+    "Serrated (2+ Overflow also marks Brittle)"
+   ],
+   "cost": 35
+  },
+  {
+   "id": "flagellar-whip",
+   "name": "Flagellar Whip",
+   "cls": "Lash",
+   "band": "Mid",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 0,
+   "type": "Kinetic",
+   "props": [
+    "Reach",
+    "Sweeping"
+   ],
+   "propNotes": [
+    "Reach (Mid)",
+    "Sweeping (all in Contact on a Runaway)"
+   ],
+   "cost": 45
+  },
+  {
+   "id": "needle-dagger",
+   "name": "Needle Dagger",
+   "cls": "Lash",
+   "band": "Contact",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 2,
+   "type": "any",
+   "props": [
+    "Finesse",
+    "Lodged",
+    "Silent"
+   ],
+   "propNotes": [],
+   "cost": 40
+  },
+  {
+   "id": "spore-pistol",
+   "name": "Spore Pistol",
+   "cls": "Projector",
+   "band": "Mid",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 1,
+   "type": "Lytic",
+   "props": [
+    "Reload"
+   ],
+   "propNotes": [
+    "Reload (1 Vial of spores per 3 Shots)"
+   ],
+   "cost": 30
+  },
+  {
+   "id": "barbed-launcher",
+   "name": "Barbed Launcher",
+   "cls": "Projector",
+   "band": "Far",
+   "bd": [
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "bonusDice": 0,
+   "type": "Kinetic",
+   "props": [
+    "Lodged",
+    "Braced",
+    "−1 in Near"
+   ],
+   "propNotes": [],
+   "cost": 55
+  },
+  {
+   "id": "acid-duct",
+   "name": "Acid Duct",
+   "cls": "Projector",
+   "band": "Near",
+   "bd": [
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "bonusDice": 1,
+   "type": "Lytic",
+   "props": [
+    "Spray",
+    "Corrodes"
+   ],
+   "propNotes": [
+    "Spray (affects all in band at −1 die)"
+   ],
+   "cost": 120
+  },
+  {
+   "id": "needle-scatter",
+   "name": "Needle Scatter",
+   "cls": "Projector",
+   "band": "Mid",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 1,
+   "type": "Kinetic",
+   "props": [
+    "Spread",
+    "Precision"
+   ],
+   "propNotes": [],
+   "cost": 200
+  },
+  {
+   "id": "enzyme-horn",
+   "name": "Enzyme Horn",
+   "cls": "Resonator",
+   "band": "Self/Zone",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 1,
+   "type": "Lytic",
+   "props": [
+    "Amplifies Lytic Bursts +1 EV"
+   ],
+   "propNotes": [],
+   "cost": 80
+  },
+  {
+   "id": "phase-bell",
+   "name": "Phase Bell",
+   "cls": "Resonator",
+   "band": "Mid",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 1,
+   "type": "Voltaic",
+   "props": [
+    "Amplifies Galvanic Bursts +1 EV",
+    "Conductive"
+   ],
+   "propNotes": [],
+   "cost": 180
+  },
+  {
+   "id": "ae-crucible",
+   "name": "AE Crucible",
+   "cls": "Resonator",
+   "band": "Self",
+   "bd": null,
+   "bonusDice": 2,
+   "type": "any",
+   "props": [
+    "You may spend 4 ATP instead of a Vial to power one Burst per Cycle"
+   ],
+   "propNotes": [],
+   "cost": 450
+  },
+  {
+   "id": "cryo-vent",
+   "name": "Cryo Vent",
+   "cls": "Resonator",
+   "band": "Mid",
+   "bd": [
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "bonusDice": 1,
+   "type": "Thermic",
+   "props": [
+    "Cold Shock",
+    "Thermal amplification"
+   ],
+   "propNotes": [
+    "Cold Shock (DFF −1 for a Cycle on hit)"
+   ],
+   "cost": 300
+  },
+  {
+   "id": "tuning-fork-of-the-deep-flow",
+   "name": "Tuning Fork of the Deep Flow",
+   "cls": "Resonator",
+   "band": "Far",
+   "bd": [
+    1,
+    3,
+    5,
+    7,
+    9
+   ],
+   "bonusDice": 1,
+   "type": "Osmotic",
+   "props": [
+    "Ranged Osmotic push",
+    "doubles Momentum on allies in the band"
+   ],
+   "propNotes": [],
+   "cost": 500
+  },
+  {
+   "id": "suture-cannon",
+   "name": "Suture Cannon",
+   "cls": "Projector",
+   "band": "Mid",
+   "bd": null,
+   "bonusDice": 1,
+   "type": "heal",
+   "props": [
+    "Fires Substrate darts: Synthesise action heals an ally at EV + Overflow − 4",
+    "6 shots"
+   ],
+   "propNotes": [],
+   "cost": 260
+  },
+  {
+   "id": "harvest-claw",
+   "name": "Harvest Claw",
+   "cls": "Lash",
+   "band": "Contact",
+   "bd": [
+    2,
+    4,
+    6,
+    8,
+    10
+   ],
+   "bonusDice": 0,
+   "type": "Kinetic",
+   "props": [
+    "Harvesting (Harvest checks +2 dice",
+    "one free Harvest per Pulse War)"
+   ],
+   "propNotes": [
+    "Harvesting (Harvest checks +2 dice"
+   ],
+   "cost": 90
+  },
+  {
+   "id": "grapple-tendril",
+   "name": "Grapple Tendril",
+   "cls": "Lash",
+   "band": "Near→Mid",
+   "bd": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "bonusDice": 1,
+   "type": "Kinetic",
+   "props": [
+    "Pull",
+    "Anchor"
+   ],
+   "propNotes": [
+    "Pull (drag target 1 band)",
+    "Anchor (you cannot be pushed)"
+   ],
+   "cost": 110
+  }
+ ],
+ "properties": [
+  {
+   "id": "Heavy",
+   "strikePp": 1,
+   "needs": {
+    "VSC": 3
+   },
+   "say": "slow to swing"
+  },
+  {
+   "id": "Two-handed",
+   "needs": {
+    "VSC": 4
+   },
+   "say": "takes both hands"
+  },
+  {
+   "id": "Braced",
+   "dice": 1,
+   "when": "did not Drift this Cycle",
+   "blocks": [
+    "momentum"
+   ],
+   "say": "set before the swing"
+  },
+  {
+   "id": "Momentum",
+   "dice": 1,
+   "push": 1,
+   "when": "Momentum applies",
+   "say": "carried by the rush"
+  },
+  {
+   "id": "Fluid",
+   "usableWhile": [
+    "Sequestered",
+    "grappled",
+    "pinned"
+   ],
+   "say": "works in a clinch"
+  },
+  {
+   "id": "Silent",
+   "keeps": [
+    "Masked"
+   ],
+   "noFlankBreach": true,
+   "say": "makes no sound"
+  },
+  {
+   "id": "Serrated",
+   "onOverflow": 2,
+   "inflicts": "Brittle",
+   "limit": "once per target per fight",
+   "say": "tears as it leaves"
+  },
+  {
+   "id": "Lodged",
+   "onHit": {
+    "condition": "Lodged"
+   },
+   "removal": {
+    "action": "synthesise",
+    "damage": 4
+   },
+   "say": "the blade stays in"
+  },
+  {
+   "id": "Spread",
+   "targets": "all in band",
+   "dice": -1,
+   "say": "a scatter"
+  },
+  {
+   "id": "Spray",
+   "targets": "all in band",
+   "dice": -1,
+   "say": "a wash across the band"
+  },
+  {
+   "id": "Precision",
+   "riderOnOverflow": 6,
+   "say": "finds the seam"
+  },
+  {
+   "id": "Corrodes",
+   "onHit": {
+    "soak": -1,
+    "max": -3,
+    "until": "repaired"
+   },
+   "say": "eats the armour"
+  },
+  {
+   "id": "Acidic",
+   "onHit": {
+    "soak": -1,
+    "max": -3,
+    "until": "repaired"
+   },
+   "say": "eats the armour"
+  },
+  {
+   "id": "Conductive",
+   "type": "Voltaic",
+   "ignoresSoak": {
+    "family": "Mucoid",
+    "amount": 2
+   },
+   "say": "carries a charge"
+  },
+  {
+   "id": "Reach",
+   "bandShift": 1,
+   "dice": -1,
+   "when": "used at the further band",
+   "say": "long"
+  },
+  {
+   "id": "Amplification",
+   "burstEffect": 1,
+   "when": "a Burst of its domain while held",
+   "say": "sings with the reaction"
+  },
+  {
+   "id": "Pushing",
+   "push": 1,
+   "say": "shoves"
+  },
+  {
+   "id": "Sweeping",
+   "onRunaway": {
+    "targets": "all in Contact"
+   },
+   "say": "sweeps wide"
+  },
+  {
+   "id": "Harvesting",
+   "harvestDice": 2,
+   "freeHarvest": "one per Pulse War",
+   "say": "made for the cut"
+  },
+  {
+   "id": "Pull",
+   "pull": 1,
+   "say": "drags it in"
+  },
+  {
+   "id": "Anchor",
+   "cannotBePushed": true,
+   "say": "holds you fast"
+  },
+  {
+   "id": "Reload",
+   "uses": 3,
+   "refill": "1 Vial of spores",
+   "say": "needs feeding"
+  },
+  {
+   "id": "Finesse",
+   "note": "The book names it but gives no rule.",
+   "needsRuling": true,
+   "say": "light and exact"
+  }
+ ],
+ "graftFamilies": [
+  {
+   "id": "Lipid",
+   "strong": {
+    "Osmotic": 2,
+    "Thermic": 1
+   },
+   "weak": {
+    "Lytic": -2
+   }
+  },
+  {
+   "id": "Fibrous",
+   "strong": {
+    "Kinetic": 2,
+    "Lytic": 1
+   },
+   "weak": {
+    "Thermic": -2
+   }
+  },
+  {
+   "id": "Testate",
+   "strong": {
+    "Lytic": 2,
+    "Kinetic": 1
+   },
+   "weak": {
+    "Osmotic": -2
+   },
+   "dff": -1
+  },
+  {
+   "id": "Mucoid",
+   "strong": {
+    "Thermic": 2,
+    "Voltaic": 2,
+    "Osmotic": 1
+   },
+   "weak": {
+    "Genetic": -2
+   }
+  },
+  {
+   "id": "Somatic",
+   "strong": {
+    "all": 1
+   },
+   "weak": {
+    "Genetic": -2
+   },
+   "upkeep": "1 ATP per Cycle or the soak halves"
+  }
+ ],
+ "grafts": [
+  {
+   "id": "lipid-weave-wrap",
+   "name": "Lipid Weave Wrap",
+   "family": "Lipid",
+   "slots": 0,
+   "soak": 1,
+   "dff": 0,
+   "cost": 20,
+   "miBonus": 5,
+   "text": "+5 max MI; cheap, disposable",
+   "needsRecord": false
+  },
+  {
+   "id": "reinforced-weave",
+   "name": "Reinforced Weave",
+   "family": "Lipid",
+   "slots": 1,
+   "soak": 2,
+   "dff": 0,
+   "cost": 60,
+   "miBonus": 0,
+   "text": "+1 to Pressure Tolerance",
+   "needsRecord": true
+  },
+  {
+   "id": "fibrous-lattice-vest",
+   "name": "Fibrous Lattice Vest",
+   "family": "Fibrous",
+   "slots": 1,
+   "soak": 3,
+   "dff": 0,
+   "cost": 120,
+   "miBonus": 0,
+   "text": "+1 Bulk capacity; can be harvested off a body",
+   "needsRecord": true
+  },
+  {
+   "id": "testate-half-shell",
+   "name": "Testate Half-Shell",
+   "family": "Testate",
+   "slots": 1,
+   "soak": 4,
+   "dff": -1,
+   "cost": 200,
+   "miBonus": 0,
+   "text": "+2 Lytic soak; immune to Cavitation Snap",
+   "needsRecord": true
+  },
+  {
+   "id": "full-testate-carapace",
+   "name": "Full Testate Carapace",
+   "family": "Testate",
+   "slots": 2,
+   "soak": 6,
+   "dff": -2,
+   "cost": 650,
+   "miBonus": 0,
+   "text": "MT −3; cannot be pushed; +2 MI per VSC Grade",
+   "needsRecord": true
+  },
+  {
+   "id": "mucoid-mantle",
+   "name": "Mucoid Mantle",
+   "family": "Mucoid",
+   "slots": 1,
+   "soak": 3,
+   "dff": 0,
+   "cost": 180,
+   "miBonus": 0,
+   "text": "Voltaic/Thermal soak doubled; Genetic −2",
+   "needsRecord": true
+  },
+  {
+   "id": "somatic-bulwark",
+   "name": "Somatic Bulwark",
+   "family": "Somatic",
+   "slots": 2,
+   "soak": 5,
+   "dff": 0,
+   "cost": 900,
+   "miBonus": 0,
+   "text": "Heals itself 2 MI/Cycle for 1 ATP; can be *talked down* by Genetic effects",
+   "needsRecord": true
+  },
+  {
+   "id": "chitin-spurs",
+   "name": "Chitin Spurs",
+   "family": "Fibrous",
+   "slots": 1,
+   "soak": 1,
+   "dff": 0,
+   "cost": 90,
+   "miBonus": 0,
+   "text": "Reactive Osmosis now deals 5 Kinetic to the attacker",
+   "needsRecord": true
+  },
+  {
+   "id": "osmotic-filter",
+   "name": "Osmotic Filter",
+   "family": "Lipid",
+   "slots": 1,
+   "soak": 1,
+   "dff": 0,
+   "cost": 150,
+   "miBonus": 0,
+   "text": "Ignore one tonic state; +2 to Pressure Tolerance",
+   "needsRecord": true
+  },
+  {
+   "id": "scent-dampener",
+   "name": "Scent Dampener",
+   "family": "Mucoid",
+   "slots": 1,
+   "soak": 0,
+   "dff": 0,
+   "cost": 220,
+   "miBonus": 0,
+   "text": "You cannot be tracked by scent while Venting once per Fugue Interval",
+   "needsRecord": true
+  },
+  {
+   "id": "secondary-lens",
+   "name": "Secondary Lens",
+   "family": "Lipid",
+   "slots": 1,
+   "soak": 0,
+   "dff": 0,
+   "cost": 140,
+   "miBonus": 0,
+   "text": "See in turbid; +2 OSM in light bloom",
+   "needsRecord": true
+  },
+  {
+   "id": "deep-ear",
+   "name": "Deep Ear",
+   "family": "Fibrous",
+   "slots": 1,
+   "soak": 0,
+   "dff": 0,
+   "cost": 160,
+   "miBonus": 0,
+   "text": "Sense bands and Flow as a free action; +1 PP in ambuscades you set",
+   "needsRecord": true
+  },
+  {
+   "id": "vacuole-sac",
+   "name": "Vacuole Sac",
+   "family": "Lipid",
+   "slots": 1,
+   "soak": 0,
+   "dff": 0,
+   "cost": 110,
+   "miBonus": 0,
+   "text": "+10 Bulk; can store 20 Substrate as an emergency ration (2 MI heal per 5 S drunk)",
+   "needsRecord": true
+  },
+  {
+   "id": "flagellar-motor",
+   "name": "Flagellar Motor",
+   "family": "Fibrous",
+   "slots": 1,
+   "soak": 0,
+   "dff": 0,
+   "cost": 300,
+   "miBonus": 0,
+   "text": "+2 Flow; Momentum threshold drops to 2 Drifts",
+   "needsRecord": true
+  },
+  {
+   "id": "pore-locks",
+   "name": "Pore Locks",
+   "family": "Testate",
+   "slots": 1,
+   "soak": 2,
+   "dff": 0,
+   "cost": 240,
+   "miBonus": 0,
+   "text": "Immune to Grapple/Anchor; Leaking effects auto-close",
+   "needsRecord": true
+  },
+  {
+   "id": "heat-sink",
+   "name": "Heat Sink",
+   "family": "Testate",
+   "slots": 1,
+   "soak": 2,
+   "dff": 0,
+   "cost": 320,
+   "miBonus": 0,
+   "text": "Absorb Thermal: spend absorbed damage as +BD on your next Strike (max +6)",
+   "needsRecord": true
+  },
+  {
+   "id": "reactive-nodes",
+   "name": "Reactive Nodes",
+   "family": "Somatic",
+   "slots": 2,
+   "soak": 1,
+   "dff": 0,
+   "cost": 550,
+   "miBonus": 0,
+   "text": "Your Reactive Osmosis costs 0 PP once per Cycle",
+   "needsRecord": true
+  },
+  {
+   "id": "signal-vane",
+   "name": "Signal Vane",
+   "family": "Mucoid",
+   "slots": 1,
+   "soak": 0,
+   "dff": 0,
+   "cost": 400,
+   "miBonus": 0,
+   "text": "+2 Signal Discourse; allies in Mid band may spend your Reserve (their own PP to buy it)",
+   "needsRecord": true
+  },
+  {
+   "id": "antigen-hood",
+   "name": "Antigen Hood",
+   "family": "Fibrous",
+   "slots": 1,
+   "soak": 2,
+   "dff": 0,
+   "cost": 500,
+   "miBonus": 0,
+   "text": "Immune Sentinels treat you as \"self\" once per scene",
+   "needsRecord": true
+  },
+  {
+   "id": "nucleoid-shard-inlay",
+   "name": "Nucleoid Shard Inlay",
+   "family": "Somatic",
+   "slots": 2,
+   "soak": 1,
+   "dff": 0,
+   "cost": 1400,
+   "miBonus": 0,
+   "text": "+1 RTC; one extra Burst sequence can be hot; −1 to Genetic saves (the Code notices you)",
+   "needsRecord": true
+  }
+ ],
+ "vials": [
+  {
+   "id": "glucose-ampule",
+   "name": "Glucose Ampule",
+   "cost": 3,
+   "effect": {
+    "atp": 4
+   },
+   "text": "+4 ATP now",
+   "needsRecord": false
+  },
+  {
+   "id": "amino-drip",
+   "name": "Amino Drip",
+   "cost": 6,
+   "effect": {
+    "heal": 6,
+    "stress": 1
+   },
+   "text": "heal 6 MI; mark 1 Stress (it is raw and unpleasant)",
+   "needsRecord": false
+  },
+  {
+   "id": "lipid-patch",
+   "name": "Lipid Patch",
+   "cost": 8,
+   "effect": {
+    "ends": [
+     "Leaking",
+     "Brittle"
+    ],
+    "soakVs": {
+     "Lytic": 2
+    },
+    "cycles": 3
+   },
+   "text": "close Leaking; +2 soak vs Lytic for 3 Cycles",
+   "needsRecord": false
+  },
+  {
+   "id": "ae-droplet",
+   "name": "AE Droplet",
+   "cost": 15,
+   "effect": {
+    "burstDice": 2
+   },
+   "text": "+2 dice to one Burst, or fuel a Burst you do not know once",
+   "needsRecord": false
+  },
+  {
+   "id": "catalyst-charge",
+   "name": "Catalyst Charge",
+   "cost": 20,
+   "effect": {
+    "nextStrike": {
+     "bd": 2,
+     "riderOnOverflow": 4
+    }
+   },
+   "text": "your next Strike this Cycle: +2 BD and its Rider triggers on Overflow 4+",
+   "needsRecord": false
+  },
+  {
+   "id": "neutraliser",
+   "name": "Neutraliser",
+   "cost": 18,
+   "effect": {
+    "ignoreTonic": "scene"
+   },
+   "text": "ignore a tonic state for 1 scene; or end Acidic effects on you",
+   "needsRecord": false
+  },
+  {
+   "id": "stress-flush",
+   "name": "Stress Flush",
+   "cost": 12,
+   "effect": {
+    "stress": "clear",
+    "mi": -2
+   },
+   "text": "clear all Stress; −2 MI (the purge costs)",
+   "needsRecord": false
+  },
+  {
+   "id": "inhibitor-grenade",
+   "name": "Inhibitor Grenade",
+   "cost": 25,
+   "effect": {
+    "target": "one foe",
+    "nextRollDice": -2,
+    "targetStress": 1
+   },
+   "text": "one enemy's next roll: −2 dice, and they mark 1 Stress",
+   "needsRecord": false
+  },
+  {
+   "id": "pheromone-mask",
+   "name": "Pheromone Mask",
+   "cost": 20,
+   "effect": {
+    "gains": [
+     "Masked"
+    ]
+   },
+   "text": "Masked until you Strike or speak loudly",
+   "needsRecord": false
+  },
+  {
+   "id": "scent-bomb",
+   "name": "Scent Bomb",
+   "cost": 22,
+   "effect": {
+    "zone": true,
+    "inflicts": [
+     "Marked"
+    ],
+    "thenSelf": [
+     "Marked"
+    ]
+   },
+   "text": "everyone in zone is Marked; allies gain +1 die against them, then the bomb's owner is Marked too",
+   "needsRecord": false
+  },
+  {
+   "id": "turgor-shot",
+   "name": "Turgor Shot",
+   "cost": 25,
+   "effect": {
+    "pp": 1,
+    "flow": 4,
+    "cycles": 3,
+    "after": [
+     "Turgid"
+    ]
+   },
+   "text": "+1 PP and +4 Flow for 3 Cycles; Turgid afterwards",
+   "needsRecord": false
+  },
+  {
+   "id": "sequence-key",
+   "name": "Sequence Key",
+   "cost": 60,
+   "effect": {
+    "dice": {
+     "Sequence Reading": 3
+    }
+   },
+   "text": "+3 to Sequence Reading; reveals one forged or hidden sequence",
+   "needsRecord": false
+  },
+  {
+   "id": "graft-antidote",
+   "name": "Graft Antidote",
+   "cost": 45,
+   "effect": null,
+   "text": "end Rejection for 1 Beat, or suppress a Parasitic Graft for a scene",
+   "needsRecord": true
+  },
+  {
+   "id": "substrate-foam",
+   "name": "Substrate Foam",
+   "cost": 10,
+   "effect": {
+    "structureMi": 10
+   },
+   "text": "seals a structure (restores 10 MI to a wall/gate)",
+   "needsRecord": false
+  },
+  {
+   "id": "coagulant-pack",
+   "name": "Coagulant Pack",
+   "cost": 14,
+   "effect": {
+    "stabilise": true,
+    "countdown": -1
+   },
+   "text": "stabilise a Dormant ally without a check; closes 1 Countdown box",
+   "needsRecord": false
+  },
+  {
+   "id": "hot-iron-dose",
+   "name": "Hot Iron Dose",
+   "cost": 30,
+   "effect": {
+    "miFloor": 1,
+    "until": "Reconstitution",
+    "noHealing": true
+   },
+   "text": "cauterise: your MI cannot drop below 1 until your next Reconstitution; you cannot heal",
+   "needsRecord": false
+  },
+  {
+   "id": "chitin-hardener",
+   "name": "Chitin Hardener",
+   "cost": 35,
+   "effect": {
+    "soak": 2,
+    "dff": -1,
+    "cycles": 4
+   },
+   "text": "+2 soak for 4 Cycles; −1 DFF",
+   "needsRecord": false
+  },
+  {
+   "id": "memory-vial",
+   "name": "Memory Vial",
+   "cost": 80,
+   "effect": null,
+   "text": "record one scene's chemical semiotics; replay it later to +2 AFF in a related contest",
+   "needsRecord": true
+  },
+  {
+   "id": "bloom-spore",
+   "name": "Bloom Spore",
+   "cost": 90,
+   "effect": {
+    "zone": true,
+    "alliesRegen": 2,
+    "cycles": 3,
+    "inflicts": [
+     "Marked"
+    ]
+   },
+   "text": "every ally in zone regens 2 MI/Cycle for 3 Cycles; every enemy in the zone is Marked",
+   "needsRecord": false
+  },
+  {
+   "id": "terminal-dropper",
+   "name": "Terminal Dropper",
+   "cost": 400,
+   "effect": {
+    "burstEffect": "x3",
+    "stress": 4,
+    "damage": {
+     "amount": 8,
+     "type": "Lytic"
+    }
+   },
+   "text": "one Burst's Effect Value tripled; you mark 4 Stress and take 8 Lytic damage",
+   "needsRecord": false
+  }
+ ],
+ "lineages": [
+  {
+   "id": "amoeban",
+   "name": "Amoeban",
+   "baselines": {
+    "RTC": 1,
+    "OSM": -1
+   },
+   "bondedDomain": "Lytic",
+   "gift": "Reshape",
+   "frailty": "Unwalled",
+   "needsRecord": true
+  },
+  {
+   "id": "epithalian",
+   "name": "Epithalian",
+   "baselines": {
+    "VSC": 1,
+    "DFF": -1
+   },
+   "bondedDomain": "Protean",
+   "gift": "Draw Tight",
+   "frailty": "Set",
+   "needsRecord": true
+  },
+  {
+   "id": "flagellan",
+   "name": "Flagellan",
+   "baselines": {
+    "DFF": 1,
+    "VSC": -1
+   },
+   "bondedDomain": "Osmotic",
+   "gift": "Current Sense",
+   "frailty": "Obligate Drifter",
+   "needsRecord": true
+  },
+  {
+   "id": "lysosan",
+   "name": "Lysosan",
+   "baselines": {
+    "OSM": 1,
+    "AFF": -1
+   },
+   "bondedDomain": "Somatic",
+   "gift": "Latency",
+   "frailty": "Registered",
+   "needsRecord": true
+  },
+  {
+   "id": "immunan",
+   "name": "Immunan",
+   "baselines": {
+    "AFF": 1,
+    "RTC": -1
+   },
+   "bondedDomain": "Galvanic",
+   "gift": "Self/Kin",
+   "frailty": "Literal",
+   "needsRecord": true
+  },
+  {
+   "id": "barophil",
+   "name": "Barophil",
+   "baselines": {
+    "VSC": 1,
+    "DFF": -1
+   },
+   "bondedDomain": "Thermic",
+   "gift": "Hardened",
+   "frailty": "Slow Reaction",
+   "needsRecord": true
+  }
+ ],
+ "phenotypes": [
+  {
+   "id": "acidic-corrosor",
+   "name": "Acidic Corrosor",
+   "role": "Striker / attrition",
+   "hull": 3,
+   "key": [
+    "RTC",
+    "VSC"
+   ],
+   "bondedDomain": "Lytic",
+   "pathways": {
+    "Catalysis": 2,
+    "Membrane Penetration": 1,
+    "Sequence Reading": 1
+   },
+   "signature": {
+    "name": "ETCH",
+    "text": "Every Lytic hit you land marks **1 Etch** on the target (max 5, one creature at a time visible to you; you can *move* your Etch focus by spending 1 PP). Etch is spent, on your turn, for any combination:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Digest Armour",
+     "optional": false,
+     "text": "Your own grafts are acid-hardened: +1 soak vs Lytic; when an attacker uses Lytic damage on you, they take `1 + Stage` Lytic back.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Spreading Taint",
+     "optional": true,
+     "text": "A Runaway Catalysis on a Lytic hit marks Etch on **one other** creature in Near band. Etch max rises to 6.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Unbound Appetite",
+     "optional": false,
+     "text": "You may spend Etch on **structures and terrain**: eat a wall, a gate, a Gel zone, a hazard. 3 Etch = a 4-Drift hole in anything of tier below yours.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Total Dissolution",
+     "optional": true,
+     "text": "Once per Pulse War, spend all Etch on a target: it takes `4 × Stage` Lytic damage ignoring all soak. If this takes it below 0 MI, its body is **erased**: no Harvest, no Re-Synthesis, no Legacy for anyone. This is the most feared sentence in the Expanse.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Acid Duct (120 S if affordable, else Spore Pistol), Lytic-friendly graft (Lipid Wrap), 2 Vials."
+  },
+  {
+   "id": "membrane-breacher",
+   "name": "Membrane Breacher",
+   "role": "Breaker / opener",
+   "hull": 6,
+   "key": [
+    "VSC",
+    "DFF"
+   ],
+   "bondedDomain": "Osmotic",
+   "pathways": {
+    "Membrane Penetration": 2,
+    "Pressure Tolerance": 1,
+    "Fluid Navigation": 1
+   },
+   "signature": {
+    "name": "BREACH CHARGE",
+    "text": "Whenever your attack beats a target's MT by **6 or more** (i.e. Overflow ≥ 6 against its Membrane Threshold), you **Breach** it:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Forced Entry",
+     "optional": false,
+     "text": "You ignore the first 3 points of soak from any Testate or Fibrous graft when you Strike. Doors never cost you a Synthesise action: 1 PP.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Rupture Push",
+     "optional": false,
+     "text": "A Breach also throws the target **1 band** away from you (its choice of axis). Enemies that hit a wall take 4 Kinetic and become Jostled.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Spatial Breach",
+     "optional": true,
+     "text": "Spend a Breach to open a **hole in a membrane or a zone**: any ally may move as a free Drift through it, and the passage lasts until the end of the next Cycle. Walls become suggestions; this is how you rescue someone from Sequester.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Rupture Protocol",
+     "optional": true,
+     "text": "Once per Pulse War, before you roll a Strike, declare it: if it hits, **treat its Overflow as 8** (Breach triggers, and damage is computed with 8). Against structures, this destroys anything below tier 4 outright.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Pressure Ram or Chitin Flail, Pore Locks graft if you can, Harvest Claw optional."
+  },
+  {
+   "id": "enzymatic-splicer",
+   "name": "Enzymatic Splicer",
+   "role": "Support / re-wiring",
+   "hull": 3,
+   "key": [
+    "RTC",
+    "OSM"
+   ],
+   "bondedDomain": "Somatic",
+   "pathways": {
+    "Catalysis": 2,
+    "Synthesis": 1,
+    "Chemoreception": 1
+   },
+   "signature": {
+    "name": "SPLICE",
+    "text": "As a Synthesise action (2 PP), you may perform one **Splice** on a creature within Mid band. A Splice moves something that already exists:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Field Revision",
+     "optional": false,
+     "text": "Your Substrate Patch and Mend-style heals also end one condition of *your* choice on the target, not the target's choice.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Rank Splice",
+     "optional": true,
+     "text": "Once per Pulse War, for 3 Cycles, move **1 Pathway rank** from one creature in Contact to another. A hostile's catalysis just dropped a die; your Kinetic Striker suddenly knows Fluid Navigation.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Type Splice",
+     "optional": false,
+     "text": "As part of a Splice, change the **damage type** of an ally's next Strike or Burst to any type you choose (they must still be able to cause it — you are rewriting what the wound *does*). Synergy: an Antibody Archer's Kinetic bolt becomes Genetic and stops caring about Testate plate.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Chimera Sequence",
+     "optional": true,
+     "text": "Once per scene, graft one **Harvest trait** from a Specimen you carry onto any creature in range for `Stage` Cycles. Enemies can receive them too. The Director should let this be creative: a Phagocyte Guard wearing a *Wraith's Phase-Lattice* is a legal, terrible idea.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Suture Cannon if affordable, Needle Dagger, Mucoid Mantle later (you will be near the damage)."
+  },
+  {
+   "id": "detritus-reclaimer",
+   "name": "Detritus Reclaimer",
+   "role": "Bruiser / scavenger-engineer",
+   "hull": 6,
+   "key": [
+    "VSC",
+    "RTC"
+   ],
+   "bondedDomain": "Lytic",
+   "pathways": {
+    "Vigour": 2,
+    "Synthesis": 1,
+    "Membrane Penetration": 1
+   },
+   "signature": {
+    "name": "SALVAGE",
+    "text": "You convert dead matter into a pool. **Harvesting is free for you** (no action, no contest, tier +8 AT waived) and yields **Salvage points** equal to the creature's tier (Catastrophes: 4). Salvage max = `RTC + Stage`. You spend Salvage:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Efficient Gleaner",
+     "optional": false,
+     "text": "Your Harvest checks take no time outside combat, and your Cohort's Harvest rolls gain +2 dice. You always know, by smell, what died within Far band.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Cycle Doctrine",
+     "optional": false,
+     "text": "When any creature dies within Mid band, gain 1 Salvage. You may spend Salvage at range on allies' grafts (they must be in range of your signal).",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Reclaimer's Field",
+     "optional": false,
+     "text": "Once per Pulse War, spend 4 Salvage: everything in a 4-Drift zone is *digested into you*: you gain 3 MI per creature, allies gain 1 ATP per creature, and hostile Harvest traits are suppressed for the scene.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Return to the Cycle",
+     "optional": true,
+     "text": "Once per Tide, target a creature that Total-Lysed within the last Beat. It rises as a **Reclaimed** ally at half MI, with one Pathway rank less, and owes you a debt the table should absolutely make painful. It is not your character. It is a person made of the person who died.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Harvest Claw (90 S — buy it first), heavy Apparatus, Vacuole Sac."
+  },
+  {
+   "id": "protein-weaver",
+   "name": "Protein Weaver",
+   "role": "Controller / fortifier",
+   "hull": 4,
+   "key": [
+    "RTC",
+    "VSC"
+   ],
+   "bondedDomain": "Protean",
+   "pathways": {
+    "Synthesis": 2,
+    "Protean Folding": 1,
+    "Signal Discourse": 1
+   },
+   "signature": {
+    "name": "FOLD TOKENS",
+    "text": "You have **Fold Tokens = RTC** (max 8), refreshed at each Reconstitution and by spending 1 PP to re-knot (1 token per Cycle, max 2/Cycle). Spend tokens to fold protein into the world:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Read the Grain",
+     "optional": false,
+     "text": "You can tell, by touch, what a structure is made of, its weak type, and roughly how much MI it has. Structures you craft gain +5 MI.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Living Sheet",
+     "optional": true,
+     "text": "Your walls **regenerate** 4 MI per Cycle if you spend 1 ATP, and you may set one wall to be *selective*: you choose a chemistry (an Order, a lineage, a pheromone) that passes through it freely. Colonies pay fortunes for this.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Tensile Works",
+     "optional": false,
+     "text": "Your Folds can be **loaded**: as a Synthesise action, store an ally's Strike inside a wall or net (up to `Stage` charges). Anyone can then release it: the stored damage fires at MT 12 from the structure. Ambush engineering.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Cathedral Fold",
+     "optional": true,
+     "text": "Once per Tide, spend 8 tokens: a **permanent structure** (a gatehouse, a span, a fortress-shell) appears in one region, sized to district scale, and it changes that region's travel routes. It has MI 400, can house a colony, and every faction in the Codex will have an opinion about it.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Grapple Tendril, Chitin Spurs, Fibrous Lattice Vest."
+  },
+  {
+   "id": "peptide-constructor",
+   "name": "Peptide Constructor",
+   "role": "Summoner / engineer",
+   "hull": 4,
+   "key": [
+    "RTC",
+    "AFF"
+   ],
+   "bondedDomain": "Protean",
+   "pathways": {
+    "Synthesis": 2,
+    "Symbiosis": 1,
+    "Sequence Reading": 1
+   },
+   "signature": {
+    "name": "ASSEMBLY",
+    "text": "You build **Constructs**: simple bodies of folded protein and harvested tissue. A Construct's block (also printed in the Bestiary's *Colony Constructs* section):",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Standing Orders",
+     "optional": false,
+     "text": "Each Construct carries one programmed instruction (guard a band, carry Bulk, block a charge, hand you a Vial). It triggers without your PP. A Construct obeying a standing order acts without costing you Command PP.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Inserted Doctrine",
+     "optional": true,
+     "text": "When you build, install one **Harvest trait** from a Specimen you carry (a Construct with a *Spore Hound's* Lodged barb, or a *Swarm's* Segments). One trait per Construct.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Linked Line",
+     "optional": false,
+     "text": "Two of your Constructs may share a Reserve pool and a sense: if one is hit, the other learns the attacker's position and may react. Also: your Constructs gain **+1 PP** when adjacent to another Construct.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Foundry",
+     "optional": true,
+     "text": "You may establish a permanent Foundry in a colony: Constructs build there for half cost and one Fugue Interval, and in a Pulse War you may **assemble in combat** (4 PP, 40 S, no contest, at your Tier − 1). You control up to **3 + ⌊RTC ÷ 2⌋**. A Foundry is a political asset: the Hegemony will licence it, tax it, or try to own it.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Suture Cannon or Barbed Launcher, Vacuole Sac, 60 S reserved for builds."
+  },
+  {
+   "id": "amino-acid-smith",
+   "name": "Amino Acid Smith",
+   "role": "Support / gear-shaper",
+   "hull": 4,
+   "key": [
+    "RTC",
+    "AFF"
+   ],
+   "bondedDomain": "Protean",
+   "pathways": {
+    "Synthesis": 2,
+    "Chemoreception": 1,
+    "Vigour": 1
+   },
+   "signature": {
+    "name": "TUNE",
+    "text": "As a Synthesise action on an item within Contact, tune it for the scene. Choose **one**:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Honest Work",
+     "optional": false,
+     "text": "Your crafting costs −20% Substrate, and you can appraise any item by tasting it: you always know its rarity, its Minor Cost if hidden, and whether it is parasitic.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Overcharge",
+     "optional": false,
+     "text": "As above, but the effect doubles (+4 BD, or +4 dice, or +4 soak) and the item must win a **durability check**: roll 2d6, on 6 or less the item is **destroyed** at the end of the scene. You may overcharge your own graft and take the destruction Stress willingly.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Field Forge",
+     "optional": false,
+     "text": "Once per scene, spend 1 PP and 20 S: produce one Common Apparatus or graft from your kit list, already installed. You may also repair **permanent** soak loss (Corrodes, Brittle, Acidic surge) on one item per Reconstitution.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Masterwork Sequence",
+     "optional": true,
+     "text": "Once per Tide, grant a **permanent Rider** to one item you have owned for at least a Tide: pick from the catalogue or design one with the Director at the value of an Uncommon property. A Masterwork is a named object; it will outlive you and be fought over. Items can hold one Masterwork Rider ever.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Harvest Claw, Chitin Flail, 40 S in spare parts."
+  },
+  {
+   "id": "ribozyme-engineer",
+   "name": "Ribozyme Engineer",
+   "role": "Ritualist / pattern-thief",
+   "hull": 3,
+   "key": [
+    "RTC",
+    "OSM"
+   ],
+   "bondedDomain": "Somatic",
+   "pathways": {
+    "Catalysis": 2,
+    "Sequence Reading": 2,
+    "Chemoreception": 1
+   },
+   "signature": {
+    "name": "TEMPLATE",
+    "text": "When you **observe** a Burst, a Fold, or a creature's printed Special action used within your senses, you may spend 1 PP to attempt a **Template**: Sequence Reading contest vs `8 + (2 × its tier)`, at −2 dice if it was a creature's alien action. On success you hold a Template of it.",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Annotated Margin",
+     "optional": false,
+     "text": "When you Template from an ally's Burst, they keep it: you both have it. Their pool for that Burst gains +1 die this scene (they are watching you do their work and improving).",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Printed Dose",
+     "optional": true,
+     "text": "Spend 1 Substrate and 2 PP to print a Template into a **Vial**: any creature (including an ally or an enemy, if they can be tricked) can fire it as a Synthesise action at the printed tier. Vial-Templates are the black market's favourite object.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Revision",
+     "optional": false,
+     "text": "A Template you hold may be **revised** once: change its range band, its damage type, or its target from ally to enemy (or back). Revising costs 2 Stress: you are arguing with the sequence.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Write a New Sequence",
+     "optional": true,
+     "text": "Design your **own Burst** with the Director: choose domain, tier, cost, and effect within the Core's guardrails (no more than one new condition per Burst). It becomes a permanent entry on your sheet, learnable by others (which is a story in itself), and a copy exists somewhere the moment you use it.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "AE Crucible if affordable (450 S, save for it), Needle Dagger, Secondary Lens."
+  },
+  {
+   "id": "current-rider",
+   "name": "Current Rider",
+   "role": "Skirmisher / mounted striker",
+   "hull": 4,
+   "key": [
+    "DFF",
+    "OSM"
+   ],
+   "bondedDomain": "Osmotic",
+   "pathways": {
+    "Fluid Navigation": 2,
+    "Pulse Discipline": 1,
+    "Concealment": 1
+   },
+   "signature": {
+    "name": "SLIPSTREAM",
+    "text": "When you move at least **3 Drifts** in a Cycle (by your own Drift or by a current), gain **1 Slip**, up to **Stage + 2** stored. Spend Slip for any one:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Reads Water",
+     "optional": false,
+     "text": "You always know the Flow, viscosity, and tonic state of a scene as a free action, and currents never force saves against you. Flow +2.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Wake Cutter",
+     "optional": false,
+     "text": "When you leave a Contact band, no Flank Breach is provoked (you cut the wake). Momentum now needs only 2 Drifts and grants +1 PP as well as the dice.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Standing Wave",
+     "optional": false,
+     "text": "As a Reactive (your Reserve), when an attack against you **fails**, you may spend 1 Slip to shove the attacker 1 band and make it Jostled. Misses are ammunition.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Confluence",
+     "optional": true,
+     "text": "Once per Pulse War, declare Confluence: for **3 Cycles** you choose the field's Flow direction and strength (up to 3) at the start of each of your turns, and you may Split Frequency without limit. Flagellans call this *the Long Ride*. Afterwards, mark 3 Stress and you must spend a Reconstitution eating 20 S of Substrate.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Flagellar whip or Grapple Tendril, Flagellar Motor graft as soon as affordable, Lipid Weave."
+  },
+  {
+   "id": "turbulence-navigator",
+   "name": "Turbulence Navigator",
+   "role": "Controller / terrain",
+   "hull": 4,
+   "key": [
+    "DFF",
+    "RTC"
+   ],
+   "bondedDomain": "Osmotic",
+   "pathways": {
+    "Fluid Navigation": 2,
+    "Protean Folding": 1,
+    "Chemoreception": 1
+   },
+   "signature": {
+    "name": "CHART",
+    "text": "As a 2-PP action, you **chart** a zone (radius `3 + Stage` Drifts) for `1 + ⌈Stage ÷ 2⌉` Cycles, setting one of:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Chart Read",
+     "optional": false,
+     "text": "At the start of a Pulse War you announce the field's terrain numbers and any hazard the Director has hidden (they are not hidden from you; describe what you smell). Hazards you have seen can be *rerouted*: move a hazard 2 Drifts, 1 PP.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Redirect",
+     "optional": false,
+     "text": "As a Reactive, when an ally is pushed, swept, or Sequestered, you may change the destination band (including \"back where they came from\"). Costs 1 PP.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Manufactured Current",
+     "optional": false,
+     "text": "As a 2-PP action, create a **Current** (strength up to Stage) anywhere you can sense, for 3 Cycles. It can be vertical, diagonal, or *out of* a wall. Bestiary sweeps and Nutrient Currents count as allies now.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Rewrite the Flow",
+     "optional": true,
+     "text": "**Downtime:** permanently alter a region's current routing — a trade route closes, a valley floods, a colony's water changes. Every faction reacts (Codex Ch. IV). **In combat:** once per Pulse War, for 3 Cycles you set the **entire field's** viscosity, Flow, and tonic band (one choice), and your charts cost 0 PP.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Tuning Fork of the Deep Flow (500 S, save for it), Barbed Launcher, Osmotic Filter."
+  },
+  {
+   "id": "pheromological-messenger",
+   "name": "Pheromological Messenger",
+   "role": "Support / controller (social combat)",
+   "hull": 3,
+   "key": [
+    "AFF",
+    "OSM"
+   ],
+   "bondedDomain": "Galvanic",
+   "pathways": {
+    "Signal Discourse": 2,
+    "Chemoreception": 2,
+    "Concealment": 1
+   },
+   "signature": {
+    "name": "BROADCAST CHARGES",
+    "text": "You have **AFF + Stage** Broadcast Charges, and you regain **1 at the start of each of your Cycles**. A charge buys a free signal (no PP, no roll) to any creature you can sense:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Interpreter",
+     "optional": false,
+     "text": "You can speak any region's dialect by tasting it, and you always know when someone is lying *to someone else*. You may spend a charge to let an ally understand anything said, anywhere in the scene.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "False Chorus",
+     "optional": false,
+     "text": "Once per scene, produce a **False Scent** (Core Bursts, Galvanic III) at half cost, at your own Tier's Effect Value. Creatures that attack the phantom waste a Cycle; they know it was a trick and that has consequences.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Chorus Command",
+     "optional": false,
+     "text": "Your Rally, Halt, and Mark can target **every creature in one band** for the same charge cost. This is the moment a Messenger stops being support and becomes a commander.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "The Ninefold Name",
+     "optional": true,
+     "text": "Once per Pulse War, speak a **name** at one creature (any tier; Catastrophes gain +4 to the save): it must win OSM at AT `12 + (Stage × 2)` or suffer −2 to all pools for 2 Cycles **and obey one short sentence you give it** (\"leave\", \"hold\", \"stop\", \"turn\"). A named creature never forgets who named it. Roll 1d6 after; on 1, the name reached something further away than the target.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Needle Scatter or Spore Pistol, Signal Vane graft (400 S — buy it), Pheromone Mask Vials."
+  },
+  {
+   "id": "kinetic-striker",
+   "name": "Kinetic Striker",
+   "role": "Striker / finisher",
+   "hull": 4,
+   "key": [
+    "DFF",
+    "VSC"
+   ],
+   "bondedDomain": "Osmotic",
+   "pathways": {
+    "Membrane Penetration": 2,
+    "Fluid Navigation": 1,
+    "Vigour": 1
+   },
+   "signature": {
+    "name": "IMPACT",
+    "text": "A Strike made after moving **3+ Drifts** (Momentum, Core §4.3) marks **Impact** on the target (max `Stage × 2`). Impact is a debt you collect later:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Long Run",
+     "optional": false,
+     "text": "Momentum triggers at 2 Drifts, and Momentum's bonus becomes **+3 Reagents** (or +4 in a current). Flow +1.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Riposte of Arrival",
+     "optional": false,
+     "text": "As a Reactive Osmosis, you may make one Strike as part of the same Reserve: if the attacker is moving toward you, your Strike gains Momentum automatically. You want to be attacked.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Cascade Collection",
+     "optional": false,
+     "text": "When a Strike hits with **Overflow 4+**, your next Strike this Cycle (against any target) gains +3 Overflow — motion is not spent, it is *re-directed*.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Unanswered Motion",
+     "optional": true,
+     "text": "Once per Pulse War: at the start of your turn, declare it. You gain **an extra full set of PP this Cycle** (refresh everything), you cannot hold a Reserve until your next turn, and you mark 3 Stress. Every Strike this Cycle that hits pushes 1 band for free. Veteran Strikers call this *arriving twice*.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Pressure Ram or Chitin Flail, Momentum-property Apparatus (Barbed Launcher), Chitin Spurs."
+  },
+  {
+   "id": "genetic-hijacker",
+   "name": "Genetic Hijacker",
+   "role": "Controller / counter-catalyst",
+   "hull": 3,
+   "key": [
+    "RTC",
+    "OSM"
+   ],
+   "bondedDomain": "Somatic",
+   "pathways": {
+    "Sequence Reading": 2,
+    "Catalysis": 1,
+    "Concealment": 1
+   },
+   "signature": {
+    "name": "INSERT",
+    "text": "As a Synthesise action (2 PP, Mid band) or on a **Genetic**-type hit, attempt an Insert: a contested Sequence Reading against the target's OSM + Pressure Tolerance. Success installs **one Insert** on the target (max `1 + Stage` at once). Each Insert does one thing, chosen when installed:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Reading the Host",
+     "optional": false,
+     "text": "Free action: you know a creature's Order, tier, and one Harvest trait by scent. Inserts you install on a creature you have read gain +2 to their save DC.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Recombinant Payload",
+     "optional": true,
+     "text": "When an Insert is removed or ends, you may capture it as a **Pristine Sequence** (1 Bulk). These are the raw material of high grafting and Re-Synthesis — and the most addictive loot in the game.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Competitive Exclusion",
+     "optional": false,
+     "text": "An Insert of yours on a target **blocks** any hostile Genetic effect against it: you are not only hijacking, you are *preventing*. This is the single best answer to a Pathogenic Wraith, and Wraiths will prioritise killing you accordingly.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Permanent Insertion",
+     "optional": true,
+     "text": "Once per Tide, at AT 20 (no contest reduction; Catastrophes gain +4): take **one Pathway rank** or **one Harvest trait** from a creature you have an Insert on. It is yours until a Nucleoid-grade Mend restores it. The creature remembers. So does the Warden Circles.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Needle Dagger (Lodged, Silent), Sequence Key Vials, Mucoid Mantle."
+  },
+  {
+   "id": "pathogen-scout",
+   "name": "Pathogen Scout",
+   "role": "Seeder / attrition",
+   "hull": 3,
+   "key": [
+    "OSM",
+    "DFF"
+   ],
+   "bondedDomain": "Somatic",
+   "pathways": {
+    "Chemoreception": 2,
+    "Concealment": 2,
+    "Synthesis": 1
+   },
+   "signature": {
+    "name": "VECTORS",
+    "text": "You have **OSM + Stage** Vector doses, refreshed at a Reconstitution. Seed a Vector (1 PP, Contact, or loaded into a Lodged Apparatus hit, or left on a surface):",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Field Inoculation",
+     "optional": false,
+     "text": "Your Vectors work on **structures and terrain**: seed a wall, a gate, a colony's water supply. A structure carrying a Vector is a bomb, and you are the only one who knows.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Latent Period",
+     "optional": false,
+     "text": "A Vector may now be set to trigger after **up to one Metabolic Beat** of your choosing, or on a stated condition (\"when it enters the Hegemony's registry hall\"). Intrigue becomes mechanical. The Codex's *Bloom of Ash* is built around a Stage II Scout's decision.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Bloom Trigger",
+     "optional": false,
+     "text": "As a 3-PP action, detonate **every Vector you have seeded within Far band** simultaneously. Each trigger fires at −1 Effect Value, and you regain 1 dose per creature affected.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "PANDORA",
+     "optional": true,
+     "text": "Once per Tide, seed a **region**: every organism in it acquires a latent Vector for one Tide. You may trigger all of them at once, at full Effect Value, in a scene you choose. After, mark 4 Lysis Countdown boxes (your body pays for the scale) and every faction with any interest in that region will know your chemical name. This is not a combat ability. It is a campaign ending.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Needle Scatter, Barbed Launcher, Pheromone Mask, Scent Dampener graft."
+  },
+  {
+   "id": "viral-mimic",
+   "name": "Viral Mimic",
+   "role": "Infiltrator / identity",
+   "hull": 3,
+   "key": [
+    "DFF",
+    "OSM"
+   ],
+   "bondedDomain": "Somatic",
+   "pathways": {
+    "Concealment": 2,
+    "Sequence Reading": 1,
+    "Symbiosis": 1
+   },
+   "signature": {
+    "name": "CAMOUFLAGE",
+    "text": "As a 2-PP action, contest **DFF + Concealment** against a subject (or the local antigen register, AT 14 + tier). Success: you wear a creature's chemistry.",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Worn Face",
+     "optional": false,
+     "text": "You can camouflage an **object** or a corpse instead: a body you wear gives you its Harvest traits (one, at −1 tier) and lets a companion believe your dead friend is still walking. This is legal in exactly one region.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Borrowed Function",
+     "optional": false,
+     "text": "While camouflaged you may use **one printed Special action** of the creature you are wearing, at your own Tier's Effect Value, once per scene. The first time you do this with a creature type, mark 1 Stress: your body protests.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Hive Mask",
+     "optional": false,
+     "text": "Extend camouflage to `Stage` willing creatures in Contact, at 1 charge each per Cycle. A Cohort wearing an Immunan patrol's chemistry can walk a Warden checkpoint. The checkpoint has a register, and registers notice *gaps*.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Unbound",
+     "optional": true,
+     "text": "Permanently bind one camouflaged identity: you keep its Gift, one Harvest trait, and its size class **without upkeep**, and you may now wear a **specific individual** you have studied for a Fugue Interval — including their voice-chemistry, their Oath standing, and their enemies. When you are Unbound as someone else, a Total Lysis returns you to your own body (one scar, rolled) — which makes you the only organism who can survive a death by not being yourself.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Needle Dagger, Signal Vane, Graft Antidote Vials (you will need them)."
+  },
+  {
+   "id": "replicator-agent",
+   "name": "Replicator Agent",
+   "role": "Summoner / continuity",
+   "hull": 4,
+   "key": [
+    "RTC",
+    "VSC"
+   ],
+   "bondedDomain": "Somatic",
+   "pathways": {
+    "Catalysis": 1,
+    "Vigour": 2,
+    "Sequence Reading": 1
+   },
+   "signature": {
+    "name": "BUDDING",
+    "text": "As a 3-PP action, split: a **Bud** appears adjacent.",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Shared Sense",
+     "optional": false,
+     "text": "Free action, once per Cycle: perceive through any Bud. Buds can see each other and you, at any distance in the same region.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Strand Transfer",
+     "optional": false,
+     "text": "As a 1-PP action, move one **condition**, one **Insert**, one **Mark**, or **2 Stress** from yourself to a Bud, or from an ally in Contact to a Bud. You are a lightning rod for everyone's bad day.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Differentiation",
+     "optional": false,
+     "text": "Each Bud takes a *different* Stage feature and gains **+1 PP**. Additionally, while at least two Buds live, you gain **+1 PP** (you are thinking in more than one place). You may now Budd at 2 PP.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Colony of One",
+     "optional": true,
+     "text": "When you would suffer **Total Lysis**, instead transfer to a living Bud (free, before anything else happens): you survive at that Bud's MI, but you lose **one Level of Codon**, roll twice on the Legacy Scarring table and keep one, and every Sequence-reading authority in the region learns that you cannot be killed this way. Once per Tide. The Hegemony has a standing bounty on Stage IV Replicators; the Codex explains why.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Peptide Blade, Full Testate Carapace when affordable, ATP Capacitor Cells."
+  },
+  {
+   "id": "antigen-detector",
+   "name": "Antigen Detector",
+   "role": "Support / counter-infiltration",
+   "hull": 4,
+   "key": [
+    "OSM",
+    "AFF"
+   ],
+   "bondedDomain": "Galvanic",
+   "pathways": {
+    "Chemoreception": 2,
+    "Signal Discourse": 1,
+    "Pulse Discipline": 1
+   },
+   "signature": {
+    "name": "ASSAY",
+    "text": "As a 1-PP action (or free once per Cycle when you have not acted), assay a creature within Far band: contest **OSM + Chemoreception** against its Concealment or its natural stealth. Success marks it, and you name its **epitope** — one damage type. While marked:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Antigen Sight",
+     "optional": false,
+     "text": "Camouflage, False Scent, Masked, and inserted sequences are visible to you as *wrongness*: you may attempt the assay contest as a free action, and revealing a disguise is a Mark for free. Immunan patrols hire Detectives for this and never thank them.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Registry of Enemies",
+     "optional": true,
+     "text": "Once per **creature type** (per Cohort, permanent): you know everything printed on its Bestiary block — traits, tactics, harvest — and the Cohort's Harvest checks against it gain +2 dice. Saying it aloud is a free action; the information is diegetic, not meta.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Preemptive Recognition",
+     "optional": false,
+     "text": "When a creature Begins a Burst, Charges, or prepares a Strike, you may assay it **immediately, before it resolves**. If its action then fails for any reason, your Cohort gains **+1 PP this Cycle**. Detectives are the reason ambushes stop working.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Pan-Registry",
+     "optional": true,
+     "text": "As a 4-PP action: every hostile in a zone (`4 + Stage` Drifts) is Marked, every hidden thing in the zone is revealed, and for 3 Cycles all allied attacks against Marked targets gain +2 Reagents and ignore 1 soak. The zone stays *readable* for the rest of the scene. After, you must Vent (1 PP) or mark 2 Stress: knowing everything is heavy.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Needle Scatter or Spore Pistol, Secondary Lens graft, Memory Vial."
+  },
+  {
+   "id": "phagocyte-guard",
+   "name": "Phagocyte Guard",
+   "role": "Defender / absorber",
+   "hull": 6,
+   "key": [
+    "VSC",
+    "AFF"
+   ],
+   "bondedDomain": "Galvanic",
+   "pathways": {
+    "Pressure Tolerance": 2,
+    "Membrane Penetration": 1,
+    "Vigour": 1
+   },
+   "signature": {
+    "name": "ENGULF",
+    "text": "When an attack or area effect would hit an ally within **Contact** (Near at Stage II+), spend your Reserve: **you take it instead**, with **+4 soak** applied. Then, if the attacker is your size class or smaller and you took 6+ damage from it, you may attempt **Engulfment**: contested **VSC + Pressure Tolerance** vs its VSC. Success:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Bulwark Reflex",
+     "optional": false,
+     "text": "Allies in Contact gain **+2 MT**. As a 1-PP action, give an ally in Contact **+3 soak** until your next turn.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Extended Self",
+     "optional": false,
+     "text": "Engulf reaches Near band. You cannot be Flank-Breached, and you may position yourself **between** two allies: both count as Contact for your features.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Digestion",
+     "optional": false,
+     "text": "Lytic damage from Engulfment doubles, and you gain **+1 temporary MI** per point of damage the engulfed creature takes (max `Stage × 4`, gone at Reconstitution). You may also expel an engulfed creature *through* a Strike: release it at another target as an attack at BD = Stage.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Antigen Bulwark",
+     "optional": true,
+     "text": "Once per Pulse War, for **3 Cycles**: all damage dealt to any ally within your bands is reduced by your full soak; you gain **+2 PP**; you cannot be pushed or moved; and each time you reduce damage this way, that ally gains +1 ATP. You may not Drift on those Cycles. Guards call this *standing where the wall was*.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Pressure Ram or Bony Flail, Testate or Somatic graft (you want soak), Pore Locks, Coagulant Packs."
+  },
+  {
+   "id": "antibody-archer",
+   "name": "Antibody Archer",
+   "role": "Ranged striker / precision",
+   "hull": 4,
+   "key": [
+    "DFF",
+    "RTC"
+   ],
+   "bondedDomain": "Galvanic",
+   "pathways": {
+    "Membrane Penetration": 2,
+    "Signal Discourse": 1,
+    "Chemoreception": 1
+   },
+   "signature": {
+    "name": "LOCK",
+    "text": "A successful Strike against a creature marks **1 Lock** on it (max 3 per creature). Each Lock:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Known Epitope",
+     "optional": false,
+     "text": "Against a creature an ally has **Marked**, your attacks gain **+2 Reagents**, and you may spend 1 Cohesion to *reload certainty*: re-roll one Inhibitor on the attack.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Avidity",
+     "optional": false,
+     "text": "When you reach Lock 3 on a target, you may make one extra Strike this Cycle against a **different** creature in range at −1 Reagent. Cross-reactivity is a real immune phenomenon; here it is free damage.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Cross-Reaction",
+     "optional": false,
+     "text": "When a Strike hits with **Overflow 4+**, your next Strike this Cycle against a *different* creature carrying at least one Lock gains **+2 Reagents and +1 Overflow** — the response spreads.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Classical Response",
+     "optional": true,
+     "text": "Once per Pulse War, as a 4-PP action: choose one creature in Far band. Make **three Strikes** at your full Lock bonus; each hit applies **Lock 3 instantly** and, on the third, the target suffers a **Perfect Match** with the type you choose. Immune lore calls this *the answer that arrives all at once*.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Needle Scatter (200 S) or Barbed Launcher, Secondary Lens, Antibody Barb Vials."
+  },
+  {
+   "id": "complement-cascade-commander",
+   "name": "Complement Cascade Commander",
+   "role": "Leader / chain reactions",
+   "hull": 4,
+   "key": [
+    "AFF",
+    "DFF"
+   ],
+   "bondedDomain": "Galvanic",
+   "pathways": {
+    "Symbiosis": 2,
+    "Signal Discourse": 2,
+    "Pulse Discipline": 1
+   },
+   "signature": {
+    "name": "CASCADE",
+    "text": "When an ally hits a creature **you have marked or Lock-flagged**, you may spend **1 PP** to trigger a Cascade: **one other ally** within Far band makes one free Strike against any creature that is marked or Lock-flagged, at **+1 Overflow**. Restrictions: one Cascade per ally per Cycle, and at most **AFF + Stage** Cascades per Pulse War (track them on the sheet — they are your ammunition).",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Rally Field",
+     "optional": false,
+     "text": "Allies within Mid band gain **+1 Reagent** on their first Strike each Cycle. You know, as a free action, how many PP each ally has left — say so constantly.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Marker Spread",
+     "optional": false,
+     "text": "When you mark a creature, you may (free) pass the mark to **one adjacent creature** as well, at no cost. With enough Cascades you can turn a whole fight into a chain: a single Cycle with 4 Cascades is called a *classical response* and is remembered for Beats.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Classical Pathway",
+     "optional": false,
+     "text": "As a 3-PP action, once per Pulse War: every creature you have marked takes `4 + (Stage × 2)` Voltaic damage, every ally in Mid band heals `2 × number of marks` MI, and all conditions of the **Marked** type are removed from allies. Your OSM hums; the region hears it.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Membrane Attack Complex",
+     "optional": true,
+     "text": "As a 5-PP action, once per Pulse War: choose up to **three creatures within Mid band of each other**. A protein-complex lattice closes over them: they are **Sequestered** (Core IV) at AT `16 + your Overflow`, and for as long as the lattice holds (your choice, up to 3 Cycles) **allied attacks against them gain +2 Reagents and cannot be defended by Reactive Osmosis**. When any Sequestered creature inside dies, every ally gains **+2 ATP and +2 MI**. MACs are the reason the Hegemony's enemies organise in groups.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Phase Bell (180 S) or Needle Scatter, Signal Vane graft, Chain Cascade Vials."
+  },
+  {
+   "id": "acid-resistant-tank",
+   "name": "Acid-Resistant Tank",
+   "role": "Defender / reflector",
+   "hull": 6,
+   "key": [
+    "VSC",
+    "RTC"
+   ],
+   "bondedDomain": "Lytic",
+   "pathways": {
+    "Pressure Tolerance": 2,
+    "Vigour": 1,
+    "Synthesis": 1
+   },
+   "signature": {
+    "name": "VAT",
+    "text": "You keep a internal reservoir of **Acid charges**, max **RTC + Stage**. Gain 1 charge when:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Acid-Hardened",
+     "optional": false,
+     "text": "Lytic damage against you is reduced by **2 + Stage**. Anything that deals Lytic damage to you in Contact takes **Stage** Lytic back (it touched the wrong bag of chemistry).",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Swallow",
+     "optional": false,
+     "text": "As a Reactive Osmosis, absorb a ranged Lytic or Thermal effect targeting you or an ally in Contact: **0 damage, +1 Acid charge.** Tanks are the only beings who treat an acid attack as a *reloading* action.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Shared Bath",
+     "optional": false,
+     "text": "While you hold **3+ charges**: +2 soak for you, +1 soak vs Lytic for allies in Contact, and as a Synthesise action you may **coat** an ally's Apparatus: it deals Lytic damage and **+2 BD** for the scene (and needs Neutralising before it eats their hands).",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "The Long Burn",
+     "optional": true,
+     "text": "Once per Pulse War, for **3 Cycles**: a zone of radius `Stage × 2` Drifts becomes Acidic for hostile organisms only. You gain **+2 PP** and regenerate **3 MI** per Cycle there; every hostile action there costs +1 ATP. Afterwards the ground stays hostile for a Beat, which is a *colony problem* you now own.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Osmotic Maul or Chitin Flail, Mucoid Mantle (your best friend), Neutraliser Vials for the Cohort."
+  },
+  {
+   "id": "thermal-diver",
+   "name": "Thermal Diver",
+   "role": "Zone controller / bruiser",
+   "hull": 4,
+   "key": [
+    "RTC",
+    "VSC"
+   ],
+   "bondedDomain": "Thermic",
+   "pathways": {
+    "Catalysis": 2,
+    "Vigour": 1,
+    "Pressure Tolerance": 1
+   },
+   "signature": {
+    "name": "GRADIENT",
+    "text": "You carry a **Gradient** from **−5 (deep-cold)** to **+5 (white-hot)**, starting at 0. At the start of your turn you may shift it **1 for free, 2 for 1 PP**; taking Thermal damage shifts it toward hot by the damage ÷ 3 (rounded); entering a cold region shifts it toward cold by 1.",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Thermal Indifference",
+     "optional": false,
+     "text": "Choose hot or cold regions: they are Isotonic-equivalent for you (this is in addition to your Barophil *Hardened*). Thermal damage against you is reduced by **Stage**.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Flash Point",
+     "optional": false,
+     "text": "As a Reactive Osmosis, convert incoming Thermal damage entirely into a Gradient shift (toward hot, by damage ÷ 2) and push the attacker **1 band**. You may do this against your own ally's Burst if you are willing.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Steam Vent",
+     "optional": false,
+     "text": "As a 3-PP action, once per Pulse War: a zone of radius `3 + Stage` Drifts flashes: `6 + |Gradient| × 2` Thermal damage to hostiles, everything in the zone is pushed **1 band**, and the zone becomes **Turbid** for 2 Cycles. Cold-Gradient version: the zone becomes viscous for 3 Cycles instead.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Critical Point",
+     "optional": true,
+     "text": "Once per Pulse War: set Gradient to **+5 or −5 immediately**, and for **2 Cycles** you suffer none of its Stress or Flow cost and your Effect Values gain +4. When it ends, Gradient returns to 0, you take **10 damage**, and mark 3 Stress. Divers call it *the dive you only make once*.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Cryo Vent (300 S, save for it), Enzyme Horn, Heat Sink graft."
+  },
+  {
+   "id": "osmotic-brute",
+   "name": "Osmotic Brute",
+   "role": "Bruiser / positioning destroyer",
+   "hull": 6,
+   "key": [
+    "VSC",
+    "DFF"
+   ],
+   "bondedDomain": "Osmotic",
+   "pathways": {
+    "Membrane Penetration": 2,
+    "Pressure Tolerance": 2,
+    "Fluid Navigation": 1
+   },
+   "signature": {
+    "name": "TURGOR",
+    "text": "You build **Turgor** charges, max **Stage + 3**. Gain 1 when: you take Osmotic or Kinetic damage; you successfully push or are pushed; you spend 2 ATP to pump fluid; or you win a Pressure Tolerance save.",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Immovable",
+     "optional": false,
+     "text": "You cannot be pushed by anything with VSC less than yours. +2 soak vs Osmotic, and Momentum attacks against you lose their bonus dice.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Pore Grapple",
+     "optional": false,
+     "text": "When a Strike hits, you may spend 1 Turgor to **Anchor** the target: it cannot Drift until it wins a VSC contest at AT 12 + your Overflow. You can hold one Anchor at a time (two at Stage III).",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Pressure Wave",
+     "optional": false,
+     "text": "Your Strike can be declared along a **line** (up to `Stage × 2` Drifts): every creature in the line is attacked at −1 Reagent each, and all are pushed 1 band. Brutes clear corridors.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Implosion",
+     "optional": true,
+     "text": "Once per Pulse War: a target in Contact. Spend **all** Turgor: it takes **3 damage per point** (Osmotic, ignores all soak) and everything else within `3 + Stage` Drifts is thrown **2 bands** for 4 Osmotic damage each. Then you are **Flaccid** for 2 Cycles (−2 VSC, reach −1). A Brute that uses Implosion on a swarm usually ends the swarm and starts a funeral.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Pressure Ram (60 S — this is your class weapon), Full Testate Carapace later, Pore Locks."
+  },
+  {
+   "id": "desiccation-specialist",
+   "name": "Desiccation Specialist",
+   "role": "Attrition / anti-environment",
+   "hull": 4,
+   "key": [
+    "OSM",
+    "RTC"
+   ],
+   "bondedDomain": "Thermic",
+   "pathways": {
+    "Chemoreception": 2,
+    "Synthesis": 1,
+    "Vigour": 2
+   },
+   "signature": {
+    "name": "DRY ZONE",
+    "text": "As a 2-PP action, make a zone of radius **2 + Stage** Drifts **Dry** for `1 + ⌈Stage ÷ 2⌉` Cycles. Inside:",
+    "needsRecord": true
+   },
+   "stages": [
+    {
+     "stage": "I",
+     "level": 1,
+     "name": "Dry Skin",
+     "optional": false,
+     "text": "Hypertonic and Acidic regions are neutral for you (on top of *Hardened*). +1 soak vs Lytic, and Leaking effects on you close at your turn's end.",
+     "needsRecord": true
+    },
+    {
+     "stage": "II",
+     "level": 6,
+     "name": "Withering Touch",
+     "optional": false,
+     "text": "In a Dry Zone your Strikes drain: **+2 BD**, and each hit gives you **1 Brine**. Against swarms, each Segment removed also gives 1 Brine.",
+     "needsRecord": true
+    },
+    {
+     "stage": "III",
+     "level": 11,
+     "name": "Dust Field",
+     "optional": false,
+     "text": "Your Dry Zone also **suppresses regeneration and Segment regrowth**, prevents new hazards or spores from forming inside it, and makes any hostile **Sustained Reaction** cost +1 ATP per Cycle. Specialists are hired by colonies to *unmake* things.",
+     "needsRecord": true
+    },
+    {
+     "stage": "IV",
+     "level": 16,
+     "name": "Salt the Earth",
+     "optional": true,
+     "text": "Once per Tide, choose a region (up to 100 Drifts across). It becomes permanently **Dry** until you release it: no regeneration, no growth, no healing for hostile organisms; travel costs +1 PP for everyone else; nothing there will ever bloom again. **This is a world-altering act.** The Deep Choir will consider you kin or an abomination, the Flow Guilds will put a price on you, and any colony downstream will send an army. Use it in play only with the table's explicit consent.",
+     "needsRecord": true
+    }
+   ],
+   "kit": "Suture Cannon (as a weird heal-delivery tool), Barbed Launcher, Scent Dampener, Vacuole Sac."
+  }
+ ],
+ "adaptations": [
+  {
+   "id": "denser-wall",
+   "name": "Denser Wall",
+   "cost": "60 S",
+   "text": "+6 max MI; −1 Flow",
+   "needsRecord": true
+  },
+  {
+   "id": "twin-reserve",
+   "name": "Twin Reserve",
+   "cost": "120 S",
+   "text": "You may hold 2 Reserve PP; each can be spent once per Cycle on a different Reactive Osmosis",
+   "needsRecord": true
+  },
+  {
+   "id": "momentum-banker",
+   "name": "Momentum Banker",
+   "cost": "80 S",
+   "text": "Momentum persists if you move 2+ Drifts on your next turn",
+   "needsRecord": true
+  },
+  {
+   "id": "etched-hide",
+   "name": "Etched Hide",
+   "cost": "150 S",
+   "text": "Corrodes, Brittle, and Acidic surges can never drop your soak below 2",
+   "needsRecord": true
+  },
+  {
+   "id": "vent-master",
+   "name": "Vent Master",
+   "cost": "100 S",
+   "text": "Vent clears 3 Stress and one condition for 1 PP",
+   "needsRecord": true
+  },
+  {
+   "id": "chemical-literacy",
+   "name": "Chemical Literacy",
+   "cost": "60 S",
+   "text": "+1 Sequence Reading rank; learn one Burst free",
+   "needsRecord": true
+  },
+  {
+   "id": "antigen-discipline",
+   "name": "Antigen Discipline",
+   "cost": "200 S",
+   "text": "+2 dice on all saves against Genetic effects and Hijacks",
+   "needsRecord": true
+  },
+  {
+   "id": "burst-efficiency",
+   "name": "Burst Efficiency",
+   "cost": "250 S",
+   "text": "Pick a domain: its Bursts cost −2 ATP (min 1)",
+   "needsRecord": true
+  },
+  {
+   "id": "sustained-control",
+   "name": "Sustained Control",
+   "cost": "200 S",
+   "text": "Your Sustained Reactions cost no Stress; you may hold two",
+   "needsRecord": true
+  },
+  {
+   "id": "overdrive-training",
+   "name": "Overdrive Training",
+   "cost": "300 S",
+   "text": "Overdrive costs 3 ATP / 3 MI; you may Overdrive twice per Cycle (different rolls)",
+   "needsRecord": true
+  },
+  {
+   "id": "pressure-nerves",
+   "name": "Pressure Nerves",
+   "cost": "120 S",
+   "text": "Ignore the first hazard or environmental damage each scene; +2 Pressure Tolerance",
+   "needsRecord": true
+  },
+  {
+   "id": "harvest-hands",
+   "name": "Harvest Hands",
+   "cost": "90 S",
+   "text": "Harvest checks +2 dice; on Overflow 4+ gain one extra Specimen grade",
+   "needsRecord": true
+  },
+  {
+   "id": "current-reader",
+   "name": "Current Reader",
+   "cost": "90 S",
+   "text": "Currents never force saves against you; +2 Drifts in any Flow",
+   "needsRecord": true
+  },
+  {
+   "id": "symbiotic-authority",
+   "name": "Symbiotic Authority",
+   "cost": "150 S",
+   "text": "+1 creature under control; your minions gain +1 PP",
+   "needsRecord": true
+  },
+  {
+   "id": "second-organ",
+   "name": "Second Organ",
+   "cost": "400 S + 1 P",
+   "text": "Once per Tide, when you would drop to 0 MI, drop to 1 MI instead and mark 2 Countdown boxes",
+   "needsRecord": true
+  },
+  {
+   "id": "oathkeeper",
+   "name": "Oathkeeper",
+   "cost": "100 S",
+   "text": "+1 Oath box; keeping an Oath that costs you gives +1 Cohesion and clears 1 Stress",
+   "needsRecord": true
+  },
+  {
+   "id": "autophagic-control",
+   "name": "Autophagic Control",
+   "cost": "300 S",
+   "text": "While in Autophagy you mark no Countdown boxes (2 Stress per Cycle instead)",
+   "needsRecord": true
+  },
+  {
+   "id": "graft-mastery",
+   "name": "Graft Mastery",
+   "cost": "500 S + 1 G",
+   "text": "+1 Graft Slot (on top of your Stage slots)",
+   "needsRecord": true
+  },
+  {
+   "id": "chimeric-growth",
+   "name": "Chimeric Growth",
+   "cost": "600 S + 1 P",
+   "text": "Take another Phenotype's Stage I feature (and its granted Pathway at rank 1). Requires Stage II. Prerequisite: you must have been *harvested* by or of that tradition at least once",
+   "needsRecord": true
+  }
+ ],
+ "packs": [
+  {
+   "id": "waller",
+   "name": "Waller",
+   "contains": "Chitin Flail (15), Lipid Weave (20), 1× Glucose Ampule (3)",
+   "for": "Guard, Tank, Brute"
+  },
+  {
+   "id": "lash",
+   "name": "Lash",
+   "contains": "Peptide Blade (20), Reinforced Weave (60 — take the loan), 2× Amino Drip (12)",
+   "for": "Corrosor, Striker, Splicer"
+  },
+  {
+   "id": "shot",
+   "name": "Shot",
+   "contains": "Spore Pistol (30), 1 spore reload (3), Lipid Bead Vial",
+   "for": "Archer, Scout, Navigator"
+  },
+  {
+   "id": "hand",
+   "name": "Hand",
+   "contains": "Harvest Claw (90 — loan), Glucose Fragment kit, Scribe Slug symbiote later",
+   "for": "Reclaimer, Smith, Constructor"
+  },
+  {
+   "id": "signal",
+   "name": "Signal",
+   "contains": "Needle Dagger (40), Pheromone Trace ×2 (10), Signal Dampener Sac (55 — loan)",
+   "for": "Messenger, Detector, Mimic"
+  },
+  {
+   "id": "deep",
+   "name": "Deep",
+   "contains": "Barbed Launcher (55), Salt Bloom (10), Osmotic Filter Scrap (55 — loan)",
+   "for": "Diver, Desiccation, Rider"
+  }
+ ],
+ "states": [
+  {
+   "id": "up",
+   "screen": "every legal action with its cost",
+   "may": "act, react, roll, harvest, speak"
+  },
+  {
+   "id": "dormant",
+   "screen": "no actions; the Countdown boxes; \"an ally at Contact can stabilise you\"",
+   "may": "one short signal; forced saves at Baseline 1"
+  },
+  {
+   "id": "lysed",
+   "screen": "the Legacy choice",
+   "may": "nothing"
+  },
+  {
+   "id": "absent",
+   "screen": "nothing asked of this seat",
+   "may": "nothing; the organism is not targeted and takes no turn",
+   "status": "proposed"
+  }
+ ],
+ "playerWords": [
+  {
+   "field": "MI",
+   "bands": [
+    [
+     "over 75%",
+     "whole"
+    ],
+    [
+     "50-75%",
+     "marked"
+    ],
+    [
+     "25-50%",
+     "torn"
+    ],
+    [
+     "under 25%",
+     "failing"
+    ],
+    [
+     "0",
+     "gone dark"
+    ]
+   ]
+  },
+  {
+   "field": "Stress",
+   "bands": [
+    [
+     "0-2",
+     "steady"
+    ],
+    [
+     "3-4",
+     "strained"
+    ],
+    [
+     "5",
+     "shaking"
+    ],
+    [
+     "6-7",
+     "coming apart"
+    ]
+   ]
+  },
+  {
+   "field": "Pulse Points",
+   "bands": [
+    [
+     "full",
+     "fresh"
+    ],
+    [
+     "2 or more",
+     "something left"
+    ],
+    [
+     "1",
+     "one breath"
+    ],
+    [
+     "0",
+     "spent"
+    ]
+   ]
+  },
+  {
+   "field": "Countdown",
+   "bands": [
+    [
+     "none marked",
+     "holding"
+    ],
+    [
+     "half marked",
+     "thinning"
+    ],
+    [
+     "one left",
+     "at the edge"
+    ]
+   ]
+  }
+ ],
+ "hands": [
+  {
+   "id": "wall",
+   "hand": "The Wall",
+   "phenotype": "Immunan Phagocyte Guard",
+   "level": 1,
+   "baselines": {
+    "VSC": 4,
+    "AFF": 5,
+    "DFF": 3,
+    "OSM": 3,
+    "RTC": 1
+   },
+   "hull": 6,
+   "pathways": {
+    "Pressure Tolerance": 2,
+    "Membrane Penetration": 1,
+    "Vigour": 1,
+    "Chemoreception": 1
+   },
+   "weapons": [
+    {
+     "id": "chitin-flail",
+     "carried": true
+    }
+   ],
+   "grafts": [
+    "lipid-weave-wrap"
+   ],
+   "substrate": 5,
+   "derived": {
+    "miMax": 39,
+    "atpMax": 10,
+    "pp": 5,
+    "mt": 13,
+    "flow": 6,
+    "countdown": 9,
+    "oath": 5,
+    "bulk": 20,
+    "slots": 1
+   },
+   "oathBoxesPrinted": 5,
+   "mismatch": [],
+   "oathNote": null
+  },
+  {
+   "id": "ledger",
+   "hand": "The Ledger",
+   "phenotype": "Epithalian Amino Acid Smith",
+   "level": 1,
+   "baselines": {
+    "RTC": 4,
+    "VSC": 5,
+    "DFF": 2,
+    "OSM": 3,
+    "AFF": 2
+   },
+   "hull": 4,
+   "pathways": {
+    "Synthesis": 2,
+    "Chemoreception": 1,
+    "Vigour": 1,
+    "Membrane Penetration": 1
+   },
+   "weapons": [
+    {
+     "id": "harvest-claw",
+     "carried": true
+    },
+    {
+     "id": "chitin-flail",
+     "carried": false
+    }
+   ],
+   "grafts": [],
+   "substrate": 40,
+   "derived": {
+    "miMax": 36,
+    "atpMax": 16,
+    "pp": 4,
+    "mt": 12,
+    "flow": 5,
+    "countdown": 9,
+    "oath": 2,
+    "bulk": 25,
+    "slots": 1
+   },
+   "oathBoxesPrinted": null,
+   "mismatch": [],
+   "oathNote": "The Vector prints no Oath boxes for this Hand; the formula gives AFF."
+  },
+  {
+   "id": "rider",
+   "hand": "The Rider",
+   "phenotype": "Flagellan Current Rider",
+   "level": 1,
+   "baselines": {
+    "DFF": 5,
+    "OSM": 4,
+    "RTC": 3,
+    "AFF": 3,
+    "VSC": 1
+   },
+   "hull": 4,
+   "pathways": {
+    "Fluid Navigation": 2,
+    "Pulse Discipline": 1,
+    "Concealment": 1,
+    "Signal Discourse": 1
+   },
+   "weapons": [
+    {
+     "id": "peptide-blade",
+     "carried": true
+    }
+   ],
+   "grafts": [
+    "lipid-weave-wrap"
+   ],
+   "substrate": 0,
+   "derived": {
+    "miMax": 25,
+    "atpMax": 14,
+    "pp": 7,
+    "mt": 15,
+    "flow": 8,
+    "countdown": 5,
+    "oath": 3,
+    "bulk": 5,
+    "slots": 1
+   },
+   "oathBoxesPrinted": null,
+   "mismatch": [],
+   "oathNote": "The Vector prints no Oath boxes for this Hand; the formula gives AFF."
+  },
+  {
+   "id": "eyes",
+   "hand": "The Eyes",
+   "phenotype": "Lysosan Pathogen Scout",
+   "level": 1,
+   "baselines": {
+    "OSM": 5,
+    "DFF": 4,
+    "RTC": 3,
+    "VSC": 3,
+    "AFF": 1
+   },
+   "hull": 3,
+   "pathways": {
+    "Chemoreception": 2,
+    "Concealment": 2,
+    "Synthesis": 1,
+    "Sequence Reading": 1
+   },
+   "weapons": [
+    {
+     "id": "needle-dagger",
+     "carried": true
+    },
+    {
+     "id": "spore-pistol",
+     "carried": false
+    }
+   ],
+   "grafts": [],
+   "substrate": 0,
+   "derived": {
+    "miMax": 27,
+    "atpMax": 14,
+    "pp": 6,
+    "mt": 14,
+    "flow": 7,
+    "countdown": 7,
+    "oath": 1,
+    "bulk": 15,
+    "slots": 1
+   },
+   "oathBoxesPrinted": null,
+   "mismatch": [],
+   "oathNote": "The Vector prints no Oath boxes for this Hand; the formula gives AFF."
+  }
+ ]
+}
