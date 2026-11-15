@@ -291,6 +291,15 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   return L.join('\n');
 }
 
+// Drop the last paragraph (the question to the wrong player) and ask the one on turn. Null when nothing
+// would be left to say.
+export function fixSeat(text, name) {
+  const paras = String(text).trim().split(/\n\s*\n/);
+  if (paras.length < 2) return null;
+  paras.pop();
+  return `${paras.join('\n\n')}\n\n${String(name).split(/\s+/)[0]}, what do you spend your Pulse Points on?`;
+}
+
 // ---- checks on what the Director wrote, before anyone sees it --------------------
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|zero|a single point)';
 const NDICE = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\d+) dice (?:against|to beat|at)\b/i;
@@ -646,6 +655,13 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
         flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
       }
     } catch (e) { /* the rewrite failed: keep the original and its flags */ }
+  }
+  // The model keeps asking the wrong seat even after a rewrite (bench 15 Nov, three times). The Engine
+  // knows whose turn it is, so it sets the closing question itself rather than ship the wrong one.
+  const seat = flags.find((f) => /^Puts the question to/.test(f.text) && f.turnOf);
+  if (seat) {
+    const fixed = fixSeat(narration, seat.turnOf);
+    if (fixed) { narration = fixed; flags = flags.filter((f) => f !== seat).concat([{ kind: 'note', text: `The Engine set the closing question to ${seat.turnOf}, whose turn it is.` }]); }
   }
   if (flags.some(isLeak)) rescues.push({ kind: 'held-leak', hard: true, text: `A leak survived the rewrite and would be held for the host: ${flags.filter(isLeak).map((f) => f.text).join(' ')}` });
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });

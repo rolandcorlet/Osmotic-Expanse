@@ -8,7 +8,7 @@ import { newSession, apply, restart, hazardBudget } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS, hazardSpec } from '../brain/tools.js';
-import { directorTurn, briefing, checkNarration, asksRollInWords, MACHINERY, BRIEFING_LEAK } from '../brain/director.js';
+import { directorTurn, briefing, checkNarration, fixSeat, asksRollInWords, MACHINERY, BRIEFING_LEAK } from '../brain/director.js';
 import { createDirector } from '../brain/manager.js';
 import { gemini, pickDefaultModel } from '../brain/gemini.js';
 
@@ -1679,4 +1679,10 @@ test('bench 15 Nov (five-stage): a Strike is not a check to ask for in a Pulse W
   const r = T.run('ask_for_roll', { organism: 'wall', baseline: 'VSC', threshold: 12, what_for: 'Flail the nearest swarm' });
   assert.ok(r.note && /not a check/.test(r.note));
   assert.equal(f.requests.length, 0);
+});
+
+test('the Engine sets the closing question to whoever is on turn when the model keeps asking the wrong seat', () => {
+  const out = fixSeat('The claw misses.\n\nIlm — you are last. What do you spend?', 'Brost of the Third Current');
+  assert.equal(out, 'The claw misses.\n\nBrost, what do you spend your Pulse Points on?');
+  assert.equal(fixSeat('One paragraph only?', 'Brost'), null);
 });

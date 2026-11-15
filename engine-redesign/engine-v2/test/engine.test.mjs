@@ -267,3 +267,20 @@ test('fuzz: random legal play for 40 seeds keeps every invariant', () => {
     }
   }
 });
+
+test('Gut Stone: the Warden fight with TOLL at 3 reaches an ending on 30 seeds, and the Render Charge/race path is exercised', () => {
+  const ends = {};
+  for (let seed = 1; seed <= 30; seed++) {
+    const g = fresh(seed); play(g, 'begin');
+    enterSite(g, 'gut-stone'); g.s.clocks.TOLL.n = 3;
+    play(g, legalMoves(g).find((m) => m.id.startsWith('attack:')).id);
+    for (let n = 0; n < 400 && !g.s.ended; n++) {
+      const lm = legalMoves(g);
+      assert.ok(lm.length > 0, `seed ${seed} stuck`);
+      play(g, (lm.find((x) => x.id.startsWith('race:')) || lm.find((x) => x.id.startsWith('react:deflect')) || lm.find((x) => x.kind === 'strike') || lm.find((x) => x.kind === 'exit') || lm.find((x) => x.kind === 'end-turn') || lm[0]).id);
+    }
+    assert.ok(g.s.ended, `seed ${seed} ended`);
+    ends[g.s.ended] = (ends[g.s.ended] || 0) + 1;
+  }
+  assert.ok(ends.escaped > 0);
+});

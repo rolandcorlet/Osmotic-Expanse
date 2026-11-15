@@ -251,7 +251,7 @@ async function once(n) {
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
   const callsFrom = calls.length;
-  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {}, hard: 0, soft: 0, rescueBy: {} };
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, buried: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {}, hard: 0, soft: 0, rescueBy: {} };
 
   async function director(reason) {
     const t0 = Date.now();
@@ -286,6 +286,7 @@ async function once(n) {
         // shapes, tallied apart so a gate read says which one the table heard.
         if (/^Names (CARCASS|TOLL|HUNGER)/.test(f.text)) tally.clocks += 1;
         else if (/^Reverses /.test(f.text)) tally.reversed += 1;
+        else if (/is dead or dissolved, but the Engine/.test(f.text)) tally.buried += 1;
         else tally.unpaid += 1;
       }
       console.log(`    ! ${f.kind}: ${f.text}`);
@@ -382,6 +383,7 @@ async function once(n) {
   speedLine(calls.slice(callsFrom), 'Speed');
   console.log(`  Rescues (where a human host would have had to step in): ${tally.hard} hard, ${tally.soft} soft${Object.keys(tally.rescueBy).length ? ` — ${Object.entries(tally.rescueBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
   console.log(`  Leak flags: ${tally.leaks}`);
+  console.log(`  Bodies buried in narration (a player narrated dead or dissolved while the Engine has them standing): ${tally.buried}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);
   console.log(`  Reversed rolls in narration (a throw the page passed, described as failing): ${tally.reversed}`);
@@ -398,7 +400,7 @@ let bad = 0;
 for (let i = 1; i <= runs; i++) {
   try {
     const t = await once(i);
-    if (t.refusals || t.leaks || t.unpaid || t.clocks || t.reversed || t.hard) bad += 1;
+    if (t.refusals || t.leaks || t.unpaid || t.buried || t.clocks || t.reversed || t.hard) bad += 1;
   } catch (e) {
     console.log(`\nRun ${i} stopped: ${e.message}`);
     bad += 1;

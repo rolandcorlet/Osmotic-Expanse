@@ -650,3 +650,9 @@ Not fixed / for Roly:
 - The Gut Stone Warden (Threshold 15, three dice at Stress 5-7) was hit in 3 of about 22 throws; all four players ended at 0-1 MI. That is the Deadly fight working, not a defect, but the no-rescue run is likely to end there every time with this party.
 - A second and third Render Charge hazard_damage call was made after the war (bench lines 1150 and 1161). The Engine answered with a note; no flag counts it.
 - Wrong-seat question flagged 3 times; the rewrite did not always fix it.
+
+## Eleventh pass (15 Nov, no new bench)
+- The bench's "Unpaid damage" count in the five-stage run was really three buried-body flags (a player narrated dead while standing). It now tallies "Bodies buried in narration" separately and gates on it; "unpaid damage" means only unpaid harm.
+- Wrong-seat question: after the rewrite, if the model still asks the wrong player, the Engine drops that last paragraph and asks whoever is on turn (`fixSeat`).
+- Git remote updated to the moved repository.
+- Engine v2: Gut Stone Warden fight (TOLL 3) reaches an ending on 30 seeds (test added). Book edit requests copied to `engine-redesign/BOOK-EDIT-REQUESTS.md`.
