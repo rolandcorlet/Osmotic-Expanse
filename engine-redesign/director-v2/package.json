@@ -1,0 +1,2 @@
+{ "name": "osmotic-director-v2", "private": true, "type": "module",
+  "scripts": { "start": "node server.mjs", "test": "node --test test/*.test.mjs", "bench": "node tools/bench.mjs" } }

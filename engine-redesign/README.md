@@ -58,3 +58,6 @@ Each prompt stands alone: paste it into a fresh session with the named book atta
 - The evidence is seven benches of one module with one local model (Qwen `iq3_s`, thinking low). A stronger model would make fewer of the slips in rows 2, 3 and 11, but rows 1, 4, 5, 6, 8 and 10 are format problems for any model.
 - The redesign has not been built or tested. The expected gains (fewer refusals, fewer calls per turn) are a design argument, not a measurement.
 - The books were not re-read in full for this note; the format examples come from `director/data/first-carve.js` and `director/data/bestiary.json`.
+
+## Director v2 (15 Nov 2026)
+`director-v2/` is a new Director built on `engine-v2/` and these books: table server, one-call narration, internet play on TCP 8790. Start with `director-v2/README.md` and `director-v2/INTERNET.md`. It does not touch `director/`.

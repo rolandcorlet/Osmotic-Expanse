@@ -3,23 +3,27 @@ import { miWord, stressWord, ppWord, countdownWord, creatureLook } from './rules
 import { upOrgs, orgs, site, liveCreatures, creaturesHere } from './world.mjs';
 import { currentActor } from './fight.mjs';
 
+// What to call an organism in a line: "The Wall" stays whole, "Bresk of the Sixth Choir" is "Bresk".
+export const callName = (o) => (/^the\s/i.test(o.name) ? o.name : o.name.split(' ')[0]);
+
 export function rollResult(o, r) {
-  return `${o.name.split(' ')[0]} throws ${r.dice.join(', ')}: ${r.total} against ${r.at}. ${r.success ? `Success${r.overflow ? `, ${r.overflow} over` : ''}` : `Short by ${r.shortBy}`}${r.runaway ? '. The reaction feeds itself' : ''}.`;
+  return `${callName(o)} throws ${r.dice.join(', ')}: ${r.total} against ${r.at}. ${r.success ? `Success${r.overflow ? `, ${r.overflow} over` : ''}` : `Short by ${r.shortBy}`}${r.runaway ? '. The reaction feeds itself' : ''}.`;
 }
 
 export function handover(g) {
   const key = currentActor(g);
   if (!key || !key.startsWith('org:')) return null;
   const o = g.s.orgs[key.slice(4)];
-  return `${o.name.split(' ')[0]}, you are ${ppWord(o.pp, o.ppMax)}. What do you do?`;
+  const left = { fresh: 'you are fresh', 'something left': 'you have something left', 'one breath': 'you have one breath left', spent: 'you are spent' }[ppWord(o.pp, o.ppMax)];
+  return `${callName(o)}, it is your turn and ${left}. What do you do?`;
 }
 
 // The one closing question, always appended by the Engine (never written by the model).
 export function question(g) {
   const s = g.s;
   if (s.ended) return null;
-  if (s.pending) { const o = s.orgs[s.pending.target]; return `${o.name.split(' ')[0]}, something is coming at you and you are holding something back. Do you meet it, or take it?`; }
-  if (s.chase) { const o = upOrgs(g).find((x) => !s.chase.out.includes(x.id) && !(s.chase.rolled || {})[x.id]); return o ? `${o.name.split(' ')[0]}, the gut is closing. How do you get out?` : 'What does the Cohort do?'; }
+  if (s.pending) { const o = s.orgs[s.pending.target]; return `${callName(o)}, something is coming at you and you are holding something back. Do you meet it, or take it?`; }
+  if (s.chase) { const o = upOrgs(g).find((x) => !s.chase.out.includes(x.id) && !(s.chase.rolled || {})[x.id]); return o ? `${callName(o)}, the gut is closing. How do you get out?` : 'What does the Cohort do?'; }
   const h = handover(g);
   return h || 'What does the Cohort do?';
 }
