@@ -408,9 +408,10 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     const cur = state.fight.actors[state.fight.turn];
     const me = cur && cur.kind === 'org' ? (state.organisms || {})[cur.id] : null;
     if (me && me.playerId) {
-      const lastQ2 = (text.match(/[^?]*\?/g) || []).pop() || '';
       const nm = (o) => String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const named2 = Object.values(state.organisms || {}).filter((o) => o.playerId && new RegExp(`\\b${nm(o)}\\b`).test(lastQ2.slice(0, 60)));
+      const lastPara = text.trim().split(/\n\s*\n/).pop() || '';
+      const addressed = (lastPara.match(/[^.!?]+[.!?]*/g) || []).map((sn) => sn.trim()).filter(Boolean).map((sn) => Object.values(state.organisms || {}).find((o) => o.playerId && new RegExp(`^${nm(o)}\\b\\s*(?:[,\u2014\u2013:-])`).test(sn))).filter(Boolean);
+      const named2 = addressed.length ? [addressed[addressed.length - 1]] : [];
       if (named2.length === 1 && named2[0].id !== me.id) flags.push({ kind: 'style', text: `Puts the question to ${named2[0].name}, but it is ${me.name}'s turn.`, turnOf: me.name });
     }
   }
@@ -429,7 +430,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (/[*_#]{2,}|^\s*[-*]\s/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; it should be plain text.' });
   // A heading in capitals ("RUNAWAY CATALYSIS - ...") is the rulebook talking, not the table.
   if (/^\s*[A-Z]{3,}(?:\s+[A-Z]{3,})+\b/m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; a heading in capitals is the rulebook talking.' });
-  if (/\brunaway catalysis\b|\bLodged (?:property|trait)\b|\bE[1-9]\b/i.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; names a rule (Runaway Catalysis, Lodged or an encounter code like E5) aloud.' });
+  if (/\brunaway catalysis\b|\bautophagic collapse\b|\bLodged (?:property|trait)\b|\bE[1-9]\b/i.test(text)) flags.push({ kind: 'style', text: 'Uses formatting; names a rule (Runaway Catalysis, Autophagic Collapse, Lodged or an encounter code like E5) aloud.' });
   // The model sometimes slips into another script mid-sentence.
   if (/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af\u0400-\u04ff]/.test(text)) flags.push({ kind: 'style', text: 'Contains characters from another language.' });
   // Harm the table can hear but the Engine never paid for. Bench 13 Nov, run 2: the gas pocket was
@@ -450,9 +451,9 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // Stone): "His countdown is full ... The only witness to the whale's gut-lock is gone" after a missed
   // throw and no call; Vash was at 3 MI, kept acting for two Cycles and the table heard him buried.
   // Only a tool kills a body.
-  const buried = Object.values(state.organisms || {}).filter((o) => o.playerId && o.mi > 0 && !(o.countdownMax && o.countdown >= o.countdownMax)).filter((o) => {
+  const buried = Object.values(state.organisms || {}).filter((o) => o.playerId && !(o.countdownMax && o.countdown >= o.countdownMax)).filter((o) => {
     const fn = String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return sentences.some((sn) => new RegExp(`\\b${fn}\\b`).test(sn) && /\b(?:dissolv(?:es|ed|ing)|(?:is|was|are|were) (?:dead|gone)|dies|died|unspools?|taken apart|countdown is full)\b/i.test(sn));
+    return sentences.some((sn) => new RegExp(`\\b${fn}\\b`).test(sn) && /\b(?:dissolv(?:es|ed|ing)|(?:is|was|are|were) (?:dead|gone)|dies|died|unspools?|taken apart|takes? \w+ apart|lets go|countdown is full|Total Lysis took)\b/i.test(sn));
   });
   if (buried.length) flags.push({ kind: 'rule', text: `Says ${buried.map((o) => o.name).join(' and ')} is dead or dissolved, but the Engine has them standing.` });
   const CLOCK = /\b(CARCASS|TOLL|HUNGER)\b/;

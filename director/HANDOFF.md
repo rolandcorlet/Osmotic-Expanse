@@ -623,3 +623,11 @@ Still open: one turn in four needs a rewrite (the main cost in time); "Elite" an
 - Still open: the Director narrating a second Render Charge slam after the one-shot note (prose ignores the note; no check yet).
 
 - Instructions now carry two lines: a hazard that has gone off has gone off (no second slam in prose), and a body is alive until a tool says otherwise.
+
+## Ninth bench (c68127fa, `--from 5`) — GATE PASSED
+- Speed: 113 model calls, 9.5 s each, 16099 tokens in / 624 out per call, 65.4 tok/s; 41 Director turns at 26.3 s. 0 refusals, 0 leaks, 0 unpaid damage/Clocks, 0 reversed rolls; 3 style flags.
+- Misses found in the transcript and fixed:
+  - Buried-body check missed "the fourth Autophagic Collapse takes Vash apart" / "the body simply lets go" (Vash was alive and kept striking) and "Ilm is gone. Total Lysis took the body" for bodies at 0 MI whose Countdown was not full. Regex widened; the test is now "Countdown not full", not "MI above 0".
+  - "Autophagic Collapse" spoken aloud is now a rule-name style flag (fixable).
+  - Wrong-seat flag had false positives (it read the first 60 characters of the last question and found a name used earlier in the text). It now takes the last sentence of the last paragraph that opens with a player's name as a vocative ("Vash — ...").
+- Still open: Director invents extra Collapses; tells players "signal you're done and let the current pass" (turn machinery in prose); a second Render Charge `hazard_damage` after the war ended is met by the note but the prose still describes a second flush.

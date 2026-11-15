@@ -124,6 +124,24 @@ test('a standing player is not narrated dead or dissolved', () => {
   assert.ok(!checkNarration('Bresk staggers, leaking, still on his feet. Ilm, what do you do?', s).some((x) => /dissolved/.test(x.text)));
 });
 
+test('bench 15 Nov (second run): the real lines the checks missed or misread', () => {
+  const s = seated();
+  const rule = (t) => checkNarration(t, s).filter((x) => x.kind === 'rule' && /dead or dissolved/.test(x.text)).length;
+  assert.equal(rule('The third blade-slide catches plating, and the body simply lets go. Bresk takes Vash apart? No. Bresk, what now?'), 1);
+  assert.equal(rule('Ilm is gone. Total Lysis took the body on the shard ground. Bresk, what now?'), 0, 'no player named dead here but Ilm is not seated');
+  assert.equal(rule('Bresk is gone. Total Lysis took the body. Ilm, what now?'), 1, 'down at 0 MI is not Lysis');
+  assert.ok(checkNarration('Brost suffers an Autophagic Collapse. Ilm, what now?', s).some((x) => /Autophagic Collapse/.test(x.text)));
+  let f = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const on = f.fight.actors[f.fight.turn];
+  if (on && on.kind === 'org') {
+    const me = f.organisms[on.id]; const other = Object.values(f.organisms).find((o) => o.playerId && o.id !== on.id);
+    const first = (o) => o.name.split(' ')[0];
+    const kinds = (t) => checkNarration(t, f).filter((x) => /Puts the question/.test(x.text)).length;
+    assert.equal(kinds(`The water snaps tight. ${first(other)}'s commitment ripples through the halo.\n\n${first(me)} \u2014 you are first in the current. What do you do?`), 0, 'a name earlier in the text is not the one asked');
+    assert.equal(kinds(`The water tightens.\n\n${first(other)} \u2014 you are next. What do you do?`), 1);
+  }
+});
+
 test('narration checks', () => {
   const s = seated();
   const kinds = (t) => checkNarration(t, s).map((f) => f.kind);
