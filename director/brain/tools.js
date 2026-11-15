@@ -401,6 +401,9 @@ export const TOOLS = [
       // Your one advance is spent: that is a note, not a rule break, and it must not be narrated as a move.
       const was = T.state.clocks[a.clock];
       if (was && d > 0 && was.aiAdvanced) return { clock: was.name, now: `${was.filled}/${was.segments}`, note: `${was.name} has already taken your one advance this session. Nothing moved: do not name it as moving, and do not try it again.` };
+      // TOLL at 3 or more is barred to the Director: the Engine pays TOLL for noise itself, and a discretionary
+      // advance here can tip the Render Charge before the party reaches the Gut Stone scene.
+      if (was && a.clock === 'TOLL' && d > 0 && was.filled >= 3) return { clock: was.name, now: `${was.filled}/${was.segments}`, note: `${was.name} is at ${was.filled}/${was.segments}. You may not advance it yourself from here; the Engine pays it when the table is loud. Nothing moved: do not name it as moving, and do not try it again.` };
       const no = T.do({ type: 'clock', id: a.clock, delta: d, why: a.why, by: 'ai' });
       if (no) return { refused: no };
       const c = T.state.clocks[a.clock];

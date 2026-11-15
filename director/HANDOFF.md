@@ -667,3 +667,6 @@ Fixed (160 tests):
 - `fixSeat` now works on a single paragraph; the pending-throw check reads only the closing paragraph (two false flags).
 
 For Roly: TOLL reached 5 before the Gut Stone scene began (the Director spent its own +1 on TOLL at the Brood on top of the Engine's), so the Warden parley and the stone were skipped and the module went straight to the race, then a fight was started after it. Whether the Director should be allowed to spend its discretionary Clock move on TOLL at 3 or more is a design call.
+
+## TOLL barred (15 Nov 2026)
+Roly's call: `move_clock` refuses (as a note, nothing moves) any Director advance of TOLL once it stands at 3 or more. The Engine's own `loud` payments are unaffected, so TOLL can still rise from noise, but the Director can no longer tip the Render Charge before the Gut Stone parley. Test added.

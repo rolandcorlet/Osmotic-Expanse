@@ -1703,3 +1703,12 @@ test('bench 15 Nov (second five-stage): the seat fix works on one paragraph, and
   const r = T.run('award', { codon: 0, substrate: 0, why: 'A G Specimen' });
   assert.ok(r.note && !r.refused);
 });
+
+test('the Director cannot advance TOLL itself once it stands at 3 or more', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  T.state.clocks.TOLL.filled = 3;
+  const r = T.run('move_clock', { clock: 'TOLL', change: 1, why: 'a loud fight' });
+  assert.match(r.note, /may not advance it yourself/);
+  assert.equal(T.state.clocks.TOLL.filled, 3);
+  assert.equal(T.run('move_clock', { clock: 'TOLL', change: -1, why: 'a toll chit' }).now, '2/5');
+});
