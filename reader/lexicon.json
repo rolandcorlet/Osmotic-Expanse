@@ -1781,18 +1781,34 @@
   {
    "name": "Flagellan",
    "cat": "lineage",
-   "def": "'The Rowed': finned, lashed swimmers born in the Great Flows — couriers, navigators, smugglers. They cannot keep still.",
+   "def": "'The Rowed': finned, lashed swimmers born in the Great Flows — couriers, navigators, smugglers. They cannot keep still, and they ride out strain: a rolled 1 costs them Stress only three times in four.",
    "aka": [
     "Flagellans"
    ],
    "rx": [],
    "see": [
-    "obligate-drifter"
+    "obligate-drifter",
+    "rides-it-out"
    ],
    "src": "ATLAS §2",
    "level": "player",
    "scope": null,
    "id": "flagellan"
+  },
+  {
+   "name": "Rides It Out",
+   "cat": "lineage",
+   "def": "The Flagellan knack (v3): each Inhibitor, a die showing 1, marks Stress only three times in four. On paper, roll a d4 for each 1; on a 1 it marks no Stress.",
+   "aka": [],
+   "rx": [],
+   "see": [
+    "flagellan",
+    "stress"
+   ],
+   "src": "ATLAS §2",
+   "level": "player",
+   "scope": null,
+   "id": "rides-it-out"
   },
   {
    "name": "Lysosan",
