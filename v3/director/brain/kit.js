@@ -56,6 +56,12 @@ export function kitBriefing(state, scenario, site) {
     if (moments.length) L.push(`A moment for each organism at this site (offer it once, when it fits): ${moments.join(' | ')}`);
   }
   L.push('The Cohort is HERE and can only see, taste and test what is here. If a player asks about somewhere else (a room further in, the thing at the end), say they cannot tell from here and what they would have to do to find out. Never describe, rule on or decide facts about another site from this one.');
+  for (const [id, f] of Object.entries(state.fills || {})) {
+    const ev = ((scenario.rules || {}).onFull || {})[id];
+    if (!ev) continue;
+    const told = (state.story || []).some((e) => e.kind === 'narration' && e.seq > f.seq);
+    L.push(`${id} IS FULL: ${ev.name.toUpperCase()}${told ? ' is under way.' : ' HAS JUST BEGUN. Tell the table now, in the fiction, before anything else:'} ${ev.says} This has already been paid: change no number yourself.${site.id === 'soft-field' ? ' Here in the Soft Field the swarms come to strip the cut: bring the creatures printed for it.' : ''}`);
+  }
   const hidden = kit.secrets.filter((s) => !found[s.id]);
   if (hidden.length) {
     L.push('');
@@ -78,4 +84,26 @@ export function kitBriefing(state, scenario, site) {
   }
   if (read.quiet.length) L.push(`${read.quiet.map((o) => o.name).join(' and ')} ${read.quiet.length > 1 ? 'have' : 'has'} not had the floor lately. If it is not somebody else's turn in a fight, turn the scene toward them and ask them the question.`);
   return L;
+}
+
+// When the model keeps putting the same question (bench 16 Nov: "do you sign?" eight times, with the
+// warning in front of it), the Engine closes it: the repeated question is taken off the reply, the
+// chance is said to have passed, and the floor goes to somebody who was not being asked.
+const askWords = (t) => { const m = String(t || '').match(/[^.!?\n]*\?\s*$/); return new Set((m ? m[0] : '').toLowerCase().match(/[a-z]{4,}/g) || []); };
+const alike = (x, y) => { if (x.size < 3 || y.size < 3) return false; let n = 0; for (const w of x) if (y.has(w)) n += 1; return n / Math.min(x.size, y.size) >= 0.6; };
+export function breakLoop(text, state, siteId) {
+  if (state.fight) return '';
+  const prev = (state.story || []).filter((e) => e.site === siteId && e.kind === 'narration').slice(-4).map((e) => askWords(e.text));
+  const cur = askWords(text);
+  if (prev.filter((q) => alike(cur, q)).length < 2) return '';
+  const body = String(text).replace(/[^.!?\n]*\?\s*$/, '').trim();
+  const asked = (String(text).match(/[^.!?\n]*\?\s*$/) || [''])[0].toLowerCase();
+  const seats = Object.values(state.organisms || {}).filter((o) => o.playerId);
+  const first = (o) => String(o.name).split(/\s+/)[0];
+  const says = (state.story || []).filter((e) => e.kind === 'say' && e.orgId);
+  const lastSpoke = (o) => { for (let i = says.length - 1; i >= 0; i--) if (says[i].orgId === o.id) return i; return -1; };
+  const others = seats.filter((o) => !asked.includes(first(o).toLowerCase())).sort((a, b) => lastSpoke(a) - lastSpoke(b));
+  const next = others[0] || seats[0];
+  if (!next) return '';
+  return `${body}${body ? '\n\n' : ''}Nobody answers, and the moment passes: that choice is no longer on offer. ${first(next)}, what do you do?`;
 }

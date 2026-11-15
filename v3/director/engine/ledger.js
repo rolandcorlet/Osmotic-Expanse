@@ -174,6 +174,7 @@ export function apply(state, action, ctx) {
   s.seq += 1;
   if (!s.story) s.story = []; // sessions saved before the story existed
   h.run(s, action, ctx);
+  clockFills(s, ctx);
   if (s.rolls.length > MAX_ROLLS) s.rolls = s.rolls.slice(-MAX_ROLLS);
   if (s.log.length > MAX_LOG) s.log = s.log.slice(-MAX_LOG);
   if (s.story.length > MAX_LOG) s.story = s.story.slice(-MAX_LOG);
@@ -181,6 +182,32 @@ export function apply(state, action, ctx) {
 }
 
 // ------------------------------------------------------------------- helpers
+// v3: what a Vector prints for a Clock filling, paid once when it happens (bench 16 Nov: HUNGER
+// reached 4 of 4 and nothing followed). THE FIRST CARVE 3.3, segment 4, the Render Cascade: "every
+// un-shipped cut drops one grade". A C cut has no grade below it, so it stays C.
+function clockFills(s, ctx) {
+  const rules = ((ctx.scenario || {}).rules || {}).onFull || {};
+  for (const [id, ev] of Object.entries(rules)) {
+    const c = (s.clocks || {})[id];
+    if (!c || c.filled < c.segments) continue;
+    s.fills = s.fills || {};
+    if (s.fills[id]) continue;
+    s.fills[id] = { seq: s.seq, name: ev.name };
+    let moved = 0;
+    if (ev.dropUnstampedGrade) {
+      for (const o of Object.values(s.organisms)) {
+        const sp = o.specimens;
+        if (!sp) continue;
+        for (const [hi, lo] of [['G', 'C'], ['P', 'G'], ['T', 'P']]) {
+          const n = sp[hi] || 0;
+          if (n) { sp[lo] = (sp[lo] || 0) + n; sp[hi] = 0; moved += n; }
+        }
+      }
+    }
+    say(s, ctx, `${c.name} is full: ${ev.name}.${ev.dropUnstampedGrade ? ` Every unstamped cut drops one grade (${moved} Specimen${moved === 1 ? '' : 's'} changed).` : ''}`, 'clock');
+  }
+}
+
 // The picking order: every seated organism, in the order kept; newcomers join at the back.
 function lootOrder(s) {
   s.loot = s.loot || { order: [], queue: [], offer: null };

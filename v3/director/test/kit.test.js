@@ -8,7 +8,7 @@ import { scenario, publicScenario } from '../data/first-carve.js';
 import { VECTORS } from '../data/vectors.js';
 import { toolbox } from '../brain/tools.js';
 import { briefing, INSTRUCTIONS, MACHINERY, scrubLeaks, checkNarration } from '../brain/director.js';
-import { tableRead } from '../brain/kit.js';
+import { tableRead, breakLoop } from '../brain/kit.js';
 import { gloss } from '../data/kit/glossary.js';
 
 const bestiary = JSON.parse(readFileSync(new URL('../data/bestiary.json', import.meta.url), 'utf8'));
@@ -178,4 +178,31 @@ test('bench 16 Nov (third): a burial by Hand name is caught, creature counts lea
   const before = T.state.organisms.ledger.mi;
   assert.match(T.run('hazard_damage', { organism: 'ledger', amount: 8, type: 'Lytic', trigger: 'entering Mid band', why: 'Osk tumbles through the enzyme haze' }).refused, /bystander has no sheet/);
   assert.equal(T.state.organisms.ledger.mi, before);
+});
+
+test('a question asked three times is closed by the Engine and the floor passes', () => {
+  let s = seated();
+  ['Bresk of the Choir', 'Ilm of the Hand', 'Vash of the Reach', 'Brost of the Current'].forEach((n, i) => { Object.values(s.organisms).filter((o) => o.playerId)[i].name = n; });
+  for (const t of ['Nine-Folds waits. Bresk, do you sign the form, or walk?', 'The thud comes closer. Bresk, the pen waits: do you sign, or walk away?']) s.story.push({ id: `q${t.length}`, seq: s.seq, site: s.scene.siteId, kind: 'narration', text: t });
+  s = apply(s, { type: 'say', text: 'I look at the ceiling.' }, ctx('player', 'p1'));
+  const out = breakLoop('The glow comes back slowly.\n\nBresk, the form sits open. Do you sign the form, or walk?', s, s.scene.siteId);
+  assert.match(out, /The glow comes back slowly\./);
+  assert.match(out, /that choice is no longer on offer\. (Ilm|Vash|Brost), what do you do\?$/);
+  assert.doesNotMatch(out, /Do you sign/);
+  assert.equal(breakLoop('A new thing happens. Ilm, do you open the pump?', s, s.scene.siteId), '');
+});
+
+test('HUNGER filling starts the Render Cascade once: unstamped cuts drop a grade, stamped ones do not', () => {
+  let s = seated();
+  const host = ctx('host', null);
+  s.organisms.wall.specimens = { C: 2, G: 3, P: 1, T: 0 };
+  s.organisms.wall.stamped = { C: 0, G: 2, P: 0, T: 0 };
+  s.clocks.HUNGER.filled = 3;
+  s = apply(s, { type: 'clock', id: 'HUNGER', delta: 1, why: 'bodies left uncut' }, host);
+  assert.deepEqual(s.organisms.wall.specimens, { C: 5, G: 1, P: 0, T: 0 });
+  assert.equal(s.organisms.wall.stamped.G, 2);
+  assert.ok(s.fills.HUNGER);
+  assert.match(briefing(s, scenario, bestiary), /HUNGER IS FULL: THE RENDER CASCADE HAS JUST BEGUN/);
+  const again = apply(s, { type: 'say', text: 'What was that?' }, ctx('player', 'p1'));
+  assert.deepEqual(again.organisms.wall.specimens, { C: 5, G: 1, P: 0, T: 0 }, 'paid once');
 });

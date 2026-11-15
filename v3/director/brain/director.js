@@ -3,7 +3,7 @@
 // narration. Nothing here touches the live table: the caller decides whether to
 // commit the result (Auto) or show it to the host first (Co-pilot).
 
-import { kitBriefing } from './kit.js';
+import { kitBriefing, breakLoop } from './kit.js';
 import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, orgMT, printedPays, hazardSpec } from './tools.js';
 import { hazardBudget } from '../engine/ledger.js';
@@ -714,6 +714,10 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   if (seat) {
     const fixed = fixSeat(narration, seat.turnOf, (seat.text.match(/^Puts the question to (.+?), but/) || [])[1] || '');
     if (fixed) { narration = fixed; flags = flags.filter((f) => f !== seat).concat([{ kind: 'note', text: `The Engine set the closing question to ${seat.turnOf}, whose turn it is.` }]); }
+  }
+  {
+    const closed = breakLoop(narration, T.state, T.site().id);
+    if (closed) { narration = closed; flags = flags.concat([{ kind: 'note', text: 'The Engine closed a question that had been asked three times and passed the floor.' }]); }
   }
   // v3 (bench 16 Nov, iq3_s: "six sections thick", "Four sections left" survived the rewrite twice).
   // A leak is nearly always one sentence. Rather than hold the whole reply for a host, cut the

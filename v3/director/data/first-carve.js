@@ -257,6 +257,10 @@ export const scenario = {
     // Vector says how many panel openings one scene pays for. 1 keeps the Clock honest to the scene;
     // set it to 0 and every panel cracked loose pays its own segment.
     panelOpensPerScene: 1,
+    // 3.3 segment 4. The Engine pays the grade drop; the swarm strip in the Soft Field is the Director's to
+    // bring if the Cohort is there (printed: 3 Gnaw Swarms + 2 Detritus Feeders). The Order Clock it opens
+    // belongs to the campaign layer and is not tracked here.
+    onFull: { HUNGER: { name: 'the Render Cascade', dropUnstampedGrade: true, says: 'Everything hungry in the Reach has found the carcass at once. Every cut the Cohort carries that has not been stamped has been nibbled, soured or stripped: it is worth one grade less than it was. Stamped cuts are untouched.' } },
   },
 };
 
