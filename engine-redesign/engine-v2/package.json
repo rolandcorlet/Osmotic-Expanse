@@ -1,0 +1,1 @@
+{ "name": "osmotic-engine-v2", "private": true, "type": "module", "scripts": { "test": "node --test test/*.test.mjs" } }
