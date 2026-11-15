@@ -515,6 +515,41 @@ export const TOOLS = [
     },
   },
   {
+    name: 'strike_bystander',
+    description: 'A player attacks someone who is not a combatant: a clerk, a bystander, an official at a desk. These people have no numbers and there is no Pulse War with them. Before you call this, say out loud what it will cost: they are not fighting back, witnesses are watching, the law will hear of it, and whatever this person was offering is gone for good. If the player still wants it, call this. It pays what the world charges for the attempt and calls one throw. After the throw: on a success call bystander_falls with what the player intended; on a failure the person gets clear or is shielded, and is still lost to the Cohort as a friend. Never use it for a creature printed for the site: those are brought with bring_creatures and fought.',
+    parameters: obj({ organism: S('Organism id of the attacker.'), who: S('Who is struck, as named for you at this site, for example "Nine-Folds" or "the Tally Post clerk".'), baseline: S('VSC for force, DFF for speed.', { enum: ['VSC', 'DFF'] }) }, ['organism', 'who']),
+    run(a, T) {
+      const o = findOrg(T.state, a.organism);
+      if (!o) return noOrg(a.organism, T.state);
+      const p = findPerson(T, a.who);
+      if (!p) return { refused: `Nobody called "${a.who}" is named for you at this site. People here: ${sitePeople(T).map((x) => x.name).join('; ') || 'none'}.` };
+      if (p.block) return { refused: `${p.name} is a creature printed for this site: bring it with bring_creatures (block "${p.block}") and fight it in a Pulse War.` };
+      const st = personState(T, p);
+      if (st && (st.state === 'dead' || st.state === 'fled')) return { note: `${p.name} is already ${st.state === 'dead' ? 'dead' : 'gone'}. Nothing happened.` };
+      if (p.beyond) return { note: `${p.name} is far beyond anything the Cohort can hurt: the blow is turned aside without effort and without anger. No throw. Say so, and say what it has cost them in that person's patience.` };
+      if (T.state.fight) return { refused: 'Finish the Pulse War first.' };
+      const no = T.do({ type: 'bystander.struck', personId: p.id, name: p.name, official: !!p.official, by: o.name });
+      if (no) return { refused: no };
+      const no2 = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline === 'DFF' ? 'DFF' : 'VSC', pathway: '', at: 12, label: `Strike at ${p.name}, who is not fighting`, mods: [], unhurried: false });
+      if (no2) return { refused: no2 };
+      return { throw_called_for: o.name, paid: p.official ? 'The law has noticed: its Clock has moved.' : 'Witnesses saw it.', then: 'Stop and wait for the throw. On a success call bystander_falls. Either way, this person tells the Cohort nothing more and offers nothing more.' };
+    },
+  },
+  {
+    name: 'bystander_falls',
+    description: 'After a successful strike_bystander throw: what became of the person. dead, fled or yields, as the player intended and as fits. If the Bestiary prints a cut for that kind of body it will lie there to be harvested; otherwise there is nothing to cut, and the keepers of the dead will want to know why a body was left.',
+    parameters: obj({ who: S('The person, as named for you.'), outcome: S('What happened.', { enum: ['dead', 'fled', 'yields'] }) }, ['who', 'outcome']),
+    run(a, T) {
+      const p = findPerson(T, a.who);
+      if (!p) return { refused: `Nobody called "${a.who}" is named for you at this site.` };
+      const last = (T.state.rolls || []).slice(-1)[0];
+      const no = T.do({ type: 'bystander.falls', personId: p.id, name: p.name, outcome: a.outcome, body: p.body || '' });
+      if (no) return { refused: no };
+      const cut = a.outcome === 'dead' && p.body && T.bestiary && T.bestiary[p.body];
+      return { fallen: p.name, outcome: a.outcome, body: a.outcome !== 'dead' ? undefined : (cut ? 'It lies where it fell and can be harvested like any other body.' : 'Nothing is printed to cut from this body. Leaving the dead unharvested is its own offence here: say who will come for it.'), last_throw: last ? undefined : undefined };
+    },
+  },
+  {
     name: 'look_up',
     description: 'Look up how this world works before you answer: a law (the seven Precepts), a custom (the Register, Oaths, the Ledger, proof, class, trials, yielding), or what a word means in plain words. Use it when a player asks "what does that mean?", "is that legal?", "how would people here react?", or tries something the site does not cover and you need to know what the world would do. It returns short cards; say them in your own words.',
     parameters: obj({ about: S('A few words, for example "lying about who you are", "unlisted", "what is a Tally Post".') }, ['about']),
@@ -613,12 +648,21 @@ export const TOOLS = [
 ];
 
 // ---- running a tool against a sandbox copy of the Ledger -------------------------
+const sitePeople = (T) => ((((T.scenario.kit || {}).sites || {})[T.site().id] || {}).people || []);
+function findPerson(T, who) {
+  const w = String(who || '').toLowerCase().replace(/^the\s+/, '').trim();
+  if (!w) return null;
+  return sitePeople(T).find((p) => p.id === w || p.name.toLowerCase().includes(w) || w.includes(p.id.replace(/-/g, ' ')) || p.name.toLowerCase().split(/[^a-z-]+/).some((t) => t.length > 3 && w.includes(t))) || null;
+}
+const personState = (T, p) => (((T.state.kit || {}).people || {})[`${T.site().id}/${p.id}`]) || null;
+
 export function toolbox({ state, scenario, bestiary, rng, now, memory = null }) {
   // The Director acts as the host, but the Engine must know it is the Director (ai: true).
   const ctx = { role: 'host', pid: null, rng, now, scenario, bestiary, ai: true };
   const T = {
     state,
     scenario,
+    bestiary,
     memory,
     refusals: 0,
     do(action) {

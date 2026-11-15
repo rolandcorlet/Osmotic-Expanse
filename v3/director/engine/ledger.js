@@ -1617,7 +1617,13 @@ const HANDLERS = {
       const loudIds = clockIds(clockTrigger(s, ctx, 'loud')).filter((id) => s.clocks[id]);
       if (loudIds.length && !loudIds.some((id) => s.clocks[id].loudScene === s.sceneNo)) {
         for (const id of loudIds) s.clocks[id].loudScene = s.sceneNo;
-        payTrigger(s, ctx, 'loud', 1, 'a Pulse War in the open: the channels are loud');
+        // v3 (Roly, 16 Nov): a loud fight does not always reach the law. Where the Vector gives a Clock
+        // a chance, the Engine throws for it; a Clock with no chance listed is paid every time.
+        const chance = ((ctx.scenario || {}).rules || {}).loudChance || {};
+        for (const id of loudIds) {
+          if (chance[id] != null && !((ctx.rng || Math.random)() < chance[id])) { say(s, ctx, `The fight is loud, but the channels do not carry it this time: ${s.clocks[id].name} holds.`, 'clock'); continue; }
+          payClock(s, ctx, id, 1, 'a Pulse War in the open: the channels are loud');
+        }
       }
       for (const id of orgIds) {
         const o = org(s, id);
@@ -1856,6 +1862,39 @@ const HANDLERS = {
       s.kit.found[sec.id] = { seq: s.seq, site: s.scene.siteId, text: sec.text, how: String(a.how || '').slice(0, 160) };
       s.kit.progressSeq = s.seq;
       s.log.push({ seq: s.seq, t: ctx.now || 0, text: `The Cohort learned: ${sec.text}`, kind: 'note' });
+    },
+  },
+  // v3: someone with no stat block is struck, and later falls. They are people to talk to, not
+  // combatants, so there is no Pulse War: one throw, and the world answers. The attempt itself is the
+  // offence (pass or fail): an official struck in front of witnesses moves the law's Clock once.
+  'bystander.struck': {
+    host: true,
+    run(s, a, ctx) {
+      s.kit = s.kit || { found: {} };
+      s.kit.people = s.kit.people || {};
+      const key = `${s.scene.siteId}/${a.personId}`;
+      const first = !s.kit.people[key];
+      s.kit.people[key] = { ...(s.kit.people[key] || {}), name: a.name, by: a.by, seq: s.seq, state: (s.kit.people[key] || {}).state || 'struck' };
+      const law = ((ctx.scenario || {}).rules || {}).lawClock;
+      if (first && a.official && law && s.clocks[law]) payClock(s, ctx, law, 1, `${a.name} was struck in front of witnesses`);
+      say(s, ctx, `${a.by} struck at ${a.name}, who was not fighting. Whatever ${a.name} was offering is withdrawn.`, 'note');
+    },
+  },
+  'bystander.falls': {
+    host: true,
+    run(s, a, ctx) {
+      const key = `${s.scene.siteId}/${a.personId}`;
+      const p = ((s.kit || {}).people || {})[key];
+      if (!p) throw new RuleError(`Nobody has struck at ${a.name}. A person falls only after strike_bystander and its throw.`);
+      if (!['dead', 'fled', 'yields'].includes(a.outcome)) throw new RuleError('The outcome is dead, fled or yields.');
+      if (p.state === 'dead' || p.state === 'fled') return;
+      p.state = a.outcome;
+      if (a.outcome === 'dead' && a.body && ctx.bestiary && ctx.bestiary[a.body]) {
+        // The Bestiary prints a cut for this kind of body, so it lies there to be harvested like any other.
+        const made = spawn(s, ctx, [{ blockId: a.body, count: 1, band: 'contact' }], ctx.bestiary);
+        for (const c of made) { c.name = `the body of ${a.name}`; c.down = true; if (c.mi != null) c.mi = 0; if (c.segments != null) c.segments = 0; }
+      }
+      say(s, ctx, `${a.name} ${a.outcome === 'dead' ? 'is dead' : a.outcome === 'fled' ? 'has fled' : 'yields'}.`, 'note');
     },
   },
   'cast.remember': {

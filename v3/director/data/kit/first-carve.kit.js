@@ -57,8 +57,8 @@ export const kit = {
       question: 'How does the Cohort get in: pay, promise, talk, sneak or fight?',
       senses: ['the current pulling in through the torn flank', 'a taste of old blood and salt', 'the toll board ticking as prices change', 'bare patches on the wound lip where something has been grazing', 'a low hum under the lip, felt more than heard'],
       people: [
-        { id: 'gate-drone', name: 'the gate drone (a Fold Sentinel)', want: 'to see a valid claim before anyone passes', fear: 'being blamed for an unregistered entry', voice: 'Clipped, formal, reads from a form. Never raises its voice.', knows: ['legal', 'charge', 'drones-inward'], trade: 'Accepts a toll, a licence, or a witnessed promise.', wont: 'Will not start a fight. Will not be bribed, but will be persuaded.' },
-        { id: 'skiff-crew', name: 'a skiff crew ahead of you', want: 'to get their load stamped and go home', fear: 'the schedule', voice: 'Tired, chatty, bitter about the Guild.', knows: ['legal', 'neth'], trade: 'Gossip for a kind word or a drink.', wont: '' },
+        { id: 'gate-drone', block: 'fold-sentinel', name: 'the gate drone (a Fold Sentinel)', want: 'to see a valid claim before anyone passes', fear: 'being blamed for an unregistered entry', voice: 'Clipped, formal, reads from a form. Never raises its voice.', knows: ['legal', 'charge', 'drones-inward'], trade: 'Accepts a toll, a licence, or a witnessed promise.', wont: 'Will not start a fight. Will not be bribed, but will be persuaded.' },
+        { id: 'skiff-crew',  name: 'a skiff crew ahead of you', want: 'to get their load stamped and go home', fear: 'the schedule', voice: 'Tired, chatty, bitter about the Guild.', knows: ['legal', 'neth'], trade: 'Gossip for a kind word or a drink.', wont: '' },
       ],
       approaches: [
         { say: 'Pay the toll', ruling: 'No roll. It is printed: Specimens or Substrate per body. TOLL eases.' },
@@ -77,7 +77,7 @@ export const kit = {
       question: 'Does the Cohort get a cut, and can they make it legal?',
       senses: ['sheets of fat swaying like curtains', 'a sweet taste in the water that does not belong', 'the creak of the sled cable', 'a glassy shimmer in one panel (the Medusa nest)', 'soft ground that sucks at you'],
       people: [
-        { id: 'clerk', name: 'the Tally Post clerk', want: 'a quiet shift and a clean ledger', fear: 'Neth, and being caught between two claims', voice: 'Dry, exact, quotes prices. Warms up if treated as a person.', knows: ['legal', 'first-crew', 'neth'], trade: 'A stamp at the price the post rolls. Gossip costs extra.', wont: 'Will not stamp something that has not been on the scale.' },
+        { id: 'clerk', official: true, name: 'the Tally Post clerk', want: 'a quiet shift and a clean ledger', fear: 'Neth, and being caught between two claims', voice: 'Dry, exact, quotes prices. Warms up if treated as a person.', knows: ['legal', 'first-crew', 'neth'], trade: 'A stamp at the price the post rolls. Gossip costs extra.', wont: 'Will not stamp something that has not been on the scale.' },
       ],
       approaches: [
         { say: 'Cut the far panels and avoid the nest', ruling: 'The harvest rule, as printed. No fight.' },
@@ -95,8 +95,8 @@ export const kit = {
       question: 'Can the Cohort cross the stomach, and what do they do about the stranger in the water?',
       senses: ['a pull on your skin from the too-salty water', 'the pump\'s roar, felt in the body', 'a sheen on the haze over the middle of the floor', 'dry ribs along the wall like a walkway', 'one warm spot in a cold room'],
       people: [
-        { id: 'osk', name: 'Pump-Hand Osk', want: 'to get out alive and finish the shift', fear: 'the churn', voice: 'Young, loud, swears cheerfully, grateful.', knows: ['stone-where', 'charge'], trade: 'Owes a life: tells everything, lends the pump.', wont: '' },
-        { id: 'foreman', name: 'the barge foreman', want: 'the chamber drained on schedule', fear: 'losing a hand on her watch', voice: 'Flat, practical, counts things.', knows: ['charge', 'stone-where'], trade: 'Lets the Cohort use the dry ribs or the pump in return for help.', wont: 'Will not stop the pump for strangers.' },
+        { id: 'osk', official: true, name: 'Pump-Hand Osk', want: 'to get out alive and finish the shift', fear: 'the churn', voice: 'Young, loud, swears cheerfully, grateful.', knows: ['stone-where', 'charge'], trade: 'Owes a life: tells everything, lends the pump.', wont: '' },
+        { id: 'foreman', official: true, name: 'the barge foreman', want: 'the chamber drained on schedule', fear: 'losing a hand on her watch', voice: 'Flat, practical, counts things.', knows: ['charge', 'stone-where'], trade: 'Lets the Cohort use the dry ribs or the pump in return for help.', wont: 'Will not stop the pump for strangers.' },
       ],
       approaches: [
         { say: 'Walk the dry ribs', ruling: 'No roll to walk. Safe from the haze. Slower.' },
@@ -114,8 +114,8 @@ export const kit = {
       question: 'What does the Cohort do about the brood: register it, harvest it, or walk past?',
       senses: ['warmth, like a hand held near', 'sweetness thick enough to taste', 'the feeling of being asked questions', 'six fins where there should be four', 'the scratch of a stylus on a form'],
       people: [
-        { id: 'nine-folds', name: 'Nine-Folds, the drone elder', want: 'the brood registered as persons before the schedule runs out', fear: 'that they will be rendered as salvage', voice: 'Ancient, patient, bureaucratic, quietly desperate. Speaks in form numbers, then stops and speaks plainly.', knows: ['not-whale', 'drones-inward', 'stone-where', 'charge'], trade: 'Tells the truth for a signature. Offers a Name and the drones\' goodwill.', wont: 'Will not threaten. Will not lie on a form.' },
-        { id: 'brood-voice', name: 'the brood (through a Receptor Lurker)', want: 'to be let live', fear: 'everything', voice: 'Repeats your own words back as questions.', knows: ['sweet'], trade: 'Nothing to trade but trust.', wont: 'Will not fight unless startled.' },
+        { id: 'nine-folds', official: true, body: 'chaperone-drone', name: 'Nine-Folds, the drone elder', want: 'the brood registered as persons before the schedule runs out', fear: 'that they will be rendered as salvage', voice: 'Ancient, patient, bureaucratic, quietly desperate. Speaks in form numbers, then stops and speaks plainly.', knows: ['not-whale', 'drones-inward', 'stone-where', 'charge'], trade: 'Tells the truth for a signature. Offers a Name and the drones\' goodwill.', wont: 'Will not threaten. Will not lie on a form.' },
+        { id: 'brood-voice', block: 'receptor-lurker', name: 'the brood (through a Receptor Lurker)', want: 'to be let live', fear: 'everything', voice: 'Repeats your own words back as questions.', knows: ['sweet'], trade: 'Nothing to trade but trust.', wont: 'Will not fight unless startled.' },
       ],
       approaches: [
         { say: 'Talk to Nine-Folds', ruling: 'Three exchanges. Say what success buys before the first roll.' },
@@ -133,8 +133,8 @@ export const kit = {
       question: 'Who leaves with what, and does everyone get out before the charge?',
       senses: ['heat off the stone face', 'a sting in the water near the stone', 'shards chiming against each other in the current', 'a hum with a rhythm, like something working', 'one shaft of cold water from above: the way out'],
       people: [
-        { id: 'warden', name: 'the Protease Warden', want: 'the canister recovered intact and reported', fear: 'losing it to scavengers, or to the charge', voice: 'Courteous, tired, absolutely certain. Gives one warning.', knows: ['charge', 'serial', 'not-whale'], trade: 'Pays for the serial to be reported. Lets the Cohort leave with ordinary cuts.', wont: 'Will not give up the canister.' },
-        { id: 'guardian', name: 'the Lattice Guardian (in the stone)', want: 'the print job finished', fear: 'interruption', voice: 'Does not speak. Answers yes or no by warming or cooling the water.', knows: ['not-whale', 'serial'], trade: 'Goes quiet if convinced the job is complete.', wont: 'Cannot leave the stone.' },
+        { id: 'warden', block: 'protease-warden', name: 'the Protease Warden', want: 'the canister recovered intact and reported', fear: 'losing it to scavengers, or to the charge', voice: 'Courteous, tired, absolutely certain. Gives one warning.', knows: ['charge', 'serial', 'not-whale'], trade: 'Pays for the serial to be reported. Lets the Cohort leave with ordinary cuts.', wont: 'Will not give up the canister.' },
+        { id: 'guardian', beyond: true, name: 'the Lattice Guardian (in the stone)', want: 'the print job finished', fear: 'interruption', voice: 'Does not speak. Answers yes or no by warming or cooling the water.', knows: ['not-whale', 'serial'], trade: 'Goes quiet if convinced the job is complete.', wont: 'Cannot leave the stone.' },
       ],
       approaches: [
         { say: 'Deal with the Warden', ruling: 'AFF, hard, easier if the Cohort has the brood\'s registration or the serial.' },

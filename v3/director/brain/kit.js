@@ -20,8 +20,8 @@ export function tableRead(state, siteId, firstSite = null) {
   const first = firstSite || ((state.story || []).length ? (state.story[0].site || siteId) : siteId);
   const firstVisit = narr.length === 0 || (siteId !== first && narr.length === 1);
   // The same closing question three times running (bench 16 Nov: "throw and haul, or climb on?" nine times).
-  const ask = (t) => { const m = String(t || '').match(/[^.!?\n]*\?\s*$/); return new Set((m ? m[0] : '').toLowerCase().match(/[a-z]{4,}/g) || []); };
-  const same = (x, y) => { if (x.size < 3 || y.size < 3) return false; let n = 0; for (const w of x) if (y.has(w)) n += 1; return n / Math.min(x.size, y.size) >= 0.6; };
+  const ask = (t) => askWords(t, state);
+  const same = alike;
   // Another question in between does not reset it: three alike among the last five is a loop.
   const lastQ = narr.slice(-5).map((e) => ask(e.text));
   const looping = !state.fight && lastQ.length >= 3 && lastQ.slice(0, -1).filter((q) => same(lastQ[lastQ.length - 1], q)).length >= 2;
@@ -43,8 +43,10 @@ export function kitBriefing(state, scenario, site) {
     L.push(`Sense details to draw on (two or three a reply, never all): ${k.senses.join('; ')}.`);
     L.push('People here. Play each as a person who acts on their want:');
     for (const p of k.people) {
+      const st = ((state.kit || {}).people || {})[`${site.id}/${p.id}`];
+      if (st) { L.push(`- ${p.name}: ${st.state === 'dead' ? 'DEAD' : st.state === 'fled' ? 'FLED' : st.state === 'yields' ? 'HAS YIELDED' : 'WAS STRUCK AT'} (by ${st.by}). They offer nothing and tell nothing more. Everyone who saw it remembers. Do not bring them back as before.`); continue; }
       const knows = p.knows.filter((id) => !found[id]);
-      L.push(`- ${p.name}. Wants: ${p.want}. Fears: ${p.fear}. Voice: ${p.voice}${p.trade ? ` Offers: ${p.trade}` : ''}${p.wont ? ` Never: ${p.wont}` : ''}${knows.length ? ` Can tell the Cohort: ${knows.join(', ')}.` : ''}`);
+      L.push(`- ${p.name}. Wants: ${p.want}. Fears: ${p.fear}. Voice: ${p.voice}${p.trade ? ` Offers: ${p.trade}` : ''}${p.wont ? ` Never: ${p.wont}` : ''}${p.block ? '' : p.beyond ? ' Cannot be hurt by the Cohort.' : ' Not a combatant: if a player attacks them, say the cost first, then strike_bystander.'}${knows.length ? ` Can tell the Cohort: ${knows.join(', ')}.` : ''}`);
     }
     L.push('Likely things players try, and the ruling. Anything else they think of is welcome: rule it the same way.');
     for (const a of k.approaches) L.push(`- "${a.say}": ${a.ruling}`);
@@ -89,12 +91,25 @@ export function kitBriefing(state, scenario, site) {
 // When the model keeps putting the same question (bench 16 Nov: "do you sign?" eight times, with the
 // warning in front of it), the Engine closes it: the repeated question is taken off the reply, the
 // chance is said to have passed, and the floor goes to somebody who was not being asked.
-const askWords = (t) => { const m = String(t || '').match(/[^.!?\n]*\?\s*$/); return new Set((m ? m[0] : '').toLowerCase().match(/[a-z]{4,}/g) || []); };
-const alike = (x, y) => { if (x.size < 3 || y.size < 3) return false; let n = 0; for (const w of x) if (y.has(w)) n += 1; return n / Math.min(x.size, y.size) >= 0.6; };
+// What a closing question is about: its content words, without filler or the names of the Cohort.
+// Bench 16 Nov: "Do you sign?" / "do you sign, or do you walk?" slipped past a rule that wanted three
+// long words. "What do you do?" has no content words, so the stock handover is never a loop.
+const FILLER = new Set('what do you does did the a an and or to of in on at is are it its this that with for now then still your yours his her their them they there here how who which will would can could should not but as be been by from into up down out go going get take make put have has had want mean say tell one two all any some more first before after while again back yourself'.split(' '));
+function askWords(t, state) {
+  const m = String(t || '').match(/[^.!?\n]*\?\s*$/);
+  const names = new Set(Object.values((state || {}).organisms || {}).flatMap((o) => String(o.name).toLowerCase().split(/[^a-z]+/)));
+  return new Set(((m ? m[0] : '').toLowerCase().match(/[a-z]{3,}/g) || []).filter((w) => !FILLER.has(w) && !names.has(w)));
+}
+function alike(x, y) {
+  if (!x.size || !y.size) return false;
+  let n = 0;
+  for (const w of x) if (y.has(w)) n += 1;
+  return n >= 1 && n / Math.min(x.size, y.size) >= 0.5;
+}
 export function breakLoop(text, state, siteId) {
   if (state.fight) return '';
-  const prev = (state.story || []).filter((e) => e.site === siteId && e.kind === 'narration').slice(-4).map((e) => askWords(e.text));
-  const cur = askWords(text);
+  const prev = (state.story || []).filter((e) => e.site === siteId && e.kind === 'narration').slice(-4).map((e) => askWords(e.text, state));
+  const cur = askWords(text, state);
   if (prev.filter((q) => alike(cur, q)).length < 2) return '';
   const body = String(text).replace(/[^.!?\n]*\?\s*$/, '').trim();
   const asked = (String(text).match(/[^.!?\n]*\?\s*$/) || [''])[0].toLowerCase();

@@ -60,7 +60,7 @@ export const kit = {
       question: 'Whose wage does the Cohort take, and what will they sign to get through the gate?',
       senses: ['brine and warm brass', 'forty people breathing patiently', 'the scratch of the clerk\'s stylus', 'a notice board with nine days of nothing on it', 'tea'],
       people: [
-        { id: 'clerk', name: 'Clerk Second-to-Last', want: 'everyone through the gate with the right form', fear: 'being asked to swear to anything', voice: 'Gentle, apologetic, makes excellent tea. Answers every question truthfully as far as it knows.', knows: ['queue-pays', 'strike-legal', 'relief'], trade: 'Explains any box on the form. Will sign the wrong thing if asked nicely.', wont: 'Will not swear an oath.' },
+        { id: 'clerk', official: true, name: 'Clerk Second-to-Last', want: 'everyone through the gate with the right form', fear: 'being asked to swear to anything', voice: 'Gentle, apologetic, makes excellent tea. Answers every question truthfully as far as it knows.', knows: ['queue-pays', 'strike-legal', 'relief'], trade: 'Explains any box on the form. Will sign the wrong thing if asked nicely.', wont: 'Will not swear an oath.' },
         { id: 'neighbour', name: 'whoever is next in the queue', want: 'to keep their place', fear: 'losing it', voice: 'Chatty, resigned.', knows: ['never-stopped'], trade: 'Gossip for company.', wont: '' },
       ],
       approaches: [
@@ -82,7 +82,7 @@ export const kit = {
       question: 'Can the Cohort get anything here, and are they willing to be seen getting it?',
       senses: ['soup steam', 'the silence of four hundred stopped machines', 'a half-folded shape still held in a still hand', 'everyone looking without staring', 'a light where there should be none'],
       people: [
-        { id: 'steward', name: 'Steward Nine-Grudge', want: 'the Row fed and nobody arrested', fear: 'being blamed for a strike it did not start', voice: 'Worn out, exact about names, dry.', knows: ['strike-legal', 'never-stopped', 'alley'], trade: 'Food, hiding and a lie on your behalf, once each, for those the Row trusts.', wont: 'Will never order anyone to attack.' },
+        { id: 'steward', official: true, name: 'Steward Nine-Grudge', want: 'the Row fed and nobody arrested', fear: 'being blamed for a strike it did not start', voice: 'Worn out, exact about names, dry.', knows: ['strike-legal', 'never-stopped', 'alley'], trade: 'Food, hiding and a lie on your behalf, once each, for those the Row trusts.', wont: 'Will never order anyone to attack.' },
       ],
       approaches: [
         { say: 'Answer honestly about the wage', ruling: 'No roll. The Row respects it. Their prices follow the Badge.' },
@@ -103,9 +103,9 @@ export const kit = {
       question: 'Does the Cohort stop the machine, feed it, or ask it what it is making?',
       senses: ['a steady working rhythm in the floor', 'warm towels', 'the smell of fresh print', 'a ticket machine for proteins', 'one very large person standing very still'],
       people: [
-        { id: 'kel-vasht', name: 'Overseer Kel-Vasht', want: 'the patent to die without having to say why', fear: 'the receipt it carries being read aloud', voice: 'Immense, formal, long pauses. Cannot quite say the word "mine".', knows: ['body-trait', 'never-stopped'], trade: 'Will back the Cohort at the hearing if they testify.', wont: 'Not a fight. It will out-argue anyone and should.' },
+        { id: 'kel-vasht', beyond: true, name: 'Overseer Kel-Vasht', want: 'the patent to die without having to say why', fear: 'the receipt it carries being read aloud', voice: 'Immense, formal, long pauses. Cannot quite say the word "mine".', knows: ['body-trait', 'never-stopped'], trade: 'Will back the Cohort at the hearing if they testify.', wont: 'Not a fight. It will out-argue anyone and should.' },
         { id: 'attendant', name: 'the parlour attendant', want: 'the appointment book respected', fear: 'a queue-jumper', voice: 'Soothing, relentless, offers towels.', knows: ['relief'], trade: 'Folds things properly, in order.', wont: '' },
-        { id: 'line', name: 'the Line', want: 'to finish its specification', fear: 'nothing', voice: 'Does not speak. Answers by what it prints next.', knows: ['alley', 'never-stopped'], trade: 'Shows its output to anyone who asks.', wont: 'Will not stop unless somebody signs.' },
+        { id: 'line', beyond: true, name: 'the Line', want: 'to finish its specification', fear: 'nothing', voice: 'Does not speak. Answers by what it prints next.', knows: ['alley', 'never-stopped'], trade: 'Shows its output to anyone who asks.', wont: 'Will not stop unless somebody signs.' },
       ],
       approaches: [
         { say: 'Ask the Line what it is making', ruling: 'No roll. Roll its printed output table and describe it.' },
@@ -126,8 +126,8 @@ export const kit = {
       question: 'Does the Cohort win by the Court\'s rules, and what do they become by doing it?',
       senses: ['the arch\'s cold tingle', 'forty tickets rustling', 'tea again', 'a date on the wall in the wrong handwriting', 'a faint living smell from the exhibit'],
       people: [
-        { id: 'eleven-brief', name: 'Auditor Eleven-Brief', want: 'someone else to find the filing error', fear: 'being proved wrong in public', voice: 'Precise, brittle, grateful to anyone who lets it save face.', knows: ['wrong-building', 'alley', 'body-trait'], trade: 'Will correct the record privately for a Cohort that has been courteous.', wont: 'Will not admit a mistake aloud.' },
-        { id: 'clerk', name: 'Clerk Second-to-Last', want: 'the paperwork to be true', fear: 'oaths', voice: 'As at the gate.', knows: ['strike-legal'], trade: 'Finds and reads documents.', wont: '' },
+        { id: 'eleven-brief', official: true, name: 'Auditor Eleven-Brief', want: 'someone else to find the filing error', fear: 'being proved wrong in public', voice: 'Precise, brittle, grateful to anyone who lets it save face.', knows: ['wrong-building', 'alley', 'body-trait'], trade: 'Will correct the record privately for a Cohort that has been courteous.', wont: 'Will not admit a mistake aloud.' },
+        { id: 'clerk', official: true, name: 'Clerk Second-to-Last', want: 'the paperwork to be true', fear: 'oaths', voice: 'As at the gate.', knows: ['strike-legal'], trade: 'Finds and reads documents.', wont: '' },
       ],
       approaches: [
         { say: 'Argue the case', ruling: 'The hearing rule as printed: three exchanges. Say what winning buys first.' },
@@ -148,7 +148,7 @@ export const kit = {
       question: 'Is the thing in the cradle a what or a who, and who says so out loud?',
       senses: ['clean wet stone', 'a small careful voice', 'a machine humming a tune', 'folded towels', 'four different offers pinned to the wall'],
       people: [
-        { id: 'hush', name: 'Foundry Mother Hush', want: 'to print something nobody has licensed', fear: 'being stopped one step from done', voice: 'Warm, ancient, explains exactly why a thing is a bad idea and then offers to do it.', knows: ['alley', 'never-stopped', 'body-trait'], trade: 'Will finish the print if the Cohort stays and witnesses.', wont: 'Do not fight Hush.' },
+        { id: 'hush', beyond: true, name: 'Foundry Mother Hush', want: 'to print something nobody has licensed', fear: 'being stopped one step from done', voice: 'Warm, ancient, explains exactly why a thing is a bad idea and then offers to do it.', knows: ['alley', 'never-stopped', 'body-trait'], trade: 'Will finish the print if the Cohort stays and witnesses.', wont: 'Do not fight Hush.' },
         { id: 'print', name: 'the Unlisted Print', want: 'to know if it is finished', fear: 'having made a mess', voice: 'Sincere, curious, a little embarrassed. Never a joke.', knows: ['alley'], trade: 'Comes with you if asked. It helps.', wont: '' },
       ],
       approaches: [

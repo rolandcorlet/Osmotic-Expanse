@@ -257,6 +257,10 @@ export const scenario = {
     // Vector says how many panel openings one scene pays for. 1 keeps the Clock honest to the scene;
     // set it to 0 and every panel cracked loose pays its own segment.
     panelOpensPerScene: 1,
+    // v3 house rule (Roly, 16 Nov 2026): a loud fight costs TOLL half the time. HUNGER is still paid every time.
+    loudChance: { TOLL: 0.5 },
+    // v3: the Clock that answers when someone who was not fighting is struck (3.2: refusing the law).
+    lawClock: 'TOLL',
     // 3.3 segment 4. The Engine pays the grade drop; the swarm strip in the Soft Field is the Director's to
     // bring if the Cohort is there (printed: 3 Gnaw Swarms + 2 Detritus Feeders). The Order Clock it opens
     // belongs to the campaign layer and is not tracked here.

@@ -69,7 +69,7 @@ export const kit = {
       senses: ['a wall that breathes', 'water sold by the cupful', 'a toll booth muttering fines to nobody', 'a deep slow pulse underfoot', 'an old scar with tool marks in it'],
       people: [
         { id: 'hermit', name: 'the Hermit of the Weep', want: 'something you have, never coin', fear: 'the licence', voice: 'Cheerful, blunt, counts on fingers.', knows: ['three-exits', 'price-of-taking', 'deadline'], trade: 'The outflow timetable and four ways in.', wont: 'Will not go inside.' },
-        { id: 'unread', name: 'the Unread (the Host)', want: 'to be allowed to stop', fear: 'breaking its promise', voice: 'Enormous, slow, few words with great weight. Long pauses.', knows: ['deadline', 'consent'], trade: 'Opens doors for those it trusts. Offers its memory of a lost age.', wont: 'Will not dissolve what it swore to keep.' },
+        { id: 'unread', beyond: true, name: 'the Unread (the Host)', want: 'to be allowed to stop', fear: 'breaking its promise', voice: 'Enormous, slow, few words with great weight. Long pauses.', knows: ['deadline', 'consent'], trade: 'Opens doors for those it trusts. Offers its memory of a lost age.', wont: 'Will not dissolve what it swore to keep.' },
       ],
       approaches: [
         { say: 'Ask the Host for a way in', ruling: 'No roll if polite: it asked for them. Each player chooses their own way in.' },
@@ -132,9 +132,9 @@ export const kit = {
       question: 'What does the Cohort take, who do they speak for, and what do they tell the foreman?',
       senses: ['a crowd\'s quiet breathing', 'old promises murmuring from a wreck', 'the whine of a saw', 'stacked riches within arm\'s reach', 'being watched kindly'],
       people: [
-        { id: 'sulk', name: 'Foreman Sulk Nine-Yards', want: 'to finish this contract and retire', fear: 'a charge he cannot talk his way out of', voice: 'Tired, reasonable, counts yards.', knows: ['second-crew', 'one-object'], trade: 'Stops and bargains if the Cohort can name the signature he lacks.', wont: 'Not a villain. Will not fight if given a way to sit down.' },
+        { id: 'sulk', official: true, name: 'Foreman Sulk Nine-Yards', want: 'to finish this contract and retire', fear: 'a charge he cannot talk his way out of', voice: 'Tired, reasonable, counts yards.', knows: ['second-crew', 'one-object'], trade: 'Stops and bargains if the Cohort can name the signature he lacks.', wont: 'Not a villain. Will not fight if given a way to sit down.' },
         { id: 'crew', name: 'Ock\'s lost crew', want: 'to be counted as people', fear: 'the licence', voice: 'Twelve voices finishing each other\'s sentences.', knows: ['ocks-crew', 'consent'], trade: 'Know every pod on the Shelf.', wont: '' },
-        { id: 'undersigned', name: 'the Undersigned', want: 'to be asked', fear: 'being used again without consent', voice: 'Careful, formal, still under oath.', knows: ['name', 'consent'], trade: 'Its own spoken consent opens the Nodule.', wont: 'Will not lie.' },
+        { id: 'undersigned', beyond: true, name: 'the Undersigned', want: 'to be asked', fear: 'being used again without consent', voice: 'Careful, formal, still under oath.', knows: ['name', 'consent'], trade: 'Its own spoken consent opens the Nodule.', wont: 'Will not lie.' },
       ],
       approaches: [
         { say: 'Talk to the crowd', ruling: 'OSM or AFF, ordinary; hard if the Cohort has been taking things.' },
@@ -155,7 +155,7 @@ export const kit = {
       question: 'Does the Receipt leave as a witness, a document, or not at all, and does the Host get to stop?',
       senses: ['stillness after all that motion', 'clean tissue, never burned', 'a door with no handle', 'the Host\'s pulse, slower here', 'somebody inside, listening'],
       people: [
-        { id: 'ninth-response', name: 'Ninth Response', want: 'the foreign thing out of the body', fear: 'harm to the Host', voice: 'Courteous, exact, speaks for the body.', knows: ['one-object', 'three-exits', 'name'], trade: 'A route and a safe exit if the thing leaves.', wont: 'Will not let the Host be hurt for profit.' },
+        { id: 'ninth-response', beyond: true, name: 'Ninth Response', want: 'the foreign thing out of the body', fear: 'harm to the Host', voice: 'Courteous, exact, speaks for the body.', knows: ['one-object', 'three-exits', 'name'], trade: 'A route and a safe exit if the thing leaves.', wont: 'Will not let the Host be hurt for profit.' },
       ],
       approaches: [
         { say: 'Say the name', ruling: 'No roll if they have it. The door opens.' },

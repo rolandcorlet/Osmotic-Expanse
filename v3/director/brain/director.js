@@ -429,8 +429,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (Object.values(state.creatures || {}).some((c) => c.siteId === state.scene.siteId) && HOLDS.test(text)) flags.push({ kind: 'leak', text: 'Counts what is left of a creature, which is its health track.' });
   const AT_NUM = new RegExp(`\\b(?:hangs|sits|stands|holds|is|rests)\\s+at\\s+(?:${BIGN})\\b(?!\\s+(?:of|Pulse|points?\\b))`, 'i');
   if (kinds.length && sentences.some((sn) => { const m = sn.match(AT_NUM); return m && ownedByCreature(sn, m); })) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
-  const STRUCT = new RegExp(`\\b(?:${BIGN})\\s+points?\\s+of\\s+(?:structure|membrane|integrity|purchase|body|itself)\\b`, 'i');
-  if (sentences.some((sn) => STRUCT.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:he|his|him|she|her|you|your)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
+  const STRUCT = new RegExp(`\\b(?:${BIGN})\\s+points?\\s+of\\s+(?:structure|membrane|integrity|purchase|body|itself|shape|substance|bulk|mass)\\b`, 'i');
+  if (sentences.some((sn) => STRUCT.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && (!/\b(?:he|his|him|she|her|you|your)\b/i.test(sn) || /\bleft in it\b|\bit has\b|\bthing\b[^.]{0,40}\bhas\b/i.test(sn)))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   const BARE_DMG = new RegExp(`\\b(?:${BIGN})\\s+damage\\b`, 'i');
   if (kinds.length && text.split(/\n\s*\n/).some((para) => BARE_DMG.test(para) && !people.some((p) => para.toLowerCase().includes(p)))) flags.push({ kind: 'leak', text: 'Gives how much damage a blow did to a creature, which is its health in numbers.' });
   // "Five MI of what's left holding it together" is a creature's Membrane Integrity as a number (bench 15 Nov).

@@ -223,3 +223,68 @@ test('a Pulse War ends by itself once every foe is wreckage, but not while one h
   assert.equal(s.fight, null);
   assert.match(s.log[s.log.length - 1].text, /Nothing is left fighting/);
 });
+
+test('short repeated questions are a loop too; the stock handover never is', () => {
+  let s = seated();
+  ['Bresk of the Choir', 'Ilm of the Hand', 'Vash of the Reach', 'Brost of the Current'].forEach((n, i) => { Object.values(s.organisms).filter((o) => o.playerId)[i].name = n; });
+  const push = (t) => s.story.push({ id: `k${s.story.length}`, seq: s.seq, site: s.scene.siteId, kind: 'narration', text: t });
+  push('The pen waits. Bresk, do you sign, or do you walk?');
+  push('The thud lands again. Bresk — the form is still blank under his claw. Do you sign?');
+  assert.match(breakLoop('He lifts the form. Bresk, do you sign, or do you go?', s, s.scene.siteId), /no longer on offer/);
+  s.story.length = 0;
+  push('The gate waits. Bresk, what do you do?'); push('The queue shifts. Bresk, what do you do?');
+  assert.equal(breakLoop('The board ticks. Bresk, what do you do?', s, s.scene.siteId), '');
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  T.run('bring_creatures', { block: 'gnaw-swarm', count: 1, band: 'near' });
+  assert.ok(checkNarration('The thing in front of you has four points of shape left in it. Bresk, what now?', T.state).some((f) => f.kind === 'leak'));
+});
+
+test('house rule: a loud fight costs TOLL about half the time, HUNGER every time', () => {
+  let toll = 0, hunger = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const r = makeRng(seed);
+    const c = (role, pid) => ({ role, pid, rng: r, now: 0, scenario, bestiary });
+    let s = newSession(scenario);
+    s = apply(s, { type: 'join', name: 'A' }, c('player', 'p1'));
+    s = apply(s, { type: 'zero.agree' }, c('player', 'p1'));
+    s = apply(s, { type: 'claim', organismId: 'wall', name: 'Bresk' }, c('player', 'p1'));
+    s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, c('host', null));
+    toll += s.clocks.TOLL.filled; hunger += s.clocks.HUNGER.filled;
+  }
+  assert.equal(hunger, 200);
+  assert.ok(toll > 70 && toll < 130, `TOLL paid ${toll} of 200`);
+});
+
+test('striking someone with no stat block: one throw, the law answers, the offer is gone, a drone leaves a body', () => {
+  let s = seated();
+  for (const id of ['soft-field', 'render-hall', 'brood']) s = apply(s, { type: 'scene.set', siteId: id }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng });
+  const toll = T.state.clocks.TOLL.filled;
+  assert.match(T.run('strike_bystander', { organism: 'wall', who: 'the brood' }).refused, /creature printed for this site/);
+  assert.match(T.run('bystander_falls', { who: 'Nine-Folds', outcome: 'dead' }).refused, /Nobody has struck/);
+  const r = T.run('strike_bystander', { organism: 'wall', who: 'Nine-Folds', baseline: 'VSC' });
+  assert.ok(r.throw_called_for, JSON.stringify(r));
+  assert.equal(T.state.clocks.TOLL.filled, toll + 1, 'an official struck moves the law once');
+  assert.equal(T.state.requests.length, 1);
+  assert.match(briefing(T.state, scenario, bestiary), /Nine-Folds, the drone elder: WAS STRUCK AT/);
+  const q = T.state.requests[0];
+  T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) }, ctx('player', 'p1'));
+  const f = T.run('bystander_falls', { who: 'Nine-Folds', outcome: 'dead' });
+  assert.match(f.body, /can be harvested/);
+  assert.ok(Object.values(T.state.creatures).some((c) => /body of Nine-Folds/.test(c.name) && c.down));
+  assert.match(briefing(T.state, scenario, bestiary), /Nine-Folds, the drone elder: DEAD/);
+  assert.match(T.run('strike_bystander', { organism: 'wall', who: 'Nine-Folds' }).note, /already dead/);
+  assert.equal(T.state.clocks.TOLL.filled, toll + 1, 'paid once');
+});
+
+test('some people are beyond the Cohort, and a clerk leaves nothing printed to cut', async () => {
+  const { KITS } = await import('../data/kit/index.js');
+  assert.ok(KITS[1].sites['print-floor'].people.find((p) => p.id === 'kel-vasht').beyond);
+  let s = seated();
+  s = apply(s, { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng });
+  T.run('strike_bystander', { organism: 'wall', who: 'the Tally Post clerk' });
+  const q = T.state.requests[0];
+  T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) }, ctx('player', 'p1'));
+  assert.match(T.run('bystander_falls', { who: 'clerk', outcome: 'dead' }).body, /Nothing is printed to cut/);
+});
