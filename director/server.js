@@ -96,10 +96,13 @@ const screens = new Set(); // { res, role, pid }
 
 let director = null; // the AI Director: created once the session is loaded
 
+function payloadFor(role, pid) {
+  const view = viewFor(state, role, pid);
+  return director ? { ...view, director: director.view(role) } : view;
+}
+
 function send(screen) {
-  const view = viewFor(state, screen.role, screen.pid);
-  const payload = director ? { ...view, director: director.view(screen.role) } : view;
-  screen.res.write(`event: state\ndata: ${JSON.stringify(payload)}\n\n`);
+  screen.res.write(`event: state\ndata: ${JSON.stringify(payloadFor(screen.role, screen.pid))}\n\n`);
 }
 
 function broadcast() {
@@ -286,11 +289,19 @@ const server = http.createServer(async (req, res) => {
       }
       return;
     }
+    // The same view as the live stream, fetched once: the page falls back to this when a tunnel or proxy holds the stream back.
+    if (req.method === 'GET' && url.pathname === '/api/poll') {
+      const who = access(req, q);
+      if (!who.role) { json(res, 403, who); return; }
+      json(res, 200, payloadFor(who.role, q.pid || null));
+      return;
+    }
     if (req.method === 'GET' && url.pathname === '/api/events') {
       const who = access(req, q);
       if (!who.role) { json(res, 403, who); return; }
       const role = who.role;
-      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store, no-transform', connection: 'keep-alive', 'x-accel-buffering': 'no' });
+      res.write(': ' + ' '.repeat(2048) + '\n\n'); // padding so a buffering proxy flushes the first event
       const screen = { res, role, pid: q.pid || null };
       screens.add(screen);
       send(screen);

@@ -174,10 +174,29 @@ async function reloadScenario() {
   render();
 }
 
+let stream = null, gotLive = 0, polling = null, lastPoll = '';
 function connect() {
+  if (stream) stream.close();
   const es = new EventSource(`/api/events?${auth()}`);
-  es.addEventListener('state', (ev) => {
-    state = JSON.parse(ev.data);
+  stream = es;
+  es.addEventListener('state', (ev) => { gotLive = Date.now(); onState(JSON.parse(ev.data)); });
+  es.onerror = () => { online = false; render(); };
+  // Some tunnels and proxies hold a live stream back. If nothing has come through it lately, ask for the state directly.
+  if (!polling) polling = setInterval(async () => {
+    if (Date.now() - gotLive < 6000) return;
+    try {
+      const res = await fetch(`/api/poll?${auth()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      const txt = await res.text();
+      if (txt !== lastPoll || !online) { lastPoll = txt; onState(JSON.parse(txt)); }
+      online = true;
+    } catch (e) { if (online) { online = false; render(); } }
+  }, 2000);
+}
+
+function onState(data) {
+  {
+    state = data;
     online = true;
     if (sc && state.scenarioId && state.scenarioId !== sc.id) { reloadScenario(); return; }
     const last = lastRoll();
@@ -201,8 +220,7 @@ function connect() {
     if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
     voiceFollows();
     render();
-  });
-  es.onerror = () => { online = false; render(); };
+  }
 }
 
 async function boot() {

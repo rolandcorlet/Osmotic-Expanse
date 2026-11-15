@@ -134,6 +134,15 @@ const clip = (v, n = 200) => String(v || '').trim().slice(0, n);
 export { server, table, PORT };
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  server.on('error', (e) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`\nPort ${PORT} is already in use, most likely by a Director v2 that is still running (an older window, or a background node).\n` +
+        `  Close that window, or stop it:   Get-NetTCPConnection -LocalPort ${PORT} | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force }\n` +
+        `  Or start this one on another port:   node server.mjs --port ${PORT + 1} ...\n  (then forward that port on the router instead)\n`);
+      process.exit(1);
+    }
+    throw e;
+  });
   server.listen(PORT, '0.0.0.0', () => {
     const lan = addresses();
     const line = '-'.repeat(64);
