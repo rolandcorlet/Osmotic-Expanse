@@ -206,3 +206,20 @@ test('HUNGER filling starts the Render Cascade once: unstamped cuts drop a grade
   const again = apply(s, { type: 'say', text: 'What was that?' }, ctx('player', 'p1'));
   assert.deepEqual(again.organisms.wall.specimens, { C: 5, G: 1, P: 0, T: 0 }, 'paid once');
 });
+
+test('a Pulse War ends by itself once every foe is wreckage, but not while one has only stood down', () => {
+  let s = seated();
+  const host = ctx('host', null);
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 2, band: 'near' }] }, host);
+  const [a, b] = Object.keys(s.creatures);
+  s.creatures[a].down = true;
+  s = apply(s, { type: 'turn.next' }, host);
+  assert.ok(s.fight, 'one swarm is still up');
+  s.creatures[b].stoodDown = { why: 'drank and left' };
+  s = apply(s, { type: 'turn.next' }, host);
+  assert.ok(s.fight, 'a stood-down creature can still be struck back in');
+  s.creatures[b].stoodDown = null; s.creatures[b].down = true;
+  s = apply(s, { type: 'turn.next' }, host);
+  assert.equal(s.fight, null);
+  assert.match(s.log[s.log.length - 1].text, /Nothing is left fighting/);
+});

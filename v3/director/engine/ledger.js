@@ -175,6 +175,7 @@ export function apply(state, action, ctx) {
   if (!s.story) s.story = []; // sessions saved before the story existed
   h.run(s, action, ctx);
   clockFills(s, ctx);
+  fightRunsOut(s, ctx);
   if (s.rolls.length > MAX_ROLLS) s.rolls = s.rolls.slice(-MAX_ROLLS);
   if (s.log.length > MAX_LOG) s.log = s.log.slice(-MAX_LOG);
   if (s.story.length > MAX_LOG) s.story = s.story.slice(-MAX_LOG);
@@ -182,6 +183,22 @@ export function apply(state, action, ctx) {
 }
 
 // ------------------------------------------------------------------- helpers
+// v3: a Pulse War with nobody left to fight ends by itself (bench 16 Nov, thinking off: both swarms
+// were wreckage and the fight ran another twenty-five turns because nobody called it over, which
+// also blocked every harvest and the way on). It waits for any throw still in the air.
+function fightRunsOut(s, ctx) {
+  if (!s.fight) return;
+  const foes = Object.values(s.fight.actors).filter((a) => a.kind === 'cre').map((a) => s.creatures[a.id]).filter(Boolean);
+  // Only wreckage counts: a creature that stood down can be struck back into the fight.
+  const up = foes.filter((c) => !c.down);
+  if (up.length) { s.fight.hadFoe = true; return; }
+  if (!s.fight.hadFoe || (s.requests || []).length) return;
+  const cycles = s.fight.cycle;
+  s.fight = null;
+  s.requests = [];
+  say(s, ctx, `Nothing is left fighting: the Pulse War is over after ${cycles} Cycle${cycles > 1 ? 's' : ''}.`, 'turn');
+}
+
 // v3: what a Vector prints for a Clock filling, paid once when it happens (bench 16 Nov: HUNGER
 // reached 4 of 4 and nothing followed). THE FIRST CARVE 3.3, segment 4, the Render Cascade: "every
 // un-shipped cut drops one grade". A C cut has no grade below it, so it stays C.

@@ -796,7 +796,7 @@ test('harvest: a destroyed creature yields its printed Specimens, costs Bulk, an
 
 test('harvest: a failed roll ruins the sample and gives Substrate instead', () => {
   let s = seated();
-  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 2, band: 'near' }] }, ctx('host', null)); // v3: a second, living swarm keeps the Pulse War open
   const cid = Object.keys(s.creatures)[0];
   s.creatures[cid].down = true;
   for (let i = 0; i < 20 && s.fight.turn !== 'org:eyes'; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
