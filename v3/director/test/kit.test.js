@@ -7,7 +7,7 @@ import { makeRng } from '../engine/dice.js';
 import { scenario, publicScenario } from '../data/first-carve.js';
 import { VECTORS } from '../data/vectors.js';
 import { toolbox } from '../brain/tools.js';
-import { briefing, INSTRUCTIONS } from '../brain/director.js';
+import { briefing, INSTRUCTIONS, MACHINERY } from '../brain/director.js';
 import { tableRead } from '../brain/kit.js';
 import { gloss } from '../data/kit/glossary.js';
 
@@ -128,4 +128,17 @@ test('look_up answers questions about the world in plain words', () => {
   assert.ok(law.cards.some((c) => /Tonicity/.test(c.name)));
   assert.match(T.run('look_up', { about: 'what is a Tally Post' }).cards[0].in_plain_words, /weigh/i);
   assert.match(T.run('look_up', { about: 'zzzz' }).note, /common sense/);
+});
+
+test('bench 16 Nov: the opening survives the travelling line, a repeated question is called out, bookkeeping is a leak', () => {
+  let s = seated();
+  const host = ctx('host', null);
+  s = apply(s, { type: 'scene.set', siteId: 'soft-field' }, host);
+  s.story.push({ id: 'x1', seq: s.seq, site: 'soft-field', kind: 'narration', text: 'The lane swallows you whole.' });
+  assert.match(briefing(s, scenario, bestiary), /OPEN WITH THIS.*hanging forest of pale fat/);
+  for (const t of ['Osk slips. Bresk, do you throw the line and haul him, or climb on and leave him?', 'The count goes on. Bresk, throw and haul him out, or climb on and leave him?', 'One finger left. Bresk, line in hand: throw and haul, or climb on and leave him?']) s.story.push({ id: `n${t.length}`, seq: s.seq, site: 'soft-field', kind: 'narration', text: t });
+  const b = briefing(s, scenario, bestiary);
+  assert.doesNotMatch(b, /OPEN WITH THIS/);
+  assert.match(b, /SAME QUESTION TO THE TABLE THREE TIMES/);
+  assert.match('The award of 25 Codon to the Cohort and the reveal of the serial both land here.', MACHINERY);
 });

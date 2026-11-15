@@ -531,7 +531,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
 
 // The machinery, as the table must not hear it. Deliberately not "the page": instructions.md tells
 // the Director to use that sentence when the players want something off the page.
-export const MACHINERY = /Director-only|craft notes|site notes|\bthe notes\b|briefing|\btools?\s+(?:calls?|results?|schema)\b|\b(?:the|your|my)\s+tools?\s+(?:refused|returned|said|says|told|allows?)\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
+export const MACHINERY = /Director-only|craft notes|\bthe award of\b|\bthe reveal of\b|\b(?:both|all) land here\b|site notes|\bthe notes\b|briefing|\btools?\s+(?:calls?|results?|schema)\b|\b(?:the|your|my)\s+tools?\s+(?:refused|returned|said|says|told|allows?)\b|ask_for_roll|\bthe Engine\b|\bthe Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)\b/i;
 
 // The same rule, aimed at the prose WE hand the Director. Run 1 of the 13 Nov gate said "Next
 // briefing will carry the Soft Field" to the players — a string of ours, quoted back — and a test now

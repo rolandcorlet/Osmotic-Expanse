@@ -5,7 +5,7 @@
 
 const QUIET_SAYS = 4; // this many player lines at one site with nothing learned and no fight = stalled
 
-export function tableRead(state, siteId) {
+export function tableRead(state, siteId, firstSite = null) {
   const story = state.story || [];
   const since = (state.kit || {}).progressSeq || 0;
   const here = story.filter((e) => e.site === siteId);
@@ -14,7 +14,17 @@ export function tableRead(state, siteId) {
   const recent = story.filter((e) => e.kind === 'say' && e.orgId).slice(-8);
   const seated = Object.values(state.organisms || {}).filter((o) => o.playerId);
   const quiet = seated.length > 1 && recent.length >= 4 ? seated.filter((o) => !recent.some((e) => e.orgId === o.id)) : [];
-  return { stalled: !state.fight && says.length >= QUIET_SAYS, says: says.length, quiet, firstVisit: !here.some((e) => e.kind === 'narration') };
+  // The turn that travels ends on one line about the road, recorded at the new site: the arrival
+  // proper is the narration after it (bench 16 Nov: three of four later sites never got their opening).
+  const narr = here.filter((e) => e.kind === 'narration');
+  const first = firstSite || ((state.story || []).length ? (state.story[0].site || siteId) : siteId);
+  const firstVisit = narr.length === 0 || (siteId !== first && narr.length === 1);
+  // The same closing question three times running (bench 16 Nov: "throw and haul, or climb on?" nine times).
+  const ask = (t) => { const m = String(t || '').match(/[^.!?\n]*\?\s*$/); return new Set((m ? m[0] : '').toLowerCase().match(/[a-z]{4,}/g) || []); };
+  const same = (x, y) => { if (x.size < 3 || y.size < 3) return false; let n = 0; for (const w of x) if (y.has(w)) n += 1; return n / Math.min(x.size, y.size) >= 0.6; };
+  const last3 = narr.slice(-3).map((e) => ask(e.text));
+  const looping = !state.fight && last3.length === 3 && same(last3[2], last3[1]) && same(last3[2], last3[0]);
+  return { stalled: !state.fight && says.length >= QUIET_SAYS, says: says.length, quiet, firstVisit, looping };
 }
 
 export function kitBriefing(state, scenario, site) {
@@ -23,7 +33,7 @@ export function kitBriefing(state, scenario, site) {
   const k = kit.sites[site.id];
   const found = (state.kit || {}).found || {};
   const L = [];
-  const read = tableRead(state, site.id);
+  const read = tableRead(state, site.id, scenario.sites[0].id);
   L.push('');
   L.push('## HOW TO RUN THIS SCENE (for you alone: never read these lines out)');
   if (k) {
@@ -59,6 +69,10 @@ export function kitBriefing(state, scenario, site) {
   if (read.stalled && k) {
     L.push('');
     L.push(`THE TABLE HAS STALLED (${read.says} player lines here with nothing new). Do not wait. Make the world move with one of these, then ask: ${k.leads.join(' | ')}`);
+  }
+  if (read.looping) {
+    L.push('');
+    L.push('YOU HAVE PUT THE SAME QUESTION TO THE TABLE THREE TIMES. Do not ask it again. Decide it now: the world acts without them (the danger lands, or the chance passes, once and for good), say plainly what happened and that it is over, then turn to a different organism with something new. Never describe that moment as still hanging afterwards.');
   }
   if (read.quiet.length) L.push(`${read.quiet.map((o) => o.name).join(' and ')} ${read.quiet.length > 1 ? 'have' : 'has'} not had the floor lately. If it is not somebody else's turn in a fight, turn the scene toward them and ask them the question.`);
   return L;

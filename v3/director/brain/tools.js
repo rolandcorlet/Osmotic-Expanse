@@ -598,7 +598,7 @@ export const TOOLS = [
       if (to.id === here.id) return { note: `The Cohort is already at ${here.name}. Nothing changed: narrate it from here.` };
       if (Math.abs(to.n - here.n) !== 1) return { refused: `${to.name} cannot be reached from ${here.name} in one step.` };
       const no = T.do({ type: 'scene.set', siteId: to.id });
-      return no ? { refused: no } : { arrived_at: to.name, note: 'End your turn now. The new site reaches you on your next turn.' };
+      return no ? { refused: no } : { arrived_at: to.name, note: 'End your turn now with one sentence about the way there and no question. Do not describe the new place yet: what is there reaches you on your next turn, and you open it then.' };
     },
   },
 ];
