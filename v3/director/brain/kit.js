@@ -22,8 +22,9 @@ export function tableRead(state, siteId, firstSite = null) {
   // The same closing question three times running (bench 16 Nov: "throw and haul, or climb on?" nine times).
   const ask = (t) => { const m = String(t || '').match(/[^.!?\n]*\?\s*$/); return new Set((m ? m[0] : '').toLowerCase().match(/[a-z]{4,}/g) || []); };
   const same = (x, y) => { if (x.size < 3 || y.size < 3) return false; let n = 0; for (const w of x) if (y.has(w)) n += 1; return n / Math.min(x.size, y.size) >= 0.6; };
-  const last3 = narr.slice(-3).map((e) => ask(e.text));
-  const looping = !state.fight && last3.length === 3 && same(last3[2], last3[1]) && same(last3[2], last3[0]);
+  // Another question in between does not reset it: three alike among the last five is a loop.
+  const lastQ = narr.slice(-5).map((e) => ask(e.text));
+  const looping = !state.fight && lastQ.length >= 3 && lastQ.slice(0, -1).filter((q) => same(lastQ[lastQ.length - 1], q)).length >= 2;
   return { stalled: !state.fight && says.length >= QUIET_SAYS, says: says.length, quiet, firstVisit, looping };
 }
 
@@ -54,6 +55,7 @@ export function kitBriefing(state, scenario, site) {
     const moments = seats.map((o) => (k.moments[o.id] ? `${o.name}: ${k.moments[o.id]}` : '')).filter(Boolean);
     if (moments.length) L.push(`A moment for each organism at this site (offer it once, when it fits): ${moments.join(' | ')}`);
   }
+  L.push('The Cohort is HERE and can only see, taste and test what is here. If a player asks about somewhere else (a room further in, the thing at the end), say they cannot tell from here and what they would have to do to find out. Never describe, rule on or decide facts about another site from this one.');
   const hidden = kit.secrets.filter((s) => !found[s.id]);
   if (hidden.length) {
     L.push('');

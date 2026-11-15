@@ -89,7 +89,7 @@ const sites = [
     harvestPays: { 'gnaw-swarm': { codon: 1.5 }, 'fold-sentinel': { codon: 3 } },
     host: {
       cite: 'Vector §8.1',
-      play: 'The wound is legal only with a Guild stamp, a drone licence, or a toll paid: 2 C Specimens per body, 15 S per body, or a promise (an Oath box, witnessed by an Order II fold). Refusing and fighting is a decision: it costs TOLL a segment.',
+      play: 'The wound is legal only with a Guild stamp, a drone licence, or a toll paid: 2 common-grade (C) Specimens per body, 15 S per body, or a promise (an Oath box, witnessed by an Order II fold). Refusing and fighting is a decision: it costs TOLL a segment.',
       danger: '2 Gnaw Swarms + 1 Fold Sentinel = 6 BSP. The Fold Sentinel does not start the fight: it demands the Cohort show its claim. If the Cohort has paid or sworn, it stands aside even after a strike.',
       wants: 'Drink, not violence. A Gnaw Swarm offered water leaves in one sentence.',
       weakness: 'Area effects. A Lytic Fog, a shove into the current, or the pump wash removes Segments by the handful.',

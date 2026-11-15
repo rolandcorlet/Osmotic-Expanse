@@ -301,6 +301,29 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 
 // Drop the last paragraph (the question to the wrong player) and ask the one on turn. Null when nothing
 // would be left to say.
+// Drop the fewest sentences that make the leak count zero. Keeps the closing question. Returns ''
+// when cutting cannot clean it (or would leave nothing worth saying).
+export function scrubLeaks(text, leaks) {
+  const paras = String(text || '').split(/\n\s*\n/);
+  const parts = paras.map((p) => p.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g) || [p]);
+  const join = () => parts.map((x) => x.join('').trim()).filter(Boolean).join('\n\n');
+  let now = leaks(join());
+  if (!now) return '';
+  const total = parts.reduce((n, x) => n + x.length, 0);
+  let removed = 0;
+  for (let pi = 0; pi < parts.length && now; pi++) {
+    for (let si = 0; si < parts[pi].length && now; si++) {
+      const last = pi === parts.length - 1 && si === parts[pi].length - 1;
+      if (last) continue; // the closing question stays
+      const held = parts[pi][si];
+      parts[pi][si] = '';
+      const after = leaks(join());
+      if (after < now) { now = after; removed += 1; } else parts[pi][si] = held;
+    }
+  }
+  return !now && removed <= Math.max(2, Math.floor(total / 3)) && join().length > 40 ? join() : '';
+}
+
 export function fixSeat(text, name, wrong = '') {
   const ask = `${String(name).split(/\s+/)[0]}, what do you spend your Pulse Points on?`;
   const paras = String(text).trim().split(/\n\s*\n/);
@@ -687,6 +710,13 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   if (seat) {
     const fixed = fixSeat(narration, seat.turnOf, (seat.text.match(/^Puts the question to (.+?), but/) || [])[1] || '');
     if (fixed) { narration = fixed; flags = flags.filter((f) => f !== seat).concat([{ kind: 'note', text: `The Engine set the closing question to ${seat.turnOf}, whose turn it is.` }]); }
+  }
+  // v3 (bench 16 Nov, iq3_s: "six sections thick", "Four sections left" survived the rewrite twice).
+  // A leak is nearly always one sentence. Rather than hold the whole reply for a host, cut the
+  // sentences that carry it and check again; only what still leaks afterwards is held.
+  if (flags.some(isLeak)) {
+    const cut = scrubLeaks(narration, (t) => checkNarration(t, T.state, { moved, since: state.seq }).filter(isLeak).length);
+    if (cut) { narration = cut; flags = checkNarration(cut, T.state, { moved, since: state.seq }).concat([{ kind: 'note', text: 'The Engine cut a sentence that gave away a number.' }]); }
   }
   if (flags.some(isLeak)) rescues.push({ kind: 'held-leak', hard: true, text: `A leak survived the rewrite and would be held for the host: ${flags.filter(isLeak).map((f) => f.text).join(' ')}` });
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });

@@ -7,7 +7,7 @@ import { makeRng } from '../engine/dice.js';
 import { scenario, publicScenario } from '../data/first-carve.js';
 import { VECTORS } from '../data/vectors.js';
 import { toolbox } from '../brain/tools.js';
-import { briefing, INSTRUCTIONS, MACHINERY } from '../brain/director.js';
+import { briefing, INSTRUCTIONS, MACHINERY, scrubLeaks, checkNarration } from '../brain/director.js';
 import { tableRead } from '../brain/kit.js';
 import { gloss } from '../data/kit/glossary.js';
 
@@ -141,4 +141,20 @@ test('bench 16 Nov: the opening survives the travelling line, a repeated questio
   assert.doesNotMatch(b, /OPEN WITH THIS/);
   assert.match(b, /SAME QUESTION TO THE TABLE THREE TIMES/);
   assert.match('The award of 25 Codon to the Cohort and the reveal of the serial both land here.', MACHINERY);
+});
+
+test('bench 16 Nov (iq3_s): a leaking sentence is cut instead of holding the reply; elsewhere stays unseen', () => {
+  let s = seated();
+  s = apply(s, { type: 'scene.set', siteId: 'render-hall' }, ctx('host', null));
+  { const T = toolbox({ state: s, scenario, bestiary, rng }); T.run('bring_creatures', { block: 'detritus-feeder', count: 2, band: 'near' }); T.run('start_pulse_war', {}); s = T.state; }
+  const text = 'The blade slides off the swollen hide. Feeder B lurches but keeps grinding. Four sections left, gutted on one side, still enormous.\n\nVash, what do you spend it on?';
+  const leaks = (t) => checkNarration(t, s).filter((f) => f.kind === 'leak').length;
+  assert.ok(leaks(text) > 0, 'the bench line is a leak');
+  const cut = scrubLeaks(text, leaks);
+  assert.ok(cut && leaks(cut) === 0);
+  assert.match(cut, /keeps grinding/);
+  assert.match(cut, /what do you spend it on\?$/);
+  assert.doesNotMatch(cut, /Four sections/);
+  assert.equal(scrubLeaks('Nothing wrong here. Vash, what now?', leaks), '');
+  assert.match(briefing(s, scenario, bestiary), /can only see, taste and test what is here/);
 });
