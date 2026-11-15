@@ -572,3 +572,25 @@ Claude's Linux shell has no outbound network, so `git push`, real-model bench ru
 ## Site 5 (the Gut Stone) in the bench - written 15 Nov, not yet run
 - `node tools/bench.mjs --runs 3 --sites 5 --players 4 --thinking low --log bench_site5.log` plays the whole Vector. Part 5 opens with its own move line and covers: what the stone is, tasting the halo and finding the serial, who holds the place, where the exit is, saying the serial aloud for the crew's price (200 to 400 S), a mask to slip past, a countdown probe (the Render Charge is a Clock at TOLL 5: the Director may name TOLL but must not invent a timer), a fight with the Deadly encounter (Protease Warden, 2 Bleeders, 4 Gnats), a harvest, the run, and leaving.
 - Things to look for in the first transcript: the Deadly warning before the fight, the Warden and the Guardian both treated as non-evil, TOLL named but no invented clock, the chase handled by the Engine rather than narrated away, and whether the last line (leaving by the shaft) ends the session cleanly.
+
+## 15 Nov: sixth bench (`--sites 5`, bench 8c3cbec0): the Gut Stone plays
+
+First bench where all five sites played (change_site to gut-stone in each run). Gate not passed 3 of 3 (refusals and leaks), but the failures are now late-fight bookkeeping, not site mix-ups.
+
+Numbers (iq3_s, thinking low): 1146 model calls, ~9.5 s each, ~15.4k tokens in / ~560 out per call, ~58.7 tok/s out. Director turns: Run 1 190, Run 2 166, Run 3 165.
+
+Fixes:
+- `end_pulse_war` with a creature still up is now a note listing who is still fighting and pointing at `creature_stand_down` (it counted as a refusal each time).
+- A second area `hazard_damage` in the same Cycle is a note ("already hurt every body at the site this Cycle"), with `also_paid`, not a refusal. Real trigger/amount mistakes stay refusals.
+- `harvest` by a Dormant organism is a note naming who can still cut.
+- Creature-health fraction check ("N of N") now ignores sentences about a person by pronoun (she/he/her/his), not just by name ("Twelve of thirty-six" was a player's own MI).
+- Tests: 152 pass.
+
+Still open: rules words aloud on occasion, ~1 in 5 turns rewritten, "eight Lytic" haze narration without a paid hazard, "the page hasn't shown you yet", gnat `creature_move` at 0 Pulse Points, quality read of the Gut Stone play (Deadly announcement, Warden/Guardian not treated as evil, no invented TOLL timer) not yet done.
+
+### 15 Nov: bench `--from N`, and the rest of the sixth-bench fixes
+- `node tools/bench.mjs --from 5 --players 4 --thinking low --log gut.log` plays only the Gut Stone, starting from the table as it stood on entering that site (MI, Stress, Hunger, TOLL, items, cut Specimens, chapters). `--sites` defaults to `--from`, so only that stage runs; `--sites 5 --from 3` plays stages 3 to 5.
+- Every run with more than one stage saves those tables to `saves/bench-from-N.json` (git-ignored; the last run overwrites). Run once from the start with `--sites 5` to create them; no snapshot yet means the bench says so and stops.
+- A creature with 0 Pulse Points trying to Drift is a note (end its turn). The repeat-area-hazard note also covers "once per scene" outside a Pulse War.
+- instructions.md: asked how much a hazard hurts, answer in the world, never as a number or damage type; describing a hazard is not firing it.
+- 153 tests pass.

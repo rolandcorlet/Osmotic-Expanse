@@ -8,6 +8,10 @@
 //   node tools/bench.mjs --sites 2 --players 4                 two sites and four players (Phase 4 rehearsal)
 //   node tools/bench.mjs --sites 3 --players 4                 on through the Render Hall; 4 adds the Brood; 5 the Gut Stone
 //                                                              (a long run - the gate stays at 2)
+//   node tools/bench.mjs --from 5 --players 4                 play only the Gut Stone, starting from the table as the last
+//                                                              multi-site run left it on entering that site (MI, Stress, Hunger,
+//                                                              TOLL, items, cut Specimens, the chapters so far). Every run with
+//                                                              --sites 2 or more saves those snapshots in saves/bench-from-N.json.
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //   node tools/bench.mjs --runs 3 --log bench_13nov_am.log    write the whole run to a UTF-8 file
 //
@@ -17,7 +21,7 @@
 // The gate for a model: no Engine refusals, no leak flags, no harm and no Clock the narration moved
 // without paying for it, and every reply ends on exactly one question. Nothing here touches a saved
 // session.
-import { readFileSync, existsSync, mkdtempSync, createWriteStream } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, createWriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -44,7 +48,11 @@ const model = opt('--model', (cfg.models || {})[provider] || (provider === 'gemi
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default'); // default | medium | low | off (local models)
 const runs = Number(opt('--runs', 1));
-const sites = Number(opt('--sites', 1)); // how far the scripted table plays: 2 Soft Field, 3 Render Hall, 4 Brood, 5 Gut Stone
+const from = Math.min(5, Math.max(1, Number(opt('--from', 1)))); // first stage to play; 2+ loads the snapshot saved on entering it
+const sites = Math.min(5, Math.max(from, Number(opt('--sites', from)))); // how far the scripted table plays: 2 Soft Field, 3 Render Hall, 4 Brood, 5 Gut Stone
+const snapDir = opt('--snapshots', join(here, '..', 'saves'));
+const snapFile = (k) => join(snapDir, `bench-from-${k}.json`);
+if (from > 1 && !existsSync(snapFile(from))) { console.log(`No snapshot for stage ${from} yet (${snapFile(from)}). Run once with --sites ${from} or more, from the start, so the bench can save the table as it enters each stage.`); process.exit(1); }
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 const logFile = opt('--log', '');
 
@@ -184,8 +192,11 @@ const SEATS = [['p1', 'Roly', 'wall', 'Bresk of the Sixth Choir'], ['p2', 'Sam',
 
 async function once(n) {
   let s = newSession(scenario);
+  const snap = from > 1 ? JSON.parse(readFileSync(snapFile(from), 'utf8')) : null;
+  if (snap) s = snap.state;
   // The table's memory, as the host keeps it: every change observed, a chapter on leaving a site.
   const mem = createMemory({ dir: mkdtempSync(join(tmpdir(), 'oxd-bench-')) });
+  if (snap) for (const c of snap.chapters || []) mem.addChapter(s.gameId, c);
   mem.observe(null, s);
   // Leaving a site closes a chapter, written by the model as the host's Director would
   // (or plainly with --plain-chronicle). Its cast goes into the Ledger, as on the host.
@@ -234,7 +245,7 @@ async function once(n) {
   }
   const memoryFor = () => ({ chapters: mem.chapters(s.gameId).slice(-3), search: (q, o = {}) => mem.search(s.gameId, q, { ...o, cast: s.cast || {} }) });
   const act = (role, pid, a) => { const prev = s; s = apply(s, a, ctx(role, pid)); moved(prev); };
-  for (const [pid, who, hand, name] of SEATS.slice(0, players)) {
+  for (const [pid, who, hand, name] of snap ? [] : SEATS.slice(0, players)) {
     act('player', pid, { type: 'join', name: who });
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
@@ -319,14 +330,24 @@ async function once(n) {
   }
 
   console.log(`\n===== Run ${n}: ${info.name} · ${model}${info.group === 'local' && thinking !== 'default' ? ` · thinking ${thinking}` : ''} =====`);
-  await director('opening the scene');
+  if (snap) console.log(`(starting at stage ${from}, ${scenario.sites.find((x) => x.id === s.scene.siteId).name}, from the saved table: ${Object.values(s.organisms).filter((x) => x.playerId).map((o) => `${o.name.split(' ')[0]} MI ${o.mi}/${o.miMax}`).join(', ')}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled})`);
+  else await director('opening the scene');
   // Each part ends by handing the Cohort on to the next room, so every part but the last loses its
   // final line: the move is said once, and each later part opens with its own move line. `--sites 4` and `--sites 5` are long rehearsals, not the gate.
-  const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4, SCRIPT5].slice(0, Math.min(5, Math.max(1, sites)));
+  const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4, SCRIPT5].slice(from - 1, sites);
   const lines = parts
-    .flatMap((p, i) => (i < parts.length - 1 ? p.slice(0, -1) : p))
+    .flatMap((p, i) => (i < parts.length - 1 ? p.slice(0, -1) : p).map((l) => [...l, from - 1 + i]))
     .filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
-  for (const [pid, text] of lines) {
+  const saved = new Set();
+  for (const [pid, text, part] of lines) {
+    // On entering each later stage (after the last one's fight is played out, before the move line), the
+    // table is saved, so `--from N` can pick the run up there.
+    if (pid !== '*' && part >= 1 && !saved.has(part)) {
+      saved.add(part);
+      if (!snap || part > from - 1) {
+        try { mkdirSync(snapDir, { recursive: true }); writeFileSync(snapFile(part + 1), JSON.stringify({ at: new Date().toISOString(), state: s, chapters: mem.chapters(s.gameId) })); console.log(`  (table saved for --from ${part + 1})`); } catch (e) { console.log(`  (could not save the table: ${e.message})`); }
+      }
+    }
     if (pid === '*') { if (s.fight) { console.log('\n(the fight is played out)'); await settle(80, 8); } continue; }
     const o = Object.values(s.organisms).find((x) => x.playerId === pid);
     console.log(`\n${o.name.toUpperCase()}: ${text}`);

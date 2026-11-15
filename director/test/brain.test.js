@@ -364,7 +364,7 @@ test('the Director cannot end a Pulse War while a creature on the site is still 
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'mid' }] }, ctx('host', null));
   const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
   const no = T.run('end_pulse_war', {});
-  assert.match(no.refused, /still up and fighting on this site/);
+  assert.match(no.note, /is up and fighting/);
   assert.ok(T.state.fight, 'the Pulse War is still running');
   // The host may end it by hand, and once the creatures are down the Director may too.
   for (const c of Object.values(s.creatures)) c.down = true;
@@ -506,7 +506,7 @@ test('stand down: a creature that is not fighting leaves the fight, and striking
   s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'fold-sentinel', count: 1, band: 'near' }] }, ctx('host', null));
   const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
   const cid = Object.keys(T.state.creatures)[0];
-  assert.match(T.run('end_pulse_war', {}).refused, /stand it down first/);
+  assert.match(T.run('end_pulse_war', {}).note, /creature_stand_down/);
   assert.match(T.run('creature_stand_down', { creature: cid }).refused || '', /why/i);
   const ok = T.run('creature_stand_down', { creature: cid, why: 'it honours the filed oath' });
   assert.equal(ok.stood_down, 'Fold Sentinel');
@@ -519,7 +519,7 @@ test('stand down: a creature that is not fighting leaves the fight, and striking
   const pid = T.state.organisms[who].playerId;
   T.state = apply(T.state, { type: 'strike', organismId: who, targetId: cid }, ctx('player', pid));
   assert.equal(T.state.creatures[cid].stoodDown, null);
-  assert.match(T.run('end_pulse_war', {}).refused, /still up and fighting/);
+  assert.match(T.run('end_pulse_war', {}).note, /is up and fighting/);
   // Stood down again, the Director may end the fight.
   T.state.requests = [];
   T.run('creature_stand_down', { creature: cid, why: 'it yields' });
@@ -1199,8 +1199,8 @@ test('a hazard the page prices for the chamber pays every body in one firing', (
   assert.equal(first.refused, undefined);
   assert.match((first.also_paid || []).join(' '), /Brost of the Third Current MI 21\/27/, 'the other body at the site was paid in the same firing');
   const again = T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket again' });
-  assert.match(again.refused, /already gone off in this scene[\s\S]*one call pays every body/);
-  assert.equal(T.refusals, 1, 'the second firing is one refusal, not one per body');
+  assert.match(again.note || again.refused, /already hurt every body/);
+  assert.equal(T.refusals, 0, 'the second firing is a note, not a refusal');
 });
 
 test('a condition the page prices for the chamber is one set_condition, not one per body', () => {
@@ -1346,7 +1346,7 @@ test('the Engine budgets a hazard per Cycle inside a Pulse War, and per scene ou
   let s = apply(seated(), { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }], ownDice: { wall: 6, eyes: 6, 'Order I: Lytic Swarms': 1 } }, ctx('host', null));
   const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
   assert.equal(T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket' }).refused, undefined, 'Cycle 1 pays');
-  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket again' }).refused, /already gone off in Cycle 1/);
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'Momentum', why: 'the pocket again' }).note, /already hurt every body|already gone off in Cycle 1/);
   T.state = apply(T.state, { type: 'cycle.end' }, ctx('host', null));
   assert.equal(T.run('hazard_damage', { organism: 'wall', amount: 6, type: 'Kinetic', trigger: 'a Strike', why: 'the pocket, next Cycle' }).refused, undefined, 'a new Cycle re-arms it');
   // And outside a fight it waits for a new scene.
@@ -1548,4 +1548,33 @@ test('15 Nov: a clerk\'s question that closes the beat counts as ending on a que
   const flags = (t) => checkNarration(t, s).map((f) => f.text);
   assert.ok(!flags('Nine-Folds taps the page. "A Name, a witness, a signature. Who puts their mark to my ledger?"').some((f) => /^Does not end/.test(f)));
   assert.ok(flags('Nine-Folds taps the page and waits.').some((f) => /^Does not end/.test(f)));
+});
+
+test('15 Nov (sixth bench): a Dormant organism cannot harvest and a second area hazard call are notes, not refusals', () => {
+  let s = seated();
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  T.state.organisms.wall.dormant = true;
+  const r = T.run('harvest', { organism: 'wall' });
+  assert.equal(r.refused, undefined);
+  assert.match(r.note, /Dormant and cannot cut/);
+  assert.equal(T.refusals, 0);
+});
+
+test('15 Nov (sixth bench): "she" and "her" mark a player\'s own fraction, so it is not a creature leak', () => {
+  const s = seated();
+  const flags = (t) => checkNarration(t, s).map((f) => `${f.kind}: ${f.text}`);
+  assert.ok(!flags('The haze leaves her at twelve of thirty-six, thin but upright. Ilm, what now?').some((f) => /^leak/.test(f)));
+});
+
+test('15 Nov (sixth bench): a creature with no Pulse Points cannot Drift, and that is a note', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const cid = Object.keys(T.state.creatures)[0];
+  const key = Object.keys(T.state.fight.actors).find((k) => T.state.fight.actors[k].id === cid);
+  T.state.fight.actors[key].pp = 0;
+  T.state.fight.turn = key;
+  const r = T.run('creature_move', { creature: cid, band: 'mid' });
+  assert.equal(r.refused, undefined);
+  assert.equal(T.refusals, 0);
 });

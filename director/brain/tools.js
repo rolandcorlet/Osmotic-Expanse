@@ -191,6 +191,10 @@ export const TOOLS = [
     parameters: obj({}),
     run(a, T) {
       if (!T.state.fight) return { note: 'There is no Pulse War running, so there is nothing to end.' };
+      const up = Object.values(T.state.creatures).filter((c) => c.siteId === T.state.scene.siteId && !c.down && !c.stoodDown);
+      if (up.length) {
+        return { note: `The Pulse War is still running: ${up.map((c) => c.name).join(', ')} ${up.length > 1 ? 'are' : 'is'} up and fighting. Nothing changed. If ${up.length > 1 ? 'they have' : 'it has'} yielded or fled, call creature_stand_down for each with the reason, then end the war; otherwise play the next turn.`, ...T.fightBrief() };
+      }
       const no = T.do({ type: 'fight.end' });
       return no ? { refused: no } : { ended: true };
     },
@@ -203,6 +207,7 @@ export const TOOLS = [
       const c = findCre(T.state, a.creature);
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Drift', cost: 1, band: a.band });
+      if (/costs \d+ PP and .* has \d+/i.test(String(no))) return { note: `${c.name} has no Pulse Points left, so it cannot Drift this turn. Nothing changed. End its turn with end_creature_turn.`, ...T.fightBrief() };
       return no ? outOfTurn(T, no, c) : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
     },
   },
@@ -321,6 +326,10 @@ export const TOOLS = [
       // what it just spent rather than trying the same detonation once per body.
       const f = T.state.fight;
       const no = T.do({ type: 'hazard', siteId: T.site().id, area: spec.area === true, target: { kind: 'org', id: o.id }, amount, dtype: a.type || '', conditions: spec.conditions, bands: spec.bands, why: a.why });
+      if (spec.area && /already gone off in/.test(String(no))) {
+        const paidAlready = Object.values(T.state.organisms).filter((x) => x.playerId).map((x) => `${x.name} MI ${x.mi}/${x.miMax}`);
+        return { note: `The area hazard at ${T.site().name} already hurt every body at the site, once, with one call (once per Cycle in a Pulse War, once per scene outside one). Nothing changed. Narrate it from here.`, also_paid: paidAlready };
+      }
       if (no) return { refused: `${no}${spec.area ? ' That hazard is an area one: one call pays every body at the site, so it cannot go off again for the next one.' : ''}` };
       const t = T.state.organisms[o.id];
       const paid = spec.area ? Object.values(T.state.organisms).filter((x) => x.playerId).map((x) => `${x.name} MI ${x.mi}/${x.miMax}`) : [];
@@ -427,6 +436,10 @@ export const TOOLS = [
         const c = findCre(T.state, a.creature);
         if (!c) return noCre(a.creature, T.state);
         cid = c.cid;
+      }
+      if (o.dormant) {
+        const able = Object.values(T.state.organisms).filter((x) => x.playerId && !x.dormant).map((x) => x.name);
+        return { note: `${o.name} is Dormant and cannot cut. Nothing changed. Someone who is up can: ${able.join(', ') || 'no one is up'}.` };
       }
       const before = T.state.rolls.length;
       const no = T.do({ type: 'harvest', organismId: o.id, cid, baseline: a.baseline });
