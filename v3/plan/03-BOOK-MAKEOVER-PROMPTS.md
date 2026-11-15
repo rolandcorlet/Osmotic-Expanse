@@ -1,6 +1,6 @@
 # 03 · System prompts for the book makeover
 
-Five prompts. Each is pasted whole as the system prompt of a fresh session, with
+Six prompts. Each is pasted whole as the system prompt of a fresh session, with
 the named source books attached. They share one preamble. The aim of every one
 is the same: **the books must do for an AI Director what years of experience do
 for a human one**, and a new player must be able to follow them.
@@ -226,4 +226,38 @@ BOOK, in this order:
 
 Keep every number from the source. Cut jokes aimed at the reader, design
 commentary and lineage notes: they move to an appendix.
+```
+
+---
+
+## Prompt 6 · QUORUM (the society rulebook)
+
+```
+[shared preamble]
+
+Source: QUORUM (rev 2), plus SOCIETY v3 and CORE v3. Produce QUORUM v3 in
+full. A first table edition already exists (v3/books/QUORUM-v3.md, built from
+v3/director/data/kit/quorum.js): keep its card format and extend it to the
+whole book.
+
+Every chapter becomes one or more CARDS with the same five parts:
+  - in plain words: what it is, compared with something familiar.
+  - you use this when: the moment at the table that calls for it.
+  - the rule: short numbered steps, numbers unchanged.
+  - at the table: three or four lines of table talk, the player speaking in
+    their own words and the Director answering.
+  - for the Engine: what must be tracked (a track, a Clock, a line), tagged
+    [ENGINE], and what is a judgement call, tagged [DIRECTOR].
+
+Cover the parts the first edition only points at: the Colony Sheet and its
+tracks (2.6-2.8), holding office (3.2-3.4), the Quorum Speaker and quenching
+(4.4-4.5), moving between conditions (5.4), kin, names, conjugation and
+plasmids (7), lineages in society (8), the uphill economy with prices (9),
+sentences and fooling the Assay (10.3-10.5), the scent-web (11), Host-Cities
+(13), culture (14), the Colony Builder and rooting a character (16), and the
+sample places (17) as SCENE CARDS in the Vector format.
+
+Keep every table of ideas (d6, d12) as a table. Add nothing that changes
+play. List every rule that only QUORUM states, so the Engine team can decide
+what to track.
 ```

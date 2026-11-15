@@ -288,3 +288,13 @@ test('some people are beyond the Cohort, and a clerk leaves nothing printed to c
   T.state = apply(T.state, { type: 'roll', requestId: q.id, dice: Array(q.pool.dice).fill(6) }, ctx('player', 'p1'));
   assert.match(T.run('bystander_falls', { who: 'clerk', outcome: 'dead' }).body, /Nothing is printed to cut/);
 });
+
+test('QUORUM is in the Director\'s reach and its cards are complete', async () => {
+  const { QUORUM } = await import('../data/kit/quorum.js');
+  assert.ok(QUORUM.length >= 15);
+  for (const q of QUORUM) assert.ok(q.plain.length > 40 && q.when && q.rule.length >= 2 && q.table.length > 40 && q.ch, q.id);
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  assert.ok(T.run('look_up', { about: 'how does a colony vote, quorum' }).cards.some((c) => /Quorum/.test(c.name)));
+  assert.ok(T.run('look_up', { about: 'we call in a favour from the ledger' }).cards.some((c) => /Ledger/.test(c.name)));
+  assert.ok(T.run('look_up', { about: 'duel champion' }).cards.some((c) => /duel/i.test(c.name)));
+});
