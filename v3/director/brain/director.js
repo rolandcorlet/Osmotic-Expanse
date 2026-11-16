@@ -192,6 +192,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   // How each Clock moves is the Vector's own: its kit prints the rules (The First Carve), or they are built from the Clocks' own lines.
   const clockRules = (scenario.kit && scenario.kit.clockRules) || (scenario.kit && scenario.kit.clocks ? scenario.kit.clocks.map((c) => `${c.id}: ${c.plain}${c.who ? ` Moves: ${c.who}` : ''}`) : []);
   for (const line of clockRules) L.push(line);
+  if (state.clocks.ORDER) L.push('ORDER is the campaign\'s own Clock (five segments) and it stays with the Cohort from Vector to Vector. It advances when the Cohort harms, harvests or imitates an Order of creatures, in front of that Order\'s own kind: the swarms, the Bleeders, the Sentinels. Never because a roll failed. Name it aloud. The players may rewind it by spending time, Cohesion or Specimens: let them. When it fills, that Order responds: it swarms, hunts the Cohort\'s register, mimics the Cohort, or (rarely) makes an offer.');
 
   L.push('');
   const f = state.fight;

@@ -408,7 +408,7 @@ export const TOOLS = [
   },
   {
     name: 'move_clock',
-    description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason the page prints. Never because a roll failed. Each Clock may advance at most once per session. The Vector pays the triggers it prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
+    description: 'Advance or rewind one of the Clocks on the table by one segment, for a reason the page prints. Never because a roll failed. Each Clock may advance at most once per session. The Vector pays the triggers it prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
     parameters: obj({ clock: S('Which Clock, by its name on the table (for The First Carve: CARCASS, TOLL or HUNGER).'), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),
     run(a, T) {
       const d = Math.trunc(Number(a.change));

@@ -88,6 +88,9 @@ export function restart(old, scenario, { keepPlayers = false } = {}) {
     s.loot.order = (old.loot.order || []).filter((id) => s.organisms[id] && s.organisms[id].playerId);
     s.loot.auto = clone(old.loot.auto || {});
   }
+  if (keepPlayers && old && old.scenarioId !== scenario.id && old.clocks && old.clocks.ORDER) {
+    s.clocks.ORDER = { ...clone(old.clocks.ORDER), aiAdvanced: false, aiAdvances: 0 };
+  }
   const seated = Object.keys(s.players).length;
   say(s, { now: 0 }, `A new game of ${scenario.title} begins${seated ? `, with ${seated} at the table` : ''}.`, 'scene');
   return s;
@@ -203,7 +206,25 @@ function fightRunsOut(s, ctx) {
 // v3: what a Vector prints for a Clock filling, paid once when it happens (bench 16 Nov: HUNGER
 // reached 4 of 4 and nothing followed). THE FIRST CARVE 3.3, segment 4, the Render Cascade: "every
 // un-shipped cut drops one grade". A C cut has no grade below it, so it stays C.
+// The ORDER Clock is the campaign's, not one Vector's (Director's Codex 5.2): five segments that move
+// when the Cohort harms, harvests or imitates an Order of the Bestiary. It does not exist until a
+// Vector opens it (First Carve 3.3: the Render Cascade opens it at 2), and it travels to the next Vector.
+export const ORDER_SEGMENTS = 5;
+export function openOrderClock(s, ctx, at = 0) {
+  const have = s.clocks.ORDER;
+  const to = Math.min(ORDER_SEGMENTS, Math.max(have ? have.filled : 0, Math.trunc(Number(at)) || 0));
+  s.clocks.ORDER = { id: 'ORDER', name: 'ORDER', segments: ORDER_SEGMENTS, filled: to, campaign: true,
+    says: 'How much one Order of creatures has noticed the Cohort. It moves when the Cohort harms, harvests or imitates that Order. When it fills, that Order responds.' };
+  if (!have) say(s, ctx, `A new Clock opens: ORDER, at ${to} of ${ORDER_SEGMENTS}. The Order the Cohort has been harming, harvesting or imitating has noticed. This Clock stays with the Cohort from one Vector to the next.`, 'clock');
+}
+
 function clockFills(s, ctx) {
+  const ord = (s.clocks || {}).ORDER;
+  if (ord && ord.filled >= ord.segments && !(s.fills || {}).ORDER) {
+    s.fills = s.fills || {};
+    s.fills.ORDER = { seq: s.seq, name: 'the Order responds' };
+    say(s, ctx, 'ORDER is full: that Order responds, by swarming, by hunting the Cohort\'s register, by mimicking the Cohort, or (rarely) by making an offer.', 'clock');
+  }
   const rules = ((ctx.scenario || {}).rules || {}).onFull || {};
   for (const [id, ev] of Object.entries(rules)) {
     const c = (s.clocks || {})[id];
@@ -222,6 +243,7 @@ function clockFills(s, ctx) {
         }
       }
     }
+    if (ev.opens && ev.opens.ORDER != null) openOrderClock(s, ctx, ev.opens.ORDER);
     say(s, ctx, `${c.name} is full: ${ev.name}.${ev.dropUnstampedGrade ? ` Every unstamped cut drops one grade (${moved} Specimen${moved === 1 ? '' : 's'} changed).` : ''}`, 'clock');
   }
 }

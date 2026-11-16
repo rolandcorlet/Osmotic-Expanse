@@ -753,3 +753,21 @@ test('The Long Swallow: a Beat moves LICENCE, the Director cannot, and IMMUNE ta
   for (let i = 0; i < 5; i++) t.ai({ type: 'clock', id: 'IMMUNE', delta: 1, why: 'a harvest cut' });
   assert.equal(t.s.clocks.IMMUNE.filled, 5);
 });
+
+// ---- The ORDER Clock: opened by the Render Cascade at 2, moved by the Director once a session, carried on.
+
+test('ORDER Clock: the Render Cascade opens it at 2; it fills and says so; it travels to the next Vector', () => {
+  const t = table();
+  assert.equal(t.s.clocks.ORDER, undefined);
+  for (let i = 0; i < 4; i++) t.host({ type: 'clock', id: 'HUNGER', delta: 1, why: 'test' });
+  assert.equal(t.s.clocks.ORDER.filled, 2);
+  assert.equal(t.s.clocks.ORDER.segments, 5);
+  t.host({ type: 'clock', id: 'ORDER', delta: 1, by: 'ai', why: 'harmed the Order' });
+  assert.throws(() => t.host({ type: 'clock', id: 'ORDER', delta: 1, by: 'ai', why: 'again' }), /Clock discipline/);
+  t.host({ type: 'clock', id: 'ORDER', delta: 2, why: 'host' });
+  assert.ok(t.s.log.some((e) => /ORDER is full/.test(e.text)));
+  const next = restart(t.s, ninth, { keepPlayers: true });
+  assert.equal(next.clocks.ORDER.filled, 5);
+  assert.ok(next.clocks.SHIFT);
+  assert.equal(restart(t.s, scenario, { keepPlayers: true }).clocks.ORDER, undefined, 'a replay of the same Vector starts clean');
+});

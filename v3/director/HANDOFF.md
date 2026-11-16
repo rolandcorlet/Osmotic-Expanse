@@ -694,3 +694,7 @@ Not yet benched on a real model. Watch for: opening with the strong start, calli
 - Bench: `node tools/bench.mjs --vector ninth-shift|long-swallow --runs 1 --sites 5 --players 4 --log <name>.log` (scripts in `tools/bench-scripts-*.mjs`; snapshots `bench-from-<vector>-N.json`).
 - Narrated, not enforced: Shift prices/suspended grafts/Silence dice, BADGE modifiers, Offers/Grievance/Apron, Goodwill track, Churn fill timing, Stage II features. Tests: 197 passing.
 - Not yet benched with a live model; Roly runs the first benches.
+
+## ORDER Clock (16 Nov)
+- Campaign Clock, 5 segments (Codex 5.2), absent until a Vector opens it: `onFull: { X: { opens: { ORDER: 2 } } }` (First Carve's Render Cascade does). `openOrderClock` in `engine/ledger.js`; the Director moves it with `move_clock` (one advance per session, like any Clock); rewinds are the players'. Fills once with the "that Order responds" line. `restart(..., { keepPlayers: true })` into a *different* Vector carries it; a replay of the same Vector starts clean.
+- Not enforced: what "the Order responds" does (swarm, register-hunt, mimicry, offer) is the Director's to narrate. The Ninth Shift's and Long Swallow's own ORDER mentions (Court/Hegemony, register echo) are narrated, not opened by the Engine.
