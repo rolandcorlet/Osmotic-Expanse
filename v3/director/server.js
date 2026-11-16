@@ -23,6 +23,7 @@ import { newSession, newGameId, restart, apply, viewFor, RuleError } from './eng
 import { createMemory } from './brain/memory.js';
 import { systemRng } from './engine/dice.js';
 import { vectorById, vectorList, DEFAULT_VECTOR } from './data/vectors.js';
+import { loadBestiary } from './data/bestiary-all.js';
 import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
 
@@ -34,7 +35,7 @@ const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && arg
 const PORT = Number(opt('--port', process.env.PORT || 8787));
 const SAVE_DIR = opt('--saves', join(here, 'saves'));
 const SAVE = join(SAVE_DIR, 'session.json');
-const bestiary = JSON.parse(readFileSync(join(here, 'data', 'bestiary.json'), 'utf8'));
+const bestiary = loadBestiary();
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
 const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state });

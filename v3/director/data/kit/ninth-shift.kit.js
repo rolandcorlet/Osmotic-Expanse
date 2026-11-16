@@ -19,7 +19,18 @@ export const kit = {
   id: 'ninth-shift',
   title: 'The Ninth Shift',
   levels: 'Levels 4 to 6',
-  runnable: false,
+  runnable: true,
+  hands: {
+    wall: 'The tough one. You stand in front and take the hits so your friends do not. Level 4: you can now hold two Reserve Pulse Points. Pick this if you like protecting people.',
+    ledger: 'The clever one. You make and mend things, read the small print and know what everything is worth. Level 4. Pick this if you like solving problems and getting paid.',
+    rider: 'The fast one. You move through moving water like nobody else, carry people out of trouble, and shrug off strain: a bad roll costs you Stress less often. Level 4. Pick this if you like daring moves.',
+    eyes: 'The sharp one. You notice what others miss, sneak, and smell a lie: you can smell that the patented shape is inherited, not printed. Level 4. Pick this if you like finding things out.',
+  },
+  clockRules: [
+    'SHIFT advances one segment each working day (a Beat): call `end_beat` when the table has spent a day and it moves SHIFT for you, and issues the Court\'s decision at the end of Beat 4. Never move SHIFT yourself. Name the new SHIFT step aloud, every time.',
+    'BADGE advances for: taking the good money, printing for the Hegemony, evicting, arresting or re-registering anyone on the Row, breaking a picket line, filing a grievance against the Row. It rewinds for: carrying a grievance for the Row, feeding someone at the hearth, returning a badge to a Row organism in public, refusing paid work in a scene where you needed it. Move it for those reasons only, and say why.',
+    'PAPER advances when the Cohort first enters licensed ground, when it is seen with Row chemistry or files a document, and (paid by the Vector) on any loud success, seizure or destroyed construct. It never advances because a roll failed. Rewinding any Clock is free: the Cohort spends 1 Cohesion, or 2 Specimens, or a Fugue Interval being in a queue.',
+  ],
   glossary: [...GLOSSARY, ...WORDS],
   pitch: 'A factory district has stopped working. Officially nobody is on strike; officially it is "scheduled maintenance". You are four temps hired to get things moving, standing exactly between the bosses and the workers. It is a comedy: nobody here will attack you, everybody will hand you a form, and the funniest answer is usually the driest one. But one machine never stopped, and the argument everyone is having turns out to be about somebody\'s body.',
   truths: [
@@ -72,7 +83,7 @@ export const kit = {
       costs: ['a Beat', 'a box ticked that will matter later', 'Badge going up', 'the queue\'s good opinion'],
       threats: [{ what: 'the form', tell: 'the clerk winces at three of the boxes', strike: 'a ticked box is a legal fact' }],
       leads: ['The clerk refills your tea and taps box four.', 'The queue shuffles forward and somebody coughs politely.', 'A notice goes up: the Relief arrives on the third Beat.'],
-      moments: { tough: 'The badge rack is heavy and somebody has to hold it while the clerk looks.', clever: 'You spot the arithmetic mistake.', fast: 'You could be through the arch before anyone reads you. Do you?', sharp: 'One name in the ledger is crossed out in three different hands.' },
+      moments: { wall: 'The badge rack is heavy and somebody has to hold it while the clerk looks.', ledger: 'You spot the arithmetic mistake.', rider: 'You could be through the arch before anyone reads you. Do you?', eyes: 'One name in the ledger is crossed out in three different hands.' },
     },
     'picket-hearth': {
       name: 'The Picket Hearth', short: 'the workers\' row, silent',
@@ -93,7 +104,7 @@ export const kit = {
       costs: ['a service refused', 'Badge', 'a Beat', 'a promise to carry a grievance'],
       threats: [{ what: 'the Silence', tell: 'tools that will not start and wounds that will not close here', strike: 'nothing can be repaired, printed or mended on the Row' }, { what: 'being unwelcome', tell: 'conversations stop when you arrive', strike: 'nobody sells, mends or vouches for you' }],
       leads: ['The Steward asks the question again, for the people at the back.', 'A child-sized machine tugs your sleeve and points at the alley.', 'Two tame scavengers start arguing over a dead machine.'],
-      moments: { tough: 'Carry the soup pot. The Row notices who carries.', clever: 'You know what the shape in the stopped machine\'s hand was going to be.', fast: 'You could reach the alley unseen.', sharp: 'You see the light in the alley first.' },
+      moments: { wall: 'Carry the soup pot. The Row notices who carries.', ledger: 'You know what the shape in the stopped machine\'s hand was going to be.', rider: 'You could reach the alley unseen.', eyes: 'You see the light in the alley first.' },
     },
     'print-floor': {
       name: 'The Print Floor of Shift Nine', short: 'the machine that never stopped',
@@ -116,7 +127,7 @@ export const kit = {
       costs: ['a Clock', 'a place in the parlour queue', 'Kel-Vasht\'s patience', 'the output comes out wrong'],
       threats: [{ what: 'the Relief', tell: 'a space cleared, invoices already pinned up', strike: 'they arrive on Beat three and break things by the item' }],
       leads: ['The Line prints something small and sets it on the table.', 'The attendant calls a ticket number: it is yours.', 'Kel-Vasht says, "You are the temps," and waits.'],
-      moments: { tough: 'Stand between the Relief and the Line.', clever: 'The jam is yours to read.', fast: 'Fetch the thing off the moving Line before it is crushed.', sharp: 'Notice every piece the Line prints fits the last.' },
+      moments: { wall: 'Stand between the Relief and the Line.', ledger: 'The jam is yours to read.', rider: 'Fetch the thing off the moving Line before it is crushed.', eyes: 'Notice every piece the Line prints fits the last.' },
     },
     'licence-court': {
       name: 'The Licence Court', short: 'where the answer is already written',
@@ -138,7 +149,7 @@ export const kit = {
       costs: ['PAPER moves', 'a witness is called: someone they were kind to', 'Badge', 'being named surety for something'],
       threats: [{ what: 'the arch', tell: 'it hums louder near licensed gear', strike: 'it reads out what you carry and what you are' }, { what: 'the timetable', tell: 'the date on the wall', strike: 'the decision issues whether you are ready or not' }],
       leads: ['The middle Auditor asks if anyone has "noticed anything irregular".', 'The clerk sets a file within reach and looks away.', 'The gallery murmurs: ticket nine has been called.'],
-      moments: { tough: 'The arch names your grafts. Stand there anyway.', clever: 'The clauses can be learned. You are the one who reads them.', fast: 'Get the document to the bench before the gavel.', sharp: 'Smell the exhibit: it was born, not printed.' },
+      moments: { wall: 'The arch names your grafts. Stand there anyway.', ledger: 'The clauses can be learned. You are the one who reads them.', rider: 'Get the document to the bench before the gavel.', eyes: 'Smell the exhibit: it was born, not printed.' },
     },
     'alley-41': {
       name: 'The Alley behind Organ 41', short: 'something nearly finished',
@@ -160,7 +171,7 @@ export const kit = {
       costs: ['a Beat', 'a signature', 'Badge', 'who sees them leave'],
       threats: [{ what: 'the offers', tell: 'four factions have already pinned up prices', strike: 'whoever the Cohort refuses will come and ask in person' }],
       leads: ['The print asks again, more quietly.', 'Hush says, "It needs one more thing, and a witness."', 'Boots at the mouth of the alley.'],
-      moments: { tough: 'Stand in the alley mouth.', clever: 'You can read what Hush still has to do.', fast: 'Carry the cradle through the drain.', sharp: 'Be the first to say "who", not "what".' },
+      moments: { wall: 'Stand in the alley mouth.', ledger: 'You can read what Hush still has to do.', rider: 'Carry the cradle through the drain.', eyes: 'Be the first to say "who", not "what".' },
     },
   },
   hooks: ['If the patent dies: Kel-Vasht resigns in public and owes the Cohort its name.', 'If the print is finished: the Cohort is legally responsible for a new person.', 'If the Row is sold: the Cohort is paid well and called by the wrong name.', 'The best ending is one the players invent, such as registering the Line itself as a worker.'],

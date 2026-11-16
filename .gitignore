@@ -15,3 +15,6 @@ desktop.ini
 .DS_Store
 __pycache__/
 *.pyc
+
+# rendered lesson videos (large; upload to YouTube instead)
+lessons/video/

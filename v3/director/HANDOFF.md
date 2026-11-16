@@ -687,3 +687,10 @@ What changed from the first Director:
 - `test/kit.test.js`: 8 tests. 173 pass in all.
 
 Not yet benched on a real model. Watch for: opening with the strong start, calling `reveal_secret`, ruling a free action with a roll rather than refusing, and whether the looser "improvise small facts" rule brings back invented prices.
+
+## Vectors seated (16 Nov): The Ninth Shift and The Long Swallow
+- `data/ninth-shift.js`, `data/long-swallow.js` (scenarios), `data/levelled-hands.js` (HANDS_L4, HANDS_L7 via `growHand`), `data/vector-blocks.js` (Vector creature blocks), `data/bestiary-all.js` (`loadBestiary`), registered in `data/vectors.js`; kits are `runnable: true` with `hands` and `clockRules`.
+- Engine: Clock names come from the scenario (`rules.clockTriggers`, `loudChance`, `lawClock`, `valueClock`, `aiAdvanceCap`, `beatClocks`, `beatSets`); a `beat` action and `end_beat` tool (+ "End the day" button) move the day counter. The Director can never move SHIFT/LICENCE.
+- Bench: `node tools/bench.mjs --vector ninth-shift|long-swallow --runs 1 --sites 5 --players 4 --log <name>.log` (scripts in `tools/bench-scripts-*.mjs`; snapshots `bench-from-<vector>-N.json`).
+- Narrated, not enforced: Shift prices/suspended grafts/Silence dice, BADGE modifiers, Offers/Grievance/Apron, Goodwill track, Churn fill timing, Stage II features. Tests: 197 passing.
+- Not yet benched with a live model; Roly runs the first benches.

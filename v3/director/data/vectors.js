@@ -2,6 +2,8 @@
 // first-carve.js (an exported scenario and publicScenario), then add a line here.
 
 import * as firstCarve from './first-carve.js';
+import * as ninthShift from './ninth-shift.js';
+import * as longSwallow from './long-swallow.js';
 
 
 export const VECTORS = [
@@ -11,6 +13,20 @@ export const VECTORS = [
     blurb: 'A dead whale in the Toll Reach, five sites from the wound to the Gut Stone. The teaching Vector: two to six new organisms, Level 1.',
     scenario: firstCarve.scenario,
     publicScenario: firstCarve.publicScenario,
+  },
+  {
+    id: 'ninth-shift',
+    title: 'The Ninth Shift',
+    blurb: 'A comedy about a strike that officially is not one: a queue, a form, a machine nobody told to stop, a court that has written its decision, and something nearly finished in an alley. Four organisms, Levels 4 to 6.',
+    scenario: ninthShift.scenario,
+    publicScenario: ninthShift.publicScenario,
+  },
+  {
+    id: 'long-swallow',
+    title: 'The Long Swallow',
+    blurb: 'A living person so vast there is a town in its wound, and six days before it is legally dissolved. It asked for you. Four organisms, Levels 7 to 11.',
+    scenario: longSwallow.scenario,
+    publicScenario: longSwallow.publicScenario,
   },
 ];
 

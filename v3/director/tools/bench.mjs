@@ -27,7 +27,10 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { newSession, apply } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
-import { scenario } from '../data/first-carve.js';
+import { vectorById } from '../data/vectors.js';
+import { NINTH } from './bench-scripts-ninth.mjs';
+import { SWALLOW } from './bench-scripts-swallow.mjs';
+import { loadBestiary } from '../data/bestiary-all.js';
 import { directorTurn } from '../brain/director.js';
 import { createMemory } from '../brain/memory.js';
 import { plainChapter, CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, filterCast } from '../brain/chronicle.js';
@@ -50,8 +53,11 @@ const thinking = opt('--thinking', cfg.thinking || 'default'); // default | medi
 const runs = Number(opt('--runs', 1));
 const from = Math.min(5, Math.max(1, Number(opt('--from', 1)))); // first stage to play; 2+ loads the snapshot saved on entering it
 const sites = Math.min(5, Math.max(from, Number(opt('--sites', from)))); // how far the scripted table plays: 2 Soft Field, 3 Render Hall, 4 Brood, 5 Gut Stone
+const vec = vectorById(opt('--vector', 'first-carve'));
+if (!vec) { console.log('Unknown --vector. Try first-carve, ninth-shift or long-swallow.'); process.exit(1); }
+const scenario = vec.scenario;
 const snapDir = opt('--snapshots', join(here, '..', 'saves'));
-const snapFile = (k) => join(snapDir, `bench-from-${k}.json`);
+const snapFile = (k) => join(snapDir, `bench-from-${vec.id === 'first-carve' ? '' : `${vec.id}-`}${k}.json`);
 if (from > 1 && !existsSync(snapFile(from))) { console.log(`No snapshot for stage ${from} yet (${snapFile(from)}). Run once with --sites ${from} or more, from the start, so the bench can save the table as it enters each stage.`); process.exit(1); }
 const players = Math.min(4, Math.max(2, Number(opt('--players', 2))));
 const logFile = opt('--log', '');
@@ -106,7 +112,7 @@ function speedLine(list, label) {
 const makeProvider = () => timed(build({ provider, apiKey, baseUrl, model, numCtx, thinking }));
 const makeQuick = () => timed(build({ provider, apiKey, baseUrl, model, numCtx, thinking: 'off' })); // the chronicle: no thinking
 
-const bestiary = JSON.parse(readFileSync(join(here, '..', 'data', 'bestiary.json'), 'utf8'));
+const bestiary = loadBestiary();
 const rng = systemRng();
 const ctx = (role, pid) => ({ role, pid, rng, now: Date.now(), scenario, bestiary });
 
@@ -287,7 +293,7 @@ async function once(n) {
       if (f.kind === 'rule' && !/^The Engine refused/.test(f.text)) {
         // Harm nobody paid for, and a Clock named as moving that nothing moved: the same fault in two
         // shapes, tallied apart so a gate read says which one the table heard.
-        if (/^Names (CARCASS|TOLL|HUNGER|the count)/.test(f.text)) tally.clocks += 1;
+        if (/^Names (.+ moving when nothing moved it|the count)/.test(f.text)) tally.clocks += 1;
         else if (/^Reverses /.test(f.text)) tally.reversed += 1;
         else if (/is dead or dissolved, but the Engine/.test(f.text)) tally.buried += 1;
         else tally.unpaid += 1;
@@ -350,7 +356,7 @@ async function once(n) {
   else await director('opening the scene');
   // Each part ends by handing the Cohort on to the next room, so every part but the last loses its
   // final line: the move is said once, and each later part opens with its own move line. `--sites 4` and `--sites 5` are long rehearsals, not the gate.
-  const parts = [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4, SCRIPT5].slice(from - 1, sites);
+  const parts = (vec.id === 'ninth-shift' ? NINTH : vec.id === 'long-swallow' ? SWALLOW : [SCRIPT, SCRIPT2, SCRIPT3, SCRIPT4, SCRIPT5]).slice(from - 1, sites);
   const lines = parts
     .flatMap((p, i) => (i < parts.length - 1 ? p.slice(0, -1) : p).map((l) => [...l, from - 1 + i]))
     .filter(([pid]) => pid === '*' || Number(pid.slice(1)) <= players);
@@ -393,7 +399,7 @@ async function once(n) {
   console.log(`  Reversed rolls in narration (a throw the page passed, described as failing): ${tally.reversed}`);
   console.log(`  Style flags (questions, length, formatting): ${tally.style}`);
   if (scenario.kit) { const f = Object.keys((s.kit || {}).found || {}); console.log(`  Secrets the Cohort learned (v3): ${f.length} of ${scenario.kit.secrets.length}${f.length ? ` (${f.join(', ')})` : ''}`); }
-  console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; CARCASS ${s.clocks.CARCASS.filled}, TOLL ${s.clocks.TOLL.filled}, HUNGER ${s.clocks.HUNGER.filled}`);
+  console.log(`  Ended at: ${scenario.sites.find((x) => x.id === s.scene.siteId).name}; ${Object.values(s.clocks).map((c) => `${c.name} ${c.filled}`).join(', ')}`);
   const cards = Object.values(s.cast || {});
   console.log(`  Memory: ${tally.recalls} recall, ${tally.remembers} remember; ${cards.length} on record${cards.length ? ` (${cards.map((c) => `${c.name} [${c.origin}]`).join(', ')})` : ''}; ${mem.chapters(s.gameId).length} chapter(s)`);
   const g = (x) => ['C', 'G', 'P', 'T'].filter((k) => x && x[k]).map((k) => `${x[k]} ${k}`).join(', ') || 'none';

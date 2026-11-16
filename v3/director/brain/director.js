@@ -18,8 +18,9 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   const site = scenario.sites.find((x) => x.id === state.scene.siteId) || scenario.sites[0];
   const L = [];
   const h = site.host || {};
+  L.push(`# VECTOR: ${scenario.title || 'this Vector'}`);
   L.push(`# SITE ${site.n} of ${scenario.sites.length}: ${site.name} (id ${site.id}) — ${site.short}`);
-  L.push(`In the whale: ${site.inWhale}`);
+  L.push(`${scenario.placeLabel || 'In the whale'}: ${site.inWhale}`);
   L.push(`What it is: ${site.where}`);
   L.push(`In front: ${site.front}`);
   L.push(`Fluid: tonic ${site.tonic}; viscosity ${site.visc}; flow ${site.flow}`);
@@ -188,8 +189,9 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   // lines, so the Director must not spend its one advance on the same Clock or narrate it again.
   const paid = (state.log || []).filter((e) => e.kind === 'clock').slice(-4);
   if (paid.length) L.push(`Clocks this site has already moved (the players were told): ${paid.map((e) => e.text).join(' | ')}`);
-  L.push('CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.');
-  L.push('A panel opening is the site paying, not you: call `open_panel` the moment one comes loose, and it pays CARCASS for the first one in a scene. Never spend your own one advance on a panel, and do not call it twice in one scene.');
+  // How each Clock moves is the Vector's own: its kit prints the rules (The First Carve), or they are built from the Clocks' own lines.
+  const clockRules = (scenario.kit && scenario.kit.clockRules) || (scenario.kit && scenario.kit.clocks ? scenario.kit.clocks.map((c) => `${c.id}: ${c.plain}${c.who ? ` Moves: ${c.who}` : ''}`) : []);
+  for (const line of clockRules) L.push(line);
 
   L.push('');
   const f = state.fight;
@@ -353,6 +355,12 @@ const OUTSIDE_NUMBERS = /\b(?:one|two|three|four|five|six|seven|eight|nine|ten|\
 const HEALTH = new RegExp(`\\b(?:integrity|MI)\\b[^.?!]{0,30}\\b${NUM}\\b|\\b${NUM}\\b[^.?!]{0,12}\\b(?:Membrane )?(?:Integrity|MI)\\b`, 'i');
 
 // moved: the Cohort changed site this turn, so the narration is one sentence of travel.
+// The Clock names this table is playing, as a regex alternation (never empty, so a Vector with no Clocks matches nothing).
+const clockAlt = (state) => {
+  const n = Object.keys((state && state.clocks) || {}).filter((k) => /^[A-Z][A-Z0-9_ -]*$/.test(k)).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  return n.length ? n.join('|') : '(?!)';
+};
+
 export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const flags = [];
   // A creature's health in numbers ("its integrity drops to seven"). A player's own MI may be said.
@@ -407,7 +415,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   const HARVEST_WORDS = /\b(cut|cuttable|cut-able|unstamped|stamped|specimen|specimens|weigh|scale|carry|carried|bulk|harvest|lipid|panel|panels|tissue|sheet|sheets|cradle|crate|crates|picking|picks|share|shared|pass|passed|screen|screens|wreck|wreckage|remains|scraps?|heaps?|harvested)\b/i;
   const segSentence = sentences.find((sn) => {
     // A Clock has segments too ("CARCASS ticks forward one segment"): that is the table's own count.
-    if (/\b(?:CARCASS|TOLL|HUNGER)\b|\bClocks?\b/.test(sn)) return false;
+    if (new RegExp(`\\b(?:${clockAlt(state)})\\b|\\bClocks?\\b`).test(sn)) return false;
     // A creature is "it" or "they"; "him", "her", "you" mean a player (bench 15 Nov: "two more sections of what he was").
     if (/\b(?:he|him|his|she|her|hers|you|your)\b/i.test(sn) && !/\b(?:it|its|they|them|their)\b/i.test(sn)) return false;
     const m = sn.match(SEGMENTS);
@@ -442,7 +450,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // "Nineteen of twenty-two" said of a creature is its Membrane Integrity read out as a fraction.
   const BIGW = `${NUMW}|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?|thirty|forty|fifty`;
   const FRACTION = new RegExp(`\\b(?:${BIGW})\\s+(?:of|out of)\\s+(?:${BIGW})\\b`, 'i');
-  if (sentences.some((sn) => FRACTION.test(sn) && !playerPara(sn) && !/\b(?:CARCASS|TOLL|HUNGER|Clocks?|Oaths?|Lysis|Countdown|Stress|Pulse Points?)\b/i.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
+  if (sentences.some((sn) => FRACTION.test(sn) && !playerPara(sn) && !new RegExp(`\\b(?:${clockAlt(state)}|Clocks?|Oaths?|Lysis|Countdown|Stress|Pulse Points?)\\b`, 'i').test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
   if (/(?<!\b(?:on|off|across|down|from|flip|flips|flipped|turn|turns|turned)\s)\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
   // A lowercase "the engine" is a pump or a motor in the fiction (bench 16 Nov: "shouting over the engine"
@@ -533,7 +541,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     && sentences.some((sn) => /\b(?:promise|oath|witness|fold)\b/i.test(sn) && /\b(?:broken|breaks|broke|forsworn|thin|failed to keep|scar|debt)\b/i.test(sn))) {
     flags.push({ kind: 'rule', text: 'Reverses an Oath the Engine just settled as kept: it narrates the promise as broken.' });
   }
-  const CLOCK = /\b(CARCASS|TOLL|HUNGER)\b/;
+  const CLOCK = new RegExp(`\\b(${clockAlt(state)})\\b`);
   const CLOCK_MOVE = /\b(moves?|moved|moving|tick(?:s|ed|ing)?|climb(?:s|ed|ing)?|advance[sd]?|advancing|rewind[sd]?|rewinding|drop(?:s|ed|ing)?|falls?|fallen|step(?:s|ped)?|jump(?:s|ed|ing)?|slid(?:e[sd]?|den)|nudge[sd]?|settle[sd]?|creep(?:s|ed|ing)?|spike[sd]?)\b/i;
   const clockLines = (state.log || []).filter((e) => e.kind === 'clock').slice(-12).map((e) => String(e.text)).join(' | ');
   const named = [...new Set(sentences.filter((sn) => CLOCK.test(sn) && CLOCK_MOVE.test(sn)).flatMap((sn) => sn.match(new RegExp(CLOCK.source, 'g')) || []))];
@@ -674,7 +682,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const isLeak = (f) => f.kind === 'leak';
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
   const buriedF = (f) => f.kind === 'rule' && /is dead or dissolved, but the Engine/.test(f.text);
-  const unpaidClock = (f) => f.kind === 'rule' && /^Names (?:CARCASS|TOLL|HUNGER)/.test(f.text);
+  const unpaidClock = (f) => f.kind === 'rule' && /^Names .+ moving when nothing moved it/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
   const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {

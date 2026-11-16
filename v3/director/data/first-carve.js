@@ -243,6 +243,10 @@ export const scenario = {
   kit, // v3: how to run it (craft notes, people, secrets, leads, plain words)
   rules: {
     reconstitutionCostsClock: 'CARCASS',
+    // The Clock that says what the cuttable thing is still worth (harvest grade and AT read it).
+    valueClock: 'CARCASS',
+    // 3.4: the Director may not advance these Clocks itself once they reach this segment; the Engine pays them.
+    directorAdvanceBar: { TOLL: 3 },
     // 3.1-3.3 print what the place pays on its own, so the Ledger pays them when the event happens
     // in play. 3.4's cap on the Director's discretionary advance (one segment per Clock per
     // session) is untouched: these are the carcass reacting, not the host choosing. A Clock named
@@ -275,6 +279,10 @@ export function publicScenario(sc = scenario) {
     title: sc.title,
     whale: sc.whale,
     clocks: sc.clocks,
+    hasBeat: !!(sc.rules && (sc.rules.beatClocks || sc.rules.beatSets)),
+    restClock: (sc.rules && sc.rules.reconstitutionCostsClock) || '',
+    placeLabel: sc.placeLabel || '',
+    zeroLine: sc.zeroLine || '',
     pitch: sc.kit ? sc.kit.pitch : '',
     glossary: sc.kit ? sc.kit.glossary : [],
     handsPlain: sc.kit ? sc.kit.hands : {},

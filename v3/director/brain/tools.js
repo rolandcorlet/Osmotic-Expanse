@@ -50,7 +50,7 @@ export function hazardSpec(site) {
   // "on a Clock, fires at TOLL 5" (the Render Charge) and "at CARCASS 3+, 1 Lytic damage per
   // Cycle" (the slough patches) both hang the damage on a Clock value. "visible after CARCASS 1"
   // is a clue, not a price, so it is deliberately not matched.
-  const gate = text.match(/\bat\s+(CARCASS|TOLL|HUNGER)\s+(\d+)\s*\+?/i);
+  const gate = text.match(/\bat\s+([A-Z]{3,})\s+(\d+)\s*\+?/);
   return {
     text,
     none: !text || /^\s*none\b/i.test(text),
@@ -391,11 +391,13 @@ export const TOOLS = [
     description: 'The Cohort opens a new panel at this site: a hit or a throw cracks one loose and the oxygen gets in. The site pays for that itself (CARCASS +1, 3.1), so never spend your one Clock advance on a panel. Call it at the moment a panel comes open, not for one merely mentioned. If a cut at this site has already paid for a panel in this scene it answers that the price is already in.',
     parameters: obj({ what: S('What was opened, in a few words the players can hear, for example "a hanging lipid panel".') }, ['what']),
     run(a, T) {
-      const before = T.state.clocks.CARCASS || {};
+      const pc = [].concat(((T.scenario.rules || {}).clockTriggers || {}).panelOpens || [])[0];
+      if (!pc || !T.state.clocks[pc]) return { refused: 'No panel opens in this Vector: there is nothing of that kind to cut here.' };
+      const before = T.state.clocks[pc] || {};
       const already = before.panelScene === (T.state.sceneNo || 1);
       const no = T.do({ type: 'panel.open', what: a.what });
       if (no) return { refused: no };
-      const c = T.state.clocks.CARCASS || {};
+      const c = T.state.clocks[pc] || {};
       return already
         ? { already_paid: true, clock: `${c.name} ${c.filled}/${c.segments}`, note: `The site has already paid for opening a panel in this scene (${c.name} ${c.filled}/${c.segments}): nothing further is owed, and do not spend your own advance on it.` }
         : { panel_opened: String(a.what || 'a panel'), clock: `${c.name} ${c.filled}/${c.segments}` };
@@ -404,20 +406,34 @@ export const TOOLS = [
   {
     name: 'move_clock',
     description: 'Advance or rewind CARCASS, TOLL or HUNGER by one segment, for a reason the page prints. Never because a roll failed. Each Clock may advance at most once per session. The Vector pays the triggers it prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
-    parameters: obj({ clock: S('Which Clock.', { enum: ['CARCASS', 'TOLL', 'HUNGER'] }), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),
+    parameters: obj({ clock: S('Which Clock, by its name on the table (for The First Carve: CARCASS, TOLL or HUNGER).'), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),
     run(a, T) {
       const d = Math.trunc(Number(a.change));
       if (d !== 1 && d !== -1) return { refused: 'A Clock moves one segment at a time: +1 or -1.' };
       // Your one advance is spent: that is a note, not a rule break, and it must not be narrated as a move.
+      if (!T.state.clocks[a.clock]) return { refused: `No Clock called ${a.clock}. This Vector has: ${Object.keys(T.state.clocks).join(', ')}.` };
       const was = T.state.clocks[a.clock];
       if (was && d > 0 && was.aiAdvanced) return { clock: was.name, now: `${was.filled}/${was.segments}`, note: `${was.name} has already taken your one advance this session. Nothing moved: do not name it as moving, and do not try it again.` };
       // TOLL at 3 or more is barred to the Director: the Engine pays TOLL for noise itself, and a discretionary
       // advance here can tip the Render Charge before the party reaches the Gut Stone scene.
-      if (was && a.clock === 'TOLL' && d > 0 && was.filled >= 3) return { clock: was.name, now: `${was.filled}/${was.segments}`, note: `${was.name} is at ${was.filled}/${was.segments}. You may not advance it yourself from here; the Engine pays it when the table is loud. Nothing moved: do not name it as moving, and do not try it again.` };
+      const barAt = ((T.scenario.rules || {}).directorAdvanceBar || {})[a.clock];
+      if (was && barAt != null && d > 0 && was.filled >= barAt) return { clock: was.name, now: `${was.filled}/${was.segments}`, note: `${was.name} is at ${was.filled}/${was.segments}. You may not advance it yourself from here; the Engine pays it when the table is loud. Nothing moved: do not name it as moving, and do not try it again.` };
       const no = T.do({ type: 'clock', id: a.clock, delta: d, why: a.why, by: 'ai' });
       if (no) return { refused: no };
       const c = T.state.clocks[a.clock];
       return { clock: c.name, now: `${c.filled}/${c.segments}` };
+    },
+  },
+  {
+    name: 'end_beat',
+    description: 'A working day (a Beat) ends. Only in a Vector that counts days: this moves the Clocks a day pays, and issues anything dated to that Beat, so never move those Clocks yourself for the passing of time. Call it once when the table has spent a day, and say aloud what it moved.',
+    parameters: obj({ why: S('What filled the day, in a few words the players can hear.') }, ['why']),
+    run(a, T) {
+      const before = JSON.stringify(Object.values(T.state.clocks).map((c) => c.filled));
+      const no = T.do({ type: 'beat', why: a.why });
+      if (no) return { refused: no };
+      const now = Object.values(T.state.clocks).map((c) => `${c.name} ${c.filled}/${c.segments}`).join(' · ');
+      return { beat: T.state.beat, clocks: now, moved: before !== JSON.stringify(Object.values(T.state.clocks).map((c) => c.filled)) };
     },
   },
   {
@@ -624,11 +640,12 @@ export const TOOLS = [
   },
   {
     name: 'rest',
-    description: 'The Cohort takes a Reconstitution: about an hour. Full ATP, Stress cleared, some MI healed. In this Vector it costs a CARCASS segment: say so before they choose.',
+    description: 'The Cohort takes a Reconstitution: about an hour. Full ATP, Stress cleared, some MI healed. In some Vectors it costs a Clock segment (The First Carve: CARCASS): say so before they choose.',
     parameters: obj({}),
     run(a, T) {
       const no = T.do({ type: 'rest' });
-      return no ? { refused: no } : { rested: true, carcass: `${T.state.clocks.CARCASS.filled}/${T.state.clocks.CARCASS.segments}` };
+      const rc = T.state.clocks[(T.scenario.rules || {}).reconstitutionCostsClock];
+      return no ? { refused: no } : { rested: true, ...(rc ? { [rc.id.toLowerCase()]: `${rc.filled}/${rc.segments}` } : {}) };
     },
   },
   {

@@ -9,6 +9,11 @@ export const kit = {
   title: 'The First Carve',
   levels: 'For two to six new organisms, Level 1',
   runnable: true,
+  // How each Clock moves, in the words the Director is briefed with every turn.
+  clockRules: [
+    'CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.',
+    'A panel opening is the site paying, not you: call `open_panel` the moment one comes loose, and it pays CARCASS for the first one in a scene. Never spend your own one advance on a panel, and do not call it twice in one scene.',
+  ],
   glossary: GLOSSARY,
 
   // One paragraph a new player can follow, read at the very start.

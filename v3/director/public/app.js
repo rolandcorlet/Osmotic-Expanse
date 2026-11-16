@@ -641,7 +641,7 @@ function playerHtml() {
 function zeroCard({ host = false } = {}) {
   const z = state.zero || { pauseWord: 'SLACK WATER', lines: [] };
   return `<section class="card"><h3>Session zero<span class="right"><span class="chip warn">${esc(z.pauseWord)}</span></span></h3>
-    <p class="tale">This is a game for adults. It is about a dead whale being taken apart for parts, and it can get close and bodily.</p>
+    <p class="tale">${esc((sc && sc.zeroLine) || 'This is a game for adults. It is about a dead whale being taken apart for parts, and it can get close and bodily.')}</p>
     <p class="tale">Say <b>${esc(z.pauseWord)}</b> at any time, for any reason, and the scene stops where it is. No explanation is owed. We step back a moment and carry on from there.</p>
     ${z.tone ? `<div class="note">${esc(z.tone)}</div>` : ''}
     <div class="fl">Off the page for this table</div>
@@ -1120,6 +1120,7 @@ function newGameCard() {
 
 function hostToolsCard() {
   if (ui.newGame.open) return newGameCard();
+  const rc = (sc && sc.restClock) || '';
   const A = ui.host.award;
   const clocks = Object.values(state.clocks).map((c) => `<div class="row"><b style="width:74px;font-size:13px">${esc(c.name)}</b><div class="segs grow">${Array.from({ length: c.segments }, (_, i) => `<i class="${i < c.filled ? 'on' : ''}"></i>`).join('')}</div><span class="small dim">${c.filled}/${c.segments}</span>
     <button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="-1">−</button><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="1">+</button></div>`).join('');
@@ -1128,7 +1129,7 @@ function hostToolsCard() {
     <div class="row"><input type="number" style="width:86px" data-k="aw.c" data-bind="host.award.codon" value="${esc(A.codon)}" placeholder="Codon"><input type="number" style="width:86px" data-k="aw.s" data-bind="host.award.substrate" value="${esc(A.substrate)}" placeholder="S">
       <input type="text" class="grow" data-k="aw.w" data-bind="host.award.why" value="${esc(A.why)}" placeholder="What for"><button class="btn sm" data-act="h.award">Award each</button></div>
     ${info && info.online ? `<div class="row"><span class="small dim">Outside link</span><span class="small grow" style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</span><button class="btn sm" data-act="link.copy" data-v="${esc(info.online)}">Copy</button></div>` : ''}
-    <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval. In this Vector it costs a CARCASS segment.">Reconstitution (CARCASS +1)</button><button class="btn sm danger" data-act="h.new">New game…</button></div>
+    <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval.${rc ? ` In this Vector it costs a ${rc} segment.` : ''}">Reconstitution${rc ? ` (${rc} +1)` : ''}</button>${sc && sc.hasBeat ? `<button class="btn sm" data-act="h.beat" title="A working day ends. The Vector moves the Clocks a day pays.">End the day (Beat ${(state.beat || 0) + 1})</button>` : ''}<button class="btn sm danger" data-act="h.new">New game…</button></div>
   </section>`;
 }
 
@@ -1463,6 +1464,7 @@ const ACT = {
     if (await send({ type: 'award', codon: Number(A.codon) || 0, substrate: Number(A.substrate) || 0, why: A.why })) ui.host.award = { codon: '', substrate: '', why: '' };
   },
   'h.rest': () => send({ type: 'rest' }),
+  'h.beat': () => send({ type: 'beat', why: 'The host ends the day.' }),
   'h.undo': () => send({ type: 'undo' }),
   'loot.take': (d) => send({ type: 'loot.take', itemId: d.id }),
   'loot.always': (d) => send({ type: d.rule === 'take' ? 'loot.take' : 'loot.pass', itemId: d.id, always: true }),

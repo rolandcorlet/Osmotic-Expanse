@@ -33,6 +33,7 @@ export function newSession(scenario) {
     organisms: {},
     creatures: {},
     clocks: {},
+    beat: 0,
     fight: null,
     // Which site hazard last went off, and when. CORE 8.1: a Cycle is six seconds of combat, so
     // inside a Pulse War a hazard is budgeted per Cycle; outside one there are no Cycles and the
@@ -117,7 +118,7 @@ function makeOrganism(h) {
     oath: h.oath ?? null,
     oathMax: h.oath ?? null,
     substrate: h.substrate || 0,
-    codon: 0,
+    codon: h.codon || 0,
     weapons: (h.weapons || []).map((w) => ({ ...w })),
     kit: (h.kit || []).slice(),
     notes: h.notes || '',
@@ -478,6 +479,9 @@ function checkLysis(s, ctx, o) {
 // both, write both. A row may name one Clock, a list of them, or an object of signed amounts, and
 // `oncePerScene` on that object makes the room price the act rather than every body in it - three
 // shoal cut in one scene is one feeding, not six segments.
+// The Clock that says how much the cuttable thing is still worth (CARCASS in The First Carve). A Vector
+// with nothing to cut names none, and the harvest-grade rules read a Clock that is not there as zero.
+const valueClockId = (ctx) => (((ctx || {}).scenario || {}).rules || {}).valueClock || 'CARCASS';
 const clockTrigger = (s, ctx, name) => {
   const sc = (ctx || {}).scenario || {};
   const here = (sc.sites || []).find((x) => x.id === (((s || {}).scene || {}).siteId)) || {};
@@ -872,7 +876,7 @@ function applyHarvest(s, ctx, o, h, { success, overflow }, notes) {
     if (success) got = { ...h.yield };
     else sub = 5 * (h.yield.C || 0);
   } else {
-    const carcass = (s.clocks.CARCASS || {}).filled || 0;
+    const carcass = (s.clocks[valueClockId(ctx)] || {}).filled || 0;
     if (success) got = carcass <= 1 && overflow >= 4 ? { C: 3, G: 1, P: 0, T: 0 } : { C: 4, G: 0, P: 0, T: 0 };
     else sub = 10;
     s.scene.cuts = (s.scene.cuts || 0) + 1;
@@ -1402,12 +1406,40 @@ const HANDLERS = {
       const before = c.filled;
       const delta = Math.trunc(Number(a.delta) || 0);
       if (a.by === 'ai' && delta > 0) {
-        // Clock discipline (Vector 3.4): at most one segment per Clock per session.
-        if (delta > 1 || c.aiAdvanced) throw new RuleError(`Clock discipline: ${c.name} may advance at most one segment per session, and it already has.`);
-        c.aiAdvanced = true;
+        // Clock discipline (Vector 3.4): at most one segment per Clock per session, unless the Vector
+        // prints more for a Clock (rules.aiAdvanceCap: The Ninth Shift lets BADGE and PAPER move on
+        // printed triggers many times, and SHIFT only on the Engine's own beat).
+        const cap = Number((((ctx.scenario || {}).rules || {}).aiAdvanceCap || {})[a.id]);
+        const allowed = Number.isFinite(cap) ? cap : 1;
+        if (delta > 1 || (c.aiAdvances || 0) >= allowed) throw new RuleError(`Clock discipline: ${c.name} may advance at most ${allowed === 1 ? 'one segment' : `${allowed} segments`} per session, and it already has.`);
+        c.aiAdvances = (c.aiAdvances || 0) + 1;
+        if (c.aiAdvances >= allowed) c.aiAdvanced = true;
       }
       c.filled = clamp(c.filled + delta, 0, c.segments);
       if (c.filled !== before) say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.${a.why ? ` ${String(a.why).slice(0, 120)}` : ''}`, 'clock');
+    },
+  },
+  // A working day passes (The Ninth Shift's Beat). The Vector's own rules say what a Beat pays:
+  // rules.beatClocks move one segment each, and rules.beatSets fills a Clock outright on a named Beat
+  // (PAPER: "the decision is issued at the end of Beat 4"). The Director calls it; the Engine counts.
+  beat: {
+    host: true,
+    run(s, a, ctx) {
+      const rules = (ctx.scenario || {}).rules || {};
+      const clocks = [].concat(rules.beatClocks || []).filter((id) => s.clocks[id]);
+      if (!clocks.length && !rules.beatSets) throw new RuleError('This Vector keeps no count of working days.');
+      s.beat = (s.beat || 0) + 1;
+      say(s, ctx, `A working day ends: Beat ${s.beat}.${a.why ? ` ${String(a.why).slice(0, 120)}` : ''}`, 'clock');
+      for (const id of clocks) {
+        const c = s.clocks[id];
+        const before = c.filled;
+        c.filled = clamp(c.filled + 1, 0, c.segments);
+        if (c.filled !== before) say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.`, 'clock');
+      }
+      for (const [id, to] of Object.entries((rules.beatSets || {})[s.beat] || {})) {
+        const c = s.clocks[id];
+        if (c && c.filled < to) { c.filled = clamp(to, 0, c.segments); say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.`, 'clock'); }
+      }
     },
   },
   note: {
@@ -1697,14 +1729,15 @@ const HANDLERS = {
         c.harvestPending = true;
       } else {
         if (!site.harvest) throw new RuleError('Nothing is printed to cut at this site. Harvest a destroyed creature instead.');
-        const carcass = (s.clocks.CARCASS || {}).filled || 0;
-        if (carcass >= 6) throw new RuleError('CARCASS is full: there is nothing left worth cutting.');
+        const vc = valueClockId(ctx);
+        const carcass = (s.clocks[vc] || {}).filled || 0;
+        if (carcass >= ((s.clocks[vc] || {}).segments || 6)) throw new RuleError(`${vc} is full: there is nothing left worth cutting.`);
         tier = site.harvest.tier || 1;
         h = { what: site.harvest.what || 'the site', site: site.id, carcass };
       }
       const baseline = ['OSM', 'RTC'].includes(a.baseline) ? a.baseline : (o.base.RTC >= o.base.OSM ? 'RTC' : 'OSM');
       const claw = o.weapons.some((w) => w.id === 'harvest-claw' && w.carried !== false);
-      const carcassNow = (s.clocks.CARCASS || {}).filled || 0;
+      const carcassNow = (s.clocks[valueClockId(ctx)] || {}).filled || 0;
       const at = R.harvestAT(tier) + (!a.cid && carcassNow >= 3 ? 2 : 0);
       const pool = poolForCheck(o, { baseline, pathway: 'Synthesis', mods: claw ? [{ label: 'Harvest Claw', dice: 2 }] : [], scene: s.scene });
       const label = `Harvest ${h.what}`.slice(0, 60);

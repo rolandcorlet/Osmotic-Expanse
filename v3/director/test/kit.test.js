@@ -348,3 +348,27 @@ test('house rule: a Flagellan marks Stress from a rolled 1 about three times in 
   const rider = run('rider');
   assert.ok(rider > 195 && rider < 255, `the Rider marked ${rider} of 300`);
 });
+
+test('the Player\'s Atlas v3 cards: 6 lineages, 24 Phenotypes with four Stages each, and look_up finds them', async () => {
+  const { ATLAS } = await import('../data/kit/atlas.js');
+  const { lookUp } = await import('../data/kit/society.js');
+  assert.equal(ATLAS.filter((q) => /^lineage-/.test(q.id)).length, 6);
+  const ph = ATLAS.filter((q) => /^pheno-/.test(q.id));
+  assert.equal(ph.length, 24);
+  for (const p of ph) assert.equal(p.rule.filter((r) => /^Stage (I|II|III|IV) /.test(r)).length, 4, p.name);
+  for (const q of ATLAS) for (const f of ['plain', 'when', 'who']) assert.ok(String(q[f] || '').length > 8, `${q.id} ${f}`);
+  assert.ok(ATLAS.find((q) => q.id === 'lineage-flagellan').rule.some((r) => /Rides It Out/.test(r)));
+  assert.ok(lookUp('etch corrosor').some((c) => /Acidic Corrosor/.test(c.name)));
+  assert.ok(lookUp('slipstream rider').some((c) => /Current Rider/.test(c.name)));
+  assert.ok(lookUp('adaptations').some((c) => /Adaptations/.test(c.name)));
+});
+
+test('the Director\'s Codex v3 cards cover all thirteen chapters and look_up finds them', async () => {
+  const { CODEX, CODEX_CHAPTERS } = await import('../data/kit/codex.js');
+  const { lookUp } = await import('../data/kit/society.js');
+  assert.equal(Object.keys(CODEX_CHAPTERS).length, 13);
+  for (const n of Object.keys(CODEX_CHAPTERS)) assert.ok(CODEX.some((c) => c.chapter === n), `chapter ${n}`);
+  for (const c of CODEX) assert.ok(c.rule.length > 0 && c.plain.length > 8, c.id);
+  assert.ok(lookUp('trap discovery trigger').some((c) => /Codex/.test(c.kind || '')));
+  assert.ok(lookUp('five-room site').some((c) => /Codex/.test(c.kind || '')));
+});

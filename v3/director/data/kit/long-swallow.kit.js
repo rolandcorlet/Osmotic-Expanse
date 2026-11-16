@@ -23,7 +23,19 @@ export const kit = {
   id: 'long-swallow',
   title: 'The Long Swallow',
   levels: 'Levels 7 to 11',
-  runnable: false,
+  runnable: true,
+  hands: {
+    wall: 'The tough one. You stand in front and take the hits so your friends do not. Level 7: you keep your oath, and your oath keeps others safe. Pick this if you like protecting people.',
+    ledger: 'The clever one. You make and mend things, read the small print and know what everything is worth, and here everything is worth something. Level 7. Pick this if you like solving problems and getting paid.',
+    rider: 'The fast one. You move through moving water like nobody else, and the Churn is on your side: going deeper costs nothing. A bad roll costs you Stress less often. Level 7. Pick this if you like daring moves.',
+    eyes: 'The sharp one. You notice what others miss and smell what is not tissue: you can smell what the Nodule answers to. Level 7. Pick this if you like finding things out.',
+  },
+  clockRules: [
+    'LICENCE advances one segment each working day (a Beat): call `end_beat` when the table has spent a day and it moves LICENCE for you. Never move LICENCE yourself. Name the new LICENCE step aloud, every time, even when the Cohort is deep inside: the trumpet carries through the tissue.',
+    'IMMUNE advances only for things the body can notice: a Strike against Host tissue, Lytic damage, a harvest cut, a Burst at Tier II or above, a Breach, a corpse left dissolving unharvested, an unlicensed Total Dissolution. Never because a roll failed. Say the recognition step aloud as it climbs. At 5 the Host can no longer open an exit for you.',
+    'CHURN fills on its schedule: one segment per Fugue Interval, one per Cycle at LICENCE 5. Say the tell first (the fluid goes flat and sweet, the walls groan one Cycle early), then move it, and name the push. A jammed pump freezes it.',
+    'Goodwill is a five-step track (Hostile, Wary, Curious, Client, Kin) that you narrate; say it aloud whenever it moves. Only Client or better lets the Host open a door.',
+  ],
   glossary: [...GLOSSARY, ...WORDS],
   pitch: 'There is a living person so vast that people have built a shanty town in its wound. In six days the authorities will legally dissolve it for parts, because something unregistered is inside it. The person, the Unread, has asked for you: it swallowed something long ago that it refuses to digest, holding it has kept it alive far too long, and it wants you to go in and cut it out so it can finally stop. You will be walking around inside someone who can feel everything you do. Everything valuable you take hurts it, and it will remember.',
   truths: [
@@ -80,7 +92,7 @@ export const kit = {
       costs: ['a debt to whoever let them in', 'a Beat', 'Goodwill', 'water'],
       threats: [{ what: 'thirsty scavengers', tell: 'shapes following the water sellers', strike: 'they mob whoever carries water openly' }],
       leads: ['The crier starts the warrant again.', 'The Hermit holds up four fingers: "Four doors. Pick."', 'The wall beside you opens a hand\'s width, and waits.'],
-      moments: { tough: 'The Host speaks to you first: you are nearest its size.', clever: 'You can read the tool marks in the scar.', fast: 'You could ride the outflow in backwards.', sharp: 'You notice the toll booth is still reading people.' },
+      moments: { wall: 'The Host speaks to you first: you are nearest its size.', ledger: 'You can read the tool marks in the scar.', rider: 'You could ride the outflow in backwards.', eyes: 'You notice the toll booth is still reading people.' },
     },
     chapel: {
       name: 'The Chapel of the Unwasted', short: 'a swallowed shrine, now a ferry stop',
@@ -101,7 +113,7 @@ export const kit = {
       costs: ['a true name given away', 'the pilgrims\' trust', 'the body notices', 'a Beat'],
       threats: [{ what: 'a Sentinel', tell: 'the walls flush and the pilgrims go still', strike: 'it challenges whoever was loud; with the right token or an honest answer it escorts instead' }],
       leads: ['The pilot reaches nine and starts again.', 'A pilgrim points at the cut: "Not ours."', 'One of the numbered sacs knocks from the inside.'],
-      moments: { tough: 'The ferry needs someone to hold it against the current.', clever: 'The inventory is a ledger: you can read it.', fast: 'Catch the sac before it floats off.', sharp: 'Spot that the cut was made from the inside.' },
+      moments: { wall: 'The ferry needs someone to hold it against the current.', ledger: 'The inventory is a ledger: you can read it.', rider: 'Catch the sac before it floats off.', eyes: 'Spot that the cut was made from the inside.' },
     },
     churn: {
       name: 'The Nine-Cycle Churn', short: 'the digestion, still trying',
@@ -122,7 +134,7 @@ export const kit = {
       costs: ['pushed a room deeper', 'the body notices', 'gear swept away', 'separated from the others'],
       threats: [{ what: 'the squeeze', tell: 'the thud speeds up and the walls flush dark', strike: 'everyone is thrown toward the Shelf' }, { what: 'enzyme sheets', tell: 'a shimmer drifting like a curtain', strike: 'it burns what it touches' }],
       leads: ['The thud quickens.', 'A Sentinel drifts closer and asks its question.', 'A spent charge-slug floats past: someone else came this way.'],
-      moments: { tough: 'Brace and hold the others through a squeeze.', clever: 'The pump is a machine. You know machines.', fast: 'This is a current, and currents are yours.', sharp: 'Taste the water: it tells you where the lump leads.' },
+      moments: { wall: 'Brace and hold the others through a squeeze.', ledger: 'The pump is a machine. You know machines.', rider: 'This is a current, and currents are yours.', eyes: 'Taste the water: it tells you where the lump leads.' },
     },
     shelf: {
       name: 'The Shelf of Not-Finished Things', short: 'everything it could not bring itself to end',
@@ -145,7 +157,7 @@ export const kit = {
       costs: ['Goodwill', 'the body notices', 'the crowd turns away', 'Sulk goes back to cutting'],
       threats: [{ what: 'Sulk\'s crew', tell: 'the saw, and "I have a licence"', strike: 'they defend the contract' }, { what: 'the licence', tell: 'the crowd counts the days aloud', strike: 'this room is dissolved first' }],
       leads: ['One of the twelve says a name the Cohort knows.', 'Sulk walks over with a clipboard.', 'A pod nearby is cut open, and the Host flinches.'],
-      moments: { tough: 'Put yourself between a saw and a pod.', clever: 'You know exactly which signature Sulk is missing.', fast: 'Reach the pod before the saw does.', sharp: 'You see the Oath boxes on the one at the centre.' },
+      moments: { wall: 'Put yourself between a saw and a pod.', ledger: 'You know exactly which signature Sulk is missing.', rider: 'Reach the pod before the saw does.', eyes: 'You see the Oath boxes on the one at the centre.' },
     },
     nodule: {
       name: 'The Nodule', short: 'the promise, and its keeper',
@@ -166,7 +178,7 @@ export const kit = {
       costs: ['the body\'s recognition', 'the Host\'s trust', 'a Beat', 'a promise to carry the Undersigned somewhere'],
       threats: [{ what: 'Ninth Response and the Sentinels', tell: 'it stops bowing', strike: 'the whole body turns on whoever cut' }],
       leads: ['Ninth Response repeats its offer.', 'A voice from inside the door asks who is there.', 'The Host says a name, slowly.'],
-      moments: { tough: 'Carry the Undersigned out.', clever: 'Read the seal: it is a contract.', fast: 'Lead the way out before the squeeze.', sharp: 'Hear the voice inside before anyone else.' },
+      moments: { wall: 'Carry the Undersigned out.', ledger: 'Read the seal: it is a contract.', rider: 'Lead the way out before the squeeze.', eyes: 'Hear the voice inside before anyone else.' },
     },
   },
   hooks: ['If the Undersigned is carried out as a witness: the oldest decision in the world goes on trial, and the Cohort is why.', 'If it is printed: the Cohort is rich and owned.', 'If the Host is left to the licence: the richest harvest in the world, and everyone knows who stood by.', 'The best ending is one the players invent, such as registering the Undersigned as a citizen.'],

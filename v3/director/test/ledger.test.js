@@ -679,3 +679,77 @@ test('keeping an Oath in front of a witness pays the law clock back (3.2)', () =
   t3.host({ type: 'oath.settle', organismId: 'wall', kept: false });
   assert.equal(t3.s.clocks.TOLL.filled, 2);
 });
+
+// ---- The Ninth Shift is seated: its own Clocks, its own blocks, a working day that moves them.
+import { scenario as ninth } from '../data/ninth-shift.js';
+import { loadBestiary } from '../data/bestiary-all.js';
+
+function ninthTable() {
+  const rng = makeRng(11);
+  const bst = loadBestiary();
+  let s = newSession(ninth);
+  const ctx = (role, pid) => ({ role, pid, rng, now: 0, scenario: ninth, bestiary: bst });
+  return { host: (a) => { s = apply(s, a, ctx('host', null)); return s; }, ai: (a) => { s = apply(s, { ...a, by: 'ai' }, ctx('host', null)); return s; }, get s() { return s; }, bst };
+}
+
+test('The Ninth Shift: four Level-4 Hands, its three Clocks, and every encounter block exists', () => {
+  const t = ninthTable();
+  assert.deepEqual(Object.keys(t.s.clocks), ['SHIFT', 'BADGE', 'PAPER']);
+  const o = t.s.organisms;
+  assert.deepEqual(['wall', 'ledger', 'rider', 'eyes'].map((id) => o[id].miMax), [51, 42, 37, 33]);
+  assert.ok(Object.values(o).every((h) => h.level === 4 && h.codon === 180));
+  for (const site of ninth.sites) for (const e of site.encounter) assert.ok(t.bst[e.blockId], `${site.id}: ${e.blockId}`);
+});
+
+test('The Ninth Shift: a Beat moves SHIFT and issues the decision at Beat 4; the Director cannot move SHIFT itself', () => {
+  const t = ninthTable();
+  assert.throws(() => t.ai({ type: 'clock', id: 'SHIFT', delta: 1, why: 'time passes' }), /at most 0 segments|Clock discipline/);
+  for (let i = 0; i < 3; i++) t.host({ type: 'beat', why: 'a day in the queue' });
+  assert.equal(t.s.clocks.SHIFT.filled, 3);
+  assert.equal(t.s.clocks.PAPER.filled, 0);
+  t.host({ type: 'beat', why: 'the hearing' });
+  assert.equal(t.s.clocks.SHIFT.filled, 4);
+  assert.equal(t.s.clocks.PAPER.filled, 4, 'the decision is issued at the end of Beat 4');
+  assert.equal(t.s.beat, 4);
+});
+
+test('The Ninth Shift: BADGE moves on printed triggers more than once; a Vector with no count refuses a Beat', () => {
+  const t = ninthTable();
+  t.ai({ type: 'clock', id: 'BADGE', delta: 1, why: 'took the good money' });
+  t.ai({ type: 'clock', id: 'BADGE', delta: 1, why: 'printed for the Hegemony' });
+  assert.equal(t.s.clocks.BADGE.filled, 2);
+  const f = table();
+  assert.throws(() => f.host({ type: 'beat' }), /keeps no count/);
+});
+
+// ---- The Long Swallow is seated: Level-7 Hands, its three Clocks, a Beat that moves LICENCE only.
+import { scenario as swallow } from '../data/long-swallow.js';
+import { HANDS_L7 } from '../data/levelled-hands.js';
+
+function swallowTable() {
+  const rng = makeRng(5);
+  const bst = loadBestiary();
+  let s = newSession(swallow);
+  const ctx = (role, pid) => ({ role, pid, rng, now: 0, scenario: swallow, bestiary: bst });
+  return { host: (a) => { s = apply(s, a, ctx('host', null)); return s; }, ai: (a) => { s = apply(s, { ...a, by: 'ai' }, ctx('host', null)); return s; }, get s() { return s; }, bst };
+}
+
+test('The Long Swallow: four Level-7 Hands at 540 Codon, three Clocks, every encounter block exists', () => {
+  const t = swallowTable();
+  assert.deepEqual(Object.keys(t.s.clocks), ['LICENCE', 'IMMUNE', 'CHURN']);
+  assert.ok(HANDS_L7.every((h) => h.level === 7 && h.codon === 540));
+  assert.deepEqual(['wall', 'ledger', 'rider', 'eyes'].map((id) => t.s.organisms[id].miMax), [67, 54, 53, 49]);
+  assert.equal(swallow.sites.length, 5);
+  for (const site of swallow.sites) for (const e of site.encounter) assert.ok(t.bst[e.blockId], `${site.id}: ${e.blockId}`);
+});
+
+test('The Long Swallow: a Beat moves LICENCE, the Director cannot, and IMMUNE takes up to five printed advances', () => {
+  const t = swallowTable();
+  assert.throws(() => t.ai({ type: 'clock', id: 'LICENCE', delta: 1, why: 'time' }), /Clock discipline/);
+  t.host({ type: 'beat', why: 'a day' });
+  t.host({ type: 'beat', why: 'a day' });
+  assert.equal(t.s.clocks.LICENCE.filled, 2);
+  assert.equal(t.s.clocks.IMMUNE.filled, 0);
+  for (let i = 0; i < 5; i++) t.ai({ type: 'clock', id: 'IMMUNE', delta: 1, why: 'a harvest cut' });
+  assert.equal(t.s.clocks.IMMUNE.filled, 5);
+});

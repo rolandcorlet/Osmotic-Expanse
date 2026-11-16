@@ -74,19 +74,21 @@ The bench now also reports how many secrets the Cohort learned.
 | Vector | Book (v3) | Director's kit | Runs in the host |
 |---|---|---|---|
 | The First Carve (Level 1) | Yes | Yes | **Yes** |
-| The Ninth Shift (Levels 4–6) | Yes | Yes | Not yet |
-| The Long Swallow (Levels 7–11) | Yes | Yes | Not yet |
+| The Ninth Shift (Levels 4–6) | Yes | Yes | **Yes** |
+| The Long Swallow (Levels 7–11) | Yes | Yes | **Yes** |
 
-The two higher-level Vectors need three things before the host can seat them:
-ready-made characters at their Levels (the originals print none), their own
-creature blocks in the Engine's Bestiary data, and the Engine's whale-specific
-Clock names (CARCASS, TOLL, HUNGER) read from the Vector instead. The plan for
-that is in `plan/02`. *What the Water Owed* is a story, not a Vector, so it has
+All three Vectors now run in the host. Each brings its own ready-made characters at its
+Levels (`director/data/levelled-hands.js`), its own creature blocks
+(`director/data/vector-blocks.js`) and its own Clocks, which the Engine reads from the
+Vector. The Ninth Shift's and the Long Swallow's day counter (SHIFT, LICENCE) moves only
+when the table ends a day. Some of their rules (the Shift's price changes, BADGE dice
+modifiers, Goodwill, the Level 6 and 7 Stage II features) are narrated by the Director, not
+enforced by the Engine. *What the Water Owed* is a story, not a Vector, so it has
 no kit; it remains the source for Society.
 
 The Core Rulebook and the Lytic Bestiary now have v3 table editions (18 rule
-cards; all 68 creatures re-laid-out with an opening for each Order). Not yet
-done: the Player's Atlas and the Director's Codex, and the full prose rewrite of
+cards; all 68 creatures re-laid-out with an opening for each Order). The Player's Atlas (53 cards: the eight steps, six Lineages, 24 Phenotypes, advancement, builds) and the Director's Codex (84 sections, every table verbatim) now have v3 table editions too, generated from the printed books by `tools/gen-atlas.mjs` and `tools/gen-codex.mjs` so no number can drift, and the Director finds them with `look_up`. Not yet
+done: the full prose rewrite of
 every book. The prompts for it are in `plan/03`; the players' quick start, the
 Society table edition and the QUORUM table edition (17 cards covering what a
 table needs; the full book remains the reference for the rest) are the first pieces.
