@@ -29,9 +29,12 @@ export function printedPays(site) {
   const text = String(((site || {}).host || {}).pays || '');
   // Amounts the Engine pays itself at harvest are not the Director's to award.
   const auto = Object.values((site || {}).harvestPays || {}).map((x) => Number(x.codon)).filter(Boolean);
-  const codon = [...text.matchAll(/(\d+(?:\.\d+)?) Codon/g)].map((m) => Number(m[1])).filter((n) => !auto.includes(n));
+  // "15 Codon ... 10 more if ..." prints 10 too (Ninth Shift bench, 16 Nov: the clerk's sums were refused);
+  // "Endings pay 40-120 Codon" prints the whole range.
+  const codon = [...text.matchAll(/(\d+(?:\.\d+)?) (?:Codon|more\b)/g)].map((m) => Number(m[1])).filter((n) => !auto.includes(n));
+  const codonRanges = [...text.matchAll(/(\d+)\s*(?:-|–|to)\s*(\d+) Codon/g)].map((m) => [Number(m[1]), Number(m[2])]);
   const substrate = [...text.matchAll(/(\d+)(?: to (\d+))? S\b/g)].map((m) => [Number(m[1]), Number(m[2] || m[1])]);
-  return { codon, substrate };
+  return { codon, codonRanges, substrate };
 }
 
 // Every site's Hazard note prices itself on the page, but not in one shape. The First Carve prints
@@ -453,7 +456,7 @@ export const TOOLS = [
       const printed = printedPays(T.site());
       const auto = Object.entries(T.site().harvestPays || {}).find(([, x]) => Number(x.codon) === codon);
       if (codon && auto) return { refused: `${codon} Codon is paid when a ${auto[0].replace(/-/g, ' ')} is harvested: harvest a destroyed one and it comes with the cut. It is not paid for one that left, was given water, or was not cut.` };
-      if (codon && !printed.codon.includes(codon)) return { refused: `${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay a printed amount, or nothing.` };
+      if (codon && !printed.codon.includes(codon) && !printed.codonRanges.some(([lo, hi]) => codon >= lo && codon <= hi)) return { refused: `${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay a printed amount, or nothing.` };
       if (sub && !printed.substrate.some(([lo, hi]) => sub >= lo && sub <= hi)) return { refused: `${sub} S is not printed for this site. Printed here: ${printed.substrate.length ? printed.substrate.map(([lo, hi]) => (lo === hi ? `${lo} S` : `${lo} to ${hi} S`)).join(', ') : 'no Substrate'}. Pay a printed amount, or nothing.` };
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
       const no = T.do({ type: 'award', codon, substrate: sub, why: a.why, organismIds: ids });

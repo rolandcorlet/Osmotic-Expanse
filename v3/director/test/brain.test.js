@@ -1740,3 +1740,18 @@ test('a flag sent as "True" or "yes" counts as true (a kept Oath was once marked
   assert.match(src, /const truthy = /);
   assert.doesNotMatch(src, /a\.kept === 'true'/);
 });
+
+test('printed pays: "N more" and "A-B Codon" ranges count as printed amounts', async () => {
+  const { printedPays } = await import('../brain/tools.js');
+  const p = printedPays({ host: { pays: '15 Codon for the Form; 10 more if they catch the sums. Endings pay 40-120 Codon.' } });
+  assert.ok(p.codon.includes(15) && p.codon.includes(10));
+  assert.deepEqual(p.codonRanges, [[40, 120]]);
+});
+
+test('bench scripts: every later part opens with its own move line', async () => {
+  for (const f of ['bench-scripts-ninth.mjs', 'bench-scripts-swallow.mjs']) {
+    const m = await import(`../tools/${f}`);
+    const parts = Object.values(m)[0];
+    parts.slice(1).forEach((p, i) => assert.match(p[1][1], /^The way is clear/, `${f} part ${i + 2}`));
+  }
+});
