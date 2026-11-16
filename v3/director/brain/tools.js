@@ -22,6 +22,9 @@ function findOrg(s, ref) {
     || list.find((o) => k && lower(o.name).startsWith(k)) || null;
 }
 // The amounts a site prints under Pays: Codon values, and Substrate values or ranges.
+// A model may send a flag as true, "true", "True" or "yes": all mean yes. (Run of 16 Nov: "True" was read as false and a kept Oath was marked broken.)
+const truthy = (v) => v === true || (typeof v === 'string' && /^\s*(true|yes|y|1)\s*$/i.test(v));
+
 export function printedPays(site) {
   const text = String(((site || {}).host || {}).pays || '');
   // Amounts the Engine pays itself at harvest are not the Director's to award.
@@ -595,7 +598,7 @@ export const TOOLS = [
     parameters: obj({ query: S('A few words: names, places, things. For example "drone clerk claim" or "who witnessed Bresk oath".'), for_players: B('True when answering a player\'s question: only what the table was told.') }, ['query']),
     run(a, T) {
       if (!T.memory) return { hits: [], note: 'This game has no history yet.' };
-      const forPlayers = a.for_players === true || a.for_players === 'true';
+      const forPlayers = truthy(a.for_players);
       const r = T.memory.search(String(a.query || ''), { forPlayers });
       return r.hits.length ? r : { hits: [], note: 'Nothing on record matches. Do not invent it: say the organism does not remember it clearly, or ask what they mean.' };
     },
@@ -621,7 +624,7 @@ export const TOOLS = [
     run(a, T) {
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism, T.state);
-      const kept = a.kept === true || a.kept === 'true';
+      const kept = truthy(a.kept);
       // Run 2 of the 13 Nov evening gate settled an Oath it had already closed in the same run and was
       // refused for it. The briefing prints every closed Oath on the organism's own line, so this is
       // restating rather than breaking: answer with a note and the state, and do not mark the run.

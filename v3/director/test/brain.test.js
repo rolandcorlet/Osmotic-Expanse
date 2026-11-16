@@ -1733,3 +1733,10 @@ test('the pump rhythm skipping is the same countdown and needs a Clock too', () 
   assert.ok(checkNarration('The pump-rhythm in the wall skips again, shorter. Bresk, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
   assert.ok(!checkNarration('The pump hammers on. Bresk, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
 });
+
+test('a flag sent as "True" or "yes" counts as true (a kept Oath was once marked broken)', async () => {
+  const { TOOLS } = await import('../brain/tools.js').catch(() => ({}));
+  const src = (await import('node:fs')).readFileSync(new URL('../brain/tools.js', import.meta.url), 'utf8');
+  assert.match(src, /const truthy = /);
+  assert.doesNotMatch(src, /a\.kept === 'true'/);
+});
