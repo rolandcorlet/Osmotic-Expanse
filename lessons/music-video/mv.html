@@ -1,0 +1,163 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c" width="1280" height="720"></canvas>
+<script>
+"use strict";
+const W = 1280, H = 720, BEAT = 60 / 132, BAR = 4 * BEAT;
+const c = document.getElementById('c'), g = c.getContext('2d');
+let IMG = {}, CUES = [];
+</script>
+<script src="helpers.js"></script>
+<script>
+// ---------- music-video extras ----------
+const WALL = 'lineage-immunan', LEDGER = 'lineage-epithalian', RIDER = 'lineage-flagellan', EYES = 'lineage-lysosan';
+const HANDS = [[WALL, 'BRESK'], [LEDGER, 'ILM'], [RIDER, 'VASH'], [EYES, 'BROST']];
+const beatOf = (T) => T / BEAT, kickEnv = (T) => Math.exp(-((T / BEAT) % 1) * 7);
+function big(s, x, y, sz, col = '#ffe23d', rot = 0, a = 1, stroke = '#120818', fam = 'TeX Gyre Adventor') {
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot); font(sz, 700, fam); g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round'; g.lineWidth = sz * .16; g.strokeStyle = stroke; g.strokeText(s, 0, 0); g.fillStyle = col; g.fillText(s, 0, 0); g.restore();
+}
+function burst(x, y, r, col, spikes = 14, rot = 0) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.beginPath();
+  for (let i = 0; i < spikes * 2; i++) { const a = i / (spikes * 2) * 6.283, rr2 = i % 2 ? r * .62 : r; g.lineTo(rr2 * Math.cos(a), rr2 * Math.sin(a)); }
+  g.closePath(); g.fillStyle = col; g.fill(); g.lineWidth = 6; g.strokeStyle = '#120818'; g.stroke(); g.restore();
+}
+function speedLines(T, col = 'rgba(255,255,255,.18)') { const r = rng(Math.floor(T * 12)); g.strokeStyle = col; for (let i = 0; i < 26; i++) { const y = r() * H, l = 200 + r() * 500, x = r() * W; g.lineWidth = 1 + r() * 4; g.beginPath(); g.moveTo(x, y); g.lineTo(x - l, y); g.stroke(); } }
+function bubble(x, y, w, h, s, sz = 34, tailX = 0) {
+  g.save(); g.fillStyle = '#fff'; g.strokeStyle = '#120818'; g.lineWidth = 5; rr(x - w / 2, y - h / 2, w, h, 26); g.fill(); g.stroke();
+  g.beginPath(); g.moveTo(x + tailX - 18, y + h / 2 - 3); g.lineTo(x + tailX + 10, y + h / 2 + 34); g.lineTo(x + tailX + 18, y + h / 2 - 3); g.closePath(); g.fill(); g.stroke();
+  g.fillStyle = '#fff'; g.fillRect(x + tailX - 15, y + h / 2 - 8, 30, 8); g.restore();
+  big(s, x, y + 2, sz, '#120818', 0, 1, '#fff');
+}
+function halftone(col = 'rgba(0,0,0,.18)', step = 16) { g.fillStyle = col; for (let y = 0; y < H; y += step) for (let x = (y / step) % 2 ? step / 2 : 0; x < W; x += step) { const d = Math.hypot(x - W / 2, y - H / 2) / 800; g.beginPath(); g.arc(x, y, 3.4 * d, 0, 6.283); g.fill(); } }
+function flesh(T, hue = 350) {
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, `hsl(${hue},55%,14%)`); gr.addColorStop(1, `hsl(${hue + 10},60%,24%)`); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  for (let k = 0; k < 7; k++) { g.beginPath(); for (let x = 0; x <= W; x += 20) { const y = 80 + k * 100 + 22 * Math.sin(x / 120 + T * 2 + k); x ? g.lineTo(x, y) : g.moveTo(x, y); } g.strokeStyle = `hsla(${hue},70%,${40 + k * 3}%,.35)`; g.lineWidth = 18; g.stroke(); }
+  vignette(.6);
+}
+function foundry(T) {
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#2a1c0c'); gr.addColorStop(1, '#0d0905'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 12; i++) { const x = i * 115 + 20; g.fillStyle = 'rgba(180,120,60,.22)'; rr(x, 70, 70, 300, 30); g.fill(); g.beginPath(); g.arc(x + 35, 110, 18, 0, 6.283); g.fillStyle = 'rgba(255,190,90,.25)'; g.fill(); }
+  vignette(.6);
+}
+function dice(x, y, v, s, rot, col) {
+  g.save(); g.translate(x, y); g.rotate(rot); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 20; g.fillStyle = col || '#f6f1e6'; rr(-s / 2, -s / 2, s, s, s * .18); g.fill(); g.shadowBlur = 0;
+  g.lineWidth = 5; g.strokeStyle = '#120818'; g.stroke();
+  const P = { 1: [[0, 0]], 2: [[-1, -1], [1, 1]], 3: [[-1, -1], [0, 0], [1, 1]], 4: [[-1, -1], [1, -1], [-1, 1], [1, 1]], 5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]], 6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]] }[v];
+  g.fillStyle = v === 1 ? '#e0262b' : '#120818'; for (const [a, b] of P) { g.beginPath(); g.arc(a * s * .27, b * s * .27, s * .085, 0, 6.283); g.fill(); }
+  g.restore();
+}
+function tag(n, where) { g.save(); g.globalAlpha = .85; g.fillStyle = 'rgba(0,0,0,.55)'; rr(24, 22, 300, 34, 17); g.fill(); g.restore(); text(`CLIP ${String(n).padStart(2, '0')} · ${where}`, 40, 40, { sz: 16, col: '#f4e3c1', al: 'left', sh: 0, sp: 3 }); }
+
+// ---------- the clips: [bars, where, draw(t, d, T)] ----------
+const CLIPS = [
+ [4, 'THE EXPANSE', (t, d, T) => { const im = IMG['banner-world']; const z = 1.05 + .25 * (t / d); const w = W * z, h = w * im.height / im.width; g.drawImage(im, W / 2 - w / 2, H / 2 - h / 2 - 20 * (t / d), w, h); vignette(.7);
+   for (let i = 0; i < 5; i++) { const a = -.5 + i * .25 + .05 * Math.sin(T); g.save(); g.globalAlpha = .07; g.fillStyle = '#ffe9b0'; g.beginPath(); g.moveTo(W * .6, -50); g.lineTo(W * .6 + 1200 * Math.cos(a + 1.3), 1200 * Math.sin(a + 1.3)); g.lineTo(W * .6 + 1200 * Math.cos(a + 1.38), 1200 * Math.sin(a + 1.38)); g.fill(); g.restore(); } }],
+ [4, 'THE COHORT', (t, d, T) => { soup(T); halftone('rgba(0,0,0,.12)');
+   HANDS.forEach(([k, n], i) => { const t0 = i * BAR * .9, a = eout(ramp(t, t0, t0 + .25)); if (a <= 0) return; const x = 190 + i * 300, y = 330 + (1 - a) * -500;
+     card(k, x, y, 330, n, 1, (i - 1.5) * .05, ['#e0457b', '#f28c28', '#5ee6d0', '#7aa2f7'][i]); if (t - t0 < .35) burst(x, y + 120, 90 * (1 - (t - t0) / .35) + 20, 'rgba(255,226,61,.6)'); });
+   if (t > BAR * 3.6) big('THE COHORT', W / 2, 590, 70, '#ffe23d', -.02, ramp(t, BAR * 3.6, BAR * 3.8)); }],
+ [4, 'THE FIRST CARVE', (t, d, T) => { soup(T); const x = W / 2, y = 330, R0 = 230 + 10 * kickEnv(T);
+   g.save(); g.beginPath(); for (let i = 0; i <= 120; i++) { const a = i / 120 * 6.283, r = R0 + 14 * Math.sin(a * 5 + T * 3); i ? g.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)) : g.moveTo(x + r * Math.cos(a), y + r * Math.sin(a)); }
+   g.fillStyle = 'rgba(94,230,208,.18)'; g.fill(); g.lineWidth = 8; g.strokeStyle = 'rgba(200,255,245,.85)'; g.shadowColor = '#5ee6d0'; g.shadowBlur = 30; g.stroke(); g.restore();
+   card(WALL, x, y - 10, 330, 'BRESK', 1, .03 * Math.sin(T * 2));
+   if (t > BAR * 2) { const k = t - BAR * 2; for (let i = 0; i < 6; i++) { const ph = (k * .9 + i / 6) % 1; g.beginPath(); g.arc(x + R0 * .7 + ph * 160, y + R0 * .7 + ph * ph * 260, 14 * (1 - ph) + 4, 0, 6.283); g.fillStyle = 'rgba(150,235,255,.9)'; g.fill(); }
+     burst(x + 300, y + 160, 80 + 8 * Math.sin(T * 10), '#ffe23d', 12, T); big('LEAK!', x + 300, y + 160, 46, '#e0262b', -.15); } }],
+ [4, 'THE ROLL', (t, d, T) => { g.fillStyle = '#163d2a'; g.fillRect(0, 0, W, H); halftone('rgba(0,0,0,.25)', 14); vignette(.6);
+   const vals = [6, 5, 1, 4, 1, 3, 2]; vals.forEach((v, i) => { const t0 = .2 + i * .18, a = eout(ramp(t, t0, t0 + .45)); const x = 150 + i * 165, y = lerp(-120, 300, a); const spin = (1 - a) * 6;
+     dice(x, y, a < 1 ? 1 + Math.floor((T * 20 + i) % 6) : v, 120, spin, v === 1 && a >= 1 ? '#ffd6d6' : null); });
+   if (t > 2) { const s2 = Math.min(2, Math.floor((t - 2) / .4) + 1); g.fillStyle = '#120818'; rr(330, 480, 620, 60, 30); g.fill(); for (let i = 0; i < 8; i++) { g.fillStyle = i < s2 ? '#e0262b' : '#3a2a3a'; rr(350 + i * 74, 492, 62, 36, 10); g.fill(); }
+     big(`STRESS +${s2}`, W / 2, 585, 50, '#ff6b6b', 0, ramp(t, 2, 2.3)); }
+   if (t > 4.4) { card(WALL, 1130, 600, 200, '', 1, -.1); g.fillStyle = '#8fd8ff'; g.beginPath(); g.ellipse(1190, 520 + ((T * 1.5) % 1) * 40, 10, 16, 0, 0, 6.283); g.fill(); } }],
+ [4, 'THE TOLL-VENT', (t, d, T) => { const im = IMG['order-II']; g.drawImage(im, -40, -20, W + 80, H + 40); g.fillStyle = 'rgba(10,6,20,.45)'; g.fillRect(0, 0, W, H);
+   g.fillStyle = '#1b1208'; rr(780, 90, 420, 230, 16); g.fill(); g.strokeStyle = '#f2d07a'; g.lineWidth = 5; g.stroke();
+   text('TOLL', 990, 130, { sz: 34, col: '#f2d07a', sp: 8 }); text(`${15 + Math.floor(t * 3.2)} S`, 990, 230, { sz: 96, col: '#ffefc0', fam: 'TeX Gyre Bonum' });
+   const s = eout(ramp(t, 1.2, 1.8)); g.save(); g.translate(360, 380 + 300 * (1 - s)); g.rotate(-.06); g.fillStyle = '#f4e3c1'; rr(-220, -150, 440, 300, 12); g.fill(); g.strokeStyle = '#120818'; g.lineWidth = 5; g.stroke(); g.restore();
+   text('I PROMISE', 360, 300 + 300 * (1 - s), { sz: 44, col: '#120818', fam: 'TeX Gyre Chorus', w: 400, sh: 0 }); text('witnessed by the fold', 360, 360 + 300 * (1 - s), { sz: 28, col: '#3a2a1a', fam: 'TeX Gyre Bonum', w: 400, sh: 0 });
+   const st = ramp(t, BAR * 2, BAR * 2 + .15); if (st > 0) { g.save(); g.translate(380, 420); g.rotate(-.2); g.scale(2 - st, 2 - st); g.strokeStyle = '#d61f26'; g.lineWidth = 10; rr(-170, -55, 340, 110, 14); g.stroke(); g.restore(); big('FILED', 380, 420, 86, '#d61f26', -.2, st, 'rgba(0,0,0,0)'); } }],
+ [4, 'THE TOLL-VENT', (t, d, T) => { soup(T, .04); const leave = ramp(t, BAR * 2.4, BAR * 3.6);
+   for (let i = 0; i < 3; i++) { const x = 300 + i * 340 + Math.sin(T * 9 + i) * 10 * (1 - leave), y = 320 + leave * (-600 - i * 80); card('m-gnaw-swarm', x, y, 300, i === 1 ? 'GNAW SWARM' : '', 1, Math.sin(T * 6 + i) * .06 * (1 - leave), '#e0457b'); }
+   const wb = eout(ramp(t, BAR * 1.2, BAR * 1.6)), bx = lerp(-200, W / 2, wb), by = 600 - leave * 700;
+   g.save(); g.translate(bx, by); g.rotate(Math.sin(T * 3) * .1); g.fillStyle = 'rgba(120,200,255,.9)'; rr(-50, -80, 100, 160, 24); g.fill(); g.strokeStyle = '#120818'; g.lineWidth = 5; g.stroke(); g.fillStyle = '#fff'; rr(-46, -20, 92, 40, 6); g.fill(); g.restore();
+   text('SEALED WATER', bx, by, { sz: 14, col: '#120818', sh: 0 });
+   if (t > BAR * 2) for (let i = 0; i < 9; i++) { const ph = ((T * .8 + i / 9) % 1); const hx = 300 + (i % 3) * 340 + 40 * Math.sin(i * 7 + T), hy = 300 - ph * 300 - leave * 300; big('♥', hx, hy, 44, '#ff5b8a', 0, 1 - ph, '#120818', 'DejaVu Sans'); }
+   if (t > BAR * 2.6) big('THIRSTY, NOT MEAN', W / 2, 580, 56, '#ffe23d', -.02, ramp(t, BAR * 2.6, BAR * 2.8)); }],
+ [4, 'THE CHORUS', (t, d, T) => { retro(T * 3, t); const words = ["CAN'T", 'AVOID', 'THE', 'MEMBRANE']; const b = Math.floor(t / BEAT);
+   card('lineage-barophil', W / 2, 360 - 40 * Math.abs(Math.sin(T * Math.PI / BEAT)), 360, '', 1, .08 * Math.sin(T * Math.PI / BEAT));
+   words.forEach((w, i) => { const t0 = i * BEAT, a = eout(ramp(t % (BAR * 2), t0, t0 + .12)); if (a > 0) big(w, [300, 980, 300, 980][i], [190, 190, 540, 540][i], 96 * (2 - a), ['#f28c28', '#5ee6d0', '#f4e3c1', '#e0457b'][i], (i % 2 ? .08 : -.08), a); }); }],
+ [4, 'PULSE WAR', (t, d, T) => { soup(T, .05); speedLines(T); const dash = eout(ramp(t % (BAR * 2), .2, .7));
+   card('m-cytoplasmic-bleeder', 900, 360 + 10 * Math.sin(T * 7), 360, 'BLEEDER', 1, .05, '#e0457b');
+   card(RIDER, lerp(-150, 520, dash), 360, 330, 'VASH', 1, -.15 * (1 - dash), '#5ee6d0');
+   const sl = ramp(t % (BAR * 2), .7, .9); if (sl > 0 && sl < 1) { g.strokeStyle = '#fff'; g.lineWidth = 16 * (1 - sl); g.beginPath(); g.moveTo(760, 160); g.lineTo(1050, 560); g.stroke(); }
+   if (t % (BAR * 2) > .9) { const im = IMG['crop-hit'], s = .55 * eout(ramp(t % (BAR * 2), .9, 1.2)); g.save(); g.translate(900, 300); g.rotate(.06); g.drawImage(im, -im.width * s / 2, -im.height * s / 2, im.width * s, im.height * s); g.restore();
+     for (let i = 0; i < 5; i++) { const ph = ((t % (BAR * 2)) - .9) * .6; big(`-${[6, 9, 4, 12, 7][i]}`, 900 + (i - 2) * 90, 520 - ph * 220 - i * 10, 46, '#ff6b6b', 0, Math.max(0, 1 - ph)); } } }],
+ [4, 'NOTHING IS WASTED', (t, d, T) => { soup(T); const pop = ramp(t, BAR * .8, BAR * 1.2);
+   if (pop < 1) card('m-drift-whale', W / 2, 330, 380 * (1 - pop * .9), 'DRIFT WHALE', 1 - pop, Math.sin(T * 2) * .05, '#7aa2f7');
+   if (pop > 0 && t < BAR * 2.2) { const r = rng(9); for (let i = 0; i < 14; i++) { const k = (t - BAR) * 1.2, a = r() * 6.283, sp = 200 + r() * 300; const gx = W / 2 + Math.cos(a) * sp * k, gy = 330 + Math.sin(a) * sp * k + 300 * k * k; const gd = ['C', 'C', 'G', 'P'][i % 4];
+     g.save(); g.translate(gx, gy); g.rotate(T * 3 + i); g.fillStyle = { C: '#9fe3c7', G: '#7aa2f7', P: '#f2d07a' }[gd]; g.beginPath(); g.moveTo(0, -26); g.lineTo(22, 0); g.lineTo(0, 26); g.lineTo(-22, 0); g.closePath(); g.fill(); g.strokeStyle = '#120818'; g.lineWidth = 4; g.stroke(); g.restore(); text(gd, gx, gy, { sz: 20, col: '#120818', sh: 0 }); } }
+   if (t > BAR * 2) { const a = eout(ramp(t, BAR * 2, BAR * 2.3)); card(WALL, W / 2, 340, 300, 'BRESK', a); card('m-gnaw-swarm', W / 2 + 10, 340 - 215, 120, '', a, -.2 + .1 * Math.sin(T * 5), '#f28c28');
+     big('TUESDAY: IT ATE YOU', W / 2, 70, 44, '#f4e3c1', 0, a); big('WEDNESDAY: IT\'S YOUR HAT', W / 2, 590, 50, '#ffe23d', -.02, ramp(t, BAR * 3, BAR * 3.2)); } }],
+ [4, 'STAY WET', (t, d, T) => { soup(T, .05); const ball = 120; g.save(); g.translate(W / 2, 110); g.rotate(T); for (let i = 0; i < 12; i++) { g.fillStyle = `hsl(${(i * 30 + T * 120) % 360},80%,70%)`; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 70, i / 12 * 6.283, (i + 1) / 12 * 6.283); g.fill(); } g.restore();
+   for (let i = 0; i < 8; i++) { const a = T * 1.2 + i * .785; g.save(); g.globalAlpha = .12; g.fillStyle = `hsl(${i * 45},90%,65%)`; g.beginPath(); g.moveTo(W / 2, 110); g.lineTo(W / 2 + 1400 * Math.cos(a), 110 + 1400 * Math.sin(a)); g.lineTo(W / 2 + 1400 * Math.cos(a + .12), 110 + 1400 * Math.sin(a + .12)); g.fill(); g.restore(); }
+   const all = [...HANDS, ['m-gnaw-swarm', ''], ['m-glaze-medusa', '']].filter(([k]) => IMG[k]);
+   all.forEach(([k], i) => { const x = ((t * 180 + i * 230) % (W + 400)) - 200, hop = Math.abs(Math.sin(T * Math.PI / BEAT + i)) * 50; card(k, x, 450 - hop, 230, '', 1, Math.sin(T * Math.PI / BEAT + i) * .12); });
+   if (t > BAR * 2) big('STAY WET!', W / 2, 575, 80, '#5ee6d0', Math.sin(T * 4) * .03, ramp(t, BAR * 2, BAR * 2.15)); }],
+ [4, 'THE LONG SWALLOW', (t, d, T) => { flesh(T); const sh = (t % (BAR * 2)) < .5 ? (1 - (t % (BAR * 2)) / .5) * 18 : 0; g.save(); g.translate((Math.random() - .5) * sh, (Math.random() - .5) * sh);
+   const word = t < BAR * 2 ? 'SIX.' : 'SIX DAYS.'; big(word, W / 2, 300, t < BAR * 2 ? 260 : 170, '#ffd2c2', 0, ramp(t % (BAR * 2), 0, .1), '#3a0610', 'TeX Gyre Bonum'); g.restore();
+   HANDS.forEach(([k], i) => card(k, 470 + i * 110, 600, 120, '', 1, Math.sin(T * 8 + i) * .05));
+   if (t > 1.2 && t < BAR * 2) bubble(800, 500, 300, 76, '...six what?', 30, -80);
+   if (t > BAR * 2.5) bubble(820, 500, 330, 76, 'that\'s not many', 30, -80); }],
+ [4, 'QUORUM', (t, d, T) => { paper(T); hearth(W / 2, 420, .6 + .2 * Math.sin(T * 2));
+   for (const s of SIG) { const a = s.a + T * .3 * s.s, rad = 80 + 320 * ((s.d + T * .05 * s.s) % 1); g.beginPath(); g.arc(W / 2 + rad * Math.cos(a), 400 + rad * .45 * Math.sin(a) - rad * .3, 3, 0, 6.283); g.fillStyle = s.side ? 'rgba(160,190,230,.85)' : 'rgba(255,214,140,.9)'; g.fill(); }
+   big("THEY DON'T VOTE.", W / 2, 200, 76, '#f4e8cc', 0, ramp(t, .1, .4), '#1b120a', 'TeX Gyre Bonum');
+   if (t > BAR * 1.5) big('THEY BREATHE.', W / 2, 560, 96, '#ffd890', 0, ramp(t, BAR * 1.5, BAR * 1.7), '#1b120a', 'TeX Gyre Bonum');
+   archive(T, Math.floor(T * 30)); }],
+ [4, 'THE NINTH SHIFT', (t, d, T) => { foundry(T); for (let i = 0; i < 41; i++) { const p = i / 41, x = 80 + p * 1000 + 14 * Math.sin(p * 20), y = 520 - 120 * Math.sin(p * 4); g.beginPath(); g.arc(x + ((T * 20) % 25) * 0, y + 4 * Math.sin(T * 3 + i), 15, 0, 6.283); g.fillStyle = `hsl(${30 + i * 4},40%,${55 + (i % 3) * 8}%)`; g.fill(); g.strokeStyle = '#120818'; g.lineWidth = 3; g.stroke(); }
+   HANDS.forEach(([k], i) => card(k, 1110 + (i % 2) * 70, 470 + Math.floor(i / 2) * 140 - 60, 110, '', 1, .05 * Math.sin(T * 2 + i)));
+   g.fillStyle = '#120818'; rr(60, 80, 340, 120, 14); g.fill(); text('NOW SERVING', 230, 110, { sz: 22, col: '#f2d07a', sp: 4 }); text(String(3 + Math.floor(t / 3)).padStart(2, '0'), 230, 160, { sz: 64, col: '#ff6b2b', fam: 'DejaVu Sans Mono' });
+   const st = ramp(t, BAR * 2, BAR * 2.2); if (st > 0) { g.save(); g.translate(W / 2 + 120, 230); g.rotate(-.04); for (let i = -12; i < 12; i++) { g.fillStyle = i % 2 ? '#ffd200' : '#120818'; g.beginPath(); g.moveTo(i * 40, -60); g.lineTo(i * 40 + 40, -60); g.lineTo(i * 40 + 10, 60); g.lineTo(i * 40 - 30, 60); g.fill(); } g.restore();
+     big('SCHEDULED MAINTENANCE', W / 2 + 120, 230, 52, '#fff', -.04, st); } }],
+ [4, 'RUNAWAY CATALYSIS', (t, d, T) => { soup(T, .06); const vals = [6, 6, 5, 3, 5];
+   vals.forEach((v, i) => { const t0 = .1 + i * .15, a = eout(ramp(t, t0, t0 + .4)); dice(300 + i * 170, lerp(-100, 280, a), a < 1 ? 1 + Math.floor((T * 18 + i) % 6) : v, 130, (1 - a) * 5, v === 6 && a >= 1 ? '#c8ffd8' : null); });
+   const go = ramp(t, BAR * 1.2, BAR * 1.25); if (go > 0) { for (let i = 0; i < 6; i++) { const ph = ((t - BAR * 1.2) * .5 + i / 6) % 1; g.beginPath(); g.arc(W / 2, 300, ph * 700, 0, 6.283); g.strokeStyle = `rgba(242,208,122,${1 - ph})`; g.lineWidth = 10; g.stroke(); }
+     const r = rng(Math.floor(T * 8)); for (let i = 0; i < 60; i++) { g.fillStyle = `hsl(${r() * 360},90%,65%)`; g.fillRect(r() * W, ((r() * H + T * 300) % H), 10, 16); }
+     big('RUNAWAY', W / 2, 465, 110, '#ffe23d', -.03); big('CATALYSIS', W / 2, 565, 84, '#f28c28', .02); } }],
+ [3, 'THE RELIEF', (t, d, T) => { foundry(T); const leave = ramp(t, d - 1.4, d - .2);
+   card('m-protease-warden', 330 + leave * 900, 360, 400, 'THE RELIEF', 1, .04 * Math.sin(T * 3), '#f28c28');
+   const n = Math.min(400, Math.floor(ramp(t, .3, d - 2) * 400)); g.fillStyle = '#f4f0e6'; rr(700, 60, 420, 520, 10); g.fill(); g.strokeStyle = '#120818'; g.lineWidth = 4; g.stroke();
+   text('INVOICE', 910, 100, { sz: 34, col: '#120818', sh: 0, sp: 6 });
+   for (let i = 0; i < 7; i++) text(['wall, one', 'door, very old', 'pipe (sentimental)', 'one (1) chair', 'emotional damage', 'call-out fee', 'another wall'][i], 730, 160 + i * 44, { sz: 22, col: '#3a2a1a', al: 'left', fam: 'Lora', w: 400, sh: 0 });
+   text(`${n} S`, 1090, 520, { sz: 54, col: n >= 400 ? '#d61f26' : '#120818', al: 'right', fam: 'DejaVu Sans Mono', sh: 0 });
+   if (n >= 400) big('OVER BUDGET', 910, 380, 64, '#d61f26', -.2, 1, '#fff'); }],
+ [3, 'THE NINE-CYCLE CHURN', (t, d, T) => { flesh(T, 330); card('m-clonal-sentinel', 360, 380, 460, 'GASTRIC SENTINEL', 1, .02 * Math.sin(T), '#5ee6d0');
+   if (t > .2) bubble(820, 170, 460, 100, 'WHAT ARE YOU.', 52, -160);
+   card(WALL, 1000, 470, 260, 'BRESK', 1, .05); if (t > BAR * 1.1) { g.save(); g.translate(1000, 300); g.rotate(-.06); g.fillStyle = '#fff'; rr(-130, -40, 260, 80, 10); g.fill(); g.strokeStyle = '#120818'; g.lineWidth = 5; g.stroke(); g.restore(); big('HONEST!', 1000, 300, 52, '#120818', -.06, 1, '#fff'); }
+   const st = ramp(t, BAR * 2, BAR * 2.12); if (st > 0) { g.save(); g.translate(560, 545); g.rotate(-.15); g.scale(2 - st, 2 - st); g.strokeStyle = '#2bd46a'; g.lineWidth = 10; rr(-130, -50, 260, 100, 14); g.stroke(); g.restore(); big('SELF', 560, 545, 80, '#2bd46a', -.15, st, 'rgba(0,0,0,0)'); } }],
+ [4, 'THE END', (t, d, T) => { retro(T, t); const a = ease(ramp(t, .1, .6));
+   text("CAN'T AVOID", W / 2, H / 2 - 70, { sz: 58, col: '#f28c28', a, sh: 0, sp: 8 }); text('THE MEMBRANE', W / 2, H / 2, { sz: 64, col: '#f4e3c1', a, sh: 0, sp: 8 });
+   text('an Osmotic Expanse music video', W / 2, H / 2 + 80, { sz: 34, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 1, 1.6), sh: 0 });
+   text('stay wet', W / 2, H / 2 + 140, { sz: 26, col: '#f4e3c1', a: ramp(t, BAR * 2, BAR * 2.4), sh: 0, sp: 6 }); }],
+];
+let starts = []; { let s = 0; for (const cl of CLIPS) { starts.push(s); s += cl[0] * BAR; } }
+function lyric(T) {
+  const cue = CUES.find(([a, b]) => T >= a && T <= b + .35); if (!cue) return;
+  const [a, , s] = cue, k = eout(ramp(T, a, a + .15));
+  g.save(); g.globalAlpha = .55; g.fillStyle = '#000'; g.fillRect(0, H - 92, W, 92); g.restore();
+  const sz = s.length > 36 ? 34 : 44; big(s, W / 2, H - 46, sz * (1.25 - .25 * k), '#ffffff', 0, k, '#120818');
+}
+function draw(ci, t, frame) {
+  const T = starts[ci] + t, d = CLIPS[ci][0] * BAR; g.save(); g.clearRect(0, 0, W, H);
+  const groove = (T > 8 * BAR && T < 40 * BAR) || (T > 48 * BAR && T < 62 * BAR);
+  const z = groove ? 1 + .018 * kickEnv(T) : 1; g.translate(W / 2, H / 2); g.scale(z, z); g.translate(-W / 2, -H / 2);
+  CLIPS[ci][2](t, d, T); g.restore();
+  tag(ci + 1, CLIPS[ci][1]); lyric(T);
+  const f = 1 - Math.min(ramp(t, 0, .12), 1); if (f > 0) { g.fillStyle = `rgba(255,255,255,${f * .35})`; g.fillRect(0, 0, W, H); }
+}
+window.mv = {
+  async load(keys, cues) { CUES = cues; makeNoise();
+    await Promise.all(keys.map((k) => new Promise((ok) => { const im = new Image(); im.onload = () => { IMG[k] = im; ok(); }; im.onerror = ok; im.src = `img/${k}.png`; })));
+    for (const f of ['700 40px "TeX Gyre Adventor"', '40px "TeX Gyre Bonum"', '40px "TeX Gyre Chorus"', '40px "Lora"']) await document.fonts.load(f);
+    return CLIPS.map((cl) => cl[0] * BAR); },
+  draw,
+};
+</script></body></html>
