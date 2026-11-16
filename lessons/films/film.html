@@ -1,0 +1,297 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style></head>
+<body><canvas id="c" width="1280" height="720"></canvas>
+<script>
+"use strict";
+const W = 1280, H = 720;
+const c = document.getElementById('c'), g = c.getContext('2d');
+let FILM = null, PLAN = [], IMG = {}, MODE = 'life';
+
+// ---------- helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ease = (x) => { x = clamp(x); return x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const eout = (x) => 1 - Math.pow(1 - clamp(x), 3);
+const lerp = (a, b, x) => a + (b - a) * x;
+function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+function font(sz, w = 700, fam = 'TeX Gyre Adventor') { g.font = `${w} ${sz}px "${fam}"`; }
+function text(s, x, y, { sz = 40, w = 700, fam = 'TeX Gyre Adventor', col = '#fff', al = 'center', a = 1, sh = 18, sp = 0 } = {}) {
+  g.save(); g.globalAlpha *= a; font(sz, w, fam); g.textAlign = al; g.textBaseline = 'middle'; g.fillStyle = col;
+  if ('letterSpacing' in g) g.letterSpacing = sp + 'px';
+  if (sh) { g.shadowColor = 'rgba(0,0,0,.65)'; g.shadowBlur = sh; }
+  g.fillText(s, x, y); g.restore();
+}
+
+// ---------- the soup (Life) ----------
+const R = rng(7), MOTES = Array.from({ length: 140 }, () => ({ x: R() * W, y: R() * H, r: 1 + R() * 3.5, s: .2 + R() * .9, h: R(), ph: R() * 6.28 }));
+const BUB = Array.from({ length: 14 }, () => ({ x: R() * W, y: R() * H, r: 30 + R() * 110, s: .05 + R() * .18, ph: R() * 6.28 }));
+function soup(T, tint = 0) {
+  const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#04212b'); gr.addColorStop(.55, '#06323d'); gr.addColorStop(1, '#0b1130');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  // caustic glows
+  for (let i = 0; i < 5; i++) {
+    const x = W * (.5 + .45 * Math.sin(T * .07 + i * 1.7)), y = H * (.45 + .4 * Math.cos(T * .05 + i * 2.3)), r = 260 + 90 * Math.sin(T * .1 + i);
+    const cg = g.createRadialGradient(x, y, 0, x, y, r);
+    const col = ['94,230,208', '122,162,247', '224,69,123', '242,140,40', '94,230,208'][i];
+    cg.addColorStop(0, `rgba(${col},${.13 + tint})`); cg.addColorStop(1, `rgba(${col},0)`);
+    g.fillStyle = cg; g.fillRect(0, 0, W, H);
+  }
+  // membrane bubbles
+  for (const b of BUB) {
+    const y = ((b.y - T * 18 * b.s) % (H + 300) + H + 300) % (H + 300) - 150, x = b.x + 30 * Math.sin(T * .3 + b.ph);
+    g.beginPath(); g.arc(x, y, b.r, 0, 6.283); g.strokeStyle = 'rgba(180,255,240,.07)'; g.lineWidth = 2; g.stroke();
+    const bg = g.createRadialGradient(x - b.r * .3, y - b.r * .3, 0, x, y, b.r); bg.addColorStop(0, 'rgba(200,255,250,.06)'); bg.addColorStop(1, 'rgba(200,255,250,0)');
+    g.fillStyle = bg; g.fill();
+  }
+  // bioluminescent motes
+  for (const m of MOTES) {
+    const y = ((m.y - T * 14 * m.s) % H + H) % H, x = (m.x + 20 * Math.sin(T * .5 * m.s + m.ph) + W) % W;
+    const tw = .45 + .55 * Math.sin(T * 2 * m.s + m.ph);
+    g.fillStyle = m.h < .6 ? `rgba(140,255,230,${.55 * tw})` : m.h < .85 ? `rgba(170,190,255,${.5 * tw})` : `rgba(255,170,90,${.55 * tw})`;
+    g.shadowColor = g.fillStyle; g.shadowBlur = 10; g.beginPath(); g.arc(x, y, m.r, 0, 6.283); g.fill();
+  }
+  g.shadowBlur = 0;
+  vignette(.55);
+}
+function vignette(a) { const v = g.createRadialGradient(W / 2, H / 2, H * .35, W / 2, H / 2, H * .95); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, `rgba(0,0,0,${a})`); g.fillStyle = v; g.fillRect(0, 0, W, H); }
+
+function card(key, x, y, h, label, a = 1, rot = 0, glow = '#5ee6d0') {
+  const im = IMG[key]; if (!im) return; const w = h * im.width / im.height;
+  g.save(); g.globalAlpha *= a; g.translate(x, y); g.rotate(rot);
+  g.shadowColor = glow; g.shadowBlur = 30; g.fillStyle = 'rgba(8,20,30,.9)';
+  rr(-w / 2 - 10, -h / 2 - 10, w + 20, h + 20 + (label ? 44 : 0), 18); g.fill(); g.shadowBlur = 0;
+  g.save(); rr(-w / 2, -h / 2, w, h, 12); g.clip(); g.drawImage(im, -w / 2, -h / 2, w, h); g.restore();
+  g.strokeStyle = glow; g.lineWidth = 2; rr(-w / 2 - 10, -h / 2 - 10, w + 20, h + 20 + (label ? 44 : 0), 18); g.stroke();
+  if (label) text(label, 0, h / 2 + 22, { sz: 20, col: '#f4e3c1', sp: 3, sh: 0 });
+  g.restore();
+}
+function rr(x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function head(s, t, sub) { // lower-third pill
+  const a = ramp(t, .4, 1.1); if (!s) return;
+  g.save(); g.globalAlpha = a; font(24, 700); if ('letterSpacing' in g) g.letterSpacing = '5px';
+  const w = g.measureText(s).width + 56, x = 70, y = H - 96;
+  const pg = g.createLinearGradient(x, 0, x + w, 0); pg.addColorStop(0, '#f28c28'); pg.addColorStop(.5, '#e0457b'); pg.addColorStop(1, '#7a6cf7');
+  g.fillStyle = pg; rr(x - 12 * (1 - a), y - 26, w, 52, 26); g.fill(); g.restore();
+  text(s, x + 28 - 12 * (1 - a), y + 1, { sz: 24, col: '#140a1a', al: 'left', a, sh: 0, sp: 5 });
+  if (sub) text(sub, x + 6, y + 50, { sz: 20, w: 400, fam: 'Lora', col: '#cfe9ee', al: 'left', a: a * .9, sp: 1 });
+}
+function retro(T, t) { // 60s title rings
+  g.fillStyle = '#f4e3c1'; g.fillRect(0, 0, W, H);
+  const cols = ['#f28c28', '#e0457b', '#2bb3a3', '#14213d', '#f4e3c1'];
+  g.save(); g.translate(W / 2, H / 2); g.rotate(T * .05);
+  for (let i = 18; i >= 0; i--) {
+    const r = i * 62 + ((T * 30) % 62);
+    g.beginPath(); g.arc(0, 0, r, 0, 6.283); g.fillStyle = cols[i % 4]; g.fill();
+  }
+  g.restore();
+  g.beginPath(); g.arc(W / 2, H / 2, 300, 0, 6.283); g.fillStyle = '#14213d'; g.fill(); g.lineWidth = 6; g.strokeStyle = '#f4e3c1'; g.stroke();
+  g.beginPath(); g.arc(W / 2, H / 2, 286, 0, 6.283); g.lineWidth = 2; g.stroke();
+  // dotted halftone sweep
+  g.fillStyle = 'rgba(20,10,30,.18)';
+  for (let y = 0; y < H; y += 18) for (let x = (y / 18) % 2 ? 9 : 0; x < W; x += 18) { const d = Math.hypot(x - W / 2, y - H / 2) / 900; if (d < 330 / 900) continue; g.beginPath(); g.arc(x, y, 3.2 * d, 0, 6.283); g.fill(); }
+}
+
+// ---------- archive look (Quorum) ----------
+const NOISE = [];
+function makeNoise() { for (let k = 0; k < 6; k++) { const n = document.createElement('canvas'); n.width = W / 2; n.height = H / 2; const x = n.getContext('2d'), d = x.createImageData(W / 2, H / 2), r = rng(99 + k); for (let i = 0; i < d.data.length; i += 4) { const v = r() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 26; } x.putImageData(d, 0, 0); NOISE.push(n); } }
+function paper(T) {
+  const gr = g.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * .75); gr.addColorStop(0, '#3a2c1c'); gr.addColorStop(1, '#120c07');
+  g.fillStyle = gr; g.fillRect(0, 0, W, H);
+}
+function archive(T, frame) {
+  g.save(); g.globalCompositeOperation = 'color'; g.fillStyle = '#8a6a3c'; g.globalAlpha = .55; g.fillRect(0, 0, W, H); g.restore();
+  g.save(); g.globalCompositeOperation = 'overlay'; g.drawImage(NOISE[frame % 6], 0, 0, W, H); g.restore();
+  const fl = .04 * Math.sin(frame * 1.7) + .03 * Math.sin(frame * 0.37); g.fillStyle = `rgba(0,0,0,${.06 + fl})`; g.fillRect(0, 0, W, H);
+  const r = rng(Math.floor(frame / 4) * 7 + 3); // scratches, a few frames each
+  g.strokeStyle = 'rgba(235,220,190,.18)'; g.lineWidth = 1;
+  for (let i = 0; i < 2; i++) if (r() < .5) { const x = r() * W; g.beginPath(); g.moveTo(x, 0); g.lineTo(x + r() * 6 - 3, H); g.stroke(); }
+  vignette(.8);
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, 54); g.fillRect(0, H - 54, W, 54);
+}
+function chap(p, t) { // chapter card that settles into a corner label
+  if (!p.head) return;
+  const a = 1 - ramp(t, 2.6, 3.4);
+  if (a > 0) {
+    g.fillStyle = `rgba(10,6,3,${.55 * a})`; g.fillRect(0, 0, W, H);
+    text(p.chap ? `CHAPTER ${p.chap}` : '', W / 2, H / 2 - 52, { sz: 22, fam: 'TeX Gyre Bonum', col: '#d9c49a', a: a * ramp(t, .2, .8), sp: 8 });
+    text(p.head, W / 2, H / 2 + 8, { sz: 58, fam: 'TeX Gyre Bonum', col: '#f4e8cc', a: a * ramp(t, .4, 1.1), sp: 4 });
+    g.save(); g.globalAlpha = a * ramp(t, .6, 1.3); g.strokeStyle = '#d9c49a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(W / 2 - 160, H / 2 + 52); g.lineTo(W / 2 + 160, H / 2 + 52); g.stroke(); g.restore();
+  }
+  const b = ramp(t, 3.0, 3.8);
+  if (b > 0) text(`${p.chap}  ·  ${p.head}`, 70, 84, { sz: 18, fam: 'TeX Gyre Bonum', col: '#d9c49a', al: 'left', a: b * .9, sp: 4, sh: 0 });
+}
+// signal particles for the Hearth air
+const SIG = Array.from({ length: 420 }, (_, i) => { const r = rng(1000 + i); return { a: r() * 6.283, d: r(), s: .3 + r() * .7, side: r() < .62 ? 0 : 1, born: r() }; });
+function hearth(x, y, k) { const hg = g.createRadialGradient(x, y, 0, x, y, 120 + 40 * k); hg.addColorStop(0, `rgba(255,214,140,${.55 + .3 * k})`); hg.addColorStop(1, 'rgba(255,214,140,0)'); g.fillStyle = hg; g.fillRect(0, 0, W, H); }
+
+// ---------- scenes ----------
+const S = {
+  // LIFE
+  title(t, d, p, T) { retro(T, t); const a = ease(ramp(t, .3, 1.4));
+    g.fillStyle = `rgba(20,10,30,${.0})`;
+    text('THE OSMOTIC', W / 2, H / 2 - 80, { sz: 64, col: '#f28c28', a, sh: 0, sp: 10 });
+    text('EXPANSE', W / 2, H / 2 + 10, { sz: 104, col: '#f4e3c1', a, sh: 0, sp: 14 });
+    text('life in the soup', W / 2, H / 2 + 100, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 1.5, 2.4), sh: 0 }); },
+  world(t, d, p, T) { const im = IMG[p.img]; const z = 1.08 + .14 * (t / d); const w = W * z, h = w * im.height / im.width;
+    g.drawImage(im, W / 2 - w / 2 - 40 * (t / d), H / 2 - h / 2 + 10 * (t / d), w, h);
+    g.save(); g.globalAlpha = .35; soup(T); g.restore(); vignette(.5); head(p.head, t, p.sub); },
+  membrane(t, d, p, T) { soup(T); const x = W / 2, y = H / 2 - 30, R0 = 190;
+    g.save(); g.beginPath();
+    for (let i = 0; i <= 120; i++) { const a = i / 120 * 6.283, r = R0 + 12 * Math.sin(a * 5 + T * 1.3) + 8 * Math.sin(a * 3 - T * .9); const px = x + r * Math.cos(a), py = y + r * Math.sin(a); i ? g.lineTo(px, py) : g.moveTo(px, py); }
+    const mg = g.createRadialGradient(x - 50, y - 60, 20, x, y, R0 + 20); mg.addColorStop(0, 'rgba(140,255,230,.55)'); mg.addColorStop(.7, 'rgba(60,170,190,.35)'); mg.addColorStop(1, 'rgba(30,90,130,.5)');
+    g.fillStyle = mg; g.shadowColor = '#5ee6d0'; g.shadowBlur = 40; g.fill(); g.lineWidth = 6; g.strokeStyle = 'rgba(200,255,245,.8)'; g.stroke(); g.restore();
+    const r2 = rng(5); for (let i = 0; i < 9; i++) { const a = r2() * 6.283, rr2 = r2() * 120; const ox = x + rr2 * Math.cos(a + T * .2), oy = y + rr2 * Math.sin(a + T * .2); g.beginPath(); g.arc(ox, oy, 10 + r2() * 18, 0, 6.283); g.fillStyle = ['rgba(242,140,40,.75)', 'rgba(224,69,123,.7)', 'rgba(122,162,247,.7)'][i % 3]; g.fill(); }
+    // leaking droplets
+    for (let i = 0; i < 7; i++) { const ph = ((T * .35 + i / 7) % 1), a = -1.2 + i * .45; const px = x + (R0 + 10 + ph * 220) * Math.cos(a), py = y + (R0 + 10 + ph * 220) * Math.sin(a) + ph * ph * 90;
+      g.beginPath(); g.arc(px, py, 7 * (1 - ph) + 2, 0, 6.283); g.fillStyle = `rgba(160,240,255,${.8 * (1 - ph)})`; g.fill(); }
+    head(p.head, t); },
+  lineages(t, d, p, T) { soup(T); const n = p.cards.length, gap = (d - 2.5) / n;
+    p.cards.forEach(([k, lab], i) => { const t0 = .8 + i * gap, a = eout(ramp(t, t0, t0 + .8)); const col = i % 3, row = Math.floor(i / 3);
+      const x = W / 2 + (col - 1) * 330, y = 165 + row * 262; const live = t >= t0 && t < t0 + gap;
+      card(k, x, y + 40 * (1 - a), live ? 196 : 182, lab, a * (live ? 1 : .8), 0, live ? '#f28c28' : '#5ee6d0'); });
+    head(p.head, t); },
+  coins(t, d, p, T) { soup(T); const items = [['ATP', 'energy · paid by digestion', '#f2d07a'], ['S', 'substrate · the raw stuff', '#5ee6d0'], ['CODON', 'experience · never spent', '#e0457b']];
+    items.forEach(([s, sub, col], i) => { const t0 = .6 + i * (d - 2) / 3, a = eout(ramp(t, t0, t0 + .9)); const x = 250 + i * 390, y = 310 - 20 * Math.sin(T * 1.2 + i);
+      g.save(); g.globalAlpha = a; const cg = g.createRadialGradient(x, y, 10, x, y, 120); cg.addColorStop(0, col); cg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = cg; g.beginPath(); g.arc(x, y, 120, 0, 6.283); g.fill();
+      g.beginPath(); g.arc(x, y, 78, 0, 6.283); g.fillStyle = 'rgba(10,20,30,.85)'; g.fill(); g.lineWidth = 5; g.strokeStyle = col; g.stroke(); g.restore();
+      text(s, x, y, { sz: s.length > 3 ? 30 : 48, col, a, sp: 2 }); text(sub, x, y + 132, { sz: 22, w: 400, fam: 'Lora', col: '#e8f0f8', a }); });
+    head(p.head, t); },
+  cards(t, d, p, T) { soup(T); const n = p.cards.length;
+    p.cards.forEach(([k, lab], i) => { const t0 = .6 + i * (d - 3) / n, a = eout(ramp(t, t0, t0 + .9)); const x = 210 + i * 287, y = 320 + 18 * Math.sin(T * .9 + i * 1.3);
+      card(k, x, y + 60 * (1 - a), 300, lab, a, (i - 1.5) * .04, ['#5ee6d0', '#7aa2f7', '#f28c28', '#e0457b'][i]); });
+    head(p.head, t); },
+  pulse(t, d, p, T) { soup(T, .03); const k = ramp(t, .5, 2);
+    for (let i = 0; i < 6; i++) { const ph = ((T * .7 + i / 6) % 1); g.beginPath(); g.arc(W / 2, 330, 40 + ph * 420, 0, 6.283); g.strokeStyle = `rgba(242,140,40,${.45 * (1 - ph) * k})`; g.lineWidth = 3; g.stroke(); }
+    card(p.a, 360 + 30 * Math.sin(T * 2.1), 320, 340, 'THE MONSTER', eout(ramp(t, .4, 1.3)), -.05, '#e0457b');
+    card(p.b, 920 + 30 * Math.sin(T * 2.4 + 1), 320, 340, 'YOU', eout(ramp(t, .9, 1.8)), .05, '#5ee6d0');
+    text('VS', W / 2, 330, { sz: 90, col: '#f4e3c1', a: ramp(t, 1.6, 2.2), sp: 6 });
+    if (t > d * .55) { const z = ramp(t, d * .55, d * .62); text('DORMANT — NOT DEAD', W / 2, 590, { sz: 30, col: '#f2d07a', a: z * (1 - ramp(t, d - 1.4, d - .8)), sp: 6 }); }
+    head(p.head, t); },
+  code(t, d, p, T) { const im = IMG[p.img]; const z = 1.05 + .08 * (t / d); const w = W * z, h = w * im.height / im.width;
+    g.drawImage(im, W / 2 - w / 2, H / 2 - h / 2, w, h); g.fillStyle = 'rgba(4,16,24,.62)'; g.fillRect(0, 0, W, H); vignette(.6);
+    text('THE SACRED CODE', W / 2, 120, { sz: 46, col: '#f4e3c1', a: ramp(t, .3, 1), sp: 10 });
+    p.lines.forEach((l, i) => { const t0 = 1 + i * (d * .55 / 7), a = eout(ramp(t, t0, t0 + .6)); const hot = i === 3 || i === 1;
+      text(l, W / 2 - 230 + 30 * (1 - a), 200 + i * 52, { sz: 30, w: hot ? 700 : 400, fam: 'Lora', col: hot ? '#f2d07a' : '#dbe9ef', al: 'left', a }); });
+    head('', t); },
+  tide(t, d, p, T) { soup(T); const cx = W / 2, cy = 340, R1 = 230; const ph = ['ISOTONIC RISE', 'HYPERTONIC ZENITH', 'ISOTONIC FALL', 'HYPOTONIC NADIR'], cols = ['#5ee6d0', '#f28c28', '#7aa2f7', '#e0457b'];
+    const rot = -Math.PI / 2 - ease(ramp(t, 1, d * .5)) * (Math.PI / 2);
+    for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R1, rot + i * Math.PI / 2, rot + (i + 1) * Math.PI / 2); g.closePath(); g.fillStyle = cols[i] + (i === 1 && t > d * .5 ? 'dd' : '66'); g.fill(); g.strokeStyle = '#0b1130'; g.lineWidth = 4; g.stroke();
+      const a = rot + (i + .5) * Math.PI / 2; text(ph[i], cx + Math.cos(a) * R1 * .6, cy + Math.sin(a) * R1 * .6, { sz: 18, col: '#fff', sp: 2 }); }
+    g.beginPath(); g.arc(cx, cy, 64, 0, 6.283); g.fillStyle = '#0b1130'; g.fill(); text('TIDE', cx, cy, { sz: 30, col: '#f4e3c1', sp: 4 });
+    g.beginPath(); g.moveTo(cx, cy - R1 - 6); g.lineTo(cx - 16, cy - R1 - 34); g.lineTo(cx + 16, cy - R1 - 34); g.fillStyle = '#f4e3c1'; g.fill();
+    head(p.head, t); },
+  drop(t, d, p, T) { soup(T); const cx = W / 2, sy = 380; const fall = ramp(t, .5, 2.6);
+    if (fall < 1) { const y = lerp(-40, sy, fall * fall); g.save(); g.shadowColor = '#f2d07a'; g.shadowBlur = 50; g.beginPath(); g.arc(cx, y, 16, 0, 6.283); g.fillStyle = '#ffe9a8'; g.fill(); g.restore(); }
+    for (let i = 0; i < 6; i++) { const rt = t - 2.6 - i * .5; if (rt > 0) { const r = rt * 120, a = Math.max(0, 1 - rt / 5); g.beginPath(); g.ellipse(cx, sy, r, r * .28, 0, 0, 6.283); g.strokeStyle = `rgba(255,220,140,${a * .8})`; g.lineWidth = 3; g.stroke(); } }
+    const glow = ramp(t, 2.6, 3.4) * (1 - ramp(t, d * .55, d * .7)); hearth(cx, sy, glow);
+    const q = ramp(t, d * .6, d * .7); text('?', cx, 250, { sz: 220, col: '#f4e3c1', a: q * .9, fam: 'TeX Gyre Bonum' });
+    head(p.head, t); },
+  end(t, d, p, T) { retro(T, t); const a = ease(ramp(t, .3, 1.4));
+    text('STAY WET.', W / 2, H / 2 - 60, { sz: 76, col: '#f28c28', a, sh: 0, sp: 10 });
+    text('STAY WONDERFUL.', W / 2, H / 2 + 30, { sz: 44, col: '#f4e3c1', a: ramp(t, 1.2, 2), sh: 0, sp: 8 });
+    text('The Osmotic Expanse', W / 2, H / 2 + 115, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 2.2, 3), sh: 0 }); },
+
+  // QUORUM
+  qtitle(t, d, p, T) { paper(T); const a = ease(ramp(t, .5, 2));
+    text('A HISTORY OF THE AIR', W / 2, H / 2 - 110, { sz: 24, fam: 'TeX Gyre Bonum', col: '#d9c49a', a, sp: 10 });
+    text('QUORUM', W / 2, H / 2 - 10, { sz: 150, fam: 'TeX Gyre Bonum', col: '#f4e8cc', a, sp: 22 });
+    g.save(); g.globalAlpha = a; g.strokeStyle = '#d9c49a'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(W / 2 - 260, H / 2 + 80); g.lineTo(W / 2 + 260, H / 2 + 80); g.stroke(); g.restore();
+    text('how the Expanse learned to make up its mind', W / 2, H / 2 + 120, { sz: 36, w: 400, fam: 'TeX Gyre Chorus', col: '#e8d8b4', a: ramp(t, 2, 3) }); },
+  making(t, d, p, T) { paper(T); const k = ease(ramp(t, 2, d - 1));
+    const r = rng(31); for (let i = 0; i < 26; i++) { const cx = 120 + r() * (W - 240), cy = 130 + r() * (H - 260), R2 = 18 + r() * 34;
+      for (let j = 0; j < 14; j++) { const a = j / 14 * 6.283 + T * .2 + i; const free = (1 - k) * (40 + 60 * r()); const px = cx + (R2 + free * Math.sin(a * 3 + T)) * Math.cos(a), py = cy + (R2 + free * Math.cos(a * 2 + T)) * Math.sin(a);
+        g.beginPath(); g.arc(px, py, 2.4, 0, 6.283); g.fillStyle = 'rgba(240,225,190,.7)'; g.fill(); }
+      if (k > .6) { g.beginPath(); g.arc(cx, cy, R2, 0, 6.283); g.strokeStyle = `rgba(240,225,190,${(k - .6) * 2})`; g.lineWidth = 2; g.stroke(); } }
+    chap(p, t); },
+  gather(t, d, p, T) { paper(T); const k = ease(ramp(t, 3.5, d - 1.5)); const r = rng(77);
+    for (let i = 0; i < 160; i++) { const sx = r() * W, sy = 80 + r() * (H - 160); const a = i * 2.39996, rad = 16 * Math.sqrt(i);
+      const tx = W / 2 + rad * Math.cos(a), ty = H / 2 + rad * Math.sin(a) * .8; const x = lerp(sx, tx, k) + 3 * Math.sin(T + i), y = lerp(sy, ty, k) + 3 * Math.cos(T * 1.3 + i);
+      g.beginPath(); g.arc(x, y, 8, 0, 6.283); g.fillStyle = 'rgba(232,214,172,.55)'; g.fill(); g.strokeStyle = 'rgba(250,240,215,.7)'; g.lineWidth = 1; g.stroke(); }
+    if (k > .9) { g.save(); g.globalAlpha = (k - .9) * 10; g.beginPath(); g.ellipse(W / 2, H / 2, 225, 185, 0, 0, 6.283); g.strokeStyle = '#f4e8cc'; g.lineWidth = 3; g.stroke(); g.restore(); }
+    text('“A thousand cells that agree are a body.”', W / 2, H - 110, { sz: 30, fam: 'TeX Gyre Bonum', w: 400, col: '#f4e8cc', a: ramp(t, d * .45, d * .55) });
+    chap(p, t); },
+  air(t, d, p, T) { paper(T); const cx = W / 2, cy = 400; const k = ramp(t, 3, d - 3); hearth(cx, cy, k);
+    // organisms around the hearth
+    for (let i = 0; i < 12; i++) { const a = i / 12 * 6.283; const ox = cx + 330 * Math.cos(a), oy = cy - 60 + 170 * Math.sin(a); g.beginPath(); g.arc(ox, oy, 16, 0, 6.283); g.fillStyle = i % 3 ? 'rgba(232,214,172,.75)' : 'rgba(190,140,90,.8)'; g.fill(); }
+    for (const s of SIG) { if (s.born > k * 1.05) continue; const age = (k * 1.05 - s.born) * 6; const a = s.a + T * .1 * s.s; const rad = 330 * (1 - Math.min(1, age)) * (.9 + .1 * s.d) + 60 * s.d;
+      const x = cx + rad * Math.cos(a), y = cy - 60 + rad * .52 * Math.sin(a) - 30 * Math.min(1, age); g.beginPath(); g.arc(x, y, 3, 0, 6.283);
+      g.fillStyle = s.side ? 'rgba(160,190,230,.85)' : 'rgba(255,214,140,.9)'; g.fill(); }
+    const q = ramp(t, d - 3.2, d - 2.4); if (q > 0) { g.fillStyle = `rgba(255,236,190,${.35 * q * (1 - ramp(t, d - 2, d - .6))})`; g.fillRect(0, 0, W, H); text('QUORUM', cx, 220, { sz: 96, fam: 'TeX Gyre Bonum', col: '#fff4dc', a: q, sp: 20 }); }
+    chap(p, t); },
+  track(t, d, p, T) { paper(T); const y = 360, x0 = 190, x1 = W - 190; const sizes = [['HAMLET', 4], ['SETTLEMENT', 6], ['COLONY', 8], ['METROPOLIS', 10]];
+    g.strokeStyle = '#d9c49a'; g.lineWidth = 3; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+    for (let i = -10; i <= 10; i++) { const x = lerp(x0, x1, (i + 10) / 20); g.beginPath(); g.moveTo(x, y - (i % 5 ? 8 : 16)); g.lineTo(x, y + (i % 5 ? 8 : 16)); g.stroke(); }
+    text('AGAINST', x0, y + 54, { sz: 22, fam: 'TeX Gyre Bonum', col: '#d9c49a', sp: 4 }); text('FOR', x1, y + 54, { sz: 22, fam: 'TeX Gyre Bonum', col: '#d9c49a', sp: 4 });
+    const pick = Math.min(3, Math.floor(ramp(t, 3.5, d - 3) * 4)); const [nm, q] = sizes[pick];
+    for (const sgn of [-1, 1]) { const x = lerp(x0, x1, (sgn * q + 10) / 20); g.fillStyle = '#e0b878'; g.beginPath(); g.moveTo(x, y - 30); g.lineTo(x - 10, y - 48); g.lineTo(x + 10, y - 48); g.fill(); }
+    text(`${nm} — QUORUM AT ${q}`, W / 2, 230, { sz: 36, fam: 'TeX Gyre Bonum', col: '#f4e8cc', sp: 4, a: ramp(t, 3.2, 3.8) });
+    const m = Math.sin(T * .6) * 2.2 + 2.5 * ramp(t, d * .6, d); const mx = lerp(x0, x1, (m + 10) / 20);
+    g.beginPath(); g.arc(mx, y, 15, 0, 6.283); g.fillStyle = '#fff1d0'; g.shadowColor = '#ffd890'; g.shadowBlur = 20; g.fill(); g.shadowBlur = 0;
+    chap(p, t); },
+  speaker(t, d, p, T) { paper(T); card(p.img, 420, 370, 380, 'THE QUORUM SPEAKER', eout(ramp(t, 3, 4)), 0, '#d9c49a');
+    text('reads the air', 860, 270, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#f4e8cc', a: ramp(t, 4.5, 5.3) });
+    text('ANNOUNCES · NEVER DECIDES', 860, 330, { sz: 24, fam: 'TeX Gyre Bonum', col: '#d9c49a', sp: 4, a: ramp(t, 6.5, 7.3) });
+    const h = Math.min(6, Math.floor(ramp(t, d * .6, d * .85) * 6) + 1), sh = ramp(t, d * .55, d * .62);
+    text('HONESTY', 860, 430, { sz: 22, fam: 'TeX Gyre Bonum', col: '#d9c49a', sp: 6, a: sh });
+    for (let i = 0; i < 6; i++) { g.save(); g.globalAlpha = sh; g.beginPath(); g.arc(735 + i * 50, 480, 16, 0, 6.283); g.fillStyle = i < h ? '#f4e8cc' : 'rgba(244,232,204,.15)'; g.fill(); g.restore(); }
+    chap(p, t); },
+  unfair(t, d, p, T) { paper(T); const k = ramp(t, 3, d - 1);
+    const big = [400, 360], small = [[820, 300], [900, 420], [760, 460], [980, 330]];
+    g.beginPath(); g.arc(...big, 95, 0, 6.283); g.fillStyle = 'rgba(232,200,140,.8)'; g.fill(); text('THE SWOLLEN', big[0], big[1] + 140, { sz: 22, fam: 'TeX Gyre Bonum', col: '#f4e8cc', sp: 4, a: ramp(t, 3, 3.6) });
+    small.forEach(([x, y]) => { g.beginPath(); g.arc(x, y, 26, 0, 6.283); g.fillStyle = 'rgba(200,180,150,.7)'; g.fill(); });
+    text('THE DRY', 870, 540, { sz: 22, fam: 'TeX Gyre Bonum', col: '#f4e8cc', sp: 4, a: ramp(t, 3, 3.6) });
+    const r = rng(4); for (let i = 0; i < 220; i++) { const fromBig = i < 180; const ph = ((T * .25 + r()) % 1) * k; const [sx, sy] = fromBig ? big : small[i % 4];
+      const a = r() * 6.283; const x = sx + Math.cos(a) * (fromBig ? 100 : 30) * (1 + ph * 3), y = sy + Math.sin(a) * (fromBig ? 100 : 30) * (1 + ph * 3) - ph * 140;
+      g.beginPath(); g.arc(x, y, 2.6, 0, 6.283); g.fillStyle = `rgba(255,220,150,${.8 * (1 - ph)})`; g.fill(); }
+    const c2 = ramp(t, d * .55, d * .65); text('BUYING SIGNAL IS LAWFUL', W / 2, 130, { sz: 30, fam: 'TeX Gyre Bonum', col: '#f4e8cc', sp: 6, a: c2 });
+    chap(p, t); },
+  quench(t, d, p, T) { paper(T); const k = ramp(t, 3.5, d - 2); hearth(W / 2, 380, .4);
+    for (const s of SIG) { const a = s.a + T * .1 * s.s, rad = 80 + 300 * s.d; const x = W / 2 + rad * Math.cos(a), y = 380 + rad * .5 * Math.sin(a);
+      const eaten = s.side === 0 && (x < 200 + k * 1000); if (eaten && s.d > .3) continue; g.beginPath(); g.arc(x, y, 3, 0, 6.283); g.fillStyle = s.side ? 'rgba(160,190,230,.85)' : 'rgba(255,214,140,.9)'; g.fill(); }
+    const ex = 200 + k * 1000; const eg = g.createRadialGradient(ex, 380, 0, ex, 380, 230); eg.addColorStop(0, 'rgba(20,8,4,.85)'); eg.addColorStop(1, 'rgba(20,8,4,0)'); g.fillStyle = eg; g.fillRect(0, 0, W, H);
+    const st = ramp(t, d * .62, d * .68); if (st > 0) { g.save(); g.translate(W / 2, 330); g.rotate(-.12); g.scale(1 + (1 - st) * .6, 1 + (1 - st) * .6); g.globalAlpha = st;
+      g.strokeStyle = '#c0392b'; g.lineWidth = 6; rr(-330, -60, 660, 120, 10); g.stroke(); text('UNLISTED', 0, 2, { sz: 84, fam: 'TeX Gyre Bonum', col: '#c0392b', sh: 0, sp: 14 }); g.restore(); }
+    chap(p, t); },
+  closing(t, d, p, T) { paper(T); const k = ease(ramp(t, 3.5, d * .45)); const cx = W / 2, cy = 360;
+    const rad = 260 * (1 - k) + 6; const lg = g.createRadialGradient(cx, cy, 0, cx, cy, rad); lg.addColorStop(0, 'rgba(255,236,190,.95)'); lg.addColorStop(1, 'rgba(255,236,190,0)'); g.fillStyle = lg; g.beginPath(); g.arc(cx, cy, rad, 0, 6.283); g.fill();
+    g.save(); g.beginPath(); g.arc(cx, cy, 290, 0, 6.283); g.arc(cx, cy, rad, 0, 6.283, true); g.fillStyle = 'rgba(40,26,14,.96)'; g.fill('evenodd');
+    g.strokeStyle = 'rgba(217,196,154,.55)'; g.lineWidth = 2; for (let i = 0; i < 9; i++) { const a = i / 9 * 6.283 + k * 1.2; g.beginPath(); g.moveTo(cx + rad * Math.cos(a), cy + rad * Math.sin(a)); g.lineTo(cx + 290 * Math.cos(a + .9), cy + 290 * Math.sin(a + .9)); g.stroke(); } g.restore();
+    g.beginPath(); g.arc(cx, cy, 290, 0, 6.283); g.strokeStyle = '#d9c49a'; g.lineWidth = 2; g.stroke();
+    const lines = ['Containment', 'Non-Waste', 'Catalysis is debt', 'Tonicity is truth', 'The Code is written', 'A body is its own argument', 'The Membrane is mercy'];
+    const c0 = d * .48; lines.forEach((l, i) => { const a = ramp(t, c0 + i * .45, c0 + i * .45 + .5); const ang = -Math.PI / 2 + i / 7 * 6.283; text(l, cx + 360 * Math.cos(ang) * 1.05, cy + 270 * Math.sin(ang), { sz: 22, fam: 'TeX Gyre Bonum', col: '#f4e8cc', a }); });
+    chap(p, t); },
+  convo(t, d, p, T) { paper(T); const cx = W / 2, cy = 390; const n = 5; const k = ramp(t, 3.2, 4.4);
+    g.beginPath(); g.ellipse(cx, cy, 300, 130, 0, 0, 6.283); g.fillStyle = 'rgba(90,64,38,.9)'; g.fill(); g.strokeStyle = '#d9c49a'; g.lineWidth = 2; g.stroke();
+    text('THE MOTION', cx, cy, { sz: 26, fam: 'TeX Gyre Bonum', col: '#f4e8cc', sp: 6, a: k });
+    const names = ['OFFER', 'READ', 'REVEAL', 'BIND', 'WALK'];
+    for (let i = 0; i < n; i++) { const a = -Math.PI / 2 + i / n * 6.283 + Math.PI / n; const x = cx + 400 * Math.cos(a), y = cy + 200 * Math.sin(a); const live = Math.floor(T * .5) % n === i;
+      g.save(); g.globalAlpha = k; g.beginPath(); g.arc(x, y, live ? 38 : 32, 0, 6.283); g.fillStyle = live ? '#f4e8cc' : 'rgba(232,214,172,.6)'; g.fill(); g.restore();
+      text(names[i], x, y + (y < cy ? -62 : 62), { sz: 20, fam: 'TeX Gyre Bonum', col: '#d9c49a', sp: 4, a: k * ramp(t, 5 + i * .4, 5.5 + i * .4) }); }
+    chap(p, t); },
+  qend(t, d, p, T) { paper(T); hearth(W / 2, H / 2, .5 + .2 * Math.sin(T));
+    text('breathe carefully.', W / 2, H / 2 - 20, { sz: 72, w: 400, fam: 'TeX Gyre Chorus', col: '#fff4dc', a: ramp(t, 1, 2.2) });
+    text('THE OSMOTIC EXPANSE', W / 2, H / 2 + 80, { sz: 26, fam: 'TeX Gyre Bonum', col: '#d9c49a', sp: 10, a: ramp(t, 3, 4) }); },
+};
+
+// ---------- the clock ----------
+let starts = [];
+function setup(mode, plan) { MODE = mode; PLAN = plan; let s = 0; starts = plan.map((r) => { const a = s; s += r.dur; return a; }); return { total: s, scenes: plan.length }; }
+function draw(si, t, frame) {
+  const sc = PLAN[si], T = starts[si] + t, d = sc.dur;
+  g.save(); g.clearRect(0, 0, W, H);
+  S[sc.kind](t, d, sc.p, T);
+  if (MODE === 'quorum') archive(T, frame);
+  const fin = ramp(t, 0, .7), fout = 1 - ramp(t, d - .7, d);
+  g.fillStyle = `rgba(0,0,0,${1 - Math.min(fin, fout)})`; g.fillRect(0, 0, W, H);
+  g.restore();
+}
+window.film = {
+  async load(mode, plan, keys) {
+    makeNoise();
+    await Promise.all(keys.map((k) => new Promise((ok) => { const im = new Image(); im.onload = () => { IMG[k] = im; ok(); }; im.onerror = ok; im.src = `img/${k}.png`; })));
+    await document.fonts.load('700 40px "TeX Gyre Adventor"'); await document.fonts.load('40px "TeX Gyre Bonum"'); await document.fonts.load('40px "TeX Gyre Chorus"'); await document.fonts.load('40px "Lora"');
+    return setup(mode, plan);
+  },
+  draw,
+};
+</script></body></html>
