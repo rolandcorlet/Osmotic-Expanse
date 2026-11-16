@@ -29,3 +29,27 @@ QUORUM = [
  ("convo", "Not everything goes to the air, of course. Smaller matters, a market, a trial, a wedding, are settled in a Convocation: one room, one motion, and three to six parties haggling as if their lives depended on it. Which, frequently, they do.", {"chap": "IX", "head": "CONVOCATION"}),
  ("qend", "So the next time your colony goes quiet, and the Hearth air turns thick and strange, breathe carefully. History is being made. And you, my dear, are in it.", {}),
 ]
+
+def _s(*pairs): return {"shots": [[f"ui-{i:02d}", fr] for i, fr in pairs]}
+UI = [
+ ("title", "Right then, my lovely organisms. Let's take a quick tour of your screen at the table. Phone, tablet or laptop: it all works the same way.", {"t1": "HOW TO PLAY", "t2": "AT THE TABLE", "sub": "the player's screen"}),
+ ("phone", "When your host shares the link, open it, and type the name the table calls you. Press Join. That's it. No account, no password, no fuss.", {**_s((1, [0, 640, 860, 520]), (2, [0, 640, 860, 520])), "head": "JOIN THE TABLE"}),
+ ("phone", "First, session zero. Read it. If anything is too much, say the pause word, Slack Water, and the scene stops, no questions asked. You can also add things to leave out of the game, and nobody is told who asked.", {**_s((3, [0, 120, 860, 620])), "head": "SESSION ZERO"}),
+ ("phone", "If you'd rather talk than type, say yes here, and the Talk button will listen through your phone. Then tap: I have read this, and I am ready to play.", {**_s((3, [0, 740, 860, 720])), "head": "READY?"}),
+ ("phone", "Now choose your character. In this world it's called an organism. There are four ready-made Hands, each described in plain words: the tough one, the clever one, the fast one and the sharp one.", {**_s((4, [0, 760, 860, 900])), "head": "CHOOSE A CHARACTER"}),
+ ("phone", "Tap one, and give it a name, or press Random name until something tickles you. Then press Play this organism.", {**_s((5, [0, 1250, 860, 520])), "head": "NAME YOUR ORGANISM"}),
+ ("phone", "This is the Play tab, your home. The Story shows what the Director says, and what everyone does. Underneath is the box where you tell the Director what your organism does, in your own words.", {**_s((6, [0, 170, 860, 560])), "head": "THE STORY"}),
+ ("phone", "Type it and press Say, or press Talk and simply speak. No commands. No menus. Just say what you do.", {**_s((7, [0, 380, 860, 300])), "head": "SAY WHAT YOU DO"}),
+ ("phone", "When something is uncertain, the Director asks you to roll. This card shows how many dice you get, the number you need to beat, and your chance of success. Press Roll the dice.", {**_s((8, [0, 100, 860, 620])), "head": "YOUR ROLL"}),
+ ("phone", "And the app does the arithmetic. Ones count as nothing, and cost you Stress. Anything over the Threshold is Overflow, and it buys you something. Two sixes and no ones? That's Runaway Catalysis. Smashing.", {**_s((9, [0, 960, 860, 520])), "head": "THE RESULT"}),
+ ("phone", "Prefer real dice? Tap I rolled my own, roll them on the table, and tap in each die. The app trusts you. Mostly.", {**_s((10, [0, 0, 860, 560])), "head": "YOUR OWN DICE"}),
+ ("phone", "Lost? Tap Where you are, for the room, what's in front of you, the distances, and the way out.", {**_s((11, [0, 150, 860, 1250])), "head": "WHERE YOU ARE"}),
+ ("phone", "The Sheet tab is your organism: health, energy, Stress, your dice for every skill, your weapon and your kit. It keeps itself up to date, so there's no rubbing out.", {**_s((12, [0, 120, 860, 1050])), "head": "YOUR SHEET"}),
+ ("phone", "Story is everything the Cohort has found out so far. Words explains every strange word in plain English, with a search box. And Rolls keeps every throw, in case anybody argues.", {**_s((13, [0, 120, 860, 720]), (14, [0, 120, 860, 1300]), (15, [0, 120, 860, 680])), "head": "STORY · WORDS · ROLLS"}),
+ ("phone", "And Colours lets you restyle the whole screen, with a high contrast option, if the soup is hard on the eyes.", {**_s((16, [0, 100, 860, 1100])), "head": "COLOURS"}),
+ ("phone", "When a fight starts, a Pulse War appears. On your turn you get Pulse Points, those little circles, and every action shows its price on the button: Strike two, Drift one, Vent one, and so on.", {**_s((17, [0, 620, 860, 1100])), "head": "PULSE WAR"}),
+ ("phone", "Tap Strike, pick a target, tap anything that applies to the situation, and Strike. Then roll, exactly as before.", {**_s((18, [0, 880, 860, 760]), (19, [0, 100, 860, 620])), "head": "STRIKE"}),
+ ("phone", "A hit! The damage is worked out for you, armour and all. Nobody does sums at this table.", {**_s((20, [80, 580, 700, 640])), "head": "HIT"}),
+ ("phone", "When something attacks you, the Incoming card appears. If you held a Reserve on your turn, you can Deflect, Brace or Inhibit. If not, let the dice fall, and be brave about it.", {**_s((21, [0, 100, 860, 620])), "head": "INCOMING"}),
+ ("end", "That's the whole screen. Say what you do, roll when you're asked, and leave the sums to us. Now off you go, and do mind the membrane.", {"t1": "SAY WHAT YOU DO.", "t2": "ROLL WHEN ASKED.", "sub": "The Osmotic Expanse"}),
+]

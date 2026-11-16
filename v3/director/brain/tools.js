@@ -23,6 +23,9 @@ function findOrg(s, ref) {
 }
 // The amounts a site prints under Pays: Codon values, and Substrate values or ranges.
 // A model may send a flag as true, "true", "True" or "yes": all mean yes. (Run of 16 Nov: "True" was read as false and a kept Oath was marked broken.)
+// Which sites one step reaches: a site may list its own (`to`, for a Vector whose map is not a line,
+// such as The Ninth Shift's alley off the Row); otherwise the sites before and after it.
+export const reachable = (sc, site) => site.to || sc.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => x.id);
 const truthy = (v) => v === true || (typeof v === 'string' && /^\s*(true|yes|y|1)\s*$/i.test(v));
 
 export function printedPays(site) {
@@ -656,14 +659,14 @@ export const TOOLS = [
   },
   {
     name: 'change_site',
-    description: 'The Cohort leaves by an exit and arrives at the next site. Only the sites directly before and after the current one can be reached. The new site\'s situation reaches you on your next turn: end your turn after calling this with one sentence of travel, and open the new scene next turn.',
+    description: 'The Cohort leaves by an exit and arrives at the next site. Only the sites listed as reachable from here can be reached. The new site\'s situation reaches you on your next turn: end your turn after calling this with one sentence of travel, and open the new scene next turn.',
     parameters: obj({ site: S('The site id, for example "soft-field".') }, ['site']),
     run(a, T) {
       const here = T.site();
       const to = T.scenario.sites.find((x) => x.id === lower(a.site));
       if (!to) return { refused: `No site "${a.site}". Sites: ${T.scenario.sites.map((x) => x.id).join(', ')}.` };
       if (to.id === here.id) return { note: `The Cohort is already at ${here.name}. Nothing changed: narrate it from here.` };
-      if (Math.abs(to.n - here.n) !== 1) return { refused: `${to.name} cannot be reached from ${here.name} in one step.` };
+      if (!reachable(T.scenario, here).includes(to.id)) return { refused: `${to.name} cannot be reached from ${here.name} in one step.` };
       const no = T.do({ type: 'scene.set', siteId: to.id });
       return no ? { refused: no } : { arrived_at: to.name, note: 'End your turn now with one sentence about the way there and no question. Do not describe the new place yet: what is there reaches you on your next turn, and you open it then.' };
     },

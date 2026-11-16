@@ -1762,3 +1762,14 @@ test('the count-in-the-walls check is The First Carve\'s only: a ticking tank in
   const s = newSession(ninth);
   assert.ok(!checkNarration('A squat tank ticks at an hourly rhythm beside them. Bresk, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
 });
+
+test('change_site follows a Vector\'s own map: the Row reaches the alley behind organ 41 in one step', async () => {
+  const { reachable } = await import('../brain/tools.js');
+  const { scenario: ninth } = await import('../data/ninth-shift.js');
+  const { scenario: fc } = await import('../data/first-carve.js');
+  const hearth = ninth.sites.find((s) => s.id === 'picket-hearth');
+  assert.ok(reachable(ninth, hearth).includes('alley-41'));
+  assert.ok(!reachable(ninth, ninth.sites[0]).includes('alley-41'));
+  assert.deepEqual(reachable(fc, fc.sites[1]), [fc.sites[0].id, fc.sites[2].id]);
+  for (const s of ninth.sites) for (const id of reachable(ninth, s)) assert.ok(ninth.sites.some((x) => x.id === id), `${s.id} -> ${id}`);
+});

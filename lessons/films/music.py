@@ -52,7 +52,7 @@ def pad(total):
 
 film = sys.argv[1]
 total = sum(r['dur'] for r in json.load(open('plan.json'))[film])
-m = lounge(total) if film == 'life' else pad(total)
+m = pad(total) if film == 'quorum' else lounge(total)
 m = m / np.max(np.abs(m)) * .9
 fade = int(3 * SR); m[-fade:] *= np.linspace(1, 0, fade)[:, None]; m[:int(.5 * SR)] *= np.linspace(0, 1, int(.5 * SR))[:, None]
 sf.write(f'music_{film}.wav', m, SR); print(film, round(total, 1))

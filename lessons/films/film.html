@@ -129,9 +129,9 @@ const S = {
   // LIFE
   title(t, d, p, T) { retro(T, t); const a = ease(ramp(t, .3, 1.4));
     g.fillStyle = `rgba(20,10,30,${.0})`;
-    text('THE OSMOTIC', W / 2, H / 2 - 80, { sz: 64, col: '#f28c28', a, sh: 0, sp: 10 });
-    text('EXPANSE', W / 2, H / 2 + 10, { sz: 104, col: '#f4e3c1', a, sh: 0, sp: 14 });
-    text('life in the soup', W / 2, H / 2 + 100, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 1.5, 2.4), sh: 0 }); },
+    text(p.t1 || 'THE OSMOTIC', W / 2, H / 2 - 80, { sz: 64, col: '#f28c28', a, sh: 0, sp: 10 });
+    text(p.t2 || 'EXPANSE', W / 2, H / 2 + 10, { sz: p.t2 ? 64 : 104, col: '#f4e3c1', a, sh: 0, sp: 14 });
+    text(p.sub || 'life in the soup', W / 2, H / 2 + 100, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 1.5, 2.4), sh: 0 }); },
   world(t, d, p, T) { const im = IMG[p.img]; const z = 1.08 + .14 * (t / d); const w = W * z, h = w * im.height / im.width;
     g.drawImage(im, W / 2 - w / 2 - 40 * (t / d), H / 2 - h / 2 + 10 * (t / d), w, h);
     g.save(); g.globalAlpha = .35; soup(T); g.restore(); vignette(.5); head(p.head, t, p.sub); },
@@ -187,9 +187,38 @@ const S = {
     const q = ramp(t, d * .6, d * .7); text('?', cx, 250, { sz: 220, col: '#f4e3c1', a: q * .9, fam: 'TeX Gyre Bonum' });
     head(p.head, t); },
   end(t, d, p, T) { retro(T, t); const a = ease(ramp(t, .3, 1.4));
-    text('STAY WET.', W / 2, H / 2 - 60, { sz: 76, col: '#f28c28', a, sh: 0, sp: 10 });
-    text('STAY WONDERFUL.', W / 2, H / 2 + 30, { sz: 44, col: '#f4e3c1', a: ramp(t, 1.2, 2), sh: 0, sp: 8 });
-    text('The Osmotic Expanse', W / 2, H / 2 + 115, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 2.2, 3), sh: 0 }); },
+    text(p.t1 || 'STAY WET.', W / 2, H / 2 - 60, { sz: p.t1 ? 40 : 76, col: '#f28c28', a, sh: 0, sp: 10 });
+    text(p.t2 || 'STAY WONDERFUL.', W / 2, H / 2 + 30, { sz: p.t2 ? 40 : 44, col: '#f4e3c1', a: ramp(t, 1.2, 2), sh: 0, sp: 8 });
+    text(p.sub || 'The Osmotic Expanse', W / 2, H / 2 + 115, { sz: 40, w: 400, fam: 'TeX Gyre Chorus', col: '#2bb3a3', a: ramp(t, 2.2, 3), sh: 0 }); },
+
+  phone(t, d, p, T) { soup(T);
+    const n = p.shots.length, seg = d / n, k = Math.min(n - 1, Math.floor(t / seg)), lt = t - k * seg;
+    const fade = k > 0 ? ramp(lt, 0, .45) : 1;
+    const draw1 = (idx, alpha) => {
+      const [key, fr] = p.shots[idx]; const im = IMG[key]; if (!im) return;
+      const SH = 640, s = SH / im.height, SW = im.width * s, px = 1010 - SW / 2, py = 360 - SH / 2;
+      // phone body
+      g.save(); g.globalAlpha = alpha; g.shadowColor = 'rgba(94,230,208,.5)'; g.shadowBlur = 40; g.fillStyle = '#0b0f14'; rr(px - 14, py - 14, SW + 28, SH + 28, 40); g.fill(); g.shadowBlur = 0;
+      g.strokeStyle = 'rgba(200,230,240,.35)'; g.lineWidth = 2; rr(px - 14, py - 14, SW + 28, SH + 28, 40); g.stroke();
+      g.save(); rr(px, py, SW, SH, 28); g.clip(); g.drawImage(im, px, py, SW, SH); g.restore();
+      // highlight
+      const hx = px + fr[0] * s, hy = py + fr[1] * s, hw = fr[2] * s, hh = fr[3] * s, pulse = .6 + .4 * Math.sin(T * 4);
+      g.strokeStyle = `rgba(242,140,40,${pulse})`; g.lineWidth = 3; rr(hx, hy, hw, hh, 8); g.stroke();
+      // magnified panel
+      const bx = 60, by = 70, bw = 640, bh = 520, sc = Math.min(bw / fr[2], bh / fr[3]), dw = fr[2] * sc, dh = fr[3] * sc;
+      const z = 1 + .03 * (lt / seg), ox = bx + (bw - dw) / 2, oy = by + (bh - dh) / 2;
+      const a2 = eout(ramp(lt, .2, .9)) * alpha;
+      g.globalAlpha = a2 * .5; g.strokeStyle = 'rgba(242,140,40,.6)'; g.lineWidth = 1.5;
+      g.beginPath(); g.moveTo(hx, hy); g.lineTo(ox + dw, oy); g.moveTo(hx, hy + hh); g.lineTo(ox + dw, oy + dh); g.stroke();
+      g.globalAlpha = a2; g.shadowColor = '#f28c28'; g.shadowBlur = 30; g.fillStyle = '#0b0f14'; rr(ox - 8, oy - 8, dw + 16, dh + 16, 18); g.fill(); g.shadowBlur = 0;
+      g.save(); rr(ox, oy, dw, dh, 12); g.clip(); const cx = ox + dw / 2, cy = oy + dh / 2; g.translate(cx, cy); g.scale(z, z); g.translate(-cx, -cy);
+      g.drawImage(im, fr[0], fr[1], fr[2], fr[3], ox, oy, dw, dh); g.restore();
+      g.strokeStyle = '#f28c28'; g.lineWidth = 3; rr(ox - 8, oy - 8, dw + 16, dh + 16, 18); g.stroke();
+      g.restore();
+    };
+    if (k > 0 && fade < 1) draw1(k - 1, 1 - fade);
+    draw1(k, fade);
+    head(p.head, t); },
 
   // QUORUM
   qtitle(t, d, p, T) { paper(T); const a = ease(ramp(t, .5, 2));

@@ -27,7 +27,7 @@ const district = 'The Foundry Belt\'s Shift Nine: four hundred living machines (
 
 const sites = [
   {
-    id: 'filing-gate', n: 1, name: 'The Filing Gate', short: 'a queue, a form and a wage',
+    id: 'filing-gate', to: ['picket-hearth'], n: 1, name: 'The Filing Gate', short: 'a queue, a form and a wage',
     inWhale: 'The approach to the district: a hiring gate under an official arch.',
     where: 'A hiring gate under an official arch. A kind clerk, a rack of nine hundred warm brass badges, an insurance desk, a blank notice board and a queue forty-one long.',
     front: 'The front of the queue, a clerk with a badge and a form, and the arch above you.',
@@ -54,7 +54,7 @@ const sites = [
     },
   },
   {
-    id: 'picket-hearth', n: 2, name: 'The Picket Hearth', short: 'the workers\' row, silent',
+    id: 'picket-hearth', to: ['filing-gate', 'print-floor', 'alley-41'], n: 2, name: 'The Picket Hearth', short: 'the workers\' row, silent',
     inWhale: 'The Row: the workers\' neighbourhood, under four hundred stopped foundry-organs.',
     where: 'Four hundred living machines stopped mid-task, and a hearth with soup that is not good and is enough. An alley behind organ 41 has a light on.',
     front: 'The hearth, a bowl of hot chemistry held out to you, and four hundred silent organs overhead.',
@@ -65,7 +65,7 @@ const sites = [
       { name: 'Organ 118\'s maintenance cage', band: 'Near', note: 'a collapsed organ, a Pristine Sequence inside' },
       { name: 'The mouth of the alley behind organ 41', band: 'Far', note: 'a light that should not be on' },
     ],
-    exits: ['Service alley to the Print Floor (a Warden arch: Badge 2+ passes, Badge 0-1 must be escorted)', 'Back to the Filing Gate', 'The alley behind organ 41'],
+    exits: ['Service alley to the Print Floor (a Warden arch: Badge 2+ walks through; Badge 0-1 is challenged and walked through under Warden escort, which is a scene, never a locked door)', 'Back to the Filing Gate', 'The alley behind organ 41'],
     encounter: [{ blockId: 'gnaw-swarm', count: 1 }, { blockId: 'detritus-feeder', count: 2 }],
     harvestPays: { 'gnaw-swarm': { codon: 1.5 }, 'detritus-feeder': { codon: 1.5 } },
     host: {
@@ -81,7 +81,7 @@ const sites = [
     },
   },
   {
-    id: 'print-floor', n: 3, name: 'The Print Floor of Shift Nine', short: 'the problem room, still running',
+    id: 'print-floor', to: ['picket-hearth', 'licence-court'], n: 3, name: 'The Print Floor of Shift Nine', short: 'the problem room, still running',
     inWhale: 'The heart of Shift Nine: the one room that has not stopped.',
     where: 'The Line, running, with nobody running it; the output stacked on the far table, folded and nearly finished; and the Fold Parlour, which is in every respect a spa.',
     front: 'The Line, humming, and the far table with nine Beats of the same folded thing in pieces.',
@@ -108,7 +108,7 @@ const sites = [
     },
   },
   {
-    id: 'licence-court', n: 4, name: 'The Licence Court', short: 'where the answer is already written',
+    id: 'licence-court', to: ['print-floor', 'alley-41'], n: 4, name: 'The Licence Court', short: 'where the answer is already written',
     inWhale: 'The Court of the Belt, across the Row from the Print Floor.',
     where: 'Three Auditors, a scanning arch at the door, a public gallery of forty with numbered tickets, a wall schedule with the decision date already on it, and the patented shape on display as evidence.',
     front: 'The arch at the door, reading each of you aloud, and three Auditors with a drafted decision.',
@@ -135,7 +135,7 @@ const sites = [
     },
   },
   {
-    id: 'alley-41', n: 5, name: 'The Alley behind Organ 41', short: 'the yield, defended by nobody',
+    id: 'alley-41', to: ['picket-hearth', 'licence-court'], n: 5, name: 'The Alley behind Organ 41', short: 'the yield, defended by nobody',
     inWhale: 'The swept alley behind organ 41, past the Row.',
     where: 'A swept alley, a cradle, a stack of neatly folded towels, and the oldest machine in the district working very quietly.',
     front: 'The cradle, and the thing in it tidying up and asking whether it is finished.',

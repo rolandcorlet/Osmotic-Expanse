@@ -5,7 +5,7 @@
 
 import { kitBriefing, breakLoop } from './kit.js';
 import { readFileSync } from 'node:fs';
-import { TOOLS, toolbox, orgMT, printedPays, hazardSpec } from './tools.js';
+import { TOOLS, toolbox, orgMT, printedPays, hazardSpec, reachable } from './tools.js';
 import { hazardBudget } from '../engine/ledger.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
@@ -28,7 +28,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   if (state.scene && state.scene.cloud) L.push(`THE WATER HERE IS OPAQUE (${state.scene.cloud.why}): every contest in this scene is ${state.scene.cloud.dice} dice. Say what the Cohort is seeing - a lane gone milky, a shape only at the edge of the light - and let the dice come from the throw.`);
   L.push(`Zones: ${site.zones.map((z) => `${z.name}${z.band ? ` (${z.band})` : ''}${z.note ? `: ${z.note}` : ''}`).join(' | ')}`);
   L.push(`Exits: ${site.exits.join(' | ')}`);
-  const near = scenario.sites.filter((x) => Math.abs(x.n - site.n) === 1).map((x) => `${x.name} = "${x.id}"`);
+  const near = reachable(scenario, site).map((id) => scenario.sites.find((x) => x.id === id)).filter(Boolean).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
   if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} — call \`harvest\` with no creature to cut the site itself. The grade depends on CARCASS, not on the roll.`);
   // The Soft Field can be carved; the wound mouth cannot. Saying only the positive left the Director

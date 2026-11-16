@@ -6,7 +6,7 @@ film = sys.argv[1]; stills = '--stills' in sys.argv
 only = None
 if '--only' in sys.argv: only = [int(x) for x in sys.argv[sys.argv.index('--only') + 1].split(',')]
 plan = json.load(open('plan.json'))[film]
-keys = sorted({v for r in plan for k, v in r['p'].items() if k in ('img', 'a', 'b')} | {c[0] for r in plan for c in r['p'].get('cards', [])})
+keys = sorted({v for r in plan for k, v in r['p'].items() if k in ('img', 'a', 'b')} | {c[0] for r in plan for c in r['p'].get('cards', [])} | {c[0] for r in plan for c in r['p'].get('shots', [])})
 os.makedirs('out', exist_ok=True); os.makedirs('stills', exist_ok=True)
 with sync_playwright() as p:
     b = p.chromium.launch(); pg = b.new_page(viewport={'width': 1280, 'height': 720})

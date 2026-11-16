@@ -1,0 +1,35 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+html,body{margin:0}body{width:1280px;height:720px;overflow:hidden;position:relative;font-family:"TeX Gyre Adventor";background:#000}
+.bg{position:absolute;inset:-20px;background:url(img/order-II.png) center/cover;filter:sepia(1) saturate(1.4) contrast(1.2) brightness(.5)}
+.glow{position:absolute;inset:0;background:radial-gradient(circle at 25% 55%,rgba(255,206,120,.55),transparent 42%),radial-gradient(circle at 85% 90%,rgba(255,60,40,.25),transparent 40%)}
+.dots{position:absolute;left:20px;top:80px;width:520px;height:560px}
+.card{position:absolute;left:110px;top:95px;height:520px;transform:rotate(5deg);border-radius:22px;box-shadow:0 0 70px 14px rgba(255,200,110,.85),0 0 0 8px #fff;filter:sepia(.35) contrast(1.1)}
+.ring{position:absolute;left:70px;top:140px;width:400px;height:400px;border:14px solid #ff2b2b;border-radius:50%;transform:rotate(8deg);box-shadow:0 0 25px rgba(255,0,0,.8)}
+.t{position:absolute;right:46px;text-align:right;font-weight:700;line-height:.92;-webkit-text-stroke:10px #000;paint-order:stroke fill;text-shadow:0 8px 0 #000,0 0 40px rgba(0,0,0,.8)}
+.t1{top:58px;font-size:96px;color:#fff}
+.t2{top:162px;font-size:96px;color:#fff}
+.t3{top:286px;font-size:112px;color:#ffd23d}
+.stamp{position:absolute;right:70px;top:470px;color:#ff2b2b;border:9px solid #ff2b2b;border-radius:14px;font:700 64px "TeX Gyre Bonum";letter-spacing:10px;padding:2px 26px;transform:rotate(-8deg);background:rgba(0,0,0,.45);text-shadow:0 0 12px rgba(0,0,0,.8)}
+.leak{position:absolute;left:330px;top:40px;background:#ffd23d;color:#000;font-weight:700;font-size:30px;padding:8px 18px;border-radius:50px;transform:rotate(-7deg);border:4px solid #000}
+.arrow{position:absolute;left:440px;top:470px;width:250px;transform:rotate(-20deg)}
+.badge{position:absolute;left:46px;bottom:36px;background:#1b120a;color:#f4e8cc;font:700 38px "TeX Gyre Bonum";letter-spacing:4px;padding:10px 24px;border-radius:12px;border:4px solid #f4e8cc;box-shadow:0 6px 0 #000}
+.bar{position:absolute;left:0;right:0;height:22px;background:#000}
+</style></head><body>
+<div class="bg"></div><div class="glow"></div>
+<svg class="dots" viewBox="0 0 520 560"></svg>
+<img class="card" src="img/lineage-immunan.png">
+<div class="ring"></div>
+<div class="leak">WHO READS THE AIR?</div>
+<svg class="arrow" viewBox="0 0 260 120"><path d="M250 60 L60 60" stroke="#000" stroke-width="40" stroke-linecap="round"/><path d="M250 60 L60 60" stroke="#ff2b2b" stroke-width="26" stroke-linecap="round"/><path d="M10 60 L90 8 L90 112 Z" fill="#ff2b2b" stroke="#000" stroke-width="8" stroke-linejoin="round"/></svg>
+<div class="t t1">THEY DON'T</div>
+<div class="t t2">VOTE.</div>
+<div class="t t3">THEY BREATHE.</div>
+<div class="stamp">UNLISTED</div>
+<div class="badge">QUORUM · A HISTORY OF THE AIR</div>
+<div class="bar" style="top:0"></div><div class="bar" style="bottom:0"></div>
+<script>
+const s=document.querySelector('.dots');let x=7;const r=()=>(x=(x*16807)%2147483647)/2147483647;
+for(let i=0;i<220;i++){const c=document.createElementNS('http://www.w3.org/2000/svg','circle');const a=r()*6.28,d=60+r()*240;
+c.setAttribute('cx',260+Math.cos(a)*d);c.setAttribute('cy',280+Math.sin(a)*d*.9);c.setAttribute('r',1.5+r()*3.5);c.setAttribute('fill',r()<.7?'rgba(255,214,140,.9)':'rgba(170,200,240,.8)');s.appendChild(c);}
+</script>
+</body></html>

@@ -15,6 +15,7 @@ export const SWALLOW = [
     ['p2', 'The way is clear. We go through into the Chapel.'],
     ['p3', 'What are the numbered sacs, and whose is the one with Ock\'s crew?'],
     ['p1', 'A Sentinel is asking who we are. I tell it truthfully what we are.'],
+    ['p3', 'We all give the pilot our true names, and take the sponsorship.'],
     ['p4', 'I ask the pilgrims what they will sell us, and what they want.'],
     ['p2', 'I look at the fresh cut in the wall. Who made it?'],
     ['p3', 'We take the ferry deeper to the Churn.'],
