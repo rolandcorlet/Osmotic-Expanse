@@ -445,7 +445,9 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (sentences.some((sn) => FRACTION.test(sn) && !playerPara(sn) && !/\b(?:CARCASS|TOLL|HUNGER|Clocks?|Oaths?|Lysis|Countdown|Stress|Pulse Points?)\b/i.test(sn) && !people.some((p) => sn.toLowerCase().includes(p)) && !/\b(?:she|her|hers|he|his|him)\b/i.test(sn))) flags.push({ kind: 'leak', text: 'Gives how much of a creature is left as a number, which is its health.' });
   // The page is the Director's, not the table's: only the one sanctioned way of saying no may name it.
   if (/(?<!\b(?:on|off|across|down|from|flip|flips|flipped|turn|turns|turned)\s)\bthe page\b(?!\s+(?:has nothing printed|prints nothing))/i.test(text)) flags.push({ kind: 'style', text: 'Speaks of "the page" as though the players could see it.' });
-  if (MACHINERY.test(text)) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
+  // A lowercase "the engine" is a pump or a motor in the fiction (bench 16 Nov: "shouting over the engine"
+  // was held as a leak). Only the capitalised game Engine is machinery.
+  if (MACHINERY.test(text.replace(/\bthe engine\b/g, 'the motor'))) flags.push({ kind: 'leak', text: 'Mentions the machinery (notes, briefing, tools, the Engine, the Ledger).' });
   // Someone still has dice in the air: putting the next choice to a different organism moves the
   // whole table past a throw that has not landed yet (Roly at the table, 12 Nov 2026).
   const pend = (state.requests || []).map((rq) => (rq.kind === 'incoming' ? rq.target : rq.actor)).filter((a) => a && a.kind === 'org');
@@ -539,7 +541,7 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   if (unpaidClock.length) flags.push({ kind: 'rule', text: `Names ${unpaidClock.join(' and ')} moving when nothing moved it.` });
   // The count in the walls (bench 16 Nov, Gut Stone): narrated as shortening six turns running while TOLL
   // stood still at 3. A countdown the table hears getting closer has to be a Clock that moved.
-  const countShortens = sentences.some((sn) => /\b(?:count|countdown|schedule|charge)\b/i.test(sn) && /\b(?:lost|loses|losing|shorter|shortens|shortening|clicks?|closer|nearer|ticks?|ticking)\b/i.test(sn));
+  const countShortens = sentences.some((sn) => /\b(?:count|countdown|schedule|charge|rhythm|cadence|pump-rhythm|beats?)\b/i.test(sn) && /\b(?:lost|loses|losing|shorter|shortens|shortening|clicks?|closer|nearer|ticks?|ticking|skips?|skipped|skipping)\b/i.test(sn));
   if (countShortens && !(state.log || []).some((e) => e.seq > since && e.kind === 'clock')) {
     flags.push({ kind: 'rule', text: 'Names the count in the walls shortening when no Clock moved: say it holds steady, or move TOLL.' });
   }

@@ -1721,3 +1721,15 @@ test('the count in the walls may not shorten unless a Clock moved', () => {
   const moved = { ...s, seq: 5, log: [{ seq: 4, kind: 'clock', text: 'TOLL moves to 4 of 5: the fight carried.' }] };
   assert.ok(!checkNarration(said, moved, { since: 3 }).some((x) => /count in the walls/.test(x.text)));
 });
+
+test('a pump engine in the fiction is not a leak; the game Engine still is', () => {
+  const s = newSession(scenario);
+  assert.ok(!checkNarration('Nine crew shout over the engine to drain the room. Bresk, what do you do?', s).some((x) => x.kind === 'leak'));
+  assert.ok(checkNarration('The Engine refused that. Bresk, what do you do?', s).some((x) => x.kind === 'leak'));
+});
+
+test('the pump rhythm skipping is the same countdown and needs a Clock too', () => {
+  const s = newSession(scenario);
+  assert.ok(checkNarration('The pump-rhythm in the wall skips again, shorter. Bresk, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
+  assert.ok(!checkNarration('The pump hammers on. Bresk, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
+});

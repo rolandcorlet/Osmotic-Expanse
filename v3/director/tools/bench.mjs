@@ -259,6 +259,9 @@ async function once(n) {
     const prev = s;
     s = r.state;
     moved(prev);
+    // What the Engine itself did, so a gate read can check Clocks, Oaths, collapses and deaths against the story.
+    for (const e of s.log.filter((x) => x.seq > engSeq && (x.kind === 'clock' || x.kind === 'danger' || /Oath|Total Lysis|Render Cascade|Autophagic|Dormant|Countdown/.test(String(x.text))))) console.log(`  (engine) ${e.text}`);
+    engSeq = s.seq;
     await writeChapters();
     shareOut();
     for (const c of r.calls) { if (c.name === 'recall') tally.recalls += 1; if (c.name === 'remember') tally.remembers += 1; }
@@ -294,7 +297,7 @@ async function once(n) {
   }
 
   // The players' side, played simply: roll what is asked, let attacks fall, strike on their turn.
-  let stallSeq = 0;
+  let engSeq = 0;
   let lastSaid = '';
   let stallKey = '';
   let stallRun = 0;
@@ -305,9 +308,6 @@ async function once(n) {
         const pid = q.kind === 'incoming' ? s.organisms[q.target.id].playerId : s.organisms[q.actor.id].playerId;
         act('player', pid, { type: 'roll', requestId: q.id });
         const r = s.rolls[s.rolls.length - 1];
-        const fresh = s.log.filter((e) => e.seq > (stallSeq || 0) && (e.kind === 'clock' || /Oath|Total Lysis|Render Cascade|Stress/.test(e.text))).slice(-6);
-        stallSeq = s.seq;
-        for (const e of fresh) console.log(`  (engine) ${e.text}`);
         console.log(`  (roll) ${r.who}: ${r.dice.join(',')} = ${r.total} against ${r.at}: ${r.success ? `success, Overflow ${r.overflow}` : `short by ${r.shortBy}`}`);
         await director('a roll was made');
         continue;
