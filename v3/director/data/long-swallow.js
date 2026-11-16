@@ -173,8 +173,9 @@ export const scenario = {
   rules: {
     // 3: LICENCE advances one segment per Beat (the Engine pays it when the day ends).
     beatClocks: ['LICENCE'],
-    // IMMUNE moves on loud, noticed actions; CHURN on schedule (the Director says when it fills). LICENCE only on the Beat.
-    aiAdvanceCap: { IMMUNE: 5, CHURN: 4, LICENCE: 0 },
+    // IMMUNE moves on loud, noticed actions; CHURN on schedule (the Director says when it fills). LICENCE on the
+    // Beat, and once for a printed non-day trigger (6.4: a Breach advances LICENCE 1).
+    aiAdvanceCap: { IMMUNE: 5, CHURN: 4, LICENCE: 1 },
     // 6.2: a loud success is what the body notices (never a failed roll).
     clockTriggers: { loud: ['IMMUNE'] },
     valueClock: 'IMMUNE',

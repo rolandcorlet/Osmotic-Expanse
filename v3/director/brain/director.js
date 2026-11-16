@@ -551,7 +551,8 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
   // The count in the walls (bench 16 Nov, Gut Stone): narrated as shortening six turns running while TOLL
   // stood still at 3. A countdown the table hears getting closer has to be a Clock that moved.
   const countShortens = sentences.some((sn) => /\b(?:count|countdown|schedule|charge|rhythm|cadence|pump-rhythm|beats?)\b/i.test(sn) && /\b(?:lost|loses|losing|shorter|shortens|shortening|clicks?|closer|nearer|ticks?|ticking|skips?|skipped|skipping)\b/i.test(sn));
-  if (countShortens && !(state.log || []).some((e) => e.seq > since && e.kind === 'clock')) {
+  // The count in the walls is The First Carve's (TOLL): other Vectors' clerks may tick and rhythms may skip.
+  if (countShortens && (state.clocks || {}).TOLL && !(state.log || []).some((e) => e.seq > since && e.kind === 'clock')) {
     flags.push({ kind: 'rule', text: 'Names the count in the walls shortening when no Clock moved: say it holds steady, or move TOLL.' });
   }
   // "A roll that succeeds, succeeds." Run 2 of the 13 Nov evening gate: Bresk threw 16 against 12 —

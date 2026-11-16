@@ -178,8 +178,9 @@ export const scenario = {
     beatClocks: ['SHIFT'],
     // 3.3: the Court\'s hearing is convened at the end of Beat 4; the decision is issued.
     beatSets: { 4: { PAPER: 4 } },
-    // BADGE and PAPER move on printed triggers many times; SHIFT only on the beat.
-    aiAdvanceCap: { BADGE: 6, PAPER: 4, SHIFT: 0 },
+    // BADGE and PAPER move on printed triggers many times. SHIFT moves on the Beat (the Engine pays it) and
+    // for its printed non-day triggers, e.g. the jam fixed (7.3) - the Director's, twice a session at most.
+    aiAdvanceCap: { BADGE: 6, PAPER: 4, SHIFT: 2 },
     // 3.3: any loud success, seizure or destroyed construct advances PAPER (the Cohort is seen).
     clockTriggers: { loud: ['PAPER'] },
     loudChance: { PAPER: 1 },

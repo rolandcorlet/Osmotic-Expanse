@@ -1755,3 +1755,10 @@ test('bench scripts: every later part opens with its own move line', async () =>
     parts.slice(1).forEach((p, i) => assert.match(p[1][1], /^The way is clear/, `${f} part ${i + 2}`));
   }
 });
+
+test('the count-in-the-walls check is The First Carve\'s only: a ticking tank in The Ninth Shift is not a Clock', async () => {
+  const { newSession } = await import('../engine/ledger.js');
+  const { scenario: ninth } = await import('../data/ninth-shift.js');
+  const s = newSession(ninth);
+  assert.ok(!checkNarration('A squat tank ticks at an hourly rhythm beside them. Bresk, what do you do?', s, { since: 0 }).some((x) => /count in the walls/.test(x.text)));
+});

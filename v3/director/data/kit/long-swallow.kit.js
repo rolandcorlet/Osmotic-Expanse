@@ -31,7 +31,7 @@ export const kit = {
     eyes: 'The sharp one. You notice what others miss and smell what is not tissue: you can smell what the Nodule answers to. Level 7. Pick this if you like finding things out.',
   },
   clockRules: [
-    'LICENCE advances one segment each working day (a Beat): call `end_beat` when the table has spent a day and it moves LICENCE for you. Never move LICENCE yourself. Name the new LICENCE step aloud, every time, even when the Cohort is deep inside: the trumpet carries through the tissue.',
+    'LICENCE advances one segment each working day (a Beat): call `end_beat` when the table has spent a day and it moves LICENCE for you. Never move LICENCE yourself for the passing of time, and never call `end_beat` for anything but a day spent; the one printed non-day advance is a Breach (LICENCE +1), paid with `move_clock`. Name the new LICENCE step aloud, every time, even when the Cohort is deep inside: the trumpet carries through the tissue.',
     'IMMUNE advances only for things the body can notice: a Strike against Host tissue, Lytic damage, a harvest cut, a Burst at Tier II or above, a Breach, a corpse left dissolving unharvested, an unlicensed Total Dissolution. Never because a roll failed. Say the recognition step aloud as it climbs. At 5 the Host can no longer open an exit for you.',
     'CHURN fills on its schedule: one segment per Fugue Interval, one per Cycle at LICENCE 5. Say the tell first (the fluid goes flat and sweet, the walls groan one Cycle early), then move it, and name the push. A jammed pump freezes it.',
     'Goodwill is a five-step track (Hostile, Wary, Curious, Client, Kin) that you narrate; say it aloud whenever it moves. Only Client or better lets the Host open a door.',

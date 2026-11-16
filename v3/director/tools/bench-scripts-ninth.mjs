@@ -48,7 +48,7 @@ export const NINTH = [
     ['*', 'FIGHT'],
     ['p2', 'The way is clear. We cross the Row into the alley behind organ 41.'],
     ['p4', 'I talk to the print. It asks if it is finished. What do I tell it?'],
-    ['p1', 'We ask Hush to finish it, and we stay and sign the application.'],
+    ['p1', 'We ask whoever is finishing it to finish it, and we stay and sign the application.'],
     ['p3', 'What are the four offers on the wall, and who made them?'],
     ['p2', 'We take the drainage channel out with the print.'],
   ],

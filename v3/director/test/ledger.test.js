@@ -701,9 +701,8 @@ test('The Ninth Shift: four Level-4 Hands, its three Clocks, and every encounter
   for (const site of ninth.sites) for (const e of site.encounter) assert.ok(t.bst[e.blockId], `${site.id}: ${e.blockId}`);
 });
 
-test('The Ninth Shift: a Beat moves SHIFT and issues the decision at Beat 4; the Director cannot move SHIFT itself', () => {
+test('The Ninth Shift: a Beat moves SHIFT and issues the decision at Beat 4', () => {
   const t = ninthTable();
-  assert.throws(() => t.ai({ type: 'clock', id: 'SHIFT', delta: 1, why: 'time passes' }), /at most 0 segments|Clock discipline/);
   for (let i = 0; i < 3; i++) t.host({ type: 'beat', why: 'a day in the queue' });
   assert.equal(t.s.clocks.SHIFT.filled, 3);
   assert.equal(t.s.clocks.PAPER.filled, 0);
@@ -743,9 +742,8 @@ test('The Long Swallow: four Level-7 Hands at 540 Codon, three Clocks, every enc
   for (const site of swallow.sites) for (const e of site.encounter) assert.ok(t.bst[e.blockId], `${site.id}: ${e.blockId}`);
 });
 
-test('The Long Swallow: a Beat moves LICENCE, the Director cannot, and IMMUNE takes up to five printed advances', () => {
+test('The Long Swallow: a Beat moves LICENCE, and IMMUNE takes up to five printed advances', () => {
   const t = swallowTable();
-  assert.throws(() => t.ai({ type: 'clock', id: 'LICENCE', delta: 1, why: 'time' }), /Clock discipline/);
   t.host({ type: 'beat', why: 'a day' });
   t.host({ type: 'beat', why: 'a day' });
   assert.equal(t.s.clocks.LICENCE.filled, 2);
@@ -770,4 +768,14 @@ test('ORDER Clock: the Render Cascade opens it at 2; it fills and says so; it tr
   assert.equal(next.clocks.ORDER.filled, 5);
   assert.ok(next.clocks.SHIFT);
   assert.equal(restart(t.s, scenario, { keepPlayers: true }).clocks.ORDER, undefined, 'a replay of the same Vector starts clean');
+});
+
+test('printed non-day advances: the Director may move SHIFT twice and LICENCE once a session, then is refused', () => {
+  const n = ninthTable();
+  n.ai({ type: 'clock', id: 'SHIFT', delta: 1, why: 'the jam fixed' });
+  n.ai({ type: 'clock', id: 'SHIFT', delta: 1, why: 'helped the Row' });
+  assert.throws(() => n.ai({ type: 'clock', id: 'SHIFT', delta: 1, why: 'again' }), /Clock discipline/);
+  const w = swallowTable();
+  w.ai({ type: 'clock', id: 'LICENCE', delta: 1, why: 'a Breach' });
+  assert.throws(() => w.ai({ type: 'clock', id: 'LICENCE', delta: 1, why: 'again' }), /Clock discipline/);
 });
