@@ -1802,3 +1802,20 @@ test('an away player: the Director plays their turn, and the player cannot act f
   const T2 = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
   assert.match(T2.run('organism_act', { organism: 'Bresk', action: 'sense' }).note, /not away/);
 });
+
+// v3: what each body does in a Pulse War is told to the table in the Story, and says when the Director played it.
+test('the table hears what a player or the Director does in a Pulse War', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  s = apply(s, { type: 'organism.cover', organismId: 'wall', on: true }, ctx('host', null));
+  for (let i = 0; i < 20 && s.fight.turn !== 'org:wall'; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  T.run('organism_act', { organism: 'Bresk', action: 'drift', band: 'contact' });
+  T.run('organism_end_turn', { organism: 'Bresk' });
+  const told = T.state.story.filter((e) => e.kind === 'action');
+  const drift = told.find((e) => /drifts to contact/.test(e.text));
+  assert.ok(drift, JSON.stringify(told));
+  assert.equal(drift.who, 'Bresk of the Sixth Choir');
+  assert.equal(drift.away, true, 'the Director played it, and the table is told so');
+  assert.ok(told.some((e) => /ends its turn/.test(e.text)));
+});

@@ -634,6 +634,13 @@ function say(s, ctx, text, kind = 'info') {
   s.log.push({ seq: s.seq, t: ctx.now || 0, text, kind });
 }
 
+// v3: what a body did, told to the whole table in the Story (the log is for the host). An organism its
+// player is away from is marked as played by the Director.
+function announce(s, ctx, o, text) {
+  if (!s.story) s.story = [];
+  s.story.push({ id: newId(s, 'a'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'action', who: o.name, away: !!(o.covered || !o.playerId), text });
+}
+
 function newId(s, prefix) {
   const id = `${prefix}${s.nextId}`;
   s.nextId += 1;
@@ -1159,6 +1166,8 @@ function resolve(s, ctx, req, ownDice) {
   recordRoll(s, ctx, entry);
   const verdict = req.at == null ? `total ${read.total}` : read.success ? `success, Overflow ${read.overflow}` : `short by ${read.shortBy}`;
   say(s, ctx, `${req.actor.name} rolls ${req.label}: ${read.dice.join(', ')} = ${read.total}${req.at != null ? ` against ${req.at}` : ''}: ${verdict}.`, 'roll');
+  // The table hears how an organism's roll went, whoever threw the dice.
+  if (req.actor.kind === 'org' && s.organisms[req.actor.id]) announce(s, ctx, s.organisms[req.actor.id], `${req.label}: ${verdict}.`);
   return entry;
 }
 
@@ -2431,6 +2440,7 @@ const HANDLERS = {
       if (act.status !== 'acting' && act.status !== 'holding') throw new RuleError('It is not their turn.');
       const wasTurn = s.fight.turn === act.key;
       finishActor(s, ctx, act, !!a.hold && act.status === 'acting');
+      if (kind === 'org' && s.organisms[id]) announce(s, ctx, s.organisms[id], a.hold ? 'holds its Pulse Points for later' : 'ends its turn');
       if (wasTurn || !s.fight.turn) advanceTurn(s, ctx);
     },
   },
@@ -2464,6 +2474,8 @@ const HANDLERS = {
     run(s, a, ctx) {
       needControl(s, ctx, a.organismId);
       const o = org(s, a.organismId);
+      // The log keeps the full line; the Story tells the table what the body did.
+      const tell = (text, told) => { say(s, ctx, text, 'act'); announce(s, ctx, o, told); };
       if (!s.fight) throw new RuleError('Pulse Points are only spent in a Pulse War. Outside a fight, just say what you do.');
       const act = actorOf(s, 'org', o.id);
       if (!act) throw new RuleError(`${o.name} is not in this fight.`);
@@ -2481,7 +2493,7 @@ const HANDLERS = {
         act.spentAtp = true;
         o.stress = Math.max(0, o.stress - 2);
         o.conditions = o.conditions.filter((c) => c.name !== 'Overclocked' && c.name !== 'Turgid');
-        say(s, ctx, `${o.name} Vents: 1 PP and ${atp} ATP. Stress is ${o.stress}. ${act.pp} PP left.`, 'act');
+        tell(`${o.name} Vents: 1 PP and ${atp} ATP. Stress is ${o.stress}. ${act.pp} PP left.`, `vents, easing its Stress to ${o.stress}`);
         return;
       }
       if (a.action === 'burst') {
@@ -2490,7 +2502,7 @@ const HANDLERS = {
         spendPP(s, act, cost, 'That Burst');
         o.atp -= atp;
         act.spentAtp = true;
-        say(s, ctx, `${o.name} begins a Burst: ${cost} PP and ${atp} ATP. ${act.pp} PP left.`, 'act');
+        tell(`${o.name} begins a Burst: ${cost} PP and ${atp} ATP. ${act.pp} PP left.`, `begins an Enzymatic Burst (${cost} PP)`);
         return;
       }
       if (a.action === 'drift') cost += worldNow(s, ctx.scenario).driftExtra;
@@ -2499,12 +2511,12 @@ const HANDLERS = {
         act.drifted = true;
         if (a.band) o.band = a.band;
         o.conditions = o.conditions.filter((c) => c.name !== 'Braced');
-        say(s, ctx, `${o.name} Drifts${a.band ? ` to ${a.band}` : ''} (up to ${o.flow} Drifts${cost > 1 ? `, ${cost} PP while the pumps cramp` : ''}). ${act.pp} PP left.`, 'act');
+        tell(`${o.name} Drifts${a.band ? ` to ${a.band}` : ''} (up to ${o.flow} Drifts${cost > 1 ? `, ${cost} PP while the pumps cramp` : ''}). ${act.pp} PP left.`, `drifts${a.band ? ` to ${a.band}` : ''}`);
       } else if (a.action === 'reserve') {
         act.reserve = true;
-        say(s, ctx, `${o.name} holds a Reserve for a Reactive Osmosis. ${act.pp} PP left.`, 'act');
+        tell(`${o.name} holds a Reserve for a Reactive Osmosis. ${act.pp} PP left.`, 'holds a Reserve, ready to Deflect or Inhibit');
       } else {
-        say(s, ctx, `${o.name}: ${def.name}. ${act.pp} PP left.`, 'act');
+        tell(`${o.name}: ${def.name}. ${act.pp} PP left.`, `${def.name.toLowerCase()}s`);
       }
     },
   },
@@ -2554,6 +2566,7 @@ const HANDLERS = {
         weapon: { id: w.id, name: w.name, bd: (w.bd || [0])[tier - 1] || 0, type, props: w.props || [] }, ppCost: s.fight ? cost : 0, flank: !!a.flank,
       });
       say(s, ctx, `${o.name} Strikes ${c.name} with the ${w.name}${s.fight ? `: ${cost} PP, ${act.pp} left` : ''}. ${pool.dice} dice against Membrane Threshold ${creMT(c)}.`, 'act');
+      announce(s, ctx, o, `strikes ${c.name} with the ${w.name}${s.fight ? ` (${cost} PP)` : ''}`);
       // A creature holding a Reserve Deflects the first attack against it (Bestiary: +4 to its defending Threshold).
       const cAct = actorOf(s, 'cre', c.cid);
       if (cAct && cAct.reserve && !cAct.reacted) {

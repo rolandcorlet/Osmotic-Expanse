@@ -484,7 +484,9 @@ function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {
   const d = state.director || {};
   const rows = (state.story || []).slice(-n).reverse().map((e) => (e.kind === 'narration'
     ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
-    : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
+    : e.kind === 'action'
+      ? `<div class="st act"><b>${esc(e.who)}</b>${e.away ? ' <span class="faint small">played by the Director</span>' : ''} <span class="dim">${esc(e.text)}</span></div>`
+      : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
   // While the Director thinks, its organism churns at the foot of the story where its words will land.
   const thinkRow = d.on && d.thinking ? `<div class="st dir thinking" role="status">${miniFace()}<span class="dim">The Director is thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>` : '';
   return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${(d.on || (state.story || []).some((e) => e.kind === 'narration')) && (canSpeakLocal() || serverVoice()) ? `<button class="chip${speakOn() ? ' on' : ''}" data-act="speak" title="Read the Director's narration aloud on this screen">${V.blocked ? 'Tap to start the voice' : speakOn() ? 'Voice on' : 'Voice off'}</button>` : ''}${d.on ? `<span class="chip${d.thinking ? ' on thinkchip' : ''}">${d.thinking ? `${miniFace()}Thinking…` : 'AI Director'}</span>` : ''}</span></h3>
