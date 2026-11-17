@@ -35,9 +35,9 @@ let keyBad = false;
 let codeBad = false;
 
 const TABS = {
-  player: [['play', 'Play'], ['sheet', 'Sheet'], ['know', 'Story'], ['words', 'Words'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  table: [['table', 'Table'], ['know', 'Story'], ['words', 'Words'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  player: [['play', 'Play'], ['sheet', 'Sheet'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  table: [['table', 'Table'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -316,6 +316,7 @@ function mainHtml() {
   if (ui.tab === 'rolls') return rollsHtml();
   if (ui.tab === 'words') return wordsHtml();
   if (ui.tab === 'know') return knowHtml();
+  if (ui.tab === 'books') return booksHtml();
   if (role === 'player') return playerHtml();
   if (role === 'table') return tableHtml();
   return hostHtml();
@@ -434,9 +435,17 @@ function picturesHtml(list) {
     const has = sc.art && sc.art[k.blockId];
     const up = k.all.filter((c) => !c.down).length;
     const note = k.all.length > 1 ? `${k.all.length} here${up < k.all.length ? `, ${k.all.length - up} down` : ''}` : (k.all[0].down ? 'down' : (k.all[0].looks || ''));
-    // Distance from the Cohort, one line per body, so a pair at two bands reads as two.
-    const where = k.all.map((c) => `<span class="where${c.down ? ' dim' : ''}"><b>${esc(k.all.length > 1 ? (String(c.name).match(/\s([A-Z])$/) || [, ''])[1] || c.name : 'Distance')}</b> ${esc(bandLabel(c.band))}${c.down ? ' · down' : ''}</span>`).join('');
-    return `<figure class="pic${up ? '' : ' gone'}">${has ? `<img alt="${esc(k.name)}" src="/creatures/${esc(k.blockId)}.webp">` : '<div class="nopic">No picture yet</div>'}<figcaption><b>${esc(k.name)}</b>${note ? `<span class="dim small">${esc(note)}</span>` : ''}<span class="wheres">${where}</span></figcaption></figure>`;
+    // Distance from the Cohort, drawn like the Distance card on the table: one band row per distance,
+    // with the bodies in it as tokens (a letter when there are several).
+    const where = BAND_IDS.slice().reverse().map((id) => {
+      const b = R.BANDS.find((x) => x.id === id);
+      const here = k.all.filter((c) => (c.band || 'near') === id);
+      if (!here.length) return '';
+      const range = b.max === Infinity ? `${b.min}+` : b.min === b.max ? `${b.min}` : `${b.min}–${b.max}`;
+      const toks = here.map((c) => `<span class="tok${c.down ? ' down' : ''}">${esc(k.all.length > 1 ? (String(c.name).match(/\s([A-Z])$/) || [, ''])[1] : k.name)}</span>`).join(' ');
+      return `<div class="band"><span class="bn">${b.name}<small>${range} Drifts</small></span><span class="row">${toks}</span></div>`;
+    }).join('');
+    return `<figure class="pic${up ? '' : ' gone'}">${has ? `<img alt="${esc(k.name)}" src="/creatures/${esc(k.blockId)}.webp">` : '<div class="nopic">No picture yet</div>'}<figcaption><b>${esc(k.name)}</b>${note ? `<span class="dim small">${esc(note)}</span>` : ''}<div class="wheres">${where}</div></figcaption></figure>`;
   }).join('');
   return `<div class="pics" data-act="pics.off"><div class="picsin"><div class="row"><b>In this scene</b><span class="grow"></span><button class="btn sm" data-act="pics.off">Close</button></div><div class="picgrid">${cards || '<div class="empty">Nothing is in sight right now.</div>'}</div></div></div>`;
 }
@@ -702,6 +711,82 @@ function knowHtml() {
     ${found.length ? found.map((f) => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${esc(f.text)}${f.how ? `<div class="small faint">${esc(f.how)}</div>` : ''}</div>`).join('') : '<div class="empty">Nothing yet. Look around, ask questions, poke at things.</div>'}
     ${hidden.length ? `<h4 style="margin:14px 0 6px">Still hidden (host only)</h4>${hidden.map((x) => `<div class="small dim" style="padding:4px 0">${x.must ? '● ' : '○ '}${esc(x.text)}</div>`).join('')}` : ''}
     </div></section>`;
+}
+
+// v3: the books, read in the app. A book opens to its contents; each section can be read aloud with the
+// same voice the story uses. The Codex and the Bestiary are for the host only; the server checks that too.
+const BOOKS = [
+  { id: 'quick-start', name: 'Quick Start', note: 'Start here. What a new player needs.' },
+  { id: 'core', name: 'Core Rulebook', note: 'How the rules work.' },
+  { id: 'atlas', name: "Player's Atlas", note: 'The world, its places and its people.' },
+  { id: 'society', name: 'Society Rules and Social Norms', note: 'The laws and customs of the colony.' },
+  { id: 'quorum', name: 'Quorum', note: 'How the colonies decide together.' },
+  { id: 'bestiary', name: 'Lytic Bestiary', note: 'The creatures of the Expanse.', host: true },
+  { id: 'codex', name: "Director's Codex", note: 'For the Director only.', host: true },
+];
+const bookList = () => BOOKS.filter((b) => role === 'host' || !b.host);
+const bookCache = {};
+const plainText = (s) => String(s).replace(/\*\*|__/g, '').replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2').trim();
+function parseBook(md) {
+  const sections = [];
+  let cur = { title: 'Introduction', blocks: [] };
+  let para = [];
+  const flush = () => { if (para.length) { cur.blocks.push({ k: 'p', t: para.join(' ') }); para = []; } };
+  const close = () => { flush(); if (cur.blocks.length) sections.push(cur); };
+  for (const raw of String(md).split(/\r?\n/)) {
+    const line = raw.trim();
+    const top = line.match(/^(#{1,2})\s+(.*)$/);
+    if (top) { close(); cur = { title: plainText(top[2]), blocks: [] }; continue; }
+    if (!line) { flush(); continue; }
+    if (/^\|?\s*:?-{3,}/.test(line)) continue; // a table's divider row
+    if (line.startsWith('|')) { flush(); const t = line.split('|').slice(1, -1).map((c) => plainText(c)).filter(Boolean).join(' · '); if (t) cur.blocks.push({ k: 'row', t }); continue; }
+    const li = line.match(/^(?:[-*]|\d+[.)])\s+(.*)$/);
+    if (li) { flush(); cur.blocks.push({ k: 'li', t: plainText(li[1]) }); continue; }
+    const sub = line.match(/^#{3,6}\s+(.*)$/);
+    if (sub) { flush(); cur.blocks.push({ k: 'h', t: plainText(sub[1]) }); continue; }
+    para.push(plainText(line));
+  }
+  close();
+  return sections.length ? sections : [{ title: 'Book', blocks: [{ k: 'p', t: 'This book is empty.' }] }];
+}
+async function loadBook(id) {
+  if (bookCache[id]) return bookCache[id];
+  const q = new URLSearchParams({ role, pid: pid || '', key: key || '', t: tcode || '' });
+  const res = await fetch(`/books/${id}.md?${q}`);
+  if (!res.ok) throw new Error(res.status === 403 ? 'Only the host can read this one.' : 'This book could not be opened.');
+  return (bookCache[id] = parseBook(await res.text()));
+}
+const canReadAloud = () => canSpeakLocal() || serverVoice();
+function booksHtml() {
+  const b = ui.book;
+  if (!b) {
+    return `<section class="card fill"><h3>Books</h3>
+      <p class="dim small">The rules and the world, to read here. Open a book, then tap Read aloud to hear a section read to you.</p>
+      <div class="scroll" data-scroll="books" style="display:flex;flex-direction:column;gap:8px">${bookList().map((x) => `<button class="book" data-act="book.open" data-id="${x.id}"><b>${esc(x.name)}</b><span class="dim small">${esc(x.note)}</span></button>`).join('')}</div></section>`;
+  }
+  const meta = BOOKS.find((x) => x.id === b.id) || BOOKS[0];
+  const doc = bookCache[b.id];
+  const speak = canReadAloud();
+  const back = b.sec == null
+    ? `<button class="chip" data-act="book.home">All books</button>`
+    : `<button class="chip" data-act="book.contents">Contents</button>`;
+  let body;
+  if (!doc) {
+    body = `<div class="empty">${ui.bookErr ? esc(ui.bookErr) : 'Opening the book…'}</div>`;
+  } else if (b.sec == null) {
+    body = `<div class="book-toc">${doc.map((s, i) => `<button class="book" data-act="book.sec" data-i="${i}"><b>${esc(s.title)}</b></button>`).join('')}</div>`;
+  } else {
+    const s = doc[b.sec] || doc[0];
+    const blocks = s.blocks.map((x) => (x.k === 'h' ? `<h4>${esc(x.t)}</h4>` : x.k === 'li' ? `<div class="bli">• ${esc(x.t)}</div>` : x.k === 'row' ? `<div class="brow">${esc(x.t)}</div>` : `<p class="tale">${esc(x.t)}</p>`)).join('');
+    body = `<h4 style="margin:0 0 8px">${esc(s.title)}</h4>${blocks}
+      <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
+        ${b.sec > 0 ? `<button class="btn" data-act="book.sec" data-i="${b.sec - 1}">Previous</button>` : ''}
+        ${b.sec < doc.length - 1 ? `<button class="btn" data-act="book.sec" data-i="${b.sec + 1}">Next</button>` : ''}
+        ${speak ? `<button class="btn primary" data-act="book.read">Read aloud</button><button class="btn" data-act="book.stop">Stop</button>` : ''}
+      </div>`;
+  }
+  return `<section class="card fill"><h3>${esc(meta.name)}<span class="right">${back}</span></h3>
+    <div class="scroll" data-scroll="book-${b.id}-${b.sec == null ? 'toc' : b.sec}">${body}</div></section>`;
 }
 
 function chooseHandHtml() {
@@ -1297,6 +1382,27 @@ function hostWho() {
 
 const ACT = {
   tab: (d) => { ui.tab = d.t; },
+  'book.open': async (d) => {
+    ui.book = { id: d.id, sec: null };
+    ui.bookErr = '';
+    render();
+    try { await loadBook(d.id); } catch (e) { ui.bookErr = e.message; }
+  },
+  'book.sec': (d) => { if (ui.book) { ui.book.sec = Number(d.i); const s = document.querySelector('[data-scroll]'); if (s) s.scrollTop = 0; } },
+  'book.contents': () => { if (ui.book) ui.book.sec = null; },
+  'book.home': () => { ui.book = null; ui.bookErr = ''; stopVoice(); },
+  'book.read': () => {
+    const b = ui.book;
+    const s = b && bookCache[b.id] && b.sec != null ? bookCache[b.id][b.sec] : null;
+    if (!s) return;
+    stopVoice();
+    V.blocked = false;
+    try { if (canSpeakLocal()) speechSynthesis.resume(); } catch (e) { /* fine */ }
+    const items = s.blocks.flatMap((x) => splitSentences(x.t)).map((text) => ({ text, clip: serverVoice() ? fetchClip(text) : null }));
+    V.q = items;
+    pumpVoice();
+  },
+  'book.stop': () => { stopVoice(); },
   'pics.on': () => { ui.pics = true; },
   'pics.off': () => { ui.pics = false; },
   'p.show': (d) => { ui.show[d.what] = !ui.show[d.what]; },

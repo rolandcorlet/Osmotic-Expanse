@@ -171,6 +171,16 @@ const FILES = {
   '/data/apparatus.js': ['data/apparatus.js', 'text/javascript'],
 };
 const PAGES = new Set(['/', '/table', '/play', '/host']);
+// id -> [file in v3/books, host only]
+const BOOK_FILES = {
+  'quick-start': ['PLAYERS-QUICK-START-v3.md', false],
+  core: ['CORE-RULEBOOK-v3.md', false],
+  atlas: ['PLAYERS-ATLAS-v3.md', false],
+  society: ['SOCIETY-RULES-AND-SOCIAL-NORMS-v3.md', false],
+  quorum: ['QUORUM-v3.md', false],
+  bestiary: ['LYTIC-BESTIARY-v3.md', true],
+  codex: ['DIRECTORS-CODEX-v3.md', true],
+};
 
 function json(res, code, body) {
   const text = JSON.stringify(body);
@@ -290,6 +300,18 @@ const server = http.createServer(async (req, res) => {
       const [file, type] = FILES[url.pathname];
       res.writeHead(200, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store' });
       res.end(readFileSync(join(here, file)));
+      return;
+    }
+    // v3: the books the game shows on its Books tab. The Codex and the Bestiary are for the host only.
+    if (req.method === 'GET' && url.pathname.startsWith('/books/')) {
+      const id = (url.pathname.match(/^\/books\/([a-z-]+)\.md$/) || [])[1];
+      const book = BOOK_FILES[id];
+      if (!book) { res.writeHead(404); res.end(); return; }
+      if (book[1] && !access(req, { ...q, role: 'host' }).role) { json(res, 403, { error: 'Only the host can read this book.' }); return; }
+      const file = join(here, '..', 'books', book[0]);
+      if (!existsSync(file)) { res.writeHead(404); res.end(); return; }
+      res.writeHead(200, { 'content-type': 'text/markdown; charset=utf-8', 'cache-control': 'no-store' });
+      res.end(readFileSync(file));
       return;
     }
     if (req.method === 'GET' && url.pathname === '/api/info') {
