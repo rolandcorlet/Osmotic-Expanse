@@ -40,6 +40,9 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
   const need = () => (info().key === 'required' && !keyOf() ? `Paste a ${info().name} API key first.` : !urlOf() && info().url ? 'Enter the address of the AI server first.' : '');
   let timer = null;
   let again = null;
+  // Each run takes a number. Cancelling moves the number on, so a run that is still waiting on the model
+  // finds it is no longer the current one and throws its answer away.
+  let gen = 0;
   let selfRuns = 0;
   let nextId = 1;
 
@@ -72,11 +75,13 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
     st.proposal = null;
     onChange();
     const started = Date.now();
+    const my = ++gen;
     try {
       let result = null;
       for (let tries = 0; tries < 3; tries++) {
         const base = getState();
         result = await directorTurn({ state: base, scenario: scenarioNow(), bestiary, memory: memoryFor(base), provider: provider(), rng, now: Date.now(), reason, hostNote });
+        if (my !== gen) return; // cancelled while the model was thinking: its answer is dropped
         result.baseSeq = base.seq;
         if (getState().seq === base.seq) break; // the table did not move while it was thinking
         result = null;
@@ -96,6 +101,7 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
         st.phase = 'proposal';
       }
     } catch (e) {
+      if (my !== gen) return;
       fail(e);
     }
     onChange();
@@ -106,6 +112,19 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
       schedule(a.reason, a.hostNote);
     }
     again = null;
+  }
+
+  // The host stops a Director turn that has got stuck. The model call cannot be aborted, so its
+  // answer is simply ignored, and the host can start a new turn at once.
+  function cancel() {
+    if (st.phase !== 'thinking') return;
+    gen++;
+    again = null;
+    st.phase = 'idle';
+    st.error = '';
+    st.proposal = null;
+    onChange();
+    pump();
   }
 
   // ---- the table's memory
@@ -275,6 +294,9 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
           }
           break;
         }
+        case 'cancel':
+          cancel();
+          return;
         case 'run':
           selfRuns = 0;
           run('the host asked for a turn', String(body.note || '').slice(0, 400)); // not awaited: screens show "thinking"

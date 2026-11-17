@@ -1297,7 +1297,9 @@ function directorHtml() {
         <span class="small dim">Some local models reason silently before answering, which costs seconds on every turn. Off is fastest and may cost some accuracy. If your server does not know the setting, it is ignored.</span></div>` : ''}
       <hr class="sep">
       <div class="fld"><span class="fl">Ask for a turn now</span>
-        <div class="row"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" maxlength="400" placeholder="Optional note to the Director, for example: open the scene"><button class="btn primary" data-act="d.run" ${d.mode === 'off' || !d.usable || !d.model || d.thinking ? 'disabled' : ''}>Take a turn</button></div>
+        <div class="row"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" maxlength="400" placeholder="Optional note to the Director, for example: open the scene">${d.thinking
+          ? `<button class="btn alert" data-act="d.cancel" title="Stop this turn. Nothing it has worked out is kept.">Stop thinking</button><button class="btn primary" data-act="d.restart" title="Stop this turn and start a new one with the same note.">Restart</button>`
+          : `<button class="btn primary" data-act="d.run" ${d.mode === 'off' || !d.usable || !d.model ? 'disabled' : ''}>Take a turn</button>`}</div>
         <span class="small dim">The Director also takes a turn by itself after a player speaks, rolls or ends a turn.</span></div>
       ${last ? `<div><div class="fl dim small">ITS LAST TURN · ${(last.ms / 1000).toFixed(1)} s · ${last.usage.in + last.usage.out} tokens</div>
         <div class="receipt">${last.calls.map(toolLine).join('') || '<div class="ln"><span>Narration only.</span></div>'}</div>
@@ -1470,6 +1472,9 @@ const ACT = {
     return sendDirector({ op: 'approve', text: p && ui.dir.edit.trim() !== p.narration ? ui.dir.edit : '' });
   },
   'd.retry': () => sendDirector({ op: 'run', note: ui.dir.note }),
+  // The Director has got stuck: stop this turn, and (for Restart) start another at once.
+  'd.cancel': () => sendDirector({ op: 'cancel' }),
+  'd.restart': async () => { if (await sendDirector({ op: 'cancel' })) await sendDirector({ op: 'run', note: ui.dir.note }); },
   'd.discard': () => sendDirector({ op: 'discard' }),
   'd.narrate': async () => { if (ui.dir.narrate.trim() && await send({ type: 'narrate', text: ui.dir.narrate })) ui.dir.narrate = ''; },
   'name.random': () => { ui.claim.name = osmoticName(); },

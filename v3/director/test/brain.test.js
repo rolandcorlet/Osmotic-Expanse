@@ -1819,3 +1819,34 @@ test('the table hears what a player or the Director does in a Pulse War', () => 
   assert.equal(drift.away, true, 'the Director played it, and the table is told so');
   assert.ok(told.some((e) => /ends its turn/.test(e.text)));
 });
+
+test('the host can stop a stuck Director turn, and the answer that comes late is thrown away', async () => {
+  // The first model call hangs (as if the server stalled). Stop it, start again, and the new answer
+  // is the one that reaches the host; the old answer, arriving later, changes nothing.
+  let release;
+  let calls = 0;
+  const makeProvider = () => ({
+    id: 'scripted', model: 'scripted', listModels: async () => [{ id: 'gemini-9.9-flash', name: 'Scripted' }],
+    start: () => ({
+      send: async () => {
+        calls += 1;
+        if (calls === 1) await new Promise((r) => { release = r; });
+        return { text: calls === 1 ? 'The old answer arrives late.' : 'The new answer.', calls: [], usage: { in: 1, out: 1 } };
+      },
+      results: async () => ({ text: '', calls: [], usage: { in: 1, out: 1 } }),
+    }),
+  });
+  let state = apply(seated(), { type: 'say', text: 'What can I taste?' }, ctx('player', 'p2'));
+  const d = createDirector({ getState: () => state, commit: (n) => { state = n; }, scenario, bestiary, rng, saveDir: mkdtempSync(join(tmpdir(), 'oxd-')), onChange: () => {}, makeProvider });
+  await d.op({ op: 'config', mode: 'copilot', apiKey: 'k' });
+  await d.op({ op: 'run' });
+  assert.equal(d.view('host').phase, 'thinking');
+  await d.op({ op: 'cancel' });
+  assert.equal(d.view('host').phase, 'idle', 'stopping returns the Director to idle');
+  await d.op({ op: 'run' });
+  await settle(d);
+  assert.equal(d.view('host').proposal.narration, 'The new answer.');
+  release(); // the old call finally returns
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(d.view('host').proposal.narration, 'The new answer.', 'the late answer does not replace the new one');
+});
