@@ -463,7 +463,7 @@
 **The rule**
 
 - Controller / fortifier · Hull 4 · Key: RTC, VSC · Bonded: Protean
-- Granted Pathways: Synthesis 2 · Protean Folding 1 · Signal Discourse 1.
+- Granted Pathways: Synthesis 2 · Protean Folding 1 (rolled with RTC) · Signal Discourse 1.
 - Signature Mechanic, FOLD TOKENS: You have Fold Tokens = RTC (max 8), refreshed at each Reconstitution and by spending 1 PP to re-knot (1 token per Cycle, max 2/Cycle). Spend tokens to fold protein into the world:
 - Tokens: Fold
 - Spend 1: Snare: a hidden peptide trap in one band. Target's next entry: VSC contest AT 12 + your Overflow − 4 or become Anchored and −2 DFF. Detectable at OSM 14.
@@ -601,7 +601,7 @@
 **The rule**
 
 - Controller / terrain · Hull 4 · Key: DFF, RTC · Bonded: Osmotic
-- Granted Pathways: Fluid Navigation 2 · Protean Folding 1 · Chemoreception 1.
+- Granted Pathways: Fluid Navigation 2 · Protean Folding 1 (rolled with RTC) · Chemoreception 1.
 - Signature Mechanic, CHART: As a 2-PP action, you chart a zone (radius 3 + Stage Drifts) for 1 + ⌈Stage ÷ 2⌉ Cycles, setting one of:
 - Chart: Effect while inside
 - Channel: Flow 3 toward a direction you name. Allies moving with it cost 0 PP and gain +1 PP at their turn's start; enemies must win Fluid Navigation (AT 12 + Stage) or be dragged

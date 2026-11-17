@@ -75,6 +75,7 @@ const USUAL = {
   'Membrane Penetration': ['VSC', 'DFF'], 'Pressure Tolerance': ['VSC'], 'Fluid Navigation': ['DFF'], Concealment: ['DFF'],
   Catalysis: ['RTC'], Synthesis: ['RTC'], 'Sequence Reading': ['RTC', 'OSM'], Chemoreception: ['OSM'],
   'Signal Discourse': ['AFF'], Symbiosis: ['AFF'], Vigour: ['VSC'], 'Pulse Discipline': ['DFF'],
+  'Protean Folding': ['RTC'], // house ruling: folding protein is chemistry (both classes that get it key on RTC)
 };
 const BASE_NAMES = { VSC: 'Viscosity', DFF: 'Diffusion', RTC: 'Reactivity', OSM: 'Osmosis', AFF: 'Affinity' };
 

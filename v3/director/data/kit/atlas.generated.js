@@ -221,7 +221,7 @@ export const ATLAS_PHENOTYPES = [
   "name": "Protein Weaver",
   "tradition": "Epithalian",
   "meta": "Controller / fortifier · Hull 4 · Key: RTC, VSC · Bonded: Protean",
-  "pathways": "Synthesis 2 · Protean Folding 1 · Signal Discourse 1.",
+  "pathways": "Synthesis 2 · Protean Folding 1 (rolled with RTC) · Signal Discourse 1.",
   "sigName": "FOLD TOKENS",
   "sig": [
    "You have Fold Tokens = RTC (max 8), refreshed at each Reconstitution and by spending 1 PP to re-knot (1 token per Cycle, max 2/Cycle). Spend tokens to fold protein into the world:",
@@ -344,7 +344,7 @@ export const ATLAS_PHENOTYPES = [
   "name": "Turbulence Navigator",
   "tradition": "Flagellan",
   "meta": "Controller / terrain · Hull 4 · Key: DFF, RTC · Bonded: Osmotic",
-  "pathways": "Fluid Navigation 2 · Protean Folding 1 · Chemoreception 1.",
+  "pathways": "Fluid Navigation 2 · Protean Folding 1 (rolled with RTC) · Chemoreception 1.",
   "sigName": "CHART",
   "sig": [
    "As a 2-PP action, you chart a zone (radius 3 + Stage Drifts) for 1 + ⌈Stage ÷ 2⌉ Cycles, setting one of:",

@@ -305,7 +305,7 @@ Epithalian Phenotypes believe that a problem is a gap in a structure, and that s
 ### PROTEIN WEAVER
 *Controller / fortifier · Hull 4 · Key: RTC, VSC · Bonded: Protean*
 
-**Granted Pathways:** Synthesis 2 · Protean Folding 1 · Signal Discourse 1.
+**Granted Pathways:** Synthesis 2 · Protean Folding 1 (rolled with RTC) · Signal Discourse 1.
 
 **Signature Mechanic — FOLD TOKENS.** You have **Fold Tokens = RTC** (max 8), refreshed at each Reconstitution and by spending 1 PP to re-knot (1 token per Cycle, max 2/Cycle). Spend tokens to fold protein into the world:
 
@@ -427,7 +427,7 @@ Flagellan Phenotypes are the Expanse's movement. Their features assume one thing
 ### TURBULENCE NAVIGATOR
 *Controller / terrain · Hull 4 · Key: DFF, RTC · Bonded: Osmotic*
 
-**Granted Pathways:** Fluid Navigation 2 · Protean Folding 1 · Chemoreception 1.
+**Granted Pathways:** Fluid Navigation 2 · Protean Folding 1 (rolled with RTC) · Chemoreception 1.
 
 **Signature Mechanic — CHART.** As a 2-PP action, you **chart** a zone (radius `3 + Stage` Drifts) for `1 + ⌈Stage ÷ 2⌉` Cycles, setting one of:
 
