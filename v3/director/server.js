@@ -163,6 +163,7 @@ const artList = () => Object.fromEntries(Object.keys(bestiary).filter((id) => ar
 const FILES = {
   '/app.js': ['public/app.js', 'text/javascript'],
   '/gen.js': ['public/gen.js', 'text/javascript'],
+  '/membrane.js': ['public/membrane.js', 'text/javascript'],
   '/app.css': ['public/app.css', 'text/css'],
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/odds.js': ['engine/odds.js', 'text/javascript'],

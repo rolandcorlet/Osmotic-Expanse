@@ -221,8 +221,66 @@ function onState(data) {
     if (prop && prop.id !== ui.dir.editId) { ui.dir.edit = prop.narration; ui.dir.editId = prop.id; }
     if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
     voiceFollows();
+    waterFollows();
     render();
   }
+}
+
+// ------------------------------------------------------------------ living water
+// The membrane behind the player's Play screen (public/membrane.js). It follows the game:
+// the Cohort and the creatures here swim in it, a Pulse War turns it red, the Director
+// thinking stirs it, rolls bloom from the roller's cell and new story sends a wave.
+let water = null;
+let waterSeen = null;
+const waterWanted = () => {
+  const v = store.get('oxd.water');
+  if (v === 'on' || v === 'off') return v === 'on';
+  return !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+};
+async function startWater() {
+  if (role !== 'player' || water) return;
+  const cv = document.createElement('canvas');
+  cv.id = 'water';
+  cv.className = 'water-glass';
+  cv.setAttribute('aria-hidden', 'true');
+  document.body.prepend(cv);
+  water = { pending: true };
+  try {
+    const { startMembrane } = await import('/membrane.js');
+    water = await startMembrane(cv);
+  } catch (e) { console.warn('Living water could not start.', e); water = null; return; }
+  water.onKind = () => { if (document.body.classList.contains('water')) document.body.dataset.water = water.kind; render(); };
+  setWater(waterWanted());
+  waterFollows();
+}
+function setWater(on) {
+  if (!water || water.pending) return;
+  water.setOn(on);
+  document.body.classList.toggle('water', on);
+  document.body.dataset.water = on ? water.kind : '';
+}
+function waterFollows() {
+  if (!water || water.pending || !state || role !== 'player') return;
+  const o = mine();
+  const f = state.fight;
+  const cells = [];
+  for (const g of Object.values(state.organisms || {})) {
+    if (g.siteId && g.siteId !== state.scene.siteId) continue;
+    cells.push({ id: g.id, kind: o && g.id === o.id ? 'me' : 'ally' });
+  }
+  for (const c of creaturesHere()) if (!c.hidden && !c.down) cells.push({ id: c.cid, kind: 'foe' });
+  water.scene({ fight: !!f, thinking: !!(state.director && state.director.thinking), myTurn: !!(f && o && f.turn === `org:${o.id}`), cells });
+  const r = lastRoll();
+  const now = { roll: r ? r.id : '', story: (state.story || []).length, fight: !!f };
+  if (waterSeen) {
+    if (now.fight && !waterSeen.fight) water.burst('fight');
+    if (r && now.roll !== waterSeen.roll) {
+      const bad = r.kind === 'incoming' ? r.success : r.success === false;
+      water.burst(bad ? 'no' : 'ok', r.kind === 'incoming' && r.target ? r.target.id : r.whoId);
+    }
+    if (now.story > waterSeen.story) water.burst('story');
+  }
+  waterSeen = now;
 }
 
 async function boot() {
@@ -230,6 +288,7 @@ async function boot() {
   document.body.classList.toggle('phone', role === 'player');
   document.body.classList.add(`role-${role}`);
   if (role === 'home') { render(); return; }
+  startWater();
   const res = await fetch(`/api/scenario?${auth()}`);
   if (res.status === 403) {
     const why = await res.json().catch(() => ({}));
@@ -543,6 +602,13 @@ function applyColours() {
   const meta = document.querySelector('meta[name=theme-color]');
   if (meta) meta.content = c['--bg'];
 }
+function waterRowHtml() {
+  const on = document.body.classList.contains('water');
+  const how = !water || water.pending ? 'Starting…' : water.kind === 'webgpu' ? 'Running on your graphics card (WebGPU).' : water.why ? `Running in light mode: ${water.why}.` : 'Running in light mode: this browser has no WebGPU.';
+  return `<div><div class="fl dim small">LIVING WATER</div>
+    <div class="row"><div class="seg"><button class="${on ? 'on' : ''}" data-act="water.set" data-id="on" aria-pressed="${on}">On</button><button class="${on ? '' : 'on'}" data-act="water.set" data-id="off" aria-pressed="${!on}">Off</button></div>
+    <span class="small dim">The water behind your screen. Your Cohort and the creatures here swim in it; it answers rolls, the story and Pulse Wars. Touch it to stir. ${how}</span></div></div>`;
+}
 function coloursHtml() {
   const c = { ...DEFAULTS, ...savedColours() };
   const active = Object.keys(STYLES).find((n) => Object.keys(STYLES[n]).every((k) => STYLES[n][k].toLowerCase() === String(c[k]).toLowerCase())) || '';
@@ -552,6 +618,7 @@ function coloursHtml() {
   const sw = COLOURS.map(([k, name]) => `<label class="swatch"><input type="color" data-colour="${k}" value="${esc(c[k])}"><span><b>${name}</b><br><span class="small faint">${esc(c[k])}</span></span></label>`).join('');
   const inner = `<section class="card fill"><h3>Colours<span class="right"><span class="dim small">${active ? esc(active) : 'Custom'}</span><button class="btn sm" data-act="col.reset">Reset to default</button></span></h3>
       <div class="scroll" data-scroll="col" style="display:flex;flex-direction:column;gap:12px">
+        ${role === 'player' ? waterRowHtml() : ''}
         <div><div class="fl dim small">STYLES</div><div class="styles">${styles}</div></div>
         <div><div class="fl dim small">FINE TUNE</div><p class="dim small" style="margin-bottom:8px">Pick a style, then change any colour. Saved on this device only.</p><div class="swatches">${sw}</div></div>
       </div>
@@ -1492,6 +1559,7 @@ const ACT = {
     try { await navigator.clipboard.writeText(d.v); toast('Link copied.', true); } catch (e) { toast('Could not copy. Select the link and copy it by hand.'); }
   },
   'key.go': () => { location.href = `/host?key=${encodeURIComponent(ui.keyTry.trim().toUpperCase())}`; },
+  'water.set': (d) => { const on = d.id === 'on'; store.set('oxd.water', on ? 'on' : 'off'); setWater(on); },
   'col.reset': () => { store.del('oxd.colours'); store.del('oxd.style'); applyColours(); },
 
   join: async () => {
