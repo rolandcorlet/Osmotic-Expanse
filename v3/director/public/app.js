@@ -4,7 +4,7 @@
 
 import * as R from '/engine/rules.js';
 import { oddsCard } from '/engine/odds.js';
-import { genHtml, genActs } from '/gen.js';
+import { genHtml, genActs, growHtml, growActs, codonLine } from '/gen.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -608,7 +608,7 @@ function sheetCard(o, { own = false, edit = false } = {}) {
       <div class="tiles">${tile('MI', `${o.mi}<small>/${o.miMax}</small>`, o.mi <= o.miMax / 3 ? 'bad' : '', adj('mi', o.mi))}${tile('ATP', `${o.atp}<small>/${o.atpMax}</small>`, '', adj('atp', o.atp))}${tile('Stress', `${o.stress}<small>/8</small>`, o.stress >= 5 ? 'bad' : o.stress >= 3 ? 'warn' : '', adj('stress', o.stress))}${tile('Lysis', `${o.countdown}<small>/${o.countdownMax}</small>`, o.countdown ? 'bad' : '', adj('countdown', o.countdown))}</div>
       <div class="small dim">Stress ${o.stress}: ${R.stressNote(o.stress)}.</div>
       <div class="tiles">${tile('PP / Cycle', o.ppMax)}${tile('MT', o.mt)}${tile('Flow', o.flow)}${tile('Soak', o.soak)}</div>
-      <div class="tiles">${tile('Substrate', `${o.substrate}<small> S</small>`, '', adj('substrate', o.substrate))}${tile('Codon', o.codon, '', adj('codon', o.codon))}${tile('Oath', o.oath == null ? '<small>not printed</small>' : `${o.oath}<small>/${o.oathMax}</small>`, '', o.oath == null ? '' : adj('oath', o.oath))}</div>
+      <div class="tiles">${tile('Substrate', `${o.substrate}<small> S</small>`, '', adj('substrate', o.substrate))}${tile(o.level < 20 ? `Codon · L${o.level + 1} at` : 'Codon', `${o.codon}${o.level < 20 ? `<small>/${codonLine(o).match(/at (\d+)/)[1]}</small>` : ''}`, o.growTo > o.level ? 'warn' : '', adj('codon', o.codon))}${tile('Oath', o.oath == null ? '<small>not printed</small>' : `${o.oath}<small>/${o.oathMax}</small>`, '', o.oath == null ? '' : adj('oath', o.oath))}</div>
       ${o.bulk || o.specimens || o.stamped ? `<div class="small"><span class="dim">Cut carried:</span> ${['C', 'G', 'P', 'T'].filter((k) => (o.specimens || {})[k]).map((k) => `${o.specimens[k]} ${k}`).join(', ') || 'none'} unstamped · ${['C', 'G', 'P', 'T'].filter((k) => (o.stamped || {})[k]).map((k) => `${o.stamped[k]} ${k}`).join(', ') || 'none'} stamped · <span class="dim">Bulk</span> ${o.bulk || 0}/${(o.base.VSC || 0) * 5}</div>` : ''}
       ${(o.oaths || []).map((v) => `<div class="small row"><span>${v.open ? '<span class="chip warn">open</span>' : `<span class="chip${v.kept ? ' ok' : ' no'}">${v.kept ? 'kept' : 'broken'}</span>`} “${esc(v.promise)}”${v.witness ? ` <span class="dim">(${esc(v.witness)})</span>` : ''}</span>${edit && v.open ? `<span class="right"><button class="btn sm" data-act="h.oath.settle" data-id="${o.id}" data-oath="${v.id}" data-kept="1" title="Keeping it pays the table a Cohesion">Kept</button> <button class="btn sm no" data-act="h.oath.settle" data-id="${o.id}" data-oath="${v.id}" title="Breaking it marks two Lysis boxes and a scar">Broken</button></span>` : ''}</div>`).join('')}
       ${edit && o.oath ? `<div class="row"><input type="text" class="grow" data-k="oath.${o.id}" data-bind="oath.text" value="${esc(ui.oath.text)}" maxlength="200" placeholder="Swear an Oath: what is promised"><button class="btn sm" data-act="h.oath" data-id="${o.id}">Swear</button></div>` : ''}
@@ -795,6 +795,7 @@ function playHtml(o) {
   const incoming = state.requests.filter((q) => q.kind === 'incoming' && q.target && q.target.id === o.id);
   for (const q of incoming) out.push(incomingCard(q, o));
   for (const q of myAsks) out.push(askCard(q));
+  if (o.growTo > o.level && !state.fight) out.push(growHtml(ui, o));
   const share = shareCard(o);
   if (share) out.push(share);
   // Two panels stay folded away until asked for, so the story and the last roll stay in view.
@@ -1487,6 +1488,7 @@ const ACT = {
   'h.new': () => { ui.newGame = { open: true, vectorId: state.scenarioId, keep: true }; },
   'h.new.cancel': () => { ui.newGame.open = false; },
   ...genActs(ui, () => state, { send, toast, randomName: () => osmoticName() }),
+  ...growActs(ui, { send, toast }),
   'h.new.go': () => { const N = ui.newGame; ui.newGame = { open: false, vectorId: '', keep: true }; return send({ type: 'session.new', vectorId: N.vectorId || state.scenarioId, keepPlayers: !!N.keep }); },
 };
 

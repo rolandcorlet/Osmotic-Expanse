@@ -5,7 +5,8 @@
 
 import { kitBriefing, breakLoop } from './kit.js';
 import { readFileSync } from 'node:fs';
-import { TOOLS, toolbox, orgMT, printedPays, hazardSpec, reachable } from './tools.js';
+import { TOOLS, toolbox, orgMT, printedPays, hazardSpec, reachable, toleranceAT, goodwillName } from './tools.js';
+import { worldNow } from '../engine/ledger.js';
 import { hazardBudget } from '../engine/ledger.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
@@ -197,6 +198,23 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   // How each Clock moves is the Vector's own: its kit prints the rules (The First Carve), or they are built from the Clocks' own lines.
   const clockRules = (scenario.kit && scenario.kit.clockRules) || (scenario.kit && scenario.kit.clocks ? scenario.kit.clocks.map((c) => `${c.id}: ${c.plain}${c.who ? ` Moves: ${c.who}` : ''}`) : []);
   for (const line of clockRules) L.push(line);
+  {
+    // What the Clocks are doing to the world now. The Engine pays these; the Director says them.
+    const w = worldNow(state, scenario);
+    const R2 = scenario.rules || {};
+    const lines = [...w.notes];
+    for (const c of Object.values(state.clocks)) if (c.stopped) lines.push(`${c.name} is STOPPED (the fiction stopped it): it does not move. Start it again with move_clock stop false only when the fiction does.`);
+    if (state.clocks.GOODWILL) lines.push(`GOODWILL is ${goodwillName(state, scenario)} (Hostile / Wary / Curious / Client / Kin). Move it a rung with move_clock GOODWILL +1 or -1 for what the page prints: up for a clean Tolerance win, a rite with the Congregation, healing, carrying a name it asked for; down for striking Host tissue (once a scene), harvesting without asking, Lytic damage, a Breach, being lawful at it. Only Client or better opens a door you ask for; only Kin moves you for free.`);
+    if (R2.tolerance) lines.push(`A Tolerance contest (a Sentinel's challenge) is AT ${toleranceAT(state, scenario, false)} now, AT ${toleranceAT(state, scenario, true)} if the Cohort is sponsored or carries a valid token (pass sponsored true). Say what you are honestly and a Sentinel will not fight it. The Engine refuses any other Threshold.`);
+    if (R2.churn && state.clocks[R2.churn.clock]) lines.push(`${R2.churn.clock} fills by itself when it reaches ${state.clocks[R2.churn.clock].segments}: the Engine pushes everyone inside the body ${Math.max(R2.churn.bands, w.churnBands || 0)} band(s) and pays ${R2.churn.amount} ${R2.churn.dtype}; Braced holds. You only move it on its schedule. If the pump is jammed, call move_clock ${R2.churn.clock} with change 0 and stop true.`);
+    if (R2.badgeDice && state.clocks.BADGE) {
+      const b = state.clocks.BADGE.filled;
+      lines.push(`BADGE ${b} (${R2.badgeDice.reads[b]}): in any contest with the Hegemony or the Court, pass facing "hegemony" or "court" to ask_for_roll and the Engine adds ${R2.badgeDice.dice[b] >= 0 ? '+' : ''}${R2.badgeDice.dice[b]} dice. Do not add BADGE dice yourself.`);
+    }
+    const growing = Object.values(state.organisms).filter((o) => o.playerId && o.growTo > o.level);
+    if (growing.length) lines.push(`${growing.map((o) => o.name).join(', ')} can Grow (the Codon is there and they have rested). They choose on their own screen; do not choose for them. When one reaches a new Stage (Levels 6, 11, 16), ask them what changed in their body and who notices.`);
+    if (lines.length) { L.push('## IN FORCE NOW (the Engine pays these; say them when they matter)'); for (const x of lines) L.push(`- ${x}`); }
+  }
   if (state.clocks.ORDER) L.push('ORDER is the campaign\'s own Clock (five segments) and it stays with the Cohort from Vector to Vector. It advances when the Cohort harms, harvests or imitates an Order of creatures, in front of that Order\'s own kind: the swarms, the Bleeders, the Sentinels. Never because a roll failed. Name it aloud. The players may rewind it by spending time, Cohesion or Specimens: let them. When it fills, that Order responds: it swarms, hunts the Cohort\'s register, mimics the Cohort, or (rarely) makes an offer.');
 
   L.push('');

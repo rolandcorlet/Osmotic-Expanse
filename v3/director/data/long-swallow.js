@@ -15,6 +15,10 @@ const clocks = [
     stages: ['unnoticed', 'scented: something has read you', 'filed: a Sentinel issues the first challenge (Tolerance, AT 14)', 'Marked: one Cohort member is flagged; Goodwill drops a rung', 'cascade: Antigen Gnats in every villus; any lost challenge Marks another', 'COMPLETE: Ninth Response arrives and the Host can no longer open an exit for you'],
   },
   {
+    id: 'GOODWILL', name: 'GOODWILL', segments: 4, start: 2, track: true, says: 'The Host\'s mood toward the Cohort, from Hostile to Kin. A mood, not a wall: small signals decide whether it clears you or files you.',
+    stages: ['Hostile', 'Wary', 'Curious', 'Client', 'Kin'],
+  },
+  {
     id: 'CHURN', name: 'CHURN', segments: 4, says: 'The digestion timetable. Each time it fills, everything in the compartment is pushed one room deeper.',
     stages: ['quiet', 'the walls groan', 'the fluid goes flat and sweet', 'the pump primes', 'fill: everything is pushed one band deeper and takes 6 Osmotic'],
   },
@@ -175,10 +179,36 @@ export const scenario = {
     beatClocks: ['LICENCE'],
     // IMMUNE moves on loud, noticed actions; CHURN on schedule (the Director says when it fills). LICENCE on the
     // Beat, and once for a printed non-day trigger (6.4: a Breach advances LICENCE 1).
-    aiAdvanceCap: { IMMUNE: 5, CHURN: 4, LICENCE: 1 },
+    aiAdvanceCap: { IMMUNE: 5, CHURN: 4, LICENCE: 1, GOODWILL: 8 },
     // 6.2: a loud success is what the body notices (never a failed roll).
     clockTriggers: { loud: ['IMMUNE'] },
     valueClock: 'IMMUNE',
+    // 6.1-6.4 and 3, paid by the Engine.
+    stateAt: {
+      LICENCE: {
+        3: { siteHazard: { weep: { amount: 3, dtype: 'Lytic', why: 'The enzyme wash in the Weep' } }, note: 'the first cut is made: the Weep has an enzyme wash, 3 Lytic per Cycle to anyone in it (the Engine pays it each Cycle and on arrival). If the Cohort did nothing to stop it, Goodwill drops a rung: move it yourself.' },
+        4: { note: 'the Chapel floods with runoff and the ferry stops; the Cohort\'s sponsor is inside with them.' },
+        5: { churnBands: 2, churnEveryCycle: true, note: 'the Churn is decoupled: CHURN moves every Cycle inside the body and each fill throws 2 bands (the Engine pays both).' },
+      },
+      IMMUNE: {
+        2: { note: 'filed: a Gastric Sentinel may challenge (a Tolerance contest; see the Threshold below).' },
+        4: { note: 'cascade: Antigen Gnats in every villus; a lost challenge Marks another organism; Congregation sponsorship costs double.' },
+        5: { goodwillCap: 2, note: 'COMPLETE: Ninth Response arrives, and the Host can no longer open an exit. GOODWILL cannot rise above Curious (the Engine holds it there). The way out is the Breach. Say this exactly, at the table.' },
+      },
+    },
+    stateBelow: {
+      GOODWILL: {
+        0: { churnBands: 2, note: 'GOODWILL is Hostile: the Host stops being a place. Every CHURN fill throws 2 bands and the exit is the Breach.' },
+        1: { toleranceAT: 18 },
+      },
+    },
+    // 6.2: at IMMUNE 3 one organism is Marked and Goodwill drops a rung, paid once.
+    onStage: { IMMUNE: { 3: { mark: 1, track: { GOODWILL: -1 } } } },
+    // 6.3: the Churn's fill. Everything inside the body is pushed 1 band (2 at LICENCE 5 or Hostile) and
+    // takes 6 Osmotic; Braced holds. A jammed pump stops the Clock.
+    churn: { clock: 'CHURN', sites: ['chapel', 'churn', 'shelf', 'nodule'], amount: 6, dtype: 'Osmotic', bands: 1 },
+    // 6.4: a Tolerance contest is AT 14, AT 10 if sponsored, AT 18 if the Host is Wary or worse.
+    tolerance: { base: 14, sponsored: 10 },
   },
 };
 

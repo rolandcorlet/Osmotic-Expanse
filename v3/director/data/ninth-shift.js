@@ -186,6 +186,23 @@ export const scenario = {
     loudChance: { PAPER: 1 },
     lawClock: 'PAPER',
     valueClock: 'NONE',
+    // 3.1, the Mechanical bite column: the Engine keeps these in force while SHIFT is that high.
+    stateAt: {
+      SHIFT: {
+        2: { note: 'registered gear is "scheduled for maintenance": once per scene a licensed graft may be suspended (its benefit off, its Minor Cost on). Say whose, and why it is funny.' },
+        3: { driftExtra: 1, note: 'the pump-villi cramp: every Drift costs +1 PP (the Engine charges it) and the medium is one step thicker. A Navigator is the most valuable organism in the district.' },
+        4: { silence: true, note: 'THE SILENCE is everywhere in the Row: no repair, no print, no re-fold (the Engine refuses healing), Dry: swarm regeneration stops and Osmotic signatures go quiet.' },
+        5: { note: 'the Print Convoy is here: THE RELIEF may join any scene in the Row, and every Row NPC can be arrested.' },
+        6: { note: 'Shift Nine is dissolved: THE ROW IS SOLD is now the default ending; anything the Cohort has not done is done without them.' },
+      },
+      PAPER: { 4: { note: 'the decision is issued. The Nine Tune is licensed, or the Cohort\'s filing replaced it, or a counter-claim names the Cohort as surety.' } },
+    },
+    // 3.2: BADGE is how the Belt reads the Cohort, and it is paid in dice in any contest with these people.
+    badgeDice: {
+      against: ['hegemony', 'court'],
+      dice: { 0: -1, 1: 0, 2: 1, 3: 2, 4: 2, 5: 2 },
+      reads: ['Kin of the Row', 'The Temp', 'The Contractor', 'Nine-Badges', 'The Bailiff\'s Friend', 'The Convoy\'s Own'],
+    },
   },
 };
 

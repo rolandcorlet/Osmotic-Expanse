@@ -6,6 +6,7 @@ import { rollDice, checkOwnDice, d6 } from './dice.js';
 import * as R from './rules.js';
 import { successChance } from './odds.js';
 import { buildHand } from '../data/chargen/build.js';
+import { ATLAS, OSMOTIC } from '../data/chargen/model.generated.js';
 
 export class RuleError extends Error {}
 
@@ -63,7 +64,7 @@ export function newSession(scenario) {
     nextId: 1,
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
-  for (const c of scenario.clocks) s.clocks[c.id] = { id: c.id, name: c.name, segments: c.segments, filled: 0, says: c.says };
+  for (const c of scenario.clocks) s.clocks[c.id] = { id: c.id, name: c.name, segments: c.segments, filled: c.start || 0, says: c.says, ...(c.track ? { track: true } : {}) };
   return s;
 }
 
@@ -183,6 +184,7 @@ export function apply(state, action, ctx) {
   if (!s.story) s.story = []; // sessions saved before the story existed
   h.run(s, action, ctx);
   clockFills(s, ctx);
+  payStages(s, ctx);
   fightRunsOut(s, ctx);
   if (s.rolls.length > MAX_ROLLS) s.rolls = s.rolls.slice(-MAX_ROLLS);
   if (s.log.length > MAX_LOG) s.log = s.log.slice(-MAX_LOG);
@@ -222,6 +224,122 @@ export function openOrderClock(s, ctx, at = 0) {
   if (!have) say(s, ctx, `A new Clock opens: ORDER, at ${to} of ${ORDER_SEGMENTS}. The Order the Cohort has been harming, harvesting or imitating has noticed. This Clock stays with the Cohort from one Vector to the next.`, 'clock');
 }
 
+// v3: what a Vector's Clocks are doing to the world right now (bench 17 Nov: SHIFT reached 3 and Drifts
+// still cost 1 PP; IMMUNE reached 3 and nobody was Marked). The Vector prints it as rules:
+//   stateAt   { CLOCK: { N: {...} } }  in force while the Clock is at N or more (rewinding lifts it)
+//   stateBelow{ CLOCK: { N: {...} } }  in force while the Clock is at N or less (a track like GOODWILL)
+//   onStage   { CLOCK: { N: {...} } }  paid once, the first time the Clock reaches N
+// Effects the Engine understands: driftExtra, silence, siteHazard {site: {amount, dtype, why}},
+// churnBands, churnEveryCycle, toleranceAT, goodwillCap, note (said in the briefing), and for onStage:
+// mark (that many random seated organisms gain Marked), track {CLOCK: delta}.
+export function worldNow(s, scenario) {
+  const rules = (scenario || {}).rules || {};
+  const w = { driftExtra: 0, silence: false, siteHazard: {}, churnBands: 0, churnEveryCycle: false, toleranceAT: null, goodwillCap: null, notes: [] };
+  const fold = (e, why) => {
+    if (!e) return;
+    if (e.driftExtra) w.driftExtra += e.driftExtra;
+    if (e.silence) w.silence = true;
+    if (e.siteHazard) Object.assign(w.siteHazard, e.siteHazard);
+    if (e.churnBands) w.churnBands = Math.max(w.churnBands, e.churnBands);
+    if (e.churnEveryCycle) w.churnEveryCycle = true;
+    if (e.toleranceAT) w.toleranceAT = Math.max(w.toleranceAT || 0, e.toleranceAT);
+    if (e.goodwillCap != null) w.goodwillCap = w.goodwillCap == null ? e.goodwillCap : Math.min(w.goodwillCap, e.goodwillCap);
+    if (e.note) w.notes.push(`${why}: ${e.note}`);
+  };
+  for (const [id, steps] of Object.entries(rules.stateAt || {})) {
+    const c = (s.clocks || {})[id];
+    if (c) for (const [n, e] of Object.entries(steps)) if (c.filled >= Number(n)) fold(e, `${c.name} ${n}+`);
+  }
+  for (const [id, steps] of Object.entries(rules.stateBelow || {})) {
+    const c = (s.clocks || {})[id];
+    if (c) for (const [n, e] of Object.entries(steps)) if (c.filled <= Number(n)) fold(e, `${c.name} at ${n} or less`);
+  }
+  return w;
+}
+
+function stageName(scenario, id, n) {
+  const def = ((scenario || {}).clocks || []).find((c) => c.id === id);
+  return def && def.stages ? def.stages[n] : '';
+}
+
+// Every body at the Cohort's site pays a standing hazard (an enzyme wash, a flood).
+function payStanding(s, ctx, w, why) {
+  const h = w.siteHazard[s.scene.siteId];
+  if (!h) return;
+  const bodies = Object.values(s.organisms).filter((o) => o.playerId && !o.dormant);
+  if (!bodies.length) return;
+  say(s, ctx, `${h.why}: ${h.amount} ${h.dtype} to everyone here${why ? ` (${why})` : ''}.`, 'hazard');
+  for (const o of bodies) applyDamage(s, ctx, { kind: 'org', id: o.id }, h.amount, h.dtype, false);
+}
+
+// A peristaltic Clock (The Long Swallow's CHURN): when it fills, everyone inside is thrown and hurt,
+// and it starts again. A jammed pump stops it (the Clock is stopped).
+function churnFill(s, ctx, w) {
+  const rule = ((ctx.scenario || {}).rules || {}).churn;
+  if (!rule) return;
+  const c = (s.clocks || {})[rule.clock];
+  if (!c || c.filled < c.segments) return;
+  c.filled = 0;
+  const inside = (rule.sites || []).includes(s.scene.siteId);
+  const bands = Math.max(rule.bands || 1, w.churnBands || 0);
+  if (!inside) { say(s, ctx, `${c.name} fills deeper in the body; the Cohort is outside it. ${c.name} starts again at 0.`, 'clock'); return; }
+  const bodies = Object.values(s.organisms).filter((o) => o.playerId && !o.dormant);
+  const held = bodies.filter((o) => hasCond(o, 'Braced'));
+  const thrown = bodies.filter((o) => !hasCond(o, 'Braced'));
+  say(s, ctx, `${c.name} fills: everything in the compartment is pushed ${bands} band${bands > 1 ? 's' : ''} deeper and takes ${rule.amount} ${rule.dtype}${held.length ? ` (${held.map((o) => o.name).join(', ')} braced and held)` : ''}. ${c.name} starts again at 0.`, 'hazard');
+  for (const o of thrown) applyDamage(s, ctx, { kind: 'org', id: o.id }, rule.amount, rule.dtype, false);
+  shiftAllBands(s, ctx, [...thrown, ...Object.values(s.creatures).filter((x) => x.siteId === s.scene.siteId && !x.down)], bands, c.name);
+}
+
+function payStages(s, ctx) {
+  const scenario = ctx.scenario || {};
+  const rules = scenario.rules || {};
+  s.stageSeen = s.stageSeen || {};
+  for (const c of Object.values(s.clocks || {})) {
+    const seen = s.stageSeen[c.id];
+    if (seen == null && !c.track) { s.stageSeen[c.id] = c.filled; continue; }
+    if (c.track) continue; // a track (GOODWILL) is announced below, after any cap
+    if (c.filled <= seen) { s.stageSeen[c.id] = c.filled; continue; }
+    for (let n = seen + 1; n <= c.filled; n++) {
+      s.stagesPaid = s.stagesPaid || {};
+      const key = `${c.id}:${n}`;
+      const name = stageName(scenario, c.id, n);
+      const ev = ((rules.onStage || {})[c.id] || {})[n];
+      if (s.stagesPaid[key]) continue;
+      s.stagesPaid[key] = s.seq;
+      const fillStep = rules.churn && rules.churn.clock === c.id && n >= c.segments; // the fill says itself
+      if (name && !fillStep) say(s, ctx, `${c.name} ${n}: ${name}.`, 'clock');
+      if (!ev) continue;
+      if (ev.mark) {
+        const pool = Object.values(s.organisms).filter((o) => o.playerId && !hasCond(o, 'Marked'));
+        for (let i = 0; i < ev.mark && pool.length; i++) {
+          const pick = pool.splice(Math.floor((ctx.rng ? ctx.rng() : Math.random()) * pool.length), 1)[0];
+          pick.conditions.push({ name: 'Marked' });
+          say(s, ctx, `${pick.name} is Marked: the body knows them now (+2 Reagents against them; they cannot be Masked).`, 'danger');
+        }
+      }
+      for (const [tid, d] of Object.entries(ev.track || {})) {
+        const t = s.clocks[tid];
+        if (t) t.filled = clamp(t.filled + d, 0, t.segments);
+      }
+    }
+    s.stageSeen[c.id] = c.filled;
+  }
+  const w = worldNow(s, scenario);
+  if (w.goodwillCap != null && s.clocks.GOODWILL && s.clocks.GOODWILL.filled > w.goodwillCap) {
+    s.clocks.GOODWILL.filled = w.goodwillCap;
+  }
+  // tracks announce after caps settle
+  for (const c of Object.values(s.clocks || {})) if (c.track && s.stageSeen[c.id] !== c.filled) {
+    const first = s.stageSeen[c.id] == null;
+    s.stageSeen[c.id] = c.filled;
+    if (first) continue;
+    const name = stageName(scenario, c.id, c.filled);
+    if (name) say(s, ctx, `${c.name} is now ${name}.`, 'clock');
+  }
+  churnFill(s, ctx, w);
+}
+
 function clockFills(s, ctx) {
   const ord = (s.clocks || {}).ORDER;
   if (ord && ord.filled >= ord.segments && !(s.fills || {}).ORDER) {
@@ -250,6 +368,83 @@ function clockFills(s, ctx) {
     if (ev.opens && ev.opens.ORDER != null) openOrderClock(s, ctx, ev.opens.ORDER);
     say(s, ctx, `${c.name} is full: ${ev.name}.${ev.dropUnstampedGrade ? ` Every unstamped cut drops one grade (${moved} Specimen${moved === 1 ? '' : 's'} changed).` : ''}`, 'clock');
   }
+}
+
+// ---- Growth in play (ATLAS 4.1-4.3). Codon is a running total; a Level is reached when the total
+// crosses its threshold (DESIGN-BIBLE ECONOMY: 20L + 20 per Level), and the Growth itself happens at
+// the next Reconstitution.
+export function levelForCodon(codon) {
+  let L = 1;
+  while (L < 20 && OSMOTIC.codonAt(L + 1) <= (Number(codon) || 0)) L += 1;
+  return L;
+}
+export const GROW_KEYS = ['VSC', 'DFF', 'RTC', 'OSM', 'AFF'];
+// What one Growth needs: one Synthesis Choice, two at a Stage transition (Levels 6, 11, 16).
+export function growthNeeds(level) {
+  const now = OSMOTIC.stageOf(level), next = OSMOTIC.stageOf(level + 1);
+  return { level: level + 1, choices: next.stage > now.stage ? 2 : 1, stage: next.stage > now.stage ? next.roman : null, tier: OSMOTIC.burstTierMax(level + 1) };
+}
+function growOne(s, ctx, o, choices) {
+  const need = growthNeeds(o.level);
+  const list = [].concat(choices || []).slice(0, 4);
+  if (list.length !== need.choices) throw new RuleError(`Level ${need.level} takes ${need.choices === 2 ? 'two Synthesis Choices (a Stage transition gives a free one)' : 'one Synthesis Choice'}.`);
+  if (list.filter((c) => c && c.kind === 'grown').length > 1) throw new RuleError('One Baseline grade per Growth (ATLAS 4.1).');
+  const said = [];
+  o.bursts = o.bursts || []; o.adaptations = o.adaptations || [];
+  const draft = { base: { ...o.base }, pathways: { ...o.pathways }, bursts: [...o.bursts], adaptations: [...o.adaptations], substrate: o.substrate, d: { miMax: 0, countdownMax: 0, ppMax: 0, mt: 0, flow: 0, atpMax: 0, oathMax: 0 }, kit: [] };
+  for (const c of list) {
+    const kind = String((c || {}).kind || ''), key = String((c || {}).key || '');
+    if (kind === 'grown') {
+      if (!GROW_KEYS.includes(key)) throw new RuleError('Choose a Baseline.');
+      if (draft.base[key] >= 6) throw new RuleError(`${key} is already 6, the most.`);
+      draft.base[key] += 1;
+      if (key === 'VSC') { draft.d.miMax += 4; draft.d.countdownMax += 1; }
+      if (key === 'DFF') { draft.d.ppMax += 1; draft.d.mt += 1; draft.d.flow += 1; }
+      if (key === 'RTC') draft.d.atpMax += 2;
+      if (key === 'AFF' && o.oathMax != null) draft.d.oathMax += 1;
+      said.push(`${key} ${draft.base[key]}`);
+    } else if (kind === 'rank') {
+      if (!R.PATHWAYS.includes(key) && draft.pathways[key] == null) throw new RuleError('Choose a Pathway.');
+      if ((draft.pathways[key] || 0) >= 4) throw new RuleError(`${key} is already rank 4, Sovereign.`);
+      draft.pathways[key] = (draft.pathways[key] || 0) + 1;
+      said.push(`${key} rank ${draft.pathways[key]}`);
+    } else if (kind === 'burst') {
+      const b = ATLAS.bursts.find((x) => x.n === key);
+      if (!b) throw new RuleError('Choose a Burst.');
+      if (b.t > need.tier) throw new RuleError(`${b.n} is Tier ${b.t}; Level ${need.level} reaches Tier ${need.tier}.`);
+      if (draft.bursts.includes(b.n)) throw new RuleError(`${o.name} already knows ${b.n}.`);
+      draft.bursts.push(b.n);
+      draft.kit.push(`Burst: ${b.n} (${b.d[0]}${b.d.slice(1).toLowerCase()}, Tier ${b.t}, cost ${b.c}, ${b.b})`);
+      said.push(`the Burst ${b.n}`);
+    } else if (kind === 'adapt') {
+      const a = ATLAS.adaptations.find((x) => x.n === key);
+      if (!a) throw new RuleError('Choose an Adaptation.');
+      if (draft.adaptations.includes(a.n)) throw new RuleError(`${o.name} already has ${a.n}.`);
+      if (/\+\s*\d/.test(a.s)) throw new RuleError(`${a.n} also costs a Specimen (${a.s}); the host settles that one by hand.`);
+      const cost = parseInt(a.s, 10) || 0;
+      if (cost > draft.substrate) throw new RuleError(`${a.n} costs ${cost} S and ${o.name} has ${draft.substrate} S.`);
+      draft.substrate -= cost;
+      draft.adaptations.push(a.n);
+      if (a.n === 'Denser Wall') { draft.d.miMax += 6; draft.d.flow -= 1; }
+      if (a.n === 'Oathkeeper' && o.oathMax != null) draft.d.oathMax += 1;
+      if (a.n === 'Chemical Literacy') draft.pathways['Sequence Reading'] = Math.min(4, (draft.pathways['Sequence Reading'] || 0) + 1);
+      draft.kit.push(`Adaptation: ${a.n} (${a.e})`);
+      said.push(`${a.n} (${cost} S)`);
+    } else throw new RuleError('A Synthesis Choice is a Baseline grade, a Pathway rank, a Burst or an Adaptation.');
+  }
+  // Every Growth: +2 max MI (the Level term). A Stage transition: +6 more (ATLAS 4.3).
+  draft.d.miMax += 2 + (need.stage ? 6 : 0);
+  o.level = need.level;
+  o.base = draft.base; o.pathways = draft.pathways; o.bursts = draft.bursts; o.adaptations = draft.adaptations;
+  o.substrate = draft.substrate;
+  o.miMax += draft.d.miMax; o.mi = Math.min(o.miMax, o.mi + draft.d.miMax);
+  o.countdownMax += draft.d.countdownMax;
+  o.ppMax += draft.d.ppMax; o.mt += draft.d.mt; o.flow += draft.d.flow;
+  o.atpMax += draft.d.atpMax; o.atp = Math.min(o.atpMax, o.atp + draft.d.atpMax);
+  if (o.oathMax != null) { o.oathMax += draft.d.oathMax; o.oath = Math.min(o.oathMax, (o.oath || 0) + draft.d.oathMax); }
+  o.kit = [...(o.kit || []), ...draft.kit];
+  o.growth = [...(o.growth || []), { level: need.level, choices: list }];
+  say(s, ctx, `${o.name} Grows to Level ${need.level}${need.stage ? `, Stage ${need.stage}: a body event (+6 max MI, a new Graft Slot, the Phenotype's Stage feature). Say what changed and who notices` : ''}: ${said.join(' and ')}. Max MI is ${o.miMax}.`, 'award');
 }
 
 // The picking order: every seated organism, in the order kept; newcomers join at the back.
@@ -1051,6 +1246,16 @@ function endCycle(s, ctx) {
     a.strikes = 0;
   }
   say(s, ctx, `End of Cycle ${f.cycle}. Unspent Pulse Points and unused Reserves are lost.`, 'turn');
+  {
+    const w = worldNow(s, ctx.scenario);
+    payStanding(s, ctx, w, `Cycle ${f.cycle}`);
+    const rule = ((ctx.scenario || {}).rules || {}).churn;
+    const c = rule && s.clocks[rule.clock];
+    if (c && w.churnEveryCycle && !c.stopped && (rule.sites || []).includes(s.scene.siteId)) {
+      c.filled = clamp(c.filled + 1, 0, c.segments);
+      say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}: it moves every Cycle now.`, 'clock');
+    }
+  }
   f.cycle += 1;
   f.turn = null;
 }
@@ -1203,6 +1408,19 @@ const HANDLERS = {
   },
   // v3: a player builds their own organism into one of the four seats (data/chargen/build.js). The phone
   // sends choices only; every number is computed here, and the seat keeps its story hook unless rewritten.
+  'org.grow': {
+    run(s, a, ctx) {
+      needControl(s, ctx, a.organismId);
+      const o = org(s, a.organismId);
+      if (s.fight) throw new RuleError('Nobody Grows in a Pulse War. Growth happens at a Reconstitution.');
+      if (!(o.growTo > o.level)) {
+        const next = OSMOTIC.codonAt(o.level + 1);
+        throw new RuleError(o.codon >= next ? `${o.name} has the Codon for Level ${o.level + 1}; Growth happens at the next Reconstitution (a rest).` : `${o.name} Grows to Level ${o.level + 1} at ${next} Codon, and has ${o.codon}.`);
+      }
+      growOne(s, ctx, o, a.choices);
+      if (o.growTo <= o.level) delete o.growTo;
+    },
+  },
   'org.build': {
     run(s, a, ctx) {
       const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
@@ -1397,6 +1615,7 @@ const HANDLERS = {
       s.requests = [];
       for (const o of Object.values(s.organisms)) o.band = null;
       say(s, ctx, `New scene: ${site.name}.`, 'scene');
+      payStanding(s, ctx, worldNow(s, ctx.scenario), 'on arrival');
     },
   },
   'creature.add': {
@@ -1458,8 +1677,15 @@ const HANDLERS = {
     run(s, a, ctx) {
       const c = s.clocks[a.id];
       if (!c) throw new RuleError('No such Clock.');
+      if (a.stop != null) {
+        c.stopped = !!a.stop;
+        say(s, ctx, c.stopped ? `${c.name} stops: ${String(a.why || 'the fiction has stopped it').slice(0, 120)}. It will not move until it is started again.` : `${c.name} runs again.${a.why ? ` ${String(a.why).slice(0, 120)}` : ''}`, 'clock');
+        return;
+      }
       const before = c.filled;
       const delta = Math.trunc(Number(a.delta) || 0);
+      if (c.stopped && ctx.role !== 'host') throw new RuleError(`${c.name} is stopped (${c.name === 'CHURN' ? 'the pump is jammed' : 'the fiction stopped it'}). It does not move until it is started again.`);
+      if (c.stopped && ctx.ai) throw new RuleError(`${c.name} is stopped (the pump is jammed). It does not move until it is started again.`);
       if (a.by === 'ai' && delta > 0) {
         // Clock discipline (Vector 3.4): at most one segment per Clock per session, unless the Vector
         // prints more for a Clock (rules.aiAdvanceCap: The Ninth Shift lets BADGE and PAPER move on
@@ -1520,6 +1746,17 @@ const HANDLERS = {
         o.conditions = o.conditions.filter((c) => c.name !== 'Catabolic' && c.name !== 'Bloom');
       }
       say(s, ctx, 'Reconstitution: one Fugue Interval (about an hour). Full ATP, all Stress cleared, MI healed by VSC + Hull.', 'rest');
+      // ATLAS 4.1: you Grow when your Codon crosses the next threshold, and Growth happens at the next
+      // Reconstitution. The rest opens it; the player chooses on their own screen.
+      for (const id of ids) {
+        const o = s.organisms[id];
+        if (!o.playerId) continue;
+        const to = levelForCodon(o.codon);
+        if (to > (o.growTo || o.level) && to > o.level) {
+          o.growTo = to;
+          say(s, ctx, `${o.name} has the Codon to Grow to Level ${o.level + 1}${to > o.level + 1 ? ` (and on to ${to})` : ''}. Choose on your own screen.`, 'award');
+        }
+      }
       const rule = ctx.scenario.rules && ctx.scenario.rules.reconstitutionCostsClock;
       if (rule && s.clocks[rule] && !a.free) {
         const c = s.clocks[rule];
@@ -1638,6 +1875,7 @@ const HANDLERS = {
       const o = org(s, (a.target || {}).id);
       const amount = Math.max(0, Math.trunc(Number(a.amount) || 0));
       if (o.dormant) throw new RuleError('A Dormant organism can only be brought back by stabilisation (CORE 5.4).');
+      if (ctx.ai && worldNow(s, ctx.scenario).silence) throw new RuleError('THE SILENCE is on the Row: no repair, no print, no re-fold. Nothing mends here until SHIFT comes back down or the Cohort leaves the Row.');
       const before = o.mi;
       o.mi = clamp(o.mi + amount, 0, o.miMax);
       say(s, ctx, `${o.name} recovers ${o.mi - before} MI, now ${o.mi}.`, 'rest');
@@ -2153,12 +2391,13 @@ const HANDLERS = {
         say(s, ctx, `${o.name} begins a Burst: ${cost} PP and ${atp} ATP. ${act.pp} PP left.`, 'act');
         return;
       }
+      if (a.action === 'drift') cost += worldNow(s, ctx.scenario).driftExtra;
       spendPP(s, act, cost, def.name);
       if (a.action === 'drift') {
         act.drifted = true;
         if (a.band) o.band = a.band;
         o.conditions = o.conditions.filter((c) => c.name !== 'Braced');
-        say(s, ctx, `${o.name} Drifts${a.band ? ` to ${a.band}` : ''} (up to ${o.flow} Drifts). ${act.pp} PP left.`, 'act');
+        say(s, ctx, `${o.name} Drifts${a.band ? ` to ${a.band}` : ''} (up to ${o.flow} Drifts${cost > 1 ? `, ${cost} PP while the pumps cramp` : ''}). ${act.pp} PP left.`, 'act');
       } else if (a.action === 'reserve') {
         act.reserve = true;
         say(s, ctx, `${o.name} holds a Reserve for a Reactive Osmosis. ${act.pp} PP left.`, 'act');

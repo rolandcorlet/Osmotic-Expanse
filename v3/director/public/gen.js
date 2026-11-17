@@ -276,3 +276,65 @@ export function genActs(ui, getState, { send, toast, randomName }) {
     },
   };
 }
+
+// ---- Growth in play (ATLAS 4.1): after a rest, an organism with the Codon chooses its Synthesis
+// Choice here. The Engine checks and pays it (org.grow).
+const CODON_AT = (L) => { const n = Math.max(1, Math.min(20, L)) - 1; return 10 * n * n + 30 * n; };
+const STAGE = (L) => (L <= 5 ? 1 : L <= 10 ? 2 : L <= 15 ? 3 : 4);
+export function growNeeds(level) { const t = STAGE(level + 1) > STAGE(level); return { level: level + 1, choices: t ? 2 : 1, stage: t, tier: STAGE(level + 1) }; }
+export function codonLine(o) { const next = CODON_AT(o.level + 1); return o.level >= 20 ? '' : `Level ${o.level + 1} at ${next} Codon`; }
+
+export function growHtml(ui, o) {
+  const G = ui.grow || (ui.grow = { tab: 'talents', picks: [] });
+  const need = growNeeds(o.level);
+  const picked = (kind, key) => G.picks.some((p) => p.kind === kind && p.key === key);
+  const full = G.picks.length >= need.choices;
+  const row = (kind, key, title, sub, ok = true, note = '') => {
+    const on = picked(kind, key);
+    return `<button class="grow-row${on ? ' set' : ''}" data-act="grow.pick" data-kind="${kind}" data-k="${esc(key)}" ${!on && (full || !ok) ? 'disabled' : ''}><span class="gname"><b>${title}</b><br><span class="small dim">${sub}${note ? ` · ${note}` : ''}</span></span><span class="gval">${on ? '✓' : '+'}</span></button>`;
+  };
+  const tab = (id, l) => `<button class="${G.tab === id ? 'on' : ''}" data-act="grow.tab" data-v="${id}">${l}</button>`;
+  let body = '';
+  if (G.tab === 'talents') {
+    const oneGrade = G.picks.some((p) => p.kind === 'grown');
+    body = KEYS.map((k) => row('grown', k, `${PLAIN[k][0]} ${o.base[k]} → ${o.base[k] + 1}`, PLAIN[k][1], o.base[k] < 6 && (!oneGrade || picked('grown', k)), o.base[k] >= 6 ? 'already 6' : '')).join('');
+  } else if (G.tab === 'skills') {
+    const names = [...new Set([...Object.keys(o.pathways || {}), ...ATLAS.pathways.map((p) => p.n)])];
+    body = names.map((n) => { const r = (o.pathways || {})[n] || 0; return row('rank', n, `${esc(n)} ${r} → ${r + 1}`, r ? 'trained' : 'new skill', r < 4, r >= 4 ? 'Sovereign already' : ''); }).join('');
+  } else if (G.tab === 'bursts') {
+    const ph = ATLAS.phenotypes.find((p) => String(o.phenotype || '').includes(p.n)) || {};
+    const dom = String(ph.dom || '').toUpperCase();
+    const known = o.bursts || [];
+    body = ATLAS.bursts.filter((b) => b.t <= need.tier && !known.includes(b.n)).sort((a, b) => (b.d === dom) - (a.d === dom) || a.t - b.t)
+      .map((b) => row('burst', b.n, `${esc(b.n)}${b.d === dom ? ' <span class="chip ok">your domain</span>' : ''}`, `${esc(b.d[0] + b.d.slice(1).toLowerCase())} · Tier ${b.t} · cost ${esc(b.c)} · ${esc(b.b)}`)).join('');
+  } else {
+    const spent = G.picks.filter((p) => p.kind === 'adapt').reduce((t, p) => t + (parseInt((ATLAS.adaptations.find((a) => a.n === p.key) || {}).s, 10) || 0), 0);
+    const left = o.substrate - spent;
+    body = `<div class="small dim">${o.substrate} S on hand${spent ? `, ${left} S after these` : ''}.</div>` + ATLAS.adaptations.filter((a) => !(o.adaptations || []).includes(a.n)).map((a) => {
+      const spec = /\+\s*\d/.test(a.s), cost = parseInt(a.s, 10) || 0;
+      return row('adapt', a.n, `${esc(a.n)} <span class="chip">${esc(a.s)}</span>`, esc(a.e), !spec && (cost <= left || picked('adapt', a.n)), spec ? 'needs a Specimen: ask the host' : cost > left ? 'not enough Substrate' : '');
+    }).join('');
+  }
+  const chosen = G.picks.map((p) => `<span class="chip on">${esc(p.kind === 'grown' ? `${PLAIN[p.key][0]} +1` : p.kind === 'rank' ? `${p.key} +1` : p.key)} <button class="btn sm ghost" data-act="grow.pick" data-kind="${p.kind}" data-k="${esc(p.key)}" aria-label="remove">×</button></span>`).join(' ');
+  return `<section class="card grow-card"><h3>Grow to Level ${need.level}${need.stage ? ` · Stage ${['', 'I', 'II', 'III', 'IV'][need.tier]}` : ''}<span class="right"><span class="chip ok">+${2 + (need.stage ? 6 : 0)} max MI</span></span></h3>
+    <div class="small">${need.choices === 2 ? 'A Stage transition: choose <b>two</b> Synthesis Choices (one is free), and describe what changed in your body.' : 'Choose <b>one</b> Synthesis Choice.'} ${G.picks.length} of ${need.choices} chosen.</div>
+    ${chosen ? `<div class="row">${chosen}</div>` : ''}
+    <div class="seg">${tab('talents', 'Talents')}${tab('skills', 'Skills')}${tab('bursts', 'Bursts')}${tab('adapt', 'Adaptations')}</div>
+    <div class="glist scroll" style="max-height:46vh" data-scroll="grow">${body}</div>
+    <div class="row"><span class="grow"></span><button class="btn primary" data-act="grow.go" data-id="${o.id}" ${G.picks.length === need.choices ? '' : 'disabled'}>Grow to Level ${need.level}</button></div>
+  </section>`;
+}
+
+export function growActs(ui, { send, toast }) {
+  const G = () => ui.grow || (ui.grow = { tab: 'talents', picks: [] });
+  return {
+    'grow.tab': (d) => { G().tab = d.v; },
+    'grow.pick': (d) => {
+      const g = G(), i = g.picks.findIndex((p) => p.kind === d.kind && p.key === d.k);
+      if (i >= 0) g.picks.splice(i, 1); else g.picks.push({ kind: d.kind, key: d.k });
+    },
+    'grow.go': async (d) => {
+      if (await send({ type: 'org.grow', organismId: d.id, choices: G().picks })) { ui.grow = null; toast('You have Grown.', true); }
+    },
+  };
+}

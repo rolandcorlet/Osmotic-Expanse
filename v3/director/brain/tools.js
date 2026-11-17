@@ -3,7 +3,7 @@
 // The model can change nothing except through these.
 
 import { lookUp } from '../data/kit/society.js';
-import { apply, RuleError, orgMT } from '../engine/ledger.js';
+import { apply, RuleError, orgMT, worldNow } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 
 const S = (description, extra = {}) => ({ type: 'string', description, ...extra });
@@ -128,6 +128,20 @@ function lastRoll(s) {
   return out;
 }
 
+// The Long Swallow 6.4: the Tolerance Threshold from the Host's mood.
+export function toleranceAT(state, scenario, sponsored) {
+  const tol = (scenario.rules || {}).tolerance;
+  if (!tol) return null;
+  const w = worldNow(state, scenario);
+  if (w.toleranceAT) return w.toleranceAT; // Wary or worse: 18, sponsored or not
+  return sponsored ? tol.sponsored : tol.base;
+}
+export function goodwillName(state, scenario) {
+  const c = state.clocks.GOODWILL;
+  const def = (scenario.clocks || []).find((x) => x.id === 'GOODWILL');
+  return c && def ? def.stages[c.filled] : '';
+}
+
 // ---- the tools ---------------------------------------------------------------
 export const TOOLS = [
   {
@@ -141,6 +155,8 @@ export const TOOLS = [
       what_for: S('A few words the player will see, for example "Cross the wound lip".'),
       modifiers: { type: 'array', description: 'Dice added or removed by circumstance: an item of kit or an ally +1, good position +1, wrong tonic -1 or -2, cover -2.', items: obj({ label: S('Why.'), dice: I('Dice to add (positive) or remove (negative).') }, ['label', 'dice']) },
       unhurried: B('True when the attempt is unopposed and unhurried: the Homeostatic Baseline is compared first, and it may need no roll at all.'),
+      facing: S('Who the organism is dealing with, when the Vector pays a standing in dice (The Ninth Shift\'s BADGE: "hegemony", "court", "row" or "other"); those dice are added for you.'),
+      sponsored: B('A Tolerance contest where the Cohort is sponsored or carries a valid token (The Long Swallow: AT 10).'),
     }, ['organism', 'baseline', 'threshold', 'what_for']),
     run(a, T) {
       const o = findOrg(T.state, a.organism);
@@ -153,8 +169,21 @@ export const TOOLS = [
         return { note: `A Strike in a Pulse War is not a check you ask for: the player Strikes on their own turn, and the table rolls it. Nothing changed. Acting now: ${T.fightBrief().acting_now}. Put the question to them.`, ...T.fightBrief() };
       }
       if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { refused: `${o.name} already has a roll waiting. Wait for it.` };
+      // The Long Swallow 6.4: a Tolerance contest's Threshold is printed and the Engine knows the mood.
+      const tol = ((T.scenario.rules || {}).tolerance);
+      if (tol && /\b(tolerance|sentinel|challenge|antigen|chemically correct|read as (?:own|self))\b/i.test(String(a.what_for))) {
+        const want = toleranceAT(T.state, T.scenario, truthy(a.sponsored));
+        if (at !== want) return { refused: `A Tolerance contest here is AT ${want} (${truthy(a.sponsored) ? 'sponsored' : `GOODWILL ${goodwillName(T.state, T.scenario)}`}; 14 printed, 10 sponsored, 18 if the Host is Wary or worse). Ask again at ${want}.` };
+      }
+      const mods = listOf(a.modifiers);
+      const bd = (T.scenario.rules || {}).badgeDice;
+      const badge = T.state.clocks.BADGE;
+      if (bd && badge && bd.against.includes(String(a.facing || '').toLowerCase())) {
+        const dice = bd.dice[badge.filled] || 0;
+        if (dice) mods.push({ label: `BADGE ${badge.filled}, ${bd.reads[badge.filled]}`, dice });
+      }
       const before = T.state.rolls.length;
-      const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods: listOf(a.modifiers), unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
+      const no = T.do({ type: 'request.check', organismId: o.id, baseline: a.baseline, pathway: a.pathway || '', at, label: a.what_for, mods, unhurried: a.unhurried === true || String(a.unhurried).toLowerCase() === 'true' });
       if (no) return { refused: no };
       if (T.state.rolls.length > before) return { no_roll_needed: true, note: `Unhurried, and ${o.name}'s Homeostatic Baseline meets ${at}. It simply succeeds. There is no Overflow.` };
       const q = T.state.requests[T.state.requests.length - 1];
@@ -415,8 +444,15 @@ export const TOOLS = [
   {
     name: 'move_clock',
     description: 'Advance or rewind one of the Clocks on the table by one segment, for a reason the page prints. Never because a roll failed. Each Clock may advance at most once per session. The Vector pays the triggers it prints itself (opening a panel, cutting a body down, leaving a body uncut, a Pulse War in the open, an Oath kept before a witness), so never spend your one advance on a Clock that has already moved.',
-    parameters: obj({ clock: S('Which Clock, by its name on the table (for The First Carve: CARCASS, TOLL or HUNGER).'), change: I('+1 to advance, -1 to rewind.'), why: S('The reason, said to the table.') }, ['clock', 'change', 'why']),
+    parameters: obj({ clock: S('Which Clock, by its name on the table (for The First Carve: CARCASS, TOLL or HUNGER).'), change: I('+1 to advance, -1 to rewind (0 with stop).'), why: S('The reason, said to the table.'), stop: B('Only when the fiction stops a Clock outright (the Churn\'s pump jammed): true stops it, false starts it again. Use change 0.') }, ['clock', 'change', 'why']),
     run(a, T) {
+      if (a.stop === true || a.stop === false || a.stop === 'true' || a.stop === 'false') {
+        if (!T.state.clocks[a.clock]) return { refused: `No Clock called ${a.clock}.` };
+        const no = T.do({ type: 'clock', id: a.clock, stop: a.stop === true || a.stop === 'true', why: a.why, by: 'ai' });
+        if (no) return { refused: no };
+        const c = T.state.clocks[a.clock];
+        return { clock: c.name, stopped: !!c.stopped };
+      }
       const d = Math.trunc(Number(a.change));
       if (d !== 1 && d !== -1) return { refused: 'A Clock moves one segment at a time: +1 or -1.' };
       // Your one advance is spent: that is a note, not a rule break, and it must not be narrated as a move.

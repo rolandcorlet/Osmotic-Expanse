@@ -733,9 +733,10 @@ function swallowTable() {
   return { host: (a) => { s = apply(s, a, ctx('host', null)); return s; }, ai: (a) => { s = apply(s, { ...a, by: 'ai' }, ctx('host', null)); return s; }, get s() { return s; }, bst };
 }
 
-test('The Long Swallow: four Level-7 Hands at 540 Codon, three Clocks, every encounter block exists', () => {
+test('The Long Swallow: four Level-7 Hands at 540 Codon, three Clocks and the Goodwill track, every encounter block exists', () => {
   const t = swallowTable();
-  assert.deepEqual(Object.keys(t.s.clocks), ['LICENCE', 'IMMUNE', 'CHURN']);
+  assert.deepEqual(Object.keys(t.s.clocks), ['LICENCE', 'IMMUNE', 'GOODWILL', 'CHURN']);
+  assert.equal(t.s.clocks.GOODWILL.filled, 2, 'Goodwill starts at Curious');
   assert.ok(HANDS_L7.every((h) => h.level === 7 && h.codon === 540));
   assert.deepEqual(['wall', 'ledger', 'rider', 'eyes'].map((id) => t.s.organisms[id].miMax), [67, 54, 53, 49]);
   assert.equal(swallow.sites.length, 5);
@@ -778,4 +779,116 @@ test('printed non-day advances: the Director may move SHIFT twice and LICENCE on
   const w = swallowTable();
   w.ai({ type: 'clock', id: 'LICENCE', delta: 1, why: 'a Breach' });
   assert.throws(() => w.ai({ type: 'clock', id: 'LICENCE', delta: 1, why: 'again' }), /Clock discipline/);
+});
+
+// ---- v3 17 Nov: the Clocks bite. The Engine pays what each stage prints.
+function seatedIn(sc, seed = 9) {
+  const rng = makeRng(seed);
+  const bst = loadBestiary();
+  let s = newSession(sc);
+  const ctx = (role, pid, ai) => ({ role, pid, rng, now: 0, scenario: sc, bestiary: bst, ai: !!ai });
+  const t = {
+    host: (a) => { s = apply(s, a, ctx('host', null)); return s; },
+    ai: (a) => { s = apply(s, { ...a, by: 'ai' }, ctx('host', null, true)); return s; },
+    as: (pid, a) => { s = apply(s, a, ctx('player', pid)); return s; },
+    get s() { return s; },
+  };
+  ['p1', 'p2'].forEach((p, i) => { t.as(p, { type: 'join', name: p }); t.as(p, { type: 'zero.agree' }); t.as(p, { type: 'claim', organismId: ['wall', 'eyes'][i], name: `Org ${p}` }); });
+  return t;
+}
+
+test('The Ninth Shift: SHIFT 3 makes every Drift cost 2 PP; SHIFT 4 is THE SILENCE and nothing mends', () => {
+  const t = seatedIn(ninth);
+  for (let i = 0; i < 3; i++) t.host({ type: 'beat', why: 'a day' });
+  assert.ok(t.s.log.some((e) => /SHIFT 3: the pump-villi cramp/.test(e.text)), 'the stage is said');
+  t.host({ type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'far' }] });
+  while (t.s.fight.turn !== 'org:wall') t.host({ type: 'turn.next' });
+  const before = t.s.fight.actors['org:wall'].pp;
+  t.as('p1', { type: 'act', organismId: 'wall', action: 'drift', band: 'near' });
+  assert.equal(t.s.fight.actors['org:wall'].pp, before - 2);
+  t.host({ type: 'fight.end' });
+  t.host({ type: 'beat', why: 'a day' });
+  t.s.organisms.wall.mi -= 5;
+  assert.throws(() => t.ai({ type: 'heal', target: { kind: 'org', id: 'wall' }, amount: 3 }), /THE SILENCE/);
+  t.host({ type: 'heal', target: { kind: 'org', id: 'wall' }, amount: 3 }); // the host can still overrule
+});
+
+test('The Long Swallow: IMMUNE 3 Marks one organism and drops Goodwill; IMMUNE 5 holds Goodwill at Curious', () => {
+  const t = seatedIn(swallow);
+  t.ai({ type: 'clock', id: 'GOODWILL', delta: 1, why: 'a rite with the Congregation' });
+  assert.equal(t.s.clocks.GOODWILL.filled, 3);
+  assert.ok(t.s.log.some((e) => /GOODWILL is now Client/.test(e.text)));
+  for (let i = 0; i < 3; i++) t.ai({ type: 'clock', id: 'IMMUNE', delta: 1, why: 'a loud cut' });
+  const marked = Object.values(t.s.organisms).filter((o) => o.conditions.some((c) => c.name === 'Marked'));
+  assert.equal(marked.length, 1);
+  assert.equal(t.s.clocks.GOODWILL.filled, 2, 'down a rung, to Curious');
+  t.ai({ type: 'clock', id: 'GOODWILL', delta: 1, why: 'healed a wash' });
+  t.ai({ type: 'clock', id: 'IMMUNE', delta: 1, why: 'x' }); t.ai({ type: 'clock', id: 'IMMUNE', delta: 1, why: 'y' });
+  assert.equal(t.s.clocks.GOODWILL.filled, 2, 'COMPLETE holds Goodwill at Curious');
+  t.ai({ type: 'clock', id: 'GOODWILL', delta: 1, why: 'kindness' });
+  assert.equal(t.s.clocks.GOODWILL.filled, 2);
+  assert.equal(Object.values(t.s.organisms).filter((o) => o.conditions.some((c) => c.name === 'Marked')).length, 1, 'Marked once, not again');
+});
+
+test('The Long Swallow: the CHURN fill pays inside the body and starts again; a jammed pump stops it; the Weep wash pays from LICENCE 3', () => {
+  const t = seatedIn(swallow);
+  t.host({ type: 'scene.set', siteId: 'churn' });
+  const mi = t.s.organisms.wall.mi;
+  for (let i = 0; i < 4; i++) t.host({ type: 'clock', id: 'CHURN', delta: 1 });
+  assert.equal(t.s.clocks.CHURN.filled, 0, 'it starts again');
+  assert.ok(t.s.organisms.wall.mi < mi, 'the fill hurt');
+  assert.ok(t.s.log.some((e) => /CHURN fills: everything in the compartment is pushed 1 band/.test(e.text)));
+  t.ai({ type: 'clock', id: 'CHURN', stop: true, why: 'Ilm jams the pump' });
+  assert.throws(() => t.ai({ type: 'clock', id: 'CHURN', delta: 1, why: 'schedule' }), /stopped/);
+  // LICENCE 3: the Weep's enzyme wash, paid on arrival
+  t.host({ type: 'scene.set', siteId: 'weep' });
+  for (let i = 0; i < 3; i++) t.host({ type: 'beat', why: 'a day' });
+  const w0 = t.s.organisms.eyes.mi;
+  t.host({ type: 'scene.set', siteId: 'chapel' });
+  t.host({ type: 'scene.set', siteId: 'weep' });
+  assert.ok(t.s.organisms.eyes.mi < w0, 'the wash hurt on arrival');
+  assert.ok(t.s.log.some((e) => /enzyme wash in the Weep: 3 Lytic/.test(e.text)));
+});
+
+test('Growth in play: crossing the Codon threshold opens a Growth at the next rest; the player chooses', async () => {
+  const { levelForCodon, growthNeeds } = await import('../engine/ledger.js');
+  assert.equal(levelForCodon(180), 4); assert.equal(levelForCodon(279), 4); assert.equal(levelForCodon(280), 5);
+  assert.deepEqual(growthNeeds(5), { level: 6, choices: 2, stage: 'II', tier: 2 });
+  const t = seatedIn(ninth);
+  const w = t.s.organisms.wall;
+  assert.throws(() => t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'VSC' }] }), /at 280 Codon/);
+  t.host({ type: 'award', codon: 100, why: 'the hearing' });
+  assert.throws(() => t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'VSC' }] }), /next Reconstitution/);
+  t.host({ type: 'rest' });
+  assert.equal(t.s.organisms.wall.growTo, 5);
+  assert.throws(() => t.as('p2', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'VSC' }] }), /not your organism/);
+  const before = { ...t.s.organisms.wall };
+  t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'VSC' }] });
+  const o = t.s.organisms.wall;
+  assert.equal(o.level, 5);
+  assert.equal(o.base.VSC, before.base.VSC + 1);
+  assert.equal(o.miMax, before.miMax + 4 + 2);
+  assert.equal(o.countdownMax, before.countdownMax + 1);
+  assert.equal(o.growTo, undefined);
+  assert.ok(t.s.log.some((e) => /Grows to Level 5/.test(e.text)));
+  void w;
+});
+
+test('Growth at a Stage transition takes two choices, pays +6 MI, opens Tier II Bursts; Adaptations cost Substrate', () => {
+  const t = seatedIn(ninth);
+  t.host({ type: 'award', codon: 220, substrate: 200, why: 'a lot' }); // 400: Level 6
+  t.host({ type: 'rest' });
+  t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'rank', key: 'Vigour' }] });
+  assert.equal(t.s.organisms.wall.level, 5);
+  assert.throws(() => t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'burst', key: 'Bridge Fold' }] }), /two Synthesis Choices/);
+  assert.throws(() => t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'VSC' }, { kind: 'grown', key: 'AFF' }] }), /One Baseline grade/);
+  const before = { ...t.s.organisms.wall };
+  t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'burst', key: 'Bridge Fold' }, { kind: 'adapt', key: 'Denser Wall' }] });
+  const o = t.s.organisms.wall;
+  assert.equal(o.level, 6);
+  assert.equal(o.miMax, before.miMax + 2 + 6 + 6);
+  assert.equal(o.substrate, before.substrate - 60);
+  assert.equal(o.flow, before.flow - 1);
+  assert.ok(o.kit.some((k) => /Burst: Bridge Fold/.test(k)) && o.kit.some((k) => /Adaptation: Denser Wall/.test(k)));
+  assert.match(t.s.log[t.s.log.length - 1].text, /Stage II/);
 });
