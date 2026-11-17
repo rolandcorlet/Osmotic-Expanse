@@ -628,6 +628,12 @@ export const TOOLS = [
       if (!kit) return { note: 'This Vector prints no secrets list.' };
       const id = String(a.secret || '').trim();
       if (((T.state.kit || {}).found || {})[id]) return { note: 'The Cohort already knows that. Nothing changed.' };
+      // Bench 17 Nov (Long Swallow 4): a clue the Director invented ("fresh-cut") is not a rule broken,
+      // just nothing to mark. Say so, and list what is still hidden, rather than refuse.
+      if (!kit.secrets.some((x) => x.id === id)) {
+        const hidden = kit.secrets.filter((x) => !((T.state.kit || {}).found || {})[x.id]).map((x) => x.id);
+        return { note: `"${id}" is not one of this Vector's printed secrets, so there is nothing to mark; what you narrated stands as a detail. ${hidden.length ? `Still hidden: ${hidden.join(', ')}.` : 'Every printed secret is already known.'}` };
+      }
       const no = T.do({ type: 'kit.found', id, how: a.how });
       if (no) return { refused: `${no} Printed ids: ${kit.secrets.map((x) => x.id).join(', ')}.` };
       const left = kit.secrets.filter((x) => x.must && !T.state.kit.found[x.id]).length;

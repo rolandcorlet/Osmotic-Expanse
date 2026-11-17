@@ -85,7 +85,7 @@ test('reveal_secret records it once, shows it to players, and drops it from the 
   const T = toolbox({ state: seated(), scenario, bestiary, rng });
   assert.equal(T.run('reveal_secret', { secret: 'legal', how: 'read the toll board' }).learned, 'legal');
   assert.match(T.run('reveal_secret', { secret: 'legal' }).note, /already knows/);
-  assert.match(T.run('reveal_secret', { secret: 'nope' }).refused, /Printed ids/);
+  assert.match(T.run('reveal_secret', { secret: 'nope' }).note, /not one of this Vector's printed secrets/);
   const b = briefing(T.state, scenario, bestiary);
   assert.doesNotMatch(b, /- legal \(they need this\)/);
   assert.match(b, /Already known to the Cohort.*legal/);
