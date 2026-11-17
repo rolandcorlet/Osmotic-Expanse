@@ -367,7 +367,7 @@ The Expanse is not a place that stays. Its water moves, its salt rises and falls
 | **Osmotic Tide** | ~4 Drift Seasons | the world's tonicity swings. Everything downstream of this chapter happens on a Tide. |
 | **Great Cycle** | 16 Tides (~1,900 Beats) | a generation. Registers are purged. Old debts are re-read. |
 
-> **v3 ruling (17 Nov 2026) — Closing a day.** A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about eight exchanges at the table in The Ninth Shift, ten in The Long Swallow) and nobody has closed the day, close it: the day ran out while the Cohort worked.
+> **v3 ruling (17 Nov 2026) — Closing a day.** A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about ten exchanges at the table) and nobody has closed the day, close it: the day ran out while the Cohort worked.
 
 ## 5.2 Clocks: the only world-state you need to track
 

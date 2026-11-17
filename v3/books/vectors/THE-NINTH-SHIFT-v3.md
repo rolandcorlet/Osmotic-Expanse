@@ -248,7 +248,7 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 *Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
 
 - **BADGE in dice** (3.2 BADGE; 17 Nov 2026). BADGE's dice apply to any contest with a Hegemony or Court NPC: −1 at 0, +1 at 2, +2 at 3 and above (Badges 4 and 5 keep the +2 and add what their row gives).
-- **Routes and days** (7 · THE FIVE SITES; 17 Nov 2026). A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about eight exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves.
+- **Routes and days** (7 · THE FIVE SITES; 17 Nov 2026). A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about ten exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves.
 - **The arch is never a locked door** (7 · 1 · THE FILING GATE; 17 Nov 2026). A Cohort at BADGE 0–1 is challenged at the Warden arch and walked through under escort, which is a scene, never a locked door. A listed exit is always open at a price.
 
 ## How it can end, and what comes next

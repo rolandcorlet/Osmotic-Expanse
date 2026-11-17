@@ -179,6 +179,9 @@ export const TOOLS = [
       const bd = (T.scenario.rules || {}).badgeDice;
       const badge = T.state.clocks.BADGE;
       if (bd && badge && bd.against.includes(String(a.facing || '').toLowerCase())) {
+        // Bench 17 Nov (Ninth Shift 7): the Director added "BADGE 0, Kin of the Row −1" itself and the
+        // Engine added it again. BADGE is paid here, once.
+        for (let i = mods.length - 1; i >= 0; i--) if (/badge|kin of the row|contractor|nine-badges/i.test(String(mods[i].label || ''))) mods.splice(i, 1);
         const dice = bd.dice[badge.filled] || 0;
         if (dice) mods.push({ label: `BADGE ${badge.filled}, ${bd.reads[badge.filled]}`, dice });
       }
@@ -701,7 +704,7 @@ export const TOOLS = [
   },
   {
     name: 'change_site',
-    description: 'The Cohort leaves by an exit and arrives at the next site. Only the sites listed as reachable from here can be reached. The new site\'s situation reaches you on your next turn: end your turn after calling this with one sentence of travel, and open the new scene next turn.',
+    description: 'The Cohort leaves by an exit and arrives at the next site. Only the sites listed as reachable from here can be reached. The new site\'s situation reaches you on your next turn: end your turn after calling this with a single line on the way there, and open the new scene next turn.',
     parameters: obj({ site: S('The site id, for example "soft-field".') }, ['site']),
     run(a, T) {
       const here = T.site();

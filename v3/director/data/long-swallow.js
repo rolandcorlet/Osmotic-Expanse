@@ -8,7 +8,7 @@ const hands = HANDS_L7;
 const clocks = [
   {
     id: 'LICENCE', name: 'LICENCE', segments: 6, says: 'Six days until the crews open the Host and dissolve it. The pressure clock.',
-    stages: ['crews mustering', 'prices rise; the Choir begins a vigil at the Weep', 'the first cut: the Weep gains an enzyme wash (3 Lytic per Cycle) until the Cohort is past it', 'the Chapel floods with runoff; the ferry stops; your sponsor is now inside with you', 'the Churn is decoupled: it fills every Cycle and throws two bands', 'dissolution: the escape, with the Receipt in someone\'s hands'],
+    stages: ['quiet', 'crews mustering', 'prices rise; the Choir begins a vigil at the Weep', 'the first cut: the Weep gains an enzyme wash (3 Lytic per Cycle) until the Cohort is past it', 'the Chapel floods with runoff; the ferry stops; your sponsor is now inside with you', 'the Churn is decoupled: it fills every Cycle and throws two bands', 'dissolution: the escape, with the Receipt in someone\'s hands'],
   },
   {
     id: 'IMMUNE', name: 'IMMUNE', segments: 5, says: 'What the Host\'s body has learned about the Cohort. Every cut, blow or harvest inside it adds one. The price of loot.',

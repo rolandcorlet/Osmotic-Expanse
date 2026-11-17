@@ -903,10 +903,10 @@ test('The Ninth Shift pacing: a printed route pays a Beat (free as Kin of the Ro
   const k = seatedIn(ninth);
   k.host({ type: 'scene.set', siteId: 'picket-hearth' });
   assert.equal(k.s.beat || 0, 0, 'walked as Kin of the Row: free');
-  for (let i = 0; i < 7; i++) t.host({ type: 'narrate', text: `Turn ${i}.` });
+  for (let i = 0; i < 9; i++) t.host({ type: 'narrate', text: `Turn ${i}.` });
   assert.equal(t.s.beat, 1);
-  t.host({ type: 'narrate', text: 'Turn 8.' });
-  assert.equal(t.s.beat, 2, 'eight narrations without a Beat close the day');
+  t.host({ type: 'narrate', text: 'Turn 10.' });
+  assert.equal(t.s.beat, 2, 'ten narrations without a Beat close the day');
   assert.ok(t.s.log.some((e) => /The day runs out/.test(e.text)));
 });
 

@@ -50,3 +50,24 @@ test('the jammed pump: the Director stops CHURN and the briefing says so', () =>
   assert.match(briefing(T.state, swallow, bestiary), /CHURN is STOPPED/);
   assert.ok(T.run('move_clock', { clock: 'CHURN', change: 1, why: 'schedule' }).refused);
 });
+
+test('BADGE is paid once even when the Director adds it too; a jump says only where it landed', () => {
+  const { s, rng } = seated(ninth);
+  const T = toolbox({ state: s, scenario: ninth, bestiary, rng });
+  T.run('ask_for_roll', { organism: 'eyes', baseline: 'AFF', threshold: 12, what_for: 'Argue the clause', facing: 'court', modifiers: [{ label: 'BADGE 0, Kin of the Row', dice: -1 }, { label: 'the exhibit', dice: 1 }] });
+  const q = T.state.requests[T.state.requests.length - 1];
+  assert.equal(q.pool.mods.filter((m) => /BADGE/.test(m.label)).length, 1, JSON.stringify(q.pool.mods));
+  for (let i = 0; i < 4; i++) T.run('end_beat', { why: 'a day' });
+  const said = T.state.log.map((e) => e.text);
+  assert.ok(said.some((t) => /PAPER 4: the decision is issued/.test(t)));
+  assert.ok(!said.some((t) => /PAPER 3:/.test(t)), 'the hearing was not moved forward; the date came');
+});
+
+test('LICENCE stages are said at the segment the book prints', () => {
+  const { s, rng } = seated(swallow);
+  const T = toolbox({ state: s, scenario: swallow, bestiary, rng });
+  for (let i = 0; i < 3; i++) T.run('end_beat', { why: 'a day' });
+  const said = T.state.log.map((e) => e.text);
+  assert.ok(said.some((t) => /LICENCE 3: the first cut/.test(t)), said.join(' | '));
+  assert.ok(!said.some((t) => /LICENCE 2: the first cut/.test(t)));
+});

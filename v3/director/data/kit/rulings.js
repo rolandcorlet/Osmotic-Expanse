@@ -70,7 +70,7 @@ export const RULINGS = [
   "section": "5.1 Calendars",
   "date": "17 Nov 2026",
   "name": "Closing a day",
-  "text": "A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about eight exchanges at the table in The Ninth Shift, ten in The Long Swallow) and nobody has closed the day, close it: the day ran out while the Cohort worked."
+  "text": "A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about ten exchanges at the table) and nobody has closed the day, close it: the day ran out while the Cohort worked."
  },
  {
   "book": "codex",
@@ -133,7 +133,7 @@ export const RULINGS = [
   "section": "7 · THE FIVE SITES",
   "date": "17 Nov 2026",
   "name": "Routes and days",
-  "text": "A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about eight exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves."
+  "text": "A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about ten exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves."
  },
  {
   "book": "ninth-shift",

@@ -185,7 +185,7 @@ export const scenario = {
       'alley-41>*': { why: 'Hush\'s forgotten drainage channel takes a day.' },
     },
     // A Beat is a working day: if the Director has narrated this long without one, the day is over.
-    beatAfterTurns: 8,
+    beatAfterTurns: 10,
     // BADGE and PAPER move on printed triggers many times. SHIFT moves on the Beat (the Engine pays it) and
     // for its printed non-day triggers, e.g. the jam fixed (7.3) - the Director's, twice a session at most.
     aiAdvanceCap: { BADGE: 6, PAPER: 4, SHIFT: 2 },

@@ -325,7 +325,9 @@ function payStages(s, ctx) {
       if (s.stagesPaid[key]) continue;
       s.stagesPaid[key] = s.seq;
       const fillStep = rules.churn && rules.churn.clock === c.id && n >= c.segments; // the fill says itself
-      if (name && !fillStep) say(s, ctx, `${c.name} ${n}: ${name}.`, 'clock');
+      // A jump of several segments at once (PAPER set to 4 on its date) says only where it landed: the
+      // stages it passed over did not happen in the fiction. Their printed effects are still paid.
+      if (name && !fillStep && n === c.filled) say(s, ctx, `${c.name} ${n}: ${name}.`, 'clock');
       if (!ev) continue;
       if (ev.mark) {
         const pool = Object.values(s.organisms).filter((o) => o.playerId && !hasCond(o, 'Marked'));

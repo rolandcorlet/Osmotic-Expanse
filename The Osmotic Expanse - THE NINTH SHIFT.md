@@ -328,7 +328,7 @@ The sites are a **pointcrawl**, not a map: five nodes, printed routes between th
 
 **Medium (whole Vector, CODEX §6.6):** hypertonic waste brine · **turbid** · **Flow 2, pump-driven, and the pumps stop at shift-change** — which is the first joke of the Vector and the last one too, because in nine Beats there has been no shift-change. Viscosity climbs one step per SHIFT segment (§3.1). A Turbulence Navigator in the Cohort is worth a Retainer's wage here, and the Row will offer it.
 
-> **v3 ruling (17 Nov 2026) — Routes and days.** A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about eight exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves.
+> **v3 ruling (17 Nov 2026) — Routes and days.** A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about ten exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves.
 
 ## 7 · 1 · THE FILING GATE — *approach: a queue, a form, a wage*
 
