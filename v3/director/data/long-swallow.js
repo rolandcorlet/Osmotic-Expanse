@@ -89,7 +89,7 @@ const sites = [
       { name: 'The deep channel', band: 'Mid', note: 'enzyme sheets, 4 Lytic per Cycle; Turbid, OSM contests at -1 die' },
       { name: 'The Shelf approach', band: 'Far', note: 'where the fill throws everything' },
     ],
-    exits: ['With the flow to the Shelf (free, and grants Momentum)', 'Against the flow (Fluid Navigation AT 12, 14 in the Churn proper, or 2 PP per band)'],
+    exits: ['With the flow to the Shelf (free, and grants Momentum; if the pump is jammed, swim it: 2 PP per Drift through still water, and the way is open)', 'Against the flow, back to the Chapel (Fluid Navigation AT 12, 14 in the Churn proper, or 2 PP per band)'],
     encounter: [{ blockId: 'gastric-sentinel', count: 2 }, { blockId: 'protease-locusts', count: 2 }],
     harvestPays: { 'gastric-sentinel': { codon: 15 }, 'protease-locusts': { codon: 3.5 } },
     host: {
@@ -98,7 +98,7 @@ const sites = [
       danger: 'E3: THE CHURN (hazard, 2 BSP) + 2 Gastric Sentinels + 2 Protease Locusts = 8 BSP, Standard at Levels 9-12, Easy at 7. At the fill, everyone is thrown toward the Shelf; a Cohort that fights against the flow is fighting the map.',
       wants: 'The Churn wants to finish its one job. The Sentinels want a reason.',
       weakness: 'It is a muscle: jam the pump (Synthesis AT 14, 20 S) and it stops; Desiccation halves its push; a Tidal Anchor declines to be moved; a PC who goes limp with the flow takes nothing.',
-      hazard: 'THE CHURN (abiotic, 2 BSP, integrity 60, MT 5, 8 braced): on the fill everything in the compartment is pushed 1 band and takes 6 Osmotic (+4 Kinetic into a wall; Brace, Anchor or Immovable negates); enzyme sheets 4 Lytic per Cycle in the deep channel. At LICENCE 5 it fills every Cycle and throws two bands. Over-prime at LICENCE 5: 3 bands and 14 Osmotic. Cutting the pump-villus pays C3 / G1 but ends the compartment\'s movement forever, stranding everyone inside.',
+      hazard: 'Trigger: entering or lingering in the deep channel. Effect: 4 Lytic damage per Cycle (the enzyme sheets; they are a hazard, never a wall: anyone can swim through and pay it). THE CHURN fill, on the CHURN Clock (abiotic, 2 BSP, integrity 60, MT 5, 8 braced): everything in the compartment is pushed 1 band and takes 6 Osmotic (+4 Kinetic into a wall; Brace, Anchor or Immovable negates). At LICENCE 5 it fills every Cycle and throws two bands. Over-prime at LICENCE 5: 3 bands and 14 Osmotic. Cutting the pump-villus pays C3 / G1 but ends the compartment\'s movement forever, stranding everyone inside.',
       pays: '37 Codon for the room. C14 / G6 and a Nine-Cycle Sample if the pump is cut. A jammed pump is a safe dead-water room where the Cohort can rest, trade or be trapped.',
       tells: 'The fluid goes flat and sweet; the walls groan one Cycle early and the Congregation counts it aloud. Free warning, always.',
       lesson: 'Every good site has a direction, and this one has a schedule.',

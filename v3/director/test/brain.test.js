@@ -1773,3 +1773,10 @@ test('change_site follows a Vector\'s own map: the Row reaches the alley behind 
   assert.deepEqual(reachable(fc, fc.sites[1]), [fc.sites[0].id, fc.sites[2].id]);
   for (const s of ninth.sites) for (const id of reachable(ninth, s)) assert.ok(ninth.sites.some((x) => x.id === id), `${s.id} -> ${id}`);
 });
+
+test('the Churn prices its enzyme sheets (4 Lytic per Cycle), so hazard_damage can pay them', async () => {
+  const { hazardSpec } = await import('../brain/tools.js');
+  const { scenario: sw } = await import('../data/long-swallow.js');
+  const h = hazardSpec(sw.sites.find((s) => s.id === 'churn'));
+  assert.deepEqual([h.amount, h.type, h.standing], [4, 'Lytic', true]);
+});

@@ -48,7 +48,7 @@ export function printedPays(site) {
 // 1 to 20 there. Damage types are the three CORE 8.1 prints (KINETIC, LYTIC, OSMOTIC), which keeps
 // "Tier 1", "soak 1" and "CARCASS 3+" out of the match.
 const DMG_TYPES = 'Kinetic|Lytic|Osmotic';
-const PER_CYCLE = new RegExp(`(\\d+)\\s+(${DMG_TYPES})\\s+damage\\s+per\\s+Cycle`, 'i');
+const PER_CYCLE = new RegExp(`(\\d+)\\s+(${DMG_TYPES})\\s+(?:damage\\s+)?per\\s+Cycle`, 'i');
 export function hazardSpec(site) {
   const text = String(((site || {}).host || {}).hazard || '');
   const tr = text.match(/Trigger:\s*([^.]*)/i);
