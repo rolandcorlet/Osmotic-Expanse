@@ -6,7 +6,7 @@
 import { kitBriefing, breakLoop } from './kit.js';
 import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, orgMT, printedPays, hazardSpec, reachable, toleranceAT, goodwillName } from './tools.js';
-import { worldNow } from '../engine/ledger.js';
+import { worldNow, turnsSinceBeat } from '../engine/ledger.js';
 import { hazardBudget } from '../engine/ledger.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
@@ -211,11 +211,16 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       const b = state.clocks.BADGE.filled;
       lines.push(`BADGE ${b} (${R2.badgeDice.reads[b]}): in any contest with the Hegemony or the Court, pass facing "hegemony" or "court" to ask_for_roll and the Engine adds ${R2.badgeDice.dice[b] >= 0 ? '+' : ''}${R2.badgeDice.dice[b]} dice. Do not add BADGE dice yourself.`);
     }
+    if (R2.beatAfterTurns) {
+      const left = R2.beatAfterTurns - turnsSinceBeat(state);
+      lines.push(`A day (a Beat) is about ${R2.beatAfterTurns} of your turns. ${left > 1 ? `In ${left} more turns the day closes by itself` : 'This turn closes the day by itself'} unless you call end_beat first: call it yourself when the printed scene has turned (a day in the queue, the work done, a night's rest), and say what the day cost.${R2.routeBeats ? ' A route the page prices at a Beat is paid for you when the Cohort takes it.' : ''}`);
+    }
     const growing = Object.values(state.organisms).filter((o) => o.playerId && o.growTo > o.level);
     if (growing.length) lines.push(`${growing.map((o) => o.name).join(', ')} can Grow (the Codon is there and they have rested). They choose on their own screen; do not choose for them. When one reaches a new Stage (Levels 6, 11, 16), ask them what changed in their body and who notices.`);
     if (lines.length) { L.push('## IN FORCE NOW (the Engine pays these; say them when they matter)'); for (const x of lines) L.push(`- ${x}`); }
   }
   if (state.clocks.ORDER) L.push('ORDER is the campaign\'s own Clock (five segments) and it stays with the Cohort from Vector to Vector. It advances when the Cohort harms, harvests or imitates an Order of creatures, in front of that Order\'s own kind: the swarms, the Bleeders, the Sentinels. Never because a roll failed. Name it aloud. The players may rewind it by spending time, Cohesion or Specimens: let them. When it fills, that Order responds: it swarms, hunts the Cohort\'s register, mimics the Cohort, or (rarely) makes an offer.');
+  if (state.clocks.COLONY) L.push('COLONY (six segments) and CORE (four) are the campaign\'s own Clocks and travel with the Cohort from Vector to Vector. COLONY advances when the Cohort disturbs a settlement: violence in a market, unlicensed synthesis, a corpse left unharvested (a broken Oath is paid for you). When it fills, the colony acts: wardens arrive, tolls rise, a contract is voided, a mob forms. CORE advances for touching Nucleoid material, a Relic\'s Rule Break, an Apotheotic Choice or a Deep Naming; when it fills, the Nucleoid notices. Same discipline as every Clock: one advance a session, in front of the players, for something loud that succeeded.');
 
   L.push('');
   const f = state.fight;

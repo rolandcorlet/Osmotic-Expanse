@@ -177,6 +177,8 @@ export const scenario = {
   rules: {
     // 3: LICENCE advances one segment per Beat (the Engine pays it when the day ends).
     beatClocks: ['LICENCE'],
+    // A Beat is the Wastes' working day; the Engine closes one if the Director has not.
+    beatAfterTurns: 10,
     // IMMUNE moves on loud, noticed actions; CHURN on schedule (the Director says when it fills). LICENCE on the
     // Beat, and once for a printed non-day trigger (6.4: a Breach advances LICENCE 1).
     aiAdvanceCap: { IMMUNE: 5, CHURN: 4, LICENCE: 1, GOODWILL: 8 },

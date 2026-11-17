@@ -454,12 +454,13 @@ test('a new game: everything fresh, and the table can stay seated', () => {
   assert.deepEqual(clean.zero.lines, []);
   assert.ok(!clean.organisms.wall.playerId);
 
-  // Another Vector: people stay, organisms do not carry across.
+  // Another Vector: people stay and (v3 17 Nov) bring their organisms, unless the host says not.
   const other = { ...scenario, id: 'another-vector', title: 'Another Vector' };
-  const moved = restart(old, other, { keepPlayers: true });
+  const moved = restart(old, other, { keepPlayers: true, carry: false });
   assert.equal(moved.players.p1.name, 'Roly');
   assert.equal(moved.players.p1.organismId, null);
   assert.equal(moved.scenarioId, 'another-vector');
+  assert.equal(restart(old, other, { keepPlayers: true }).players.p1.organismId, 'wall');
 });
 
 // ---- the Vector's own Clock triggers (THE FIRST CARVE 3.1-3.3) -------------------------------
@@ -694,7 +695,7 @@ function ninthTable() {
 
 test('The Ninth Shift: four Level-4 Hands, its three Clocks, and every encounter block exists', () => {
   const t = ninthTable();
-  assert.deepEqual(Object.keys(t.s.clocks), ['SHIFT', 'BADGE', 'PAPER']);
+  assert.deepEqual(Object.keys(t.s.clocks), ['SHIFT', 'BADGE', 'PAPER', 'COLONY', 'CORE']);
   const o = t.s.organisms;
   assert.deepEqual(['wall', 'ledger', 'rider', 'eyes'].map((id) => o[id].miMax), [51, 42, 37, 33]);
   assert.ok(Object.values(o).every((h) => h.level === 4 && h.codon === 180));
@@ -735,7 +736,7 @@ function swallowTable() {
 
 test('The Long Swallow: four Level-7 Hands at 540 Codon, three Clocks and the Goodwill track, every encounter block exists', () => {
   const t = swallowTable();
-  assert.deepEqual(Object.keys(t.s.clocks), ['LICENCE', 'IMMUNE', 'GOODWILL', 'CHURN']);
+  assert.deepEqual(Object.keys(t.s.clocks), ['LICENCE', 'IMMUNE', 'GOODWILL', 'CHURN', 'COLONY', 'CORE']);
   assert.equal(t.s.clocks.GOODWILL.filled, 2, 'Goodwill starts at Curious');
   assert.ok(HANDS_L7.every((h) => h.level === 7 && h.codon === 540));
   assert.deepEqual(['wall', 'ledger', 'rider', 'eyes'].map((id) => t.s.organisms[id].miMax), [67, 54, 53, 49]);
@@ -891,4 +892,65 @@ test('Growth at a Stage transition takes two choices, pays +6 MI, opens Tier II 
   assert.equal(o.flow, before.flow - 1);
   assert.ok(o.kit.some((k) => /Burst: Bridge Fold/.test(k)) && o.kit.some((k) => /Adaptation: Denser Wall/.test(k)));
   assert.match(t.s.log[t.s.log.length - 1].text, /Stage II/);
+});
+
+test('The Ninth Shift pacing: a printed route pays a Beat (free as Kin of the Row), and the Engine closes a long day', () => {
+  const t = seatedIn(ninth);
+  t.host({ type: 'clock', id: 'BADGE', delta: 1 });
+  t.host({ type: 'scene.set', siteId: 'picket-hearth' });
+  assert.equal(t.s.beat, 1, 'the brine-walk took a day');
+  assert.equal(t.s.clocks.SHIFT.filled, 1);
+  const k = seatedIn(ninth);
+  k.host({ type: 'scene.set', siteId: 'picket-hearth' });
+  assert.equal(k.s.beat || 0, 0, 'walked as Kin of the Row: free');
+  for (let i = 0; i < 7; i++) t.host({ type: 'narrate', text: `Turn ${i}.` });
+  assert.equal(t.s.beat, 1);
+  t.host({ type: 'narrate', text: 'Turn 8.' });
+  assert.equal(t.s.beat, 2, 'eight narrations without a Beat close the day');
+  assert.ok(t.s.log.some((e) => /The day runs out/.test(e.text)));
+});
+
+test('a campaign: moving on to the next Vector brings the organism, healed, with the catch-up Growths owed', () => {
+  const t = seatedIn(scenario);
+  t.host({ type: 'award', codon: 100, substrate: 30, why: 'the Gut Stone' });
+  t.host({ type: 'damage', target: { kind: 'org', id: 'wall' }, amount: 5, dtype: 'Kinetic' });
+  t.host({ type: 'rest' });
+  t.as('p1', { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'VSC' }] }); // L2
+  t.s.organisms.wall.specimens = { C: 2, G: 1, P: 0, T: 0 };
+  t.host({ type: 'clock', id: 'TOLL', delta: 1 });
+  t.s.clocks.COLONY.filled = 2;
+  const was = t.s.organisms.wall;
+  const next = restart(t.s, ninth, { keepPlayers: true });
+  const o = next.organisms.wall;
+  assert.equal(next.players.p1.organismId, 'wall');
+  assert.equal(o.name, was.name);
+  assert.equal(o.level, 2);
+  assert.equal(o.base.VSC, was.base.VSC);
+  assert.equal(o.mi, o.miMax, 'healed and rested');
+  assert.equal(o.tie, ninth.hands.find((h) => h.id === 'wall').tie, 'the new seat\'s story hook');
+  assert.deepEqual(o.specimens, { C: 2, G: 1, P: 0, T: 0 });
+  assert.equal(o.growTo, 4, 'owed the Growths to reach Level 4');
+  assert.ok(o.codon >= 180);
+  assert.equal(next.clocks.COLONY.filled, 2, 'the campaign Clocks travel');
+  assert.equal(next.clocks.TOLL, undefined, 'the Vector\'s own Clocks do not');
+  // the catch-up Growths are chosen on the phone, no rest needed
+  let s = next;
+  const ctx = { role: 'player', pid: 'p1', rng: makeRng(1), now: 0, scenario: ninth, bestiary: loadBestiary() };
+  s = apply(s, { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'rank', key: 'Vigour' }] }, ctx);
+  s = apply(s, { type: 'org.grow', organismId: 'wall', choices: [{ kind: 'grown', key: 'AFF' }] }, ctx);
+  assert.equal(s.organisms.wall.level, 4);
+  assert.equal(s.organisms.wall.growTo, undefined);
+});
+
+test('COLONY and CORE stand in every Vector; a broken Oath moves COLONY; a full one is announced once', () => {
+  const t = seatedIn(scenario);
+  assert.equal(t.s.clocks.COLONY.segments, 6); assert.equal(t.s.clocks.CORE.segments, 4);
+  assert.ok(t.s.clocks.COLONY.campaign);
+  t.host({ type: 'oath.swear', organismId: 'wall', promise: 'I will carry the brood out' });
+  t.host({ type: 'oath.settle', organismId: 'wall', kept: false, why: 'left it' });
+  assert.equal(t.s.clocks.COLONY.filled, 1);
+  for (let i = 0; i < 4; i++) t.host({ type: 'clock', id: 'CORE', delta: 1 });
+  assert.ok(t.s.log.some((e) => /CORE is full: the Nucleoid notices/.test(e.text)));
+  t.host({ type: 'note', text: 'x' });
+  assert.equal(t.s.log.filter((e) => /CORE is full/.test(e.text)).length, 1);
 });

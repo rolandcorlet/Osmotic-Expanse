@@ -387,7 +387,12 @@ function sceneCard({ full = false } = {}) {
 }
 
 function clocksCard({ edit = false } = {}) {
-  const rows = Object.values(state.clocks).map((c) => {
+  // The campaign's Clocks (COLONY, CORE, and ORDER once a Vector opens it) stand in every game; outside
+  // the host's edit view they sit on one line, and only once they have moved.
+  const camp = Object.values(state.clocks).filter((c) => c.campaign);
+  const campLine = !edit && camp.some((c) => c.filled > 0)
+    ? `<div class="row small" style="gap:6px;flex-wrap:wrap"><span class="dim">Campaign</span>${camp.filter((c) => c.filled > 0).map((c) => `<span class="chip${c.filled >= c.segments - 1 ? ' warn' : ''}" title="${esc(c.says)}">${esc(c.name)} ${c.filled}/${c.segments}</span>`).join('')}</div>` : '';
+  const rows = Object.values(state.clocks).filter((c) => edit || !c.campaign).map((c) => {
     const def = sc.clocks.find((x) => x.id === c.id) || {};
     const stage = def.stages && def.stages[c.filled] ? def.stages[c.filled] : '';
     const segs = Array.from({ length: c.segments }, (_, i) => `<i class="${i < c.filled ? `on${c.filled >= c.segments - 1 ? ' hot' : ''}` : ''}"></i>`).join('');
@@ -395,7 +400,7 @@ function clocksCard({ edit = false } = {}) {
       <span class="small dim">${c.filled}/${c.segments}${stage ? ` · ${esc(stage)}` : ''}</span></div>
       ${edit ? `<div class="row" style="justify-content:flex-end;margin-top:-4px"><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="-1">Rewind −1</button><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="1">Advance +1</button></div>` : ''}`;
   }).join('');
-  return `<section class="card"><h3>Clocks</h3>${rows}</section>`;
+  return `<section class="card"><h3>Clocks</h3>${rows}${campLine}</section>`;
 }
 
 function bandMap() {
@@ -1112,11 +1117,13 @@ function newGameCard() {
   const seated = Object.values(state.players || {});
   const keepNote = !seated.length ? 'Nobody is at the table yet.'
     : same ? `${seated.length} stay${seated.length === 1 ? 's' : ''} seated, with the same organisms on fresh sheets, and the session-zero terms carry over.`
-      : `${seated.length} stay${seated.length === 1 ? 's' : ''} at the table and the session-zero terms carry over. A different Vector has different organisms, so everyone chooses again.`;
+      : N.carry !== false ? `${seated.length} stay${seated.length === 1 ? 's' : ''} at the table, and each brings their organism into the same seat: its name, Level, Codon, Substrate, kit and Growths, healed and rested, with this Vector's story hook. Anyone below this Vector's Level is owed the Growths to catch up and chooses them on their phone. The campaign's Clocks (ORDER, COLONY, CORE) come too.`
+        : `${seated.length} stay${seated.length === 1 ? 's' : ''} at the table and the session-zero terms carry over, but everyone chooses a new organism.`;
   return `<section class="card"><h3>New game<span class="right"><button class="btn sm" data-act="h.new.cancel">Cancel</button></span></h3>
     <label class="fld"><span class="fl">Vector</span><select data-k="ng.v" data-bind="newGame.vectorId">${vs.map((v) => `<option value="${esc(v.id)}" ${v.id === pick.id ? 'selected' : ''}>${esc(v.title)}${v.id === state.scenarioId ? ' (playing now)' : ''}</option>`).join('')}</select></label>
     ${pick.blurb ? `<p class="small dim">${esc(pick.blurb)}</p>` : ''}
-    <label class="chip${N.keep ? ' on' : ''}"><input type="checkbox" data-bind="newGame.keep" ${N.keep ? 'checked' : ''}> Keep the players seated</label>
+    <div class="row"><label class="chip${N.keep ? ' on' : ''}"><input type="checkbox" data-bind="newGame.keep" ${N.keep ? 'checked' : ''}> Keep the players seated</label>
+    ${N.keep && !same ? `<label class="chip${N.carry !== false ? ' on' : ''}"><input type="checkbox" data-bind="newGame.carry" ${N.carry !== false ? 'checked' : ''}> Bring their organisms</label>` : ''}</div>
     <p class="small dim">${N.keep ? esc(keepNote) : 'Everyone joins again from the start, through session zero.'}</p>
     <div class="row"><span class="small dim grow">Clocks, sheets, creatures, rolls and the story start fresh. Undo brings this game back.</span><button class="btn danger" data-act="h.new.go">Start the new game</button></div>
   </section>`;
@@ -1126,8 +1133,9 @@ function hostToolsCard() {
   if (ui.newGame.open) return newGameCard();
   const rc = (sc && sc.restClock) || '';
   const A = ui.host.award;
-  const clocks = Object.values(state.clocks).map((c) => `<div class="row"><b style="width:74px;font-size:13px">${esc(c.name)}</b><div class="segs grow">${Array.from({ length: c.segments }, (_, i) => `<i class="${i < c.filled ? 'on' : ''}"></i>`).join('')}</div><span class="small dim">${c.filled}/${c.segments}</span>
-    <button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="-1">−</button><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="1">+</button></div>`).join('');
+  const campRow = Object.values(state.clocks).filter((c) => c.campaign).map((c) => `<span class="chip" title="${esc(c.says)}">${esc(c.name)} ${c.filled}/${c.segments} <button class="btn sm ghost" data-act="h.clock" data-id="${c.id}" data-d="-1" aria-label="rewind">−</button><button class="btn sm ghost" data-act="h.clock" data-id="${c.id}" data-d="1" aria-label="advance">+</button></span>`).join('');
+  const clocks = Object.values(state.clocks).filter((c) => !c.campaign).map((c) => `<div class="row"><b style="width:74px;font-size:13px">${esc(c.name)}</b><div class="segs grow">${Array.from({ length: c.segments }, (_, i) => `<i class="${i < c.filled ? 'on' : ''}"></i>`).join('')}</div><span class="small dim">${c.filled}/${c.segments}</span>
+    <button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="-1">−</button><button class="btn sm" data-act="h.clock" data-id="${c.id}" data-d="1">+</button></div>`).join('') + (campRow ? `<div class="row" style="gap:4px;flex-wrap:wrap"><span class="small dim">Campaign</span>${campRow}</div>` : '');
   return `<section class="card"><h3>Clocks, rest and rewards<span class="right">${state.cohesion ? `<span class="chip ok" title="The table's shared trust: an Oath kept pays one">Cohesion ${state.cohesion}</span> ` : ''}<button class="btn sm" data-act="h.undo" title="Take back the last change">Undo</button></span></h3>
     ${clocks}
     <div class="row"><input type="number" style="width:86px" data-k="aw.c" data-bind="host.award.codon" value="${esc(A.codon)}" placeholder="Codon"><input type="number" style="width:86px" data-k="aw.s" data-bind="host.award.substrate" value="${esc(A.substrate)}" placeholder="S">
@@ -1485,11 +1493,11 @@ const ACT = {
   'm.improv': (d) => send({ type: 'improv.set', improv: d.id }),
   'm.forget': (d) => send({ type: 'cast.forget', id: d.id, fact: d.fact != null && d.fact !== '' ? Number(d.fact) : undefined }),
   'm.add': () => { const M = ui.mem; if (!M.name.trim()) return null; const r = send({ type: 'cast.remember', name: M.name, kind: M.kind, fact: M.fact }); ui.mem = { ...M, name: '', fact: '' }; return r; },
-  'h.new': () => { ui.newGame = { open: true, vectorId: state.scenarioId, keep: true }; },
+  'h.new': () => { ui.newGame = { open: true, vectorId: state.scenarioId, keep: true, carry: true }; },
   'h.new.cancel': () => { ui.newGame.open = false; },
   ...genActs(ui, () => state, { send, toast, randomName: () => osmoticName() }),
   ...growActs(ui, { send, toast }),
-  'h.new.go': () => { const N = ui.newGame; ui.newGame = { open: false, vectorId: '', keep: true }; return send({ type: 'session.new', vectorId: N.vectorId || state.scenarioId, keepPlayers: !!N.keep }); },
+  'h.new.go': () => { const N = ui.newGame; ui.newGame = { open: false, vectorId: '', keep: true, carry: true }; return send({ type: 'session.new', vectorId: N.vectorId || state.scenarioId, keepPlayers: !!N.keep, carry: N.carry !== false }); },
 };
 
 document.addEventListener('click', async (e) => {

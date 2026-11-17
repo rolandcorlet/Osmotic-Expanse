@@ -178,6 +178,14 @@ export const scenario = {
     beatClocks: ['SHIFT'],
     // 3.3: the Court\'s hearing is convened at the end of Beat 4; the decision is issued.
     beatSets: { 4: { PAPER: 4 } },
+    // 7, the route table: three printed routes cost a day, paid by the Engine when the Cohort takes them.
+    routeBeats: {
+      'filing-gate>picket-hearth': { why: 'The brine-walk under four hundred silent organs takes a day.', freeIf: { BADGE: 0 } },
+      'print-floor>licence-court': { why: 'The pump-lift has stopped: the climb to the Court takes a day.' },
+      'alley-41>*': { why: 'Hush\'s forgotten drainage channel takes a day.' },
+    },
+    // A Beat is a working day: if the Director has narrated this long without one, the day is over.
+    beatAfterTurns: 8,
     // BADGE and PAPER move on printed triggers many times. SHIFT moves on the Beat (the Engine pays it) and
     // for its printed non-day triggers, e.g. the jam fixed (7.3) - the Director's, twice a session at most.
     aiAdvanceCap: { BADGE: 6, PAPER: 4, SHIFT: 2 },

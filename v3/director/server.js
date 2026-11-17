@@ -231,7 +231,7 @@ function act(role, pid, action) {
     const seq = state.seq;
     const old = state;
     useVector(next);
-    state = restart(old, scenario, { keepPlayers: !!action.keepPlayers });
+    state = restart(old, scenario, { keepPlayers: !!action.keepPlayers, carry: action.carry !== false });
     state.seq = seq + 1;
     if (director) director.reset();
     changed(old, state);

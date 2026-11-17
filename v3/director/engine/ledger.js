@@ -65,18 +65,26 @@ export function newSession(scenario) {
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
   for (const c of scenario.clocks) s.clocks[c.id] = { id: c.id, name: c.name, segments: c.segments, filled: c.start || 0, says: c.says, ...(c.track ? { track: true } : {}) };
+  // Director's Codex 5.2: "Three clocks per campaign, always": COLONY, ORDER and CORE. ORDER opens
+  // when a Vector opens it; COLONY and CORE stand from the first scene and travel with the Cohort.
+  for (const c of CAMPAIGN_CLOCKS) if (!s.clocks[c.id]) s.clocks[c.id] = { ...c, filled: 0, campaign: true };
   return s;
 }
 
 // A new game. With keepPlayers the table stays seated: the same people and the same session-zero
 // terms, and, in the same Vector, the same organisms under the names they gave them, on fresh
 // sheets. A different Vector has different organisms, so everyone chooses again.
-export function restart(old, scenario, { keepPlayers = false } = {}) {
+export function restart(old, scenario, { keepPlayers = false, carry = true } = {}) {
   const s = newSession(scenario);
   if (keepPlayers && old) {
     const same = old.scenarioId === scenario.id;
     s.zero = { ...s.zero, ...clone(old.zero || {}) };
     for (const [pid, p] of Object.entries(old.players || {})) {
+      // v3 17 Nov: a campaign. Moving on to another Vector, the Cohort brings its organisms: the same
+      // seat, the same body, healed and rested, with the new Vector's story hook for that seat.
+      const carried = !same && carry && p.organismId && (old.organisms || {})[p.organismId] && s.organisms[p.organismId]
+        ? carryOrganism(old.organisms[p.organismId], s.organisms[p.organismId], pid) : null;
+      if (carried) { s.organisms[p.organismId] = carried; s.players[pid] = { name: p.name, organismId: p.organismId, agreed: !!p.agreed }; continue; }
       const oid = same && p.organismId && s.organisms[p.organismId] ? p.organismId : null;
       s.players[pid] = { name: p.name, organismId: oid, agreed: !!p.agreed };
       if (oid) {
@@ -93,8 +101,9 @@ export function restart(old, scenario, { keepPlayers = false } = {}) {
     s.loot.order = (old.loot.order || []).filter((id) => s.organisms[id] && s.organisms[id].playerId);
     s.loot.auto = clone(old.loot.auto || {});
   }
-  if (keepPlayers && old && old.scenarioId !== scenario.id && old.clocks && old.clocks.ORDER) {
-    s.clocks.ORDER = { ...clone(old.clocks.ORDER), aiAdvanced: false, aiAdvances: 0 };
+  // The campaign's own Clocks (ORDER, COLONY, CORE: Director's Codex 5.2) travel with the Cohort.
+  if (keepPlayers && old && old.scenarioId !== scenario.id && old.clocks) {
+    for (const c of Object.values(old.clocks)) if (c.campaign) s.clocks[c.id] = { ...clone(c), aiAdvanced: false, aiAdvances: 0 };
   }
   const seated = Object.keys(s.players).length;
   say(s, { now: 0 }, `A new game of ${scenario.title} begins${seated ? `, with ${seated} at the table` : ''}.`, 'scene');
@@ -216,6 +225,14 @@ function fightRunsOut(s, ctx) {
 // when the Cohort harms, harvests or imitates an Order of the Bestiary. It does not exist until a
 // Vector opens it (First Carve 3.3: the Render Cascade opens it at 2), and it travels to the next Vector.
 export const ORDER_SEGMENTS = 5;
+export const CAMPAIGN_CLOCKS = [
+  { id: 'COLONY', name: 'COLONY', segments: 6, says: 'How much the Cohort has disturbed the settlements: violence in a market, unlicensed synthesis, a corpse left unharvested, a broken Oath. When it fills, the colony acts.' },
+  { id: 'CORE', name: 'CORE', segments: 4, says: 'How much the Nucleoid has noticed: touching Nucleoid material, a Relic\'s Rule Break, Apotheotic Choices, Deep Naming. When it fills, the Nucleoid notices.' },
+];
+const CAMPAIGN_FILLS = {
+  COLONY: 'the colony acts: wardens arrive, tolls rise, a contract is voided, or a mob forms',
+  CORE: 'the Nucleoid notices: Curators, sequence storms, or a region\'s rules soften',
+};
 export function openOrderClock(s, ctx, at = 0) {
   const have = s.clocks.ORDER;
   const to = Math.min(ORDER_SEGMENTS, Math.max(have ? have.filled : 0, Math.trunc(Number(at)) || 0));
@@ -347,6 +364,13 @@ function clockFills(s, ctx) {
     s.fills.ORDER = { seq: s.seq, name: 'the Order responds' };
     say(s, ctx, 'ORDER is full: that Order responds, by swarming, by hunting the Cohort\'s register, by mimicking the Cohort, or (rarely) by making an offer.', 'clock');
   }
+  for (const [id, what] of Object.entries(CAMPAIGN_FILLS)) {
+    const c = (s.clocks || {})[id];
+    if (!c || !c.campaign || c.filled < c.segments || (s.fills || {})[id]) continue;
+    s.fills = s.fills || {};
+    s.fills[id] = { seq: s.seq, name: what };
+    say(s, ctx, `${id} is full: ${what}. This Clock belongs to the campaign: rewinding it is play (time, Cohesion or Specimens).`, 'clock');
+  }
   const rules = ((ctx.scenario || {}).rules || {}).onFull || {};
   for (const [id, ev] of Object.entries(rules)) {
     const c = (s.clocks || {})[id];
@@ -445,6 +469,53 @@ function growOne(s, ctx, o, choices) {
   o.kit = [...(o.kit || []), ...draft.kit];
   o.growth = [...(o.growth || []), { level: need.level, choices: list }];
   say(s, ctx, `${o.name} Grows to Level ${need.level}${need.stage ? `, Stage ${need.stage}: a body event (+6 max MI, a new Graft Slot, the Phenotype's Stage feature). Say what changed and who notices` : ''}: ${said.join(' and ')}. Max MI is ${o.miMax}.`, 'award');
+}
+
+// A working day passes (The Ninth Shift's Beat). The Vector's own rules say what a Beat pays:
+// rules.beatClocks move one segment each, and rules.beatSets fills a Clock outright on a named Beat
+// (PAPER: "the decision is issued at the end of Beat 4"). The Director calls it; the Engine counts,
+// and closes one itself on a printed route cost or when a day has plainly gone by (rules.beatAfterTurns).
+function endBeat(s, ctx, why) {
+  const rules = (ctx.scenario || {}).rules || {};
+  const clocks = [].concat(rules.beatClocks || []).filter((id) => s.clocks[id]);
+  if (!clocks.length && !rules.beatSets) throw new RuleError('This Vector keeps no count of working days.');
+  s.beat = (s.beat || 0) + 1;
+  s.beatSeq = s.seq;
+  say(s, ctx, `A working day ends: Beat ${s.beat}.${why ? ` ${String(why).slice(0, 120)}` : ''}`, 'clock');
+  for (const id of clocks) {
+    const c = s.clocks[id];
+    if (c.stopped) continue;
+    const before = c.filled;
+    c.filled = clamp(c.filled + 1, 0, c.segments);
+    if (c.filled !== before) say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.`, 'clock');
+  }
+  for (const [id, to] of Object.entries((rules.beatSets || {})[s.beat] || {})) {
+    const c = s.clocks[id];
+    if (c && c.filled < to) { c.filled = clamp(to, 0, c.segments); say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.`, 'clock'); }
+  }
+}
+// Director narrations since the last Beat, at any site.
+export function turnsSinceBeat(s) {
+  const since = s.beatSeq || 0;
+  return (s.story || []).filter((e) => e.kind === 'narration' && e.seq > since).length;
+}
+
+// An organism moving to the next Vector: everything it has become, rested; the new seat's hook.
+// Below the new Vector's printed Level it is owed the Codon and the Growths to catch up, which the
+// player chooses on their own screen as usual.
+export function carryOrganism(was, seat, pid) {
+  const o = clone(was);
+  o.hand = seat.hand;
+  o.tie = seat.tie; o.firstMove = seat.firstMove;
+  o.playerId = pid;
+  o.mi = o.miMax; o.atp = o.atpMax; o.stress = 0; o.countdown = 0; o.dormant = false; o.band = null;
+  o.conditions = (o.conditions || []).filter((c) => c.name === 'Oath-scar');
+  o.carried = (o.carried || 0) + 1;
+  if (o.level < seat.level) {
+    o.codon = Math.max(o.codon || 0, OSMOTIC.codonAt(seat.level));
+    o.growTo = seat.level;
+  }
+  return o;
 }
 
 // The picking order: every seated organism, in the order kept; newcomers join at the back.
@@ -1499,6 +1570,10 @@ const HANDLERS = {
       const text = String(a.text || '').trim().slice(0, 2400);
       if (!text) throw new RuleError('There is nothing to narrate.');
       s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text });
+      // A day has plainly gone by and nobody closed it: the Engine does (bench 17 Nov, Ninth Shift 5:
+      // one Beat in thirty-five turns, so SHIFT never bit).
+      const every = Number(((ctx.scenario || {}).rules || {}).beatAfterTurns);
+      if (every > 0 && !s.fight && turnsSinceBeat(s) >= every) endBeat(s, ctx, 'The day runs out while the Cohort works.');
     },
   },
 
@@ -1608,6 +1683,12 @@ const HANDLERS = {
           payTrigger(s, ctx, 'bodyLeft', 1, `${c.name} was left uncut in the water`);
         }
       }
+      // A printed route that costs a day (The Ninth Shift 7: "1 Beat if you walk it openly").
+      const from = s.scene.siteId;
+      const route = ((ctx.scenario.rules || {}).routeBeats || {});
+      const cost = route[`${from}>${site.id}`] ?? route[`${from}>*`];
+      const free = cost && cost.freeIf && Object.entries(cost.freeIf).every(([id, n]) => s.clocks[id] && s.clocks[id].filled <= n);
+      if (cost && !free && from !== site.id) endBeat(s, ctx, cost.why || `The way to ${site.name} takes a day.`);
       s.scene = { siteId: site.id };
       // A new scene re-arms the site hazards (CORE 8.1: "once per scene" resets when the place,
       // the purpose or the people change).
@@ -1705,23 +1786,7 @@ const HANDLERS = {
   // (PAPER: "the decision is issued at the end of Beat 4"). The Director calls it; the Engine counts.
   beat: {
     host: true,
-    run(s, a, ctx) {
-      const rules = (ctx.scenario || {}).rules || {};
-      const clocks = [].concat(rules.beatClocks || []).filter((id) => s.clocks[id]);
-      if (!clocks.length && !rules.beatSets) throw new RuleError('This Vector keeps no count of working days.');
-      s.beat = (s.beat || 0) + 1;
-      say(s, ctx, `A working day ends: Beat ${s.beat}.${a.why ? ` ${String(a.why).slice(0, 120)}` : ''}`, 'clock');
-      for (const id of clocks) {
-        const c = s.clocks[id];
-        const before = c.filled;
-        c.filled = clamp(c.filled + 1, 0, c.segments);
-        if (c.filled !== before) say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.`, 'clock');
-      }
-      for (const [id, to] of Object.entries((rules.beatSets || {})[s.beat] || {})) {
-        const c = s.clocks[id];
-        if (c && c.filled < to) { c.filled = clamp(to, 0, c.segments); say(s, ctx, `${c.name} is at ${c.filled} of ${c.segments}.`, 'clock'); }
-      }
-    },
+    run(s, a, ctx) { endBeat(s, ctx, a.why); },
   },
   note: {
     host: true,
@@ -2153,6 +2218,9 @@ const HANDLERS = {
         o.conditions = o.conditions || [];
         o.conditions.push({ name: 'Oath-scar', why: v.promise.slice(0, 60) });
         say(s, ctx, `${o.name} breaks the Oath: "${v.promise}"${why ? ` — ${why}` : ''}. Two Lysis Countdown boxes marked (${o.countdown} of ${o.countdownMax}), and a scar.${v.witness ? ` ${v.witness} drops a rung.` : ''}`, 'danger');
+        // Codex 5.2: a broken Oath disturbs the settlement. Printed, so the Engine pays it.
+        const col = s.clocks.COLONY;
+        if (col && col.filled < col.segments) { col.filled += 1; say(s, ctx, `COLONY is at ${col.filled} of ${col.segments}: word of a broken Oath travels.`, 'clock'); }
       }
     },
   },
