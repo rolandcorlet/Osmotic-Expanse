@@ -195,6 +195,7 @@
 - Average damage for mobs: take mean Overflow from the odds table (§2.4) instead of rolling. For a 5-dice pool at MT 14 that is 4.5 + BD.
 - Players roll everything that matters. Attacks against them: they roll defence? No — keep the Core's MT model: you roll their attack, but let them roll their own saves, Harvest checks, Stress Vents, and Overdrive decisions. Player hands touching dice = player attention.
 - Telegraph, always. A Bestiary creature's Special is a described action. If a Wraith is preparing a Hijack, say the Wraith's lattice is unfolding. Reactive Osmosis exists because the fiction warned them.
+- v3 ruling (13 Nov 2026) — Creature numbers are never said. Never say how many dice a creature rolls, nor its Membrane Threshold, its Integrity, its soak or how many Segments it has left: no count, no range, no "a handful". Describe what it wants, what it does and what it fears. Nobody at the table holds those numbers, so never send a player to look them up.
 
 ## 3.3 Running the seven Orders (how each feels at the table)
 
@@ -338,6 +339,7 @@
 - Chase: Standard · 6 Cycles, band shifts, terrain choices
 - Outbreak: Hard · Pathogen vectors, a colony dying, time pressure
 - Contract: Easy · an Oath, a debt, a faction rung — and the Codex's Clocks start
+- v3 ruling (16 Nov 2026) — Someone with no stat block. An attack on someone with no printed block is not a Pulse War: say the cost first, take one roll, and let the world answer (witnesses, Clocks, factions). Nothing is invented for harvest.
 
 ## 4.6 A worked build (Tier 2, Hard, 12 BSP)
 
@@ -378,6 +380,7 @@
 - Drift Season: ~30 Beats · currents reroute; tolls rewrite; contracts expire
 - Osmotic Tide: ~4 Drift Seasons · the world's tonicity swings. Everything downstream of this chapter happens on a Tide.
 - Great Cycle: 16 Tides (~1,900 Beats) · a generation. Registers are purged. Old debts are re-read.
+- v3 ruling (17 Nov 2026) — Closing a day. A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about eight exchanges at the table in The Ninth Shift, ten in The Long Swallow) and nobody has closed the day, close it: the day ran out while the Cohort worked.
 
 ## 5.2 Clocks: the only world-state you need to track
 
@@ -392,6 +395,7 @@
 - ORDER CLOCK: 5 · the Cohort harms, harvests, or imitates an Order of the Bestiary · that Order responds: swarming, register-hunt, mimicry of the Cohort, or (rarely) an offer
 - CORE CLOCK: 4 · touching Nucleoid material, using a Relic's Rule Break, Apotheotic Choices, Deep Naming · the Nucleoid notices: Curators, sequence storms, a region's rules soften
 - Rules for clocks. (1) Advance at most one segment per session per clock. (2) Advance it in front of the players and name it: "the Warden Circles have a sample of you. That's a segment." (3) Never advance a clock because the players failed a roll — advance it because they succeeded at something loud. (4) Players may spend time, Cohesion, or Specimens to rewind a segment. Let them. That is a whole category of play.
+- v3 ruling (17 Nov 2026) — The campaign's Clocks. COLONY (6) and CORE (4) stand from the first scene of a campaign; ORDER (5) opens when a Vector opens it (The First Carve: the Render Cascade opens it at 2). All three travel with the Cohort from Vector to Vector; a Vector's own Clocks stay behind. A broken Oath advances COLONY by itself. A Clock the fiction stops (a jammed pump) does not move until the fiction starts it again. What a Clock's stage prints is in force while the Clock is there and lifts when it is rewound below it. A Vector may print triggers that move one of its Clocks more than once a session (The Ninth Shift's BADGE and PAPER, The Long Swallow's IMMUNE); the one-advance rule is for your own discretionary moves.
 
 ## 5.3 The Osmotic Tide, phase by phase
 
@@ -489,6 +493,7 @@
 - Investigate a Clock: 1–3 intervals · 14–18 · rewind one segment, or learn what it counts to
 - Hunt a specific creature: 1 Tide · its tier × 4 + 8 · a confrontation on your terms; the Codex's Regions chapter gives you its lair
 - Always end downtime by asking what changed. Downtime that does not change the world is a shopping list, and shopping lists are how campaigns stall.
+- v3 ruling (17 Nov 2026) — Carrying organisms into the next Vector. The Cohort brings its organisms: each takes the same seat in the next Vector with its name, Level, Codon, Substrate, kit, Bursts, Adaptations, Growths and carried Specimens, healed and rested, and that seat's new story hook. An organism below the next Vector's printed Level is owed the Codon to reach it and takes those Growths at once. The table may choose new organisms instead.
 
 # 6 · REGIONS OF THE GREAT VESICLE
 
@@ -930,6 +935,7 @@
 - 4. The cost room — what the site's function has been consuming. (This is where the horror is.)
 - 5. The yield room — the thing that makes the trip worth it, defended by the site's owner or by the site itself.
 - Spine: one flow that connects them (current, drainage, cable, sound). Say it aloud at the start: every good site has a direction.
+- v3 ruling (17 Nov 2026) — Exits and lapsed questions. When a player takes an exit the site lists, the Cohort goes. Anything printed in the way (a challenge, a hazard, a toll) is played as a cost on the way: a roll, damage or a Clock, never a wall. Never invent a barrier the page does not print. A question put three times that nobody takes up lapses: do not ask it again, let what waited on it settle the plain way, and move the scene on.
 
 ## 9.2 d20 room types
 
@@ -1633,3 +1639,14 @@
 | Chaperone Drone | A small folded-membrane official. Drones run tolls, gates and forms. |
 | Order II | The drones' own service. Their stamp makes a thing legal. |
 | Lattice | Ancient machinery that can print living things. Nobody fully understands it. |
+
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **Creature numbers are never said** (3.2 The Cycle, run fast; 13 Nov 2026). Never say how many dice a creature rolls, nor its Membrane Threshold, its Integrity, its soak or how many Segments it has left: no count, no range, no "a handful". Describe what it wants, what it does and what it fears. Nobody at the table holds those numbers, so never send a player to look them up.
+- **Someone with no stat block** (4.5 When the encounter is not a fight; 16 Nov 2026). An attack on someone with no printed block is not a Pulse War: say the cost first, take one roll, and let the world answer (witnesses, Clocks, factions). Nothing is invented for harvest.
+- **Closing a day** (5.1 Calendars; 17 Nov 2026). A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about eight exchanges at the table in The Ninth Shift, ten in The Long Swallow) and nobody has closed the day, close it: the day ran out while the Cohort worked.
+- **The campaign's Clocks** (5.2 Clocks; 17 Nov 2026). **COLONY** (6) and **CORE** (4) stand from the first scene of a campaign; **ORDER** (5) opens when a Vector opens it (The First Carve: the Render Cascade opens it at 2). All three travel with the Cohort from Vector to Vector; a Vector's own Clocks stay behind. A broken Oath advances COLONY by itself. A Clock the fiction stops (a jammed pump) does not move until the fiction starts it again. What a Clock's stage prints is in force while the Clock is there and lifts when it is rewound below it. A Vector may print triggers that move one of its Clocks more than once a session (The Ninth Shift's BADGE and PAPER, The Long Swallow's IMMUNE); the one-advance rule is for your own discretionary moves.
+- **Carrying organisms into the next Vector** (5.7 Downtime between Vectors; 17 Nov 2026). The Cohort brings its organisms: each takes the same seat in the next Vector with its name, Level, Codon, Substrate, kit, Bursts, Adaptations, Growths and carried Specimens, healed and rested, and that seat's new story hook. An organism below the next Vector's printed Level is owed the Codon to reach it and takes those Growths at once. The table may choose new organisms instead.
+- **Exits and lapsed questions** (9.1 The five-room site; 17 Nov 2026). When a player takes an exit the site lists, the Cohort goes. Anything printed in the way (a challenge, a hazard, a toll) is played as a cost on the way: a roll, damage or a Clock, never a wall. Never invent a barrier the page does not print. A question put three times that nobody takes up lapses: do not ask it again, let what waited on it settle the plain way, and move the scene on.

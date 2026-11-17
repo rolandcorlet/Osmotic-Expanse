@@ -2,6 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import { ATLAS } from '../director/data/kit/atlas.js';
 import { GLOSSARY } from '../director/data/kit/glossary.js';
+import { rulingsSection } from './rulings-section.mjs';
 
 const A = [];
 A.push('# The Player\'s Atlas · v3 table edition', '');
@@ -28,5 +29,6 @@ const used = new Set(groups.flatMap(([, t]) => ATLAS.filter(t).map((q) => q.id))
 const lost = ATLAS.filter((q) => !used.has(q.id));
 if (lost.length) { console.error('cards in no group:', lost.map((q) => q.id).join(', ')); process.exit(1); }
 A.push('## Words', '', '| Word | In plain words |', '|---|---|', ...GLOSSARY.map((g) => `| ${g.word} | ${g.plain} |`), '');
+A.push(...rulingsSection('atlas'));
 writeFileSync(new URL('./PLAYERS-ATLAS-v3.md', import.meta.url), A.join('\n'));
 console.log('atlas', A.join('\n').length, 'chars,', ATLAS.length, 'cards');

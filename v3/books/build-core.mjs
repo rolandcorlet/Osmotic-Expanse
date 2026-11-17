@@ -2,6 +2,7 @@
 import { writeFileSync, readFileSync } from 'node:fs';
 import { CORE } from '../director/data/kit/core.js';
 import { GLOSSARY } from '../director/data/kit/glossary.js';
+import { rulingsSection } from './rulings-section.mjs';
 
 const C = [];
 C.push('# The Catalytic Engine — Core Rulebook · v3 table edition', '');
@@ -14,6 +15,7 @@ CORE.forEach((q, i) => {
   C.push(`**In plain words.** ${q.plain}`, '', `**You use this when:** ${q.when}`, '', `**Who does the work:** ${q.who}`, '');
   C.push('**The rule**', '', ...q.rule.map((r) => `- ${r}`), '', `**At the table.** ${q.table}`, '');
 });
+C.push(...rulingsSection('core'));
 C.push('## Words', '', '| Word | In plain words |', '|---|---|', ...GLOSSARY.map((g) => `| ${g.word} | ${g.plain} |`), '');
 writeFileSync(new URL('./CORE-RULEBOOK-v3.md', import.meta.url), C.join('\n'));
 
@@ -46,5 +48,6 @@ for (const [order, list] of Object.entries(byOrder)) {
     B.push(`**Stat block:** ${c.statLine}`, '');
   }
 }
+B.push(...rulingsSection('bestiary'));
 writeFileSync(new URL('./LYTIC-BESTIARY-v3.md', import.meta.url), B.join('\n'));
 console.log('core', C.join('\n').length, 'bestiary', B.join('\n').length);

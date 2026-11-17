@@ -24,6 +24,21 @@
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| 3.2 The Cycle, run fast | Creature numbers are never said | 13 Nov 2026 |
+| 4.5 When the encounter is not a fight | Someone with no stat block | 16 Nov 2026 |
+| 5.1 Calendars | Closing a day | 17 Nov 2026 |
+| 5.2 Clocks: the only world-state you need to track | The campaign's Clocks | 17 Nov 2026 |
+| 5.7 Downtime between Vectors | Carrying organisms into the next Vector | 17 Nov 2026 |
+| 9.1 The five-room site | Exits and lapsed questions | 17 Nov 2026 |
+
+---
+
 # 1 · THE DIRECTOR'S MANDATE
 
 ## 1.1 Four jobs, in order
@@ -183,6 +198,8 @@ If you only remember one thing: **decide the terrain before initiative**, becaus
 * **Players roll everything that matters.** Attacks against them: they roll defence? No — keep the Core's MT model: *you* roll their attack, but **let them roll their own saves, Harvest checks, Stress Vents, and Overdrive decisions**. Player hands touching dice = player attention.
 * **Telegraph, always.** A Bestiary creature's Special is a *described* action. If a Wraith is preparing a Hijack, say the Wraith's lattice is unfolding. Reactive Osmosis exists because the fiction warned them.
 
+> **v3 ruling (13 Nov 2026) — Creature numbers are never said.** Never say how many dice a creature rolls, nor its Membrane Threshold, its Integrity, its soak or how many Segments it has left: no count, no range, no "a handful". Describe what it wants, what it does and what it fears. Nobody at the table holds those numbers, so never send a player to look them up.
+
 ## 3.3 Running the seven Orders (how each feels at the table)
 
 | Order | Its plan | How you run it | What breaks it |
@@ -312,6 +329,8 @@ Roughly one session in three, the threat should be something else. The same budg
 | **Outbreak** | Hard | Pathogen vectors, a colony dying, time pressure |
 | **Contract** | Easy | an Oath, a debt, a faction rung — and the Codex's Clocks start |
 
+> **v3 ruling (16 Nov 2026) — Someone with no stat block.** An attack on someone with no printed block is not a Pulse War: say the cost first, take one roll, and let the world answer (witnesses, Clocks, factions). Nothing is invented for harvest.
+
 ## 4.6 A worked build (Tier 2, Hard, 12 BSP)
 
 **The Pump Chamber of Anchor's Reach.** Three **Protease Wardens** (Elite, 4 BSP each — Immune Sentinels) plus four **Antigen Gnats** (Swarmling) in a pumping hall.
@@ -348,6 +367,8 @@ The Expanse is not a place that stays. Its water moves, its salt rises and falls
 | **Osmotic Tide** | ~4 Drift Seasons | the world's tonicity swings. Everything downstream of this chapter happens on a Tide. |
 | **Great Cycle** | 16 Tides (~1,900 Beats) | a generation. Registers are purged. Old debts are re-read. |
 
+> **v3 ruling (17 Nov 2026) — Closing a day.** A Vector that counts Beats pays its Clocks when a day ends. A route the Vector prices at a Beat costs that day the moment the Cohort takes it. If the table has played a long stretch (about eight exchanges at the table in The Ninth Shift, ten in The Long Swallow) and nobody has closed the day, close it: the day ran out while the Cohort worked.
+
 ## 5.2 Clocks: the only world-state you need to track
 
 A **Clock** is a track of 4–6 segments with a promise attached. Advance it when the fiction says something is progressing; resolve it when it fills. Write the segments on index cards and put them where the players can see them: **a visible clock is a threat the players can plan against, and planning is what they want.**
@@ -361,6 +382,8 @@ Three clocks per campaign, always:
 | **CORE CLOCK** | 4 | touching Nucleoid material, using a Relic's Rule Break, Apotheotic Choices, Deep Naming | the Nucleoid notices: Curators, sequence storms, a region's rules soften |
 
 **Rules for clocks.** (1) Advance at most one segment per session per clock. (2) Advance it *in front of the players* and name it: "the Warden Circles have a sample of you. That's a segment." (3) Never advance a clock because the players failed a roll — advance it because they **succeeded at something loud**. (4) Players may spend time, Cohesion, or Specimens to *rewind* a segment. Let them. That is a whole category of play.
+
+> **v3 ruling (17 Nov 2026) — The campaign's Clocks.** **COLONY** (6) and **CORE** (4) stand from the first scene of a campaign; **ORDER** (5) opens when a Vector opens it (The First Carve: the Render Cascade opens it at 2). All three travel with the Cohort from Vector to Vector; a Vector's own Clocks stay behind. A broken Oath advances COLONY by itself. A Clock the fiction stops (a jammed pump) does not move until the fiction starts it again. What a Clock's stage prints is in force while the Clock is there and lifts when it is rewound below it. A Vector may print triggers that move one of its Clocks more than once a session (The Ninth Shift's BADGE and PAPER, The Long Swallow's IMMUNE); the one-advance rule is for your own discretionary moves.
 
 ## 5.3 The Osmotic Tide, phase by phase
 
@@ -451,6 +474,8 @@ Give the Cohort **two Fugue Intervals per Beats-worth of downtime** and resolve 
 | Hunt a specific creature | 1 Tide | its tier × 4 + 8 | a confrontation on your terms; the Codex's Regions chapter gives you its lair |
 
 **Always end downtime by asking what changed.** Downtime that does not change the world is a shopping list, and shopping lists are how campaigns stall.
+
+> **v3 ruling (17 Nov 2026) — Carrying organisms into the next Vector.** The Cohort brings its organisms: each takes the same seat in the next Vector with its name, Level, Codon, Substrate, kit, Bursts, Adaptations, Growths and carried Specimens, healed and rested, and that seat's new story hook. An organism below the next Vector's printed Level is owed the Codon to reach it and takes those Growths at once. The table may choose new organisms instead.
 
 
 ---
@@ -928,6 +953,8 @@ Any vesicle complex, wreck, grove, or foundry wing is five rooms plus a spine. B
 4. **The cost room** — what the site's function has been consuming. (This is where the horror is.)
 5. **The yield room** — the thing that makes the trip worth it, defended by the site's owner or by the site itself.
 **Spine:** one *flow* that connects them (current, drainage, cable, sound). Say it aloud at the start: every good site has a direction.
+
+> **v3 ruling (17 Nov 2026) — Exits and lapsed questions.** When a player takes an exit the site lists, the Cohort goes. Anything printed in the way (a challenge, a hazard, a toll) is played as a cost on the way: a roll, damage or a Clock, never a wall. Never invent a barrier the page does not print. A question put three times that nobody takes up lapses: do not ask it again, let what waited on it settle the plain way, and move the scene on.
 
 ## 9.2 d20 room types
 

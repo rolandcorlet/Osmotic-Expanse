@@ -48,6 +48,18 @@ Why nobody killed it, and why nobody can move it, is printed in the block: a Dri
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| 3.2 TOLL | TOLL and a loud fight | 13 and 16 Nov 2026 |
+| 3.1 CARCASS | Opening a panel | 13 Nov 2026 |
+| 3.3 HUNGER | A body left uncut | 17 Nov 2026 |
+
+---
+
 # 1 · THE CORE VISION
 
 ## 1.1 The Big Three Questions
@@ -136,6 +148,8 @@ The whale is digesting itself. Autolysis does not care that you are new.
 **Rewind −1 when:** the Cohort **salts** a panel (10 S of salt per 2 Drifts — *salt is the Expanse's refrigeration*, and Desiccation is a service people pay for: CODEX §6.4) · a Thermal **Cold Shock** or a Desiccation Specialist cools a chamber · a chamber is drained · the Ash perform an **Unwasted** rite over a panel (the Ash will do this for free *if the Cohort asked first*).
 **Say it out loud, every time:** *"Carcass is at three. The soft cut is worth a third of what it was when you got here."*
 
+> **v3 ruling (13 Nov 2026) — Opening a panel.** Opening a panel is one event the site pays: the first panel opened in a scene advances CARCASS, and further panels in the same scene do not (the host may set every panel to pay its own segment).
+
 ## 3.2 TOLL (5 segments) — the law clock
 
 The Flow Guilds have contracted a Hegemony clearance crew to set a **Render Charge** and dredge the Reach. The charge is on a schedule.
@@ -144,6 +158,8 @@ The Flow Guilds have contracted a Hegemony clearance crew to set a **Render Char
 **Rewind −1 when:** the Cohort **produces paper** — a valid claim, a licence, a toll chit, an Ash witness, a Guild tally receipt for a delivered haul · the Cohort keeps an Oath in front of a faction that notices · the Cohort turns in the **Gut Stone's serial** to a Warden register arch (a Warden *Name* is worth a Clock segment and a future).
 **At fill — THE RENDER CHARGE FIRES** (§11, THE RENDER CHARGE). Not as punishment: as the schedule the players were shown on turn one and chose to race.
 **Say it out loud:** *"Toll is at four. The charge is set for the end of the next Beat, and Foreman Vesk will not say which Beat."*
+
+> **v3 ruling (13 and 16 Nov 2026) — TOLL and a loud fight.** A loud fight reaches the law only half the time: roll a d6, and TOLL advances on 4–6 (HUNGER is paid every time). Once TOLL stands at 3 or more, the Director no longer spends their own discretionary advance on it; only the printed triggers move it from there.
 
 ## 3.3 HUNGER (4 segments) — the danger clock
 
@@ -159,6 +175,8 @@ Everything in the Reach can smell a wound, and the Expanse's scavengers do not n
 
 **Advance +1 when:** the Cohort kills and leaves a body unharvested (Precept 2: the harvest belongs to whoever holds the licence — and in this world an unharvested corpse advances the Colony Clock, CODEX §8.2) · the Cohort fights loudly · a panel is left open.
 **Rewind −1 when:** the Cohort **harvests** what it kills (each body harvested: −1, never below 0 — *this is the mechanical reward for looting everything*, and new players will not believe it until it works) · the Cohort salts a wound · the Cohort pays the drone toll and Order II closes the wound behind them.
+
+> **v3 ruling (17 Nov 2026) — A body left uncut.** A body left uncut in the water when the Cohort leaves the site advances HUNGER and, as this section prints, the campaign's COLONY Clock.
 
 ## 3.4 Clock discipline (CODEX §5.2, printed, non-negotiable)
 

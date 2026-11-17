@@ -42,6 +42,18 @@
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| 3.2 BADGE | BADGE in dice | 17 Nov 2026 |
+| 7 · THE FIVE SITES | Routes and days | 17 Nov 2026 |
+| 7 · 1 · THE FILING GATE | The arch is never a locked door | 17 Nov 2026 |
+
+---
+
 # 1 · THE CORE VISION
 
 ## 1.1 The Big Three Questions
@@ -147,6 +159,8 @@ Recover one BADGE for: carrying a grievance *for* the Row; feeding someone at th
 | 5 | **The Convoy's Own** | The Hegemony pays you 600 S and a licence, and calls you by the wrong name, warmly. | Ending **THE ROW IS SOLD** is now *your* ending; §12.1's cost is paid by you in front of everyone. |
 
 **Never hide BADGE.** It is a brass disc. A PC can hand it to someone. Half the comedy in this Vector is a player discovering that **standing can be given away**, and that giving it away in front of an auditor is a legal act.
+
+> **v3 ruling (17 Nov 2026) — BADGE in dice.** BADGE's dice apply to any contest with a Hegemony or Court NPC: −1 at 0, +1 at 2, +2 at 3 and above (Badges 4 and 5 keep the +2 and add what their row gives).
 
 ## 3.3 PAPER (4) — the hearing is already written
 
@@ -314,6 +328,8 @@ The sites are a **pointcrawl**, not a map: five nodes, printed routes between th
 
 **Medium (whole Vector, CODEX §6.6):** hypertonic waste brine · **turbid** · **Flow 2, pump-driven, and the pumps stop at shift-change** — which is the first joke of the Vector and the last one too, because in nine Beats there has been no shift-change. Viscosity climbs one step per SHIFT segment (§3.1). A Turbulence Navigator in the Cohort is worth a Retainer's wage here, and the Row will offer it.
 
+> **v3 ruling (17 Nov 2026) — Routes and days.** A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about eight exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves.
+
 ## 7 · 1 · THE FILING GATE — *approach: a queue, a form, a wage*
 
 **The scene's question:** *Which door are we standing in front of, and what will we sign to be let through it?*
@@ -333,6 +349,8 @@ The sites are a **pointcrawl**, not a map: five nodes, printed routes between th
 **Harvest / loot:** none (this is a bureaucracy). Take 30 S in "unclaimed wage float" if they find the Mutuality's error, and pay **15 Codon** for the Wage (§4) plus **10 Codon** if they catch the clerk's arithmetic mistake.
 
 **If they miss it (three clues, §13.1 all live here):** the crossed-out name; the dead queue-member's licence; the clerk's own Oath boxes, which are visible, unspent, and *wrong for a clerk* (a clerk with five unspent Oath boxes has been told not to swear, which is a fact about the Court).
+
+> **v3 ruling (17 Nov 2026) — The arch is never a locked door.** A Cohort at BADGE 0–1 is challenged at the Warden arch and walked through under escort, which is a scene, never a locked door. A listed exit is always open at a price.
 
 ## 7 · 2 · THE PICKET HEARTH (SHIFTLESS ROW) — *the first room, wrong*
 

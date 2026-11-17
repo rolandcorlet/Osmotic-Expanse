@@ -3,6 +3,7 @@
 import { writeFileSync } from 'node:fs';
 import { KITS } from '../director/data/kit/index.js';
 import { VECTORS } from '../director/data/vectors.js';
+import { rulingsSection } from './rulings-section.mjs';
 
 const out = new URL('./vectors/', import.meta.url);
 for (const kit of KITS) {
@@ -47,6 +48,7 @@ for (const kit of KITS) {
     L.push('**A moment for each character:** ' + Object.entries(k.moments).map(([r, t]) => `*${sc ? (sc.hands.find((h) => h.id === r) || {}).hand || r : kit.roles[r]}*: ${t}`).join(' '), '');
     if (sc && m.host) L.push(`**Printed in the original (unchanged):** ${m.host.cite}. Danger: ${m.host.danger} Pays: ${m.host.pays}`, '');
   }
+  L.push(...rulingsSection(kit.id));
   L.push('## How it can end, and what comes next', '', ...kit.hooks.map((h) => `- ${h}`), '');
   const base = new Set((KITS[0].glossary || []).map((g) => g.word));
   const own = kit.glossary.filter((g) => kit.id === 'first-carve' || !base.has(g.word));

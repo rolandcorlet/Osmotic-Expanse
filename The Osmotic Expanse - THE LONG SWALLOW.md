@@ -37,6 +37,19 @@
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| 3 · THE UNAVOIDABLE PROBLEM | Closing a day | 17 Nov 2026 |
+| 6.1 GOODWILL | Where Goodwill starts | 17 Nov 2026 |
+| 6.3 THE CHURN CLOCK | The Churn, priced | 17 Nov 2026 |
+| 6.4 TOLERANCE, and the Breach | A challenge is a cost | 17 Nov 2026 |
+
+---
+
 # 1 · THE CORE VISION
 
 ## 1.1 The Big Three Questions
@@ -126,6 +139,8 @@ The opening scene is not a hook. It is a **notice**, read aloud on the Vat Road 
 3. **Invoke Precept 6.** If the Cohort can *name a body inside the Unread that the state intends to dissolve without consent*, any organism may invoke **Argument** (CODEX §8.2: free contested AFF vs RTC at AT 16). The Undersigned is exactly that body. Win, and the licence is stayed until the argument is heard — *slows the clock to a stop, and starts the biggest problem in the Vector*, because now the Closing's consent is a public case (§12, ending **CARRY IT OUT**).
 
 **Backup solutions, because the players will miss the primary one:** the notice is read aloud; the Congregation will explain it for free; the Unread itself says *six* (in a long pause, with enormous emphasis) the first time anyone speaks to it. Three channels. Move on once they have any one.
+
+> **v3 ruling (17 Nov 2026) — Closing a day.** If about ten exchanges at the table pass inside the Host with no Beat, the day has run out: close it, and LICENCE moves. Say it, as this section says, every time.
 
 ---
 
@@ -247,6 +262,8 @@ Use the **Chemotactic Table** (CORE §11.3) as a five-rung track: **Hostile / Wa
 
 Treat Goodwill as the Expanse's version of an old OSR habit, the **reaction roll**, with modifiers unique to this monster: casting a Burst inside a body is −2, drawing a weapon is −3, warmth and politeness are +1, a valid token is +2. The point of that older rule is exactly the mood this Vector wants: **the body does not hate you. It is indifferent, and small signals decide whether it clears you or files you.**
 
+> **v3 ruling (17 Nov 2026) — Where Goodwill starts.** Goodwill starts at **Curious** unless the Intake sets it (Intake 1, the Honest Road: Client; Intake 11, the Breacher's Hatch: Wary). IMMUNE 3 drops it a rung once; at IMMUNE 5 it can rise no higher than Curious.
+
 ## 6.2 THE IMMUNE CLOCK (5) — the price of taking things
 
 Advance **only** for things the body can notice: a Strike against Host tissue, Lytic damage, a harvest cut, a Burst at Tier II or above, a Breach, a corpse left dissolving unharvested, or an unlicensed Total Dissolution (Precept 2 — the Wastes' favourite crime). **Never advance it for a failed roll** (CODEX §5.2 rule 3: advance it because they succeeded at something loud).
@@ -269,6 +286,8 @@ Peristalsis. Every compartment has a **flow direction** and a schedule.
 - Say the spine aloud at the start of every compartment. *Every good site has a direction, and this one has a schedule.*
 - The Churn can be **jammed** (Synthesis AT 14, 20 S of Substrate, or a Barophil wedge): peristalsis stops in that compartment. This strands everyone there, freezes the CHURN Clock, and makes the compartment a *dead-water* market where the Cohort can rest, trade, or be trapped. That is a whole scene, and it is usually the players' idea.
 
+> **v3 ruling (17 Nov 2026) — The Churn, priced.** The enzyme sheets are a hazard, never a wall: anyone may swim the deep channel and pays 4 Lytic per Cycle while in it. A fill pushes everyone inside the body 1 band (2 at LICENCE 5 or at Hostile) and pays 6 Osmotic; Braced holds. CHURN then starts again. A jammed pump stops the Clock, and the Cohort swims on through the dead water.
+
 ## 6.4 TOLERANCE, and the Breach
 
 **Tolerance** is this Vector's stealth: *presenting chemistry the body reads as own*. It is a contested contest: `OSM + Pathway (Chemoreception)` or, for Immunan PCs, `AFF + Pathway (Antigen Discipline)` against the Sentinel's `AFF + (Antigen Register)`, at **AT 14** (10 sponsored / 18 if the Host is Wary or worse).
@@ -280,6 +299,8 @@ The printed answers to a Sentinel challenge, in ascending cost:
 3. **An Antigen Rite** (CORE §11.6): 25 S and a witness; you are registered as *self* to one faction's wards for one Tide. Inside a body that is a master-key, and it is **legal**, which is the point of this Vector.
 4. **Argument** (Precept 6): free contested AFF vs the violator's RTC at AT 16 — the Undersigned's own weapon, and available to the Cohort once they learn what is inside.
 5. **A Breach.** Cut your way out through the Host's wall: the wall has **integrity 40, MT 5 (8 braced)** (CORE §4.8, §7.5). It takes 2 Cycles, costs 60 S of acid or a Breacher's charge, advances IMMUNE 2 and LICENCE 1, drops Goodwill to Hostile, and the compartment floods: **10 Osmotic and a band shift for everyone nearby** (BESTIARY, *Breacher*). It works. It is the last resort and it should feel like one.
+
+> **v3 ruling (17 Nov 2026) — A challenge is a cost.** A Host that is Wary or worse sets every Tolerance contest at AT 18, sponsored or not. A Sentinel's challenge is a cost on the way (a contest, a Mark, a Clock), never a stop: an honest answer of what you are passes it.
 
 ## 6.5 THE BARGAIN — a Clock instead of a body
 

@@ -1,6 +1,6 @@
 # The Ninth Shift · v3 table edition
 
-*Levels 4 to 6. Book and Director's kit ready; not yet in the host's Vector list.*
+*Levels 4 to 6. Ready to run in the v3 host.*
 
 This edition is written to be run as a conversation. Players say what they do in their own words; nothing below is a list of permitted moves. All prices, statistics and procedures are in the original Vector and are unchanged.
 
@@ -93,7 +93,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The clerk refills your tea and taps box four. / The queue shuffles forward and somebody coughs politely. / A notice goes up: the Relief arrives on the third Beat.
 
-**A moment for each character:** *the one who stands in front*: The badge rack is heavy and somebody has to hold it while the clerk looks. *the one who makes, mends and reads the small print*: You spot the arithmetic mistake. *the one who moves through anything*: You could be through the arch before anyone reads you. Do you? *the one who notices*: One name in the ledger is crossed out in three different hands.
+**A moment for each character:** *The Wall*: The badge rack is heavy and somebody has to hold it while the clerk looks. *The Ledger*: You spot the arithmetic mistake. *The Rider*: You could be through the arch before anyone reads you. Do you? *The Eyes*: One name in the ledger is crossed out in three different hands.
+
+**Printed in the original (unchanged):** Vector §7.1. Danger: E1: 2 Print-Crew Constructs + 2 Antigen Gnats = 6 BSP, Easy. It ends in one sentence if anybody presents a Wage properly. Nobody here is evil; the clerk is trying to help. If it goes loud the punishment is PAPER +1, not death. Pays: 15 Codon for arriving with a Wage chosen, the Form filled and said out loud; 10 more if they catch the clerk's arithmetic mistake. 30 S in unclaimed wage float if they find the Mutuality's error. The dead queue-member's unclaimed licence is worth 100 S and a conversation.
 
 ### 2 · The Picket Hearth — the workers' row, silent
 
@@ -103,7 +105,7 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **What is here:** Four hundred living machines stopped mid-task, and a hearth with soup that is not good and is enough. An alley behind organ 41 has a light on.
 
-**Ways on:** Service alley to the Print Floor; Back to the Filing Gate; The alley behind organ 41.
+**Ways on:** Service alley to the Print Floor (a Warden arch: Badge 2+ walks through; Badge 0-1 is challenged and walked through under Warden escort, which is a scene, never a locked door); Back to the Filing Gate; The alley behind organ 41.
 
 **Senses:** soup steam; the silence of four hundred stopped machines; a half-folded shape still held in a still hand; everyone looking without staring; a light where there should be none.
 
@@ -127,17 +129,19 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The Steward asks the question again, for the people at the back. / A child-sized machine tugs your sleeve and points at the alley. / Two tame scavengers start arguing over a dead machine.
 
-**A moment for each character:** *the one who stands in front*: Carry the soup pot. The Row notices who carries. *the one who makes, mends and reads the small print*: You know what the shape in the stopped machine's hand was going to be. *the one who moves through anything*: You could reach the alley unseen. *the one who notices*: You see the light in the alley first.
+**A moment for each character:** *The Wall*: Carry the soup pot. The Row notices who carries. *The Ledger*: You know what the shape in the stopped machine's hand was going to be. *The Rider*: You could reach the alley unseen. *The Eyes*: You see the light in the alley first.
 
-### 3 · The Print Floor of Shift Nine — the machine that never stopped
+**Printed in the original (unchanged):** Vector §7.2, §10.8. Danger: E2: THE SILENCE (hazard, 2 BSP) + 1 Gnaw Swarm + 2 Detritus Feeders = 5 BSP, Easy. The Feeders want the corpses, not you. If the Cohort denies them corpses they become a nuisance; if the Cohort feeds them, the Row adopts them. Pays: A Quiet Apron from the scrap bins (free); a Pristine Sequence in organ 118's claim cage (200 S, assessment-bound); the fold a silent organ was holding when it stopped (unlisted, worth a conversation with Kel-Vasht). E2 pays 4.5 Codon.
+
+### 3 · The Print Floor of Shift Nine — the problem room, still running
 
 **Open with:** The Line is running. Nobody is running it. On the far table its output is stacked, folded and very nearly finished, and an attendant with a towel asks whether you have an appointment.
 
 **The question this scene answers:** Does the Cohort stop the machine, feed it, or ask it what it is making?
 
-**What is here:** The great printing Line, running with nobody at it. A folding parlour run like a spa. The Overseer's platform. A jammed feed at organ 118.
+**What is here:** The Line, running, with nobody running it; the output stacked on the far table, folded and nearly finished; and the Fold Parlour, which is in every respect a spa.
 
-**Ways on:** Pump-lift to the Licence Court; Service alley back to the Picket Hearth.
+**Ways on:** The pump-lift to the Licence Court; Back by the service alley to the Picket Hearth.
 
 **Senses:** a steady working rhythm in the floor; warm towels; the smell of fresh print; a ticket machine for proteins; one very large person standing very still.
 
@@ -162,7 +166,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The Line prints something small and sets it on the table. / The attendant calls a ticket number: it is yours. / Kel-Vasht says, "You are the temps," and waits.
 
-**A moment for each character:** *the one who stands in front*: Stand between the Relief and the Line. *the one who makes, mends and reads the small print*: The jam is yours to read. *the one who moves through anything*: Fetch the thing off the moving Line before it is crushed. *the one who notices*: Notice every piece the Line prints fits the last.
+**A moment for each character:** *The Wall*: Stand between the Relief and the Line. *The Ledger*: The jam is yours to read. *The Rider*: Fetch the thing off the moving Line before it is crushed. *The Eyes*: Notice every piece the Line prints fits the last.
+
+**Printed in the original (unchanged):** Vector §7.3, §10.1-10.3. Danger: E3: THE LINE (hazard) + (at Level 4) 1 Print-Crew Construct + 1 Protease Locusts. Standard at Levels 1-4, Easy at 5-8. The Line is the third enemy and the easiest to use: its output table fires whenever anyone is loud near it. Pays: The jam fixed (three observations, Synthesis AT 16): 25 Codon, advances SHIFT and BADGE. The Line's shelf (d10): Specimens, a Pristine Sequence (200 S), forms, and one object that must be played as a person. Construct parts at 2x. E3 pays 17.5 Codon.
 
 ### 4 · The Licence Court — where the answer is already written
 
@@ -172,7 +178,7 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **What is here:** Three Auditors, a scanning arch at the door, a public gallery of forty with numbered tickets, a wall schedule with the decision date already on it, and the patented shape on display as evidence.
 
-**Ways on:** Out across the Row to the alley; Pump-lift back to the Print Floor.
+**Ways on:** Out across the Row to the alley behind organ 41; The pump-lift back to the Print Floor.
 
 **Senses:** the arch's cold tingle; forty tickets rustling; tea again; a date on the wall in the wrong handwriting; a faint living smell from the exhibit.
 
@@ -197,9 +203,11 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The middle Auditor asks if anyone has "noticed anything irregular". / The clerk sets a file within reach and looks away. / The gallery murmurs: ticket nine has been called.
 
-**A moment for each character:** *the one who stands in front*: The arch names your grafts. Stand there anyway. *the one who makes, mends and reads the small print*: The clauses can be learned. You are the one who reads them. *the one who moves through anything*: Get the document to the bench before the gavel. *the one who notices*: Smell the exhibit: it was born, not printed.
+**A moment for each character:** *The Wall*: The arch names your grafts. Stand there anyway. *The Ledger*: The clauses can be learned. You are the one who reads them. *The Rider*: Get the document to the bench before the gavel. *The Eyes*: Smell the exhibit: it was born, not printed.
 
-### 5 · The Alley behind Organ 41 — something nearly finished
+**Printed in the original (unchanged):** Vector §7.4, §10.5-10.6. Danger: E4: BRACK NINE-BADGES (Elite) + 2 Print-Crew Constructs + 1 registered Acid-Resistant Tank = 10 BSP, Hard at Levels 1-4. They rout at 40% MI because their invoice has a cap of 400 S. Fighting them advances BADGE as much as anything, because the district pays the invoice. Never a new creature type: the same three constructs, better at finding you. Pays: The hearing won by document, not by force: 50 Codon, the patent's fate, the Clerk's Oath, and the counter-claim. E4 ended under the cap: 15 Codon and the invoice (the district pays); if it goes loud and ends in kills: 35 Codon, C8/G3/P2/T1 from Brack, and a Hegemony lien plus a patent claim on anything taken.
+
+### 5 · The Alley behind Organ 41 — the yield, defended by nobody
 
 **Open with:** The thing in the cradle is tidying up. It has swept the alley and folded the towels, and it looks at you and asks, politely, whether it is finished yet.
 
@@ -207,7 +215,7 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **What is here:** A swept alley, a cradle, a stack of neatly folded towels, and the oldest machine in the district working very quietly.
 
-**Ways on:** The drainage channel; Through organ 41; The front door, with a badge or a warrant.
+**Ways on:** The drainage channel (free; the print follows if it wants to); Hush's route through organ 41 (120 S of a construct's parts, or one Pristine Sequence); The front door (Badge 4+, or a warrant).
 
 **Senses:** clean wet stone; a small careful voice; a machine humming a tune; folded towels; four different offers pinned to the wall.
 
@@ -231,7 +239,17 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The print asks again, more quietly. / Hush says, "It needs one more thing, and a witness." / Boots at the mouth of the alley.
 
-**A moment for each character:** *the one who stands in front*: Stand in the alley mouth. *the one who makes, mends and reads the small print*: You can read what Hush still has to do. *the one who moves through anything*: Carry the cradle through the drain. *the one who notices*: Be the first to say "who", not "what".
+**A moment for each character:** *The Wall*: Stand in the alley mouth. *The Ledger*: You can read what Hush still has to do. *The Rider*: Carry the cradle through the drain. *The Eyes*: Be the first to say "who", not "what".
+
+**Printed in the original (unchanged):** Vector §7.5, §10.7, §10.9. Danger: No encounter is budgeted: the alley is a decision. If it goes loud: 1 Locust swarm + Hush's Labour Constructs (as Swarmlings x4) + the cradle (6-8 BSP). The print does not fight; Hush does not strike; her constructs move things, including the Cohort, gently, out of the alley. Pays: The alley seen, priced and decided about: 25 Codon. Hush, asked properly: 20 Codon, one printed item free, one re-fold free, and one thing you did not ask for. Endings pay 40-120 Codon. The print's printed Harvest line (C9 / G5 / P2 / T1, Codon 21) is the Hegemony's own price on paper; if the Cohort takes the money, they name the number aloud as they hand it over.
+
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **BADGE in dice** (3.2 BADGE; 17 Nov 2026). BADGE's dice apply to any contest with a Hegemony or Court NPC: −1 at 0, +1 at 2, +2 at 3 and above (Badges 4 and 5 keep the +2 and add what their row gives).
+- **Routes and days** (7 · THE FIVE SITES; 17 Nov 2026). A route priced at a Beat costs that day the moment the Cohort takes it (the brine-walk is free to a Cohort at BADGE 0, walking as Kin). If about eight exchanges at the table pass with no Beat, the day has run out: close it, and SHIFT moves.
+- **The arch is never a locked door** (7 · 1 · THE FILING GATE; 17 Nov 2026). A Cohort at BADGE 0–1 is challenged at the Warden arch and walked through under escort, which is a scene, never a locked door. A listed exit is always open at a price.
 
 ## How it can end, and what comes next
 

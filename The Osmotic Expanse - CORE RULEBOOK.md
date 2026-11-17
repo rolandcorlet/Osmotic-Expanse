@@ -39,6 +39,20 @@ Everything is one system. A burst in the Atlas, a hazard in the Codex, and a cre
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| 2.3 Codon | Growing, and moving on | 17 Nov 2026 |
+| 2.4 Specimens | Sharing out a harvest | 12 Nov 2026 |
+| 3.2 Enzymatic Pathways | Protean Folding | 17 Nov 2026 |
+| 4.1 Begin the Pulse War | Someone with no stat block | 16 Nov 2026 |
+| 11.4 Oaths: promises written in your own membrane | An Oath has words and a witness | 13 and 17 Nov 2026 |
+
+---
+
 # THE PRIME SERUM
 
 There was no bang. There was a **drop**.
@@ -219,6 +233,8 @@ Cumulative Codon: Level 2 = 40 · 3 = 100 · 4 = 180 · **5 = 280** · **6 = 400
 
 A Cohort of four clears roughly two to four significant threats per Level, and a Chapter of the world is measured in tens of thousands of Codon. Codon is tracked on the sheet as a running total; when the total crosses a threshold, the organism **Grows** at the next Reconstitution.
 
+> **v3 ruling (17 Nov 2026) — Growing, and moving on.** A Growth happens at the next Reconstitution after your Codon total crosses the threshold (Atlas §4.1). An organism carried into a Vector printed at a higher Level is owed the Codon and the Growths to reach it, and chooses them at once, without waiting for a rest (Codex §5.7).
+
 ## 2.4 Specimens — the loot that is also progression
 
 Every entity in the Bestiary lists a **Harvest**: Specimens of four grades.
@@ -233,6 +249,8 @@ Every entity in the Bestiary lists a **Harvest**: Specimens of four grades.
 Harvesting takes a **Synthesise action** (or 10 minutes outside combat), costs 1 Bulk, and requires an **OSM or RTC check** at the entity's tier × 4 + 8. Failure ruins the sample: you get Substrate instead.
 
 **A body is a bank.** Killing the *Membrane Shredder* does not just feed your colony; its Greater Organ is the raw material for the exact graft that will let your Kinetic Striker survive the next one. Every Bestiary entry is written backwards from this.
+
+> **v3 ruling (12 Nov 2026) — Sharing out a harvest.** Every Specimen a harvest yields is offered round the Cohort in a picking order kept for the whole game. The organism at the front takes it or passes, and goes to the back either way. Nobody chooses for another player.
 
 ## 2.5 Cohesion — the group metabolism
 
@@ -302,6 +320,8 @@ The **Core Pathway List** — the Atlas adds class-exclusive ones:
 | **Vigour** | VSC | Endurance, hunger, sleep debt, sustained effort |
 | **Pulse Discipline** | DFF | Initiative, timing, Interrupts, held reactions |
 
+> **v3 ruling (17 Nov 2026) — Protean Folding.** Protean Folding, granted by the Protean tradition (Protein Weaver, Turbulence Navigator), is rolled with **RTC**. This Core list printed no Baseline for it; both Phenotypes that hold it key on RTC.
+
 ## 3.3 Grade ladder by Stage
 
 The engine is calibrated to these ranges. If a block sits outside them, it is *deliberately* alien — the Anomalies (§Bestiary VII) live here.
@@ -324,6 +344,8 @@ Combat in the Expanse is not a duel of blows; it is a contest of **reaction rate
 1. **Detection Phase.** Both sides roll: `OSM + Pathway (Chemoreception)` vs the other side's `DFF + Pathway (Concealment)`, contested. Whoever wins the higher total by **4 or more** gains the **First Volley**: everyone on that side acts once before the other side is in the Cycle, spending PP as normal but with no Reactive Osmosis available. A tie means both sides are startled; skip a Cycle while everyone orients.
 2. **Frequency Check.** Each organism rolls `d6 + DFF + Pathway (Pulse Discipline)` for the whole encounter. Highest acts first. Ties: more unspent PP, then higher OSM, then players.
 3. **Set the theatre.** Place each side in **bands** (§4.4), and note every zone of fluid, current, and hazard on the field.
+
+> **v3 ruling (16 Nov 2026) — Someone with no stat block.** A person or thing with no printed block (a clerk, a pilgrim, a bystander) never starts a Pulse War. Say the cost first, then make one roll; the consequences come from the world (a witness, a Clock, a faction), and nothing is invented for harvest.
 
 ## 4.2 The Cycle
 
@@ -1351,6 +1373,8 @@ An **Oath** is literal: you fold a sequence into your own chromatin so that brea
 * **Breaking** an Oath (voluntary or through failure): mark **2 Lysis Countdown boxes**, drop the witness faction one rung, and roll once on the Legacy Scarring table (§5.7).
 * **Oath-breaking is not a punishment; it is a plot.** An Oath box spent is the Director's licence to make the consequence *interesting* rather than merely fatal.
 * Some things cannot be sworn: a Warden Circles antigen oath excludes Viral Wraiths entirely; a Deep Choir oath is incompatible with the Hegemony's licence registry.
+
+> **v3 ruling (13 and 17 Nov 2026) — An Oath has words and a witness.** An Oath is sworn in the player's own words and is owed to somebody the table can see (a fold, a clerk, a crew): name the witness when it is sworn. Breaking an Oath also advances the campaign's **COLONY** Clock by one (Codex §5.2: a broken Oath disturbs a settlement).
 
 ## 11.5 Bonds between organisms
 

@@ -2,6 +2,7 @@
 import { writeFileSync } from 'node:fs';
 import { CODEX, CODEX_CHAPTERS } from '../director/data/kit/codex.js';
 import { GLOSSARY } from '../director/data/kit/glossary.js';
+import { rulingsSection } from './rulings-section.mjs';
 
 const A = ['# The Director\'s Codex · v3 table edition', '',
  '*Running The Osmotic Expanse: judging rolls, running fights, building encounters, the living world, regions, factions, sites, rewards and the tables. Every rule, table and number is the printed Codex\'s own and is unchanged; each section cites its number. What is new is the delivery: each section opens with a plain-words line and when to reach for it. In the AI Director game the Director finds these sections itself with look_up.*', '',
@@ -14,5 +15,6 @@ for (const [n, title] of Object.entries(CODEX_CHAPTERS)) {
   }
 }
 A.push('## Words', '', '| Word | In plain words |', '|---|---|', ...GLOSSARY.map((g) => `| ${g.word} | ${g.plain} |`), '');
+A.push(...rulingsSection('codex'));
 writeFileSync(new URL('./DIRECTORS-CODEX-v3.md', import.meta.url), A.join('\n'));
 console.log('codex', A.join('\n').length, 'chars,', CODEX.length, 'cards');

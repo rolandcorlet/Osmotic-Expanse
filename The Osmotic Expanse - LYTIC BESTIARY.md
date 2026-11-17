@@ -15,6 +15,14 @@
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| HOW TO READ A BLOCK | The block stays behind the screen | 13 Nov 2026 |
+
 ## HOW TO READ A BLOCK
 
 ```
@@ -32,6 +40,8 @@ Tactics (how it actually plays the Cycle) · Why it exists (what it is *for* in 
 * **Damage** a creature deals = `Overflow + BD + Effect Value − target soak (min 1)`, exactly as for organisms.
 * **Special actions cost PP**, and creatures have the same PP economy the players do. A creature that has spent 5 PP has no Reserve. *Say so out loud.*
 * **Frequency** is a modifier to `d6 + DFF + discipline`; where a block prints `Freq +2`, use the creature's best relevant Baseline (usually DFF or VSC) for the check.
+
+> **v3 ruling (13 Nov 2026) — The block stays behind the screen.** Read a block; never read it out. The players never hear a creature's dice, Membrane Threshold, Integrity, soak or Segments left. They hear what it wants, does and fears (Codex §3.2). A person with no block is never fought as a Pulse War (Codex §4.5).
 
 ## THE SEVEN ORDERS AT A GLANCE
 

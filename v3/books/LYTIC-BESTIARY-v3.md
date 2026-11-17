@@ -1002,3 +1002,9 @@ Places where the rules of the world have broken, wearing a body. **What they wan
 **Leaves behind:** C14 / G6 / P5 / T2 / T1 · Codon 120 · BSP 4 (its P5 is a memory of the future: a Ribozyme Engineer can write it into a template, and the resulting Relic's Gene-Debt is measured in Beats you will not have)
 
 **Stat block:** Elite · T5 · invisible unless it is acting · MT 18 · MI 108 · soak 7 · BD 7 any (it uses the Cohort's last three damage types, in order) · pool 9d · PP 4 · Flow 6
+
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **The block stays behind the screen** (HOW TO READ A BLOCK; 13 Nov 2026). Read a block; never read it out. The players never hear a creature's dice, Membrane Threshold, Integrity, soak or Segments left. They hear what it wants, does and fears (Codex §3.2). A person with no block is never fought as a Pulse War (Codex §4.5).

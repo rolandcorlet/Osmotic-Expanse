@@ -19,6 +19,17 @@ All rules referenced here by chapter (I–XII) live in **THE CATALYTIC ENGINE**.
 
 ---
 
+### v3 RULINGS (November 2026)
+
+These rulings were made while the AI Director was built and played (v3). Each is also written as a note at the end of the section it changes, marked *v3 ruling*. The AI Director's Engine follows them, and the v3 table editions print them.
+
+| Section | Ruling | Date |
+| :-- | :-- | :-- |
+| Step 8 · Starting higher | Starting higher, in full | 17 Nov 2026 |
+| 4.1 What a Growth gives you | Growth at the table | 17 Nov 2026 |
+
+---
+
 # 1 · MAKING AN ORGANISM
 
 Eight steps, twenty minutes, one body.
@@ -87,6 +98,8 @@ Stress track = 0/8
 ## Step 8 · Starting higher
 
 Starting at Level 6 (Stage II)? Take the Phenotype's Stage I **and** II features, **150 S**, one Uncommon graft, and set Codon to 400. Level 11 (Stage III): Stage I–III features, **500 S**, one Rare graft, Codon 1300. Level 16 (Stage IV): everything, **1,600 S**, one Very Rare item, Codon 2700. Every Stage transition also grants **+2 to one Baseline or +1 to a Pathway rank** and **+6 max MI** (Stage feature).
+
+> **v3 ruling (17 Nov 2026) — Starting higher, in full.** Spend every Synthesis Choice your Level gives (one per Level above 1). Adaptations taken at creation pay their Substrate from your starting Substrate; an Adaptation that also costs a Specimen cannot be taken at creation. Bursts are limited to the Tier your Level reaches.
 
 ---
 
@@ -830,6 +843,8 @@ You **Grow** when your Codon total crosses the next threshold (Core II §2.3), a
 4. **Take an Adaptation** (§4.2)
 5. **Harvest trait** from a Specimen you hold (graft; takes a Slot)
 6. **Craft or buy gear** at a discount (your lab, your contacts, your foundry)
+
+> **v3 ruling (17 Nov 2026) — Growth at the table.** At a Stage transition (Levels 6, 11, 16) you choose two Synthesis Choices, but still at most one Baseline grade per Growth. An organism carried into a higher-Level Vector takes its catch-up Growths at once (Codex §5.7). Adaptation Substrate comes from your own purse.
 
 ## 4.2 Adaptations
 

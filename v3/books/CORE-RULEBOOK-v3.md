@@ -404,6 +404,16 @@
 
 **At the table.** Director: "The shaft is the only way out and the count is running. Vash, you lead: roll to keep the others on your line."
 
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **Growing, and moving on** (2.3 Codon; 17 Nov 2026). A Growth happens at the next Reconstitution after your Codon total crosses the threshold (Atlas §4.1). An organism carried into a Vector printed at a higher Level is owed the Codon and the Growths to reach it, and chooses them at once, without waiting for a rest (Codex §5.7).
+- **Sharing out a harvest** (2.4 Specimens; 12 Nov 2026). Every Specimen a harvest yields is offered round the Cohort in a picking order kept for the whole game. The organism at the front takes it or passes, and goes to the back either way. Nobody chooses for another player.
+- **Protean Folding** (3.2 Enzymatic Pathways; 17 Nov 2026). Protean Folding, granted by the Protean tradition (Protein Weaver, Turbulence Navigator), is rolled with **RTC**. This Core list printed no Baseline for it; both Phenotypes that hold it key on RTC.
+- **Someone with no stat block** (4.1 Begin the Pulse War; 16 Nov 2026). A person or thing with no printed block (a clerk, a pilgrim, a bystander) never starts a Pulse War. Say the cost first, then make one roll; the consequences come from the world (a witness, a Clock, a faction), and nothing is invented for harvest.
+- **An Oath has words and a witness** (11.4 Oaths; 13 and 17 Nov 2026). An Oath is sworn in the player's own words and is owed to somebody the table can see (a fold, a clerk, a crew): name the witness when it is sworn. Breaking an Oath also advances the campaign's **COLONY** Clock by one (Codex §5.2: a broken Oath disturbs a settlement).
+
 ## Words
 
 | Word | In plain words |

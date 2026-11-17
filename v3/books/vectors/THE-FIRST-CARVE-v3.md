@@ -254,6 +254,14 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **Printed in the original (unchanged):** Vector §8.5. Danger: E5, Deadly: 1 Protease Warden + 2 Cytoplasmic Bleeders + 4 Antigen Gnats = 12 BSP, against a Deadly budget of 13 for a Cohort of four. Pays: The recovery crew will pay 200 to 400 S for a Cohort willing to carry the serial into a Hegemony office and say it out loud.
 
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **TOLL and a loud fight** (3.2 TOLL; 13 and 16 Nov 2026). A loud fight reaches the law only half the time: roll a d6, and TOLL advances on 4–6 (HUNGER is paid every time). Once TOLL stands at 3 or more, the Director no longer spends their own discretionary advance on it; only the printed triggers move it from there.
+- **Opening a panel** (3.1 CARCASS; 13 Nov 2026). Opening a panel is one event the site pays: the first panel opened in a scene advances CARCASS, and further panels in the same scene do not (the host may set every panel to pay its own segment).
+- **A body left uncut** (3.3 HUNGER; 17 Nov 2026). A body left uncut in the water when the Cohort leaves the site advances HUNGER and, as this section prints, the campaign's COLONY Clock.
+
 ## How it can end, and what comes next
 
 - If the brood was registered: three hundred new citizens owe the Cohort a Name, and somebody will want that undone.

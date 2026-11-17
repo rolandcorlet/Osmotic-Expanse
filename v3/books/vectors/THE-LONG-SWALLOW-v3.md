@@ -1,6 +1,6 @@
 # The Long Swallow · v3 table edition
 
-*Levels 7 to 11. Book and Director's kit ready; not yet in the host's Vector list.*
+*Levels 7 to 11. Ready to run in the v3 host.*
 
 This edition is written to be run as a conversation. Players say what they do in their own words; nothing below is a list of permitted moves. All prices, statistics and procedures are in the original Vector and are unchanged.
 
@@ -79,7 +79,7 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **What is here:** A tear in the Host's side as wide as a street, its edges folded into a shanty town. Water sellers, an abandoned toll booth still fining nobody, and a Hermit who knows the Host's timetable.
 
-**Ways on:** Inward to the Chapel; Back to the Vat Road.
+**Ways on:** Inward to the Chapel (a Beat); Back to the Vat Road.
 
 **Senses:** a wall that breathes; water sold by the cupful; a toll booth muttering fines to nobody; a deep slow pulse underfoot; an old scar with tool marks in it.
 
@@ -103,7 +103,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The crier starts the warrant again. / The Hermit holds up four fingers: "Four doors. Pick." / The wall beside you opens a hand's width, and waits.
 
-**A moment for each character:** *the one who stands in front*: The Host speaks to you first: you are nearest its size. *the one who makes, mends and reads the small print*: You can read the tool marks in the scar. *the one who moves through anything*: You could ride the outflow in backwards. *the one who notices*: You notice the toll booth is still reading people.
+**A moment for each character:** *The Wall*: The Host speaks to you first: you are nearest its size. *The Ledger*: You can read the tool marks in the scar. *The Rider*: You could ride the outflow in backwards. *The Eyes*: You notice the toll booth is still reading people.
+
+**Printed in the original (unchanged):** Vector §7.1, §9 E1. Danger: E1: 2 Flaccid Haunters + 1 Gnaw Swarm = 5 BSP, Easy. They are thirsty, not evil: 20 S of sealed water ends it in one sentence. Pays: 17.5 Codon each for the Haunters in a fight; 30 S and water rights worth more than the gear. The Churn schedule and the Hermit's price list are the real pay. The earlier break-in's record says: the Nodule answers to a name.
 
 ### 2 · The Chapel of the Unwasted — a swallowed shrine, now a ferry stop
 
@@ -111,9 +113,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **The question this scene answers:** Will the people who live here vouch for the Cohort, and what will that cost?
 
-**What is here:** A shrine swallowed generations ago: pews of folded tissue, a bell nobody rings, a notice board, and forty pilgrims who live here on purpose.
+**What is here:** Pews of folded membrane, a bell nobody rings because ringing it tells the body where everyone is, and about forty pilgrims being digested slowly on purpose.
 
-**Ways on:** Deeper, by ferry, to the Churn; Back to the Weep.
+**Ways on:** Deeper to the Churn (half a Beat; the Churn does the rest); Back to the Weep.
 
 **Senses:** a hush like a held breath; pilgrims counting under their breath; a bell with a wrapped clapper; a fresh cut in an old wall; numbered sacs stacked like luggage.
 
@@ -136,7 +138,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The pilot reaches nine and starts again. / A pilgrim points at the cut: "Not ours." / One of the numbered sacs knocks from the inside.
 
-**A moment for each character:** *the one who stands in front*: The ferry needs someone to hold it against the current. *the one who makes, mends and reads the small print*: The inventory is a ledger: you can read it. *the one who moves through anything*: Catch the sac before it floats off. *the one who notices*: Spot that the cut was made from the inside.
+**A moment for each character:** *The Wall*: The ferry needs someone to hold it against the current. *The Ledger*: The inventory is a ledger: you can read it. *The Rider*: Catch the sac before it floats off. *The Eyes*: Spot that the cut was made from the inside.
+
+**Printed in the original (unchanged):** Vector §7.2, §9 E2. Danger: E2: 1 Gastric Sentinel + 3 Antigen Gnats = 5 BSP, only if the Cohort is hostile, loud or Lytic. Loss is IMMUNE 1, not death. Pays: 30 Codon for the objective (three clues, sponsorship, or a rite); 19.5 Codon if E2 turns. The ferry ledger. No gold, one favour. A Sentinel's Pristine fragment is worth 200 S and a bad reputation.
 
 ### 3 · The Nine-Cycle Churn — the digestion, still trying
 
@@ -144,9 +148,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **The question this scene answers:** How does the Cohort get through a room that is trying to digest them?
 
-**What is here:** A channel of muscle squeezing on a timetable, sheets of enzyme, a pump the size of a flywheel, and one lump that never dissolves, turned over and over.
+**What is here:** A channel of contracting muscle, sheets of enzyme, a pump-villus the size of a foundry flywheel, and a pale lump the size of a house going round and round.
 
-**Ways on:** Onward, with the flow, to the Shelf; Back, against it, to the Chapel.
+**Ways on:** With the flow to the Shelf (free, and grants Momentum; if the pump is jammed, swim it: 2 PP per Drift through still water, and the way is open); Against the flow, back to the Chapel (Fluid Navigation AT 12, 14 in the Churn proper, or 2 PP per band).
 
 **Senses:** pressure on every side, then none; a sour sting; the pump's slow thud; everything loose drifting one way; thick water that drags.
 
@@ -170,7 +174,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** The thud quickens. / A Sentinel drifts closer and asks its question. / A spent charge-slug floats past: someone else came this way.
 
-**A moment for each character:** *the one who stands in front*: Brace and hold the others through a squeeze. *the one who makes, mends and reads the small print*: The pump is a machine. You know machines. *the one who moves through anything*: This is a current, and currents are yours. *the one who notices*: Taste the water: it tells you where the lump leads.
+**A moment for each character:** *The Wall*: Brace and hold the others through a squeeze. *The Ledger*: The pump is a machine. You know machines. *The Rider*: This is a current, and currents are yours. *The Eyes*: Taste the water: it tells you where the lump leads.
+
+**Printed in the original (unchanged):** Vector §6.3, §7.3, §9 E3, §10.5. Danger: E3: THE CHURN (hazard, 2 BSP) + 2 Gastric Sentinels + 2 Protease Locusts = 8 BSP, Standard at Levels 9-12, Easy at 7. At the fill, everyone is thrown toward the Shelf; a Cohort that fights against the flow is fighting the map. Pays: 37 Codon for the room. C14 / G6 and a Nine-Cycle Sample if the pump is cut. A jammed pump is a safe dead-water room where the Cohort can rest, trade or be trapped.
 
 ### 4 · The Shelf of Not-Finished Things — everything it could not bring itself to end
 
@@ -178,9 +184,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **The question this scene answers:** What does the Cohort take, who do they speak for, and what do they tell the foreman?
 
-**What is here:** Rows of slow-tissue pods, each holding something the Host refused to dissolve: wrecks, calves, twelve lost workers, all alive and aware. A Hegemony crew is cutting pods open.
+**What is here:** Cargo wrecks still broadcasting their owners' oaths, a Vat Crew of twelve who are still in there thinking, Drift Whale calves, and Pristine Sequences stacked like cordwood.
 
-**Ways on:** Inward to the Nodule; The drain, with the Churn; Back, against the flow.
+**Ways on:** Onward to the Nodule; Back up the flow (against the Churn).
 
 **Senses:** a crowd's quiet breathing; old promises murmuring from a wreck; the whine of a saw; stacked riches within arm's reach; being watched kindly.
 
@@ -206,7 +212,9 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** One of the twelve says a name the Cohort knows. / Sulk walks over with a clipboard. / A pod nearby is cut open, and the Host flinches.
 
-**A moment for each character:** *the one who stands in front*: Put yourself between a saw and a pod. *the one who makes, mends and reads the small print*: You know exactly which signature Sulk is missing. *the one who moves through anything*: Reach the pod before the saw does. *the one who notices*: You see the Oath boxes on the one at the centre.
+**A moment for each character:** *The Wall*: Put yourself between a saw and a pod. *The Ledger*: You know exactly which signature Sulk is missing. *The Rider*: Reach the pod before the saw does. *The Eyes*: You see the Oath boxes on the one at the centre.
+
+**Printed in the original (unchanged):** Vector §7.4, §9 E4, §10.4. Danger: E4: Foreman Sulk Nine-Yards (Elite) + 2 Enzymatic Horrors + the Churn hazard = 10 BSP, Standard/Hard. Sulk parleys if named the crime (no Warden counter-signature for interior cuts); the Horrors walk at the armoured Cohort member. Pays: 50 Codon for the truth about Ock's crew (C21 / G13 across twelve claim-holding bodies); E4 44 Codon, 220 S in feed stock, G8 and a Pristine Acid Gland. Harvesting Sulk is a Hegemony incident: a 1,200 S lien.
 
 ### 5 · The Nodule — the promise, and its keeper
 
@@ -216,7 +224,7 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **What is here:** A sealed knot of tissue the size of a chapel, untouched by digestion. The Host's own immune authority stands before it.
 
-**Ways on:** Whichever of the three exits the Cohort has earned.
+**Ways on:** The door that opens (Goodwill Client or better); Ride the Churn out (Synthesis AT 12 to rig a catch; costs Bulk and 6 Osmotic); The Breach (cut your own door; costs 60 S of acid or a charge; IMMUNE +2, LICENCE +1, Goodwill Hostile).
 
 **Senses:** stillness after all that motion; clean tissue, never burned; a door with no handle; the Host's pulse, slower here; somebody inside, listening.
 
@@ -239,7 +247,18 @@ Give a secret away whenever a player looks, asks or pokes in a way that could fi
 
 **If the table stalls:** Ninth Response repeats its offer. / A voice from inside the door asks who is there. / The Host says a name, slowly.
 
-**A moment for each character:** *the one who stands in front*: Carry the Undersigned out. *the one who makes, mends and reads the small print*: Read the seal: it is a contract. *the one who moves through anything*: Lead the way out before the squeeze. *the one who notices*: Hear the voice inside before anyone else.
+**A moment for each character:** *The Wall*: Carry the Undersigned out. *The Ledger*: Read the seal: it is a contract. *The Rider*: Lead the way out before the squeeze. *The Eyes*: Hear the voice inside before anyone else.
+
+**Printed in the original (unchanged):** Vector §7.5, §9 E5, §10.3, §10.6. Danger: E5: Ninth Response (Elite) + 3 Gastric Sentinels + 2 Protease Locusts = 12 BSP, Hard. At IMMUNE 5, +2 Sentinels = 16, Deadly: say out loud that somebody's body gets harvested. Pays: 60 Codon for the Receipt and the campaign-revealing object; E5 82 Codon; ending objectives 60-200 Codon. Ninth Response yields a Tolerance Codon.
+
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **Closing a day** (3 · THE UNAVOIDABLE PROBLEM; 17 Nov 2026). If about ten exchanges at the table pass inside the Host with no Beat, the day has run out: close it, and LICENCE moves. Say it, as this section says, every time.
+- **Where Goodwill starts** (6.1 GOODWILL; 17 Nov 2026). Goodwill starts at **Curious** unless the Intake sets it (Intake 1, the Honest Road: Client; Intake 11, the Breacher's Hatch: Wary). IMMUNE 3 drops it a rung once; at IMMUNE 5 it can rise no higher than Curious.
+- **The Churn, priced** (6.3 THE CHURN CLOCK; 17 Nov 2026). The enzyme sheets are a hazard, never a wall: anyone may swim the deep channel and pays 4 Lytic per Cycle while in it. A fill pushes everyone inside the body 1 band (2 at LICENCE 5 or at Hostile) and pays 6 Osmotic; Braced holds. CHURN then starts again. A jammed pump stops the Clock, and the Cohort swims on through the dead water.
+- **A challenge is a cost** (6.4 TOLERANCE; 17 Nov 2026). A Host that is Wary or worse sets every Tolerance contest at AT 18, sponsored or not. A Sentinel's challenge is a cost on the way (a contest, a Mark, a Clock), never a stop: an honest answer of what you are passes it.
 
 ## How it can end, and what comes next
 

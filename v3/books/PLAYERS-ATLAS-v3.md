@@ -1383,3 +1383,10 @@
 | Chaperone Drone | A small folded-membrane official. Drones run tolls, gates and forms. |
 | Order II | The drones' own service. Their stamp makes a thing legal. |
 | Lattice | Ancient machinery that can print living things. Nobody fully understands it. |
+
+## v3 rulings (November 2026)
+
+*Made while the AI Director was built and played. The original book carries each one as a note at the end of the section named; the AI Director's Engine follows them.*
+
+- **Starting higher, in full** (Step 8 · Starting higher; 17 Nov 2026). Spend every Synthesis Choice your Level gives (one per Level above 1). Adaptations taken at creation pay their Substrate from your starting Substrate; an Adaptation that also costs a Specimen cannot be taken at creation. Bursts are limited to the Tier your Level reaches.
+- **Growth at the table** (4.1 What a Growth gives you; 17 Nov 2026). At a Stage transition (Levels 6, 11, 16) you choose two Synthesis Choices, but still at most one Baseline grade per Growth. An organism carried into a higher-Level Vector takes its catch-up Growths at once (Codex §5.7). Adaptation Substrate comes from your own purse.
