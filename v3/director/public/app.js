@@ -4,6 +4,7 @@
 
 import * as R from '/engine/rules.js';
 import { oddsCard } from '/engine/odds.js';
+import { genHtml, genActs } from '/gen.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -632,7 +633,7 @@ function playerHtml() {
   }
   if (!m.agreed) return zeroHtml();
   const o = mine();
-  if (!o) return chooseHandHtml();
+  if (!o) return ui.gen ? genHtml(ui, state) : chooseHandHtml();
   if (ui.tab === 'sheet') return `<div class="stack">${sheetCard(o, { own: true })}</div>`;
   return `<div class="stack" data-scroll="play">${playHtml(o)}</div>`;
 }
@@ -697,7 +698,7 @@ function chooseHandHtml() {
   return `<div class="stack"><section class="card"><h3>Choose your character</h3>
     ${sc.pitch ? `<p class="tale" style="margin-bottom:10px">${esc(sc.pitch)}</p>` : ''}
     <p class="dim small" style="margin-bottom:8px">You play one of these. In this world a character is called an organism. Tap one to read it.</p>
-    <div class="hands">${hands}</div>
+    <div class="hands">${hands}${(state.zero || {}).custom === false ? '' : `<button class="hand build" data-act="gen.open"><b>Build your own</b><span class="dim small">Choose your own lineage, class, talents and kit.</span><span class="small">A short guided builder, one step per screen. About five minutes.</span></button>`}</div>
     ${ui.claim.hand ? `<div class="fld"><span class="fl">Name your organism</span><div class="row"><input type="text" class="grow" data-k="claim.name" data-bind="claim.name" value="${esc(ui.claim.name)}" maxlength="40" placeholder="For example: Bresk of the Sixth Choir" autocomplete="off"><button class="btn" data-act="name.random">Random name</button></div>
       <span class="small faint">Tap Random name as often as you like, or type your own.</span></div>
     <button class="btn primary big" data-act="claim.go">Play this organism</button>` : '<p class="dim small">Tap a Hand to read it, then give it a name.</p>'}
@@ -967,6 +968,7 @@ function hostZeroCard() {
       <input type="text" data-k="zero.tone" data-bind="zero.tone" value="${esc(ui.zero.tone || z.tone)}" maxlength="300" placeholder="For example: body horror is in, cruelty to animals is out"></div>
     ${z.lines.length ? `<div class="row">${z.lines.map((l) => `<span class="chip warn">${esc(l)} <button class="btn sm" data-act="zero.drop" data-line="${esc(l)}">x</button></span>`).join('')}</div>` : '<p class="small dim">Nothing is off the page yet.</p>'}
     ${waiting.length ? `<p class="small dim">Waiting on: ${waiting.map(esc).join(', ')}. They cannot take an organism until they agree.</p>` : ''}
+    <label class="chip${z.custom === false ? '' : ' on'}"><input type="checkbox" data-act="h.custom" ${z.custom === false ? '' : 'checked'}> Players may build their own organism</label>
   </section>`;
 }
 
@@ -1195,7 +1197,7 @@ function voiceCard() {
   if (!hv) return '';
   const v = ui.voice;
   if (!v.loaded) {
-    Object.assign(v, { outEngine: hv.out.engine, outUrl: hv.out.url, outModel: hv.out.model, outVoice: hv.out.voice, outSpeed: String(hv.out.speed), inEngine: hv.in.engine, inUrl: hv.in.url, inModel: hv.in.model, inLang: hv.in.language, loaded: true });
+    Object.assign(v, { outScreen: hv.out.screenVoice || 'gb-male', outEngine: hv.out.engine, outUrl: hv.out.url, outModel: hv.out.model, outVoice: hv.out.voice, outSpeed: String(hv.out.speed), inEngine: hv.in.engine, inUrl: hv.in.url, inModel: hv.in.model, inLang: hv.in.language, loaded: true });
   }
   const seg = (act, cur, opts) => `<div class="seg">${opts.map(([id, name]) => `<button class="${cur === id ? 'on' : ''}" data-act="${act}" data-id="${id}">${name}</button>`).join('')}</div>`;
   const f = (label, bind, val, ph = '', type = 'text') => `<label class="fld"><span class="fl">${label}</span><input type="${type}" data-k="${bind}" data-bind="${bind}" value="${esc(val)}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false"></label>`;
@@ -1203,8 +1205,10 @@ function voiceCard() {
     <div class="stack-in" style="display:flex;flex-direction:column;gap:10px">
       <div class="fld"><span class="fl">The Director speaks with</span>${seg('v.out', v.outEngine, [['browser', 'Each screen\'s own voice'], ['server', 'A speech server']])}
         <span class="small dim">The table screen reads the narration aloud; phones and this screen have a Voice switch of their own. A speech server (for example Kokoro on this computer) gives one steady voice everywhere and keeps working on a phone with no voice installed. Only the Director's narration is ever sent to it.</span></div>
+      ${v.outEngine === 'browser' ? `<div class="fld"><span class="fl">Which of the screen's voices</span>${seg('v.screen', v.outScreen, [['gb-male', 'British man'], ['gb-female', 'British woman'], ['us-male', 'American man'], ['us-female', 'American woman'], ['any', 'Screen default']])}
+        <span class="small dim">Each screen picks the closest voice it has installed. Windows has "George" or "Ryan"; Macs and iPhones have "Daniel"; Chrome has "Google UK English Male". If a screen has no British man, it falls back to the nearest English voice.</span></div>` : ''}
       ${v.outEngine === 'server' ? `${f('Speech server address', 'voice.outUrl', v.outUrl, 'http://localhost:8880/v1')}${f(hv.out.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.outKey', v.outKey, hv.out.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
-      <div class="row">${f('Model', 'voice.outModel', v.outModel)}${f('Voice', 'voice.outVoice', v.outVoice)}${f('Speed', 'voice.outSpeed', v.outSpeed)}</div>` : ''}
+      <div class="row">${f('Model', 'voice.outModel', v.outModel)}<label class="fld"><span class="fl">Voice</span><input type="text" list="kokoro-voices" data-k="voice.outVoice" data-bind="voice.outVoice" value="${esc(v.outVoice)}" autocomplete="off" spellcheck="false"><datalist id="kokoro-voices"><option value="bm_fable">British man, warm storyteller</option><option value="bm_george">British man, deeper</option><option value="bm_lewis">British man, brisk</option><option value="bm_daniel">British man, plain</option><option value="bf_emma">British woman</option><option value="am_michael">American man</option><option value="af_heart">American woman</option></datalist></label>${f('Speed', 'voice.outSpeed', v.outSpeed)}</div>` : ''}
       <div class="fld"><span class="fl">Players' Talk button listens with</span>${seg('v.in', v.inEngine, [['browser', 'The phone\'s own recognition'], ['server', 'A speech server']])}
         <span class="small dim">Each player agrees to this at session zero, and the screen tells them where their voice goes. A phone's own recognition is done by Google or Apple. A speech server (for example Whisper on this computer) keeps it on your own network.</span></div>
       ${v.inEngine === 'server' ? `${f('Speech-to-text address', 'voice.inUrl', v.inUrl, 'http://localhost:8000/v1')}${f(hv.in.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.inKey', v.inKey, hv.in.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
@@ -1277,6 +1281,7 @@ const ACT = {
   'zero.agree': () => send({ type: 'zero.agree' }),
   'zero.add': () => { const t = (ui.zero.line || '').trim(); if (!t) return; send({ type: 'zero.line', text: t }); ui.zero.line = ''; },
   'zero.drop': (d) => send({ type: 'zero.line', remove: d.line }),
+  'h.custom': () => send({ type: 'zero.set', custom: (state.zero || {}).custom === false }),
   'h.zero': () => send({ type: 'zero.set', pauseWord: ui.zero.pauseWord || undefined, tone: ui.zero.tone }),
   'p.harvest': (d) => send({ type: 'harvest', organismId: d.org, cid: d.id || null }),
   'rolls.mine': () => { ui.rollsMine = !ui.rollsMine; },
@@ -1291,12 +1296,13 @@ const ACT = {
   'hear.no': () => { store.set('oxd.hear', 'no'); ui.talkAsk = false; if (T.rec && ui.talk === 'listening') { try { T.rec.stop(); } catch (e) { /* idle */ } } },
   'v.save': async () => {
     const v = ui.voice;
-    const body = { op: 'voice', out: { engine: v.outEngine, url: v.outUrl, model: v.outModel, voice: v.outVoice, speed: v.outSpeed }, in: { engine: v.inEngine, url: v.inUrl, model: v.inModel, language: v.inLang } };
+    const body = { op: 'voice', out: { engine: v.outEngine, screenVoice: v.outScreen, url: v.outUrl, model: v.outModel, voice: v.outVoice, speed: v.outSpeed }, in: { engine: v.inEngine, url: v.inUrl, model: v.inModel, language: v.inLang } };
     if (v.outKey.trim()) body.out.key = v.outKey.trim();
     if (v.inKey.trim()) body.in.key = v.inKey.trim();
     if (await sendDirector(body)) { v.outKey = ''; v.inKey = ''; v.loaded = false; await reloadScenario(); toast('Voice settings saved.', true); }
   },
   'v.out': (d) => { ui.voice.outEngine = d.id; },
+  'v.screen': (d) => { ui.voice.outScreen = d.id; },
   'v.in': (d) => { ui.voice.inEngine = d.id; },
   say: async () => {
     const text = ui.say.text.trim();
@@ -1479,6 +1485,7 @@ const ACT = {
   'm.add': () => { const M = ui.mem; if (!M.name.trim()) return null; const r = send({ type: 'cast.remember', name: M.name, kind: M.kind, fact: M.fact }); ui.mem = { ...M, name: '', fact: '' }; return r; },
   'h.new': () => { ui.newGame = { open: true, vectorId: state.scenarioId, keep: true }; },
   'h.new.cancel': () => { ui.newGame.open = false; },
+  ...genActs(ui, () => state, { send, toast, randomName: () => osmoticName() }),
   'h.new.go': () => { const N = ui.newGame; ui.newGame = { open: false, vectorId: '', keep: true }; return send({ type: 'session.new', vectorId: N.vectorId || state.scenarioId, keepPlayers: !!N.keep }); },
 };
 
@@ -1589,10 +1596,33 @@ function faceFollows() {
   setFace(state && state.director && state.director.thinking ? 'think' : 'rest');
 }
 
+// The screen's own voices differ by device, so pick by language and by the names each system uses.
+const MALE = /\b(male|daniel|arthur|oliver|george|ryan|thomas|alfie|elliot|fred|alex|aaron|david|guy|mark|james|christopher|eric|rocco|reed)\b/i;
+const FEMALE = /\b(female|serena|kate|stephanie|martha|hazel|libby|sonia|susan|samantha|zira|jenny|aria|karen|moira|fiona|tessa|victoria|allison|ava|michelle|emma|amy)\b/i;
+let pickedVoice = { want: null, voice: null };
+function screenVoice() {
+  const want = (info && info.voice && info.voice.screenVoice) || 'gb-male';
+  if (want === 'any') return null;
+  const all = speechSynthesis.getVoices();
+  if (!all.length) return null;
+  if (pickedVoice.want === want && pickedVoice.voice) return pickedVoice.voice;
+  const [place, sex] = want.split('-');
+  const lang = place === 'gb' ? /^en[-_]GB/i : /^en[-_]US/i;
+  const score = (v) => (lang.test(v.lang) ? 4 : /^en/i.test(v.lang) ? 1 : -9)
+    + (sex === 'male' ? (MALE.test(v.name) ? 3 : FEMALE.test(v.name) ? -3 : 0) : (FEMALE.test(v.name) ? 3 : MALE.test(v.name) ? -3 : 0))
+    + (/natural|neural|online|premium|enhanced/i.test(v.name) ? 1 : 0) + (v.localService ? 0.5 : 0);
+  const best = all.slice().sort((a, b) => score(b) - score(a))[0];
+  pickedVoice = { want, voice: best && score(best) > 0 ? best : null };
+  return pickedVoice.voice;
+}
+try { if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { pickedVoice = { want: null, voice: null }; }; } catch (e) { /* no voices */ }
+
 function speakBrowser(text, done) {
   try {
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.0;
+    const v = screenVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else if (((info && info.voice && info.voice.screenVoice) || 'gb-male').startsWith('gb')) u.lang = 'en-GB';
     u.onend = done;
     u.onerror = (e) => { if (e.error === 'not-allowed') { V.blocked = true; V.playing = false; V.q.unshift({ text }); render(); return; } done(); };
     speechSynthesis.speak(u);

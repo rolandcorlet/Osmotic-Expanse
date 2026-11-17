@@ -162,9 +162,13 @@ const artList = () => Object.fromEntries(Object.keys(bestiary).filter((id) => ar
 
 const FILES = {
   '/app.js': ['public/app.js', 'text/javascript'],
+  '/gen.js': ['public/gen.js', 'text/javascript'],
   '/app.css': ['public/app.css', 'text/css'],
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/odds.js': ['engine/odds.js', 'text/javascript'],
+  '/data/chargen/model.generated.js': ['data/chargen/model.generated.js', 'text/javascript'],
+  '/data/chargen/build.js': ['data/chargen/build.js', 'text/javascript'],
+  '/data/apparatus.js': ['data/apparatus.js', 'text/javascript'],
 };
 const PAGES = new Set(['/', '/table', '/play', '/host']);
 

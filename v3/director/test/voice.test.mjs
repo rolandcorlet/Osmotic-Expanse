@@ -39,3 +39,19 @@ test('sentences split and merge short ones', () => {
   assert.ok(out.length >= 1 && out.every((s) => s.length >= 1));
   assert.equal(out.join(' ').replace(/\s+/g, ' '), 'Hiss. The great vent shudders and a swarm pours out into the dark water. Run.');
 });
+
+test('the Director is a British man by default, and an old American default moves over', async () => {
+  const { writeFileSync } = await import('node:fs');
+  const v = mk();
+  assert.equal(v.hostView().out.voice, 'bm_fable');
+  assert.equal(v.publicView().screenVoice, 'gb-male');
+  v.configure({ out: { screenVoice: 'us-female' } });
+  assert.equal(v.publicView().screenVoice, 'us-female');
+  v.configure({ out: { screenVoice: 'klingon' } });
+  assert.equal(v.publicView().screenVoice, 'us-female');
+  const dir = mkdtempSync(join(tmpdir(), 'v-'));
+  writeFileSync(join(dir, 'voice.json'), JSON.stringify({ out: { engine: 'server', voice: 'af_heart' } }));
+  const old = createVoice({ saveDir: dir, getState: () => ({ story }) });
+  assert.equal(old.hostView().out.voice, 'bm_fable');
+  assert.equal(old.publicView().screenVoice, 'gb-male');
+});

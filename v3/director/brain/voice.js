@@ -15,9 +15,11 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
 const DEFAULTS = {
-  out: { engine: 'browser', url: '', key: '', model: 'kokoro', voice: 'af_heart', speed: 1 },
+  out: { engine: 'browser', url: '', key: '', model: 'kokoro', voice: 'bm_fable', speed: 1, screenVoice: 'gb-male' },
   in: { engine: 'browser', url: '', key: '', model: 'Systran/faster-whisper-small', language: 'en' },
 };
+// Which of a screen's own installed voices to prefer when there is no speech server.
+export const SCREEN_VOICES = ['gb-male', 'gb-female', 'us-male', 'us-female', 'any'];
 const MAX_SAY = 600;       // characters in one sentence request
 const MAX_CLIP = 4 << 20;  // bytes of audio from the talk button
 const CACHE = 80;          // sentences kept, so several screens speaking the same line pay once
@@ -29,6 +31,7 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
     if (existsSync(file)) {
       const old = JSON.parse(readFileSync(file, 'utf8'));
       for (const side of ['out', 'in']) Object.assign(cfg[side], old[side] || {});
+      if (cfg.out.voice === 'af_heart') cfg.out.voice = 'bm_fable'; // the old default: the Director is a British man now
     }
   } catch (e) { /* defaults */ }
   const save = () => { try { mkdirSync(saveDir, { recursive: true }); writeFileSync(file, JSON.stringify(cfg, null, 1)); } catch (e) { /* stays in memory */ } };
@@ -51,6 +54,7 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
     publicView() {
       return {
         out: cfg.out.engine,
+        screenVoice: cfg.out.screenVoice,
         in: cfg.in.engine,
         hearWhere: cfg.in.engine === 'server'
           ? (/localhost|127\.0\.0\.1|^http:\/\/(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(cfg.in.url) ? 'the host\'s own computer' : `a speech service at ${(cfg.in.url.match(/^https?:\/\/([^/]+)/) || [])[1] || 'the address the host set'}`)
@@ -71,6 +75,7 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
         for (const k of ['url', 'model', 'voice', 'language']) if (typeof b[k] === 'string' && k in cfg[side]) cfg[side][k] = b[k].trim().slice(0, 200);
         if (typeof b.key === 'string' && b.key.trim()) cfg[side].key = b.key.trim();
         if (b.clearKey) cfg[side].key = '';
+        if (side === 'out' && SCREEN_VOICES.includes(b.screenVoice)) cfg.out.screenVoice = b.screenVoice;
         if (b.speed != null && side === 'out') cfg.out.speed = Math.min(1.6, Math.max(0.6, Number(b.speed) || 1));
       }
       cache.clear();

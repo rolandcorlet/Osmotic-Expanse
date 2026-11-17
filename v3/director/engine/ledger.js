@@ -5,6 +5,7 @@
 import { rollDice, checkOwnDice, d6 } from './dice.js';
 import * as R from './rules.js';
 import { successChance } from './odds.js';
+import { buildHand } from '../data/chargen/build.js';
 
 export class RuleError extends Error {}
 
@@ -80,6 +81,9 @@ export function restart(old, scenario, { keepPlayers = false } = {}) {
       if (oid) {
         const was = (old.organisms || {})[oid] || {};
         s.organisms[oid].playerId = pid;
+        if (was.custom && was.choices) {
+          try { const o = makeOrganism(buildHand(was.choices, { level: s.organisms[oid].level, seat: oid })); o.custom = true; o.choices = was.choices; o.playerId = pid; s.organisms[oid] = o; } catch (e) { /* the build no longer passes: they fall back to the ready-made Hand */ }
+        }
         if (was.named) { s.organisms[oid].name = was.name; s.organisms[oid].named = true; }
       }
     }
@@ -1137,6 +1141,7 @@ const HANDLERS = {
       if (typeof a.pauseWord === 'string' && a.pauseWord.trim()) z.pauseWord = a.pauseWord.trim().slice(0, 24);
       if (typeof a.tone === 'string') z.tone = a.tone.trim().slice(0, 300);
       if (a.open != null) z.open = !!a.open;
+      if (a.custom != null) z.custom = !!a.custom; // players may build their own organism (on unless the host turns it off)
       say(s, ctx, `Session zero: the pause word is ${z.pauseWord}.`, 'table');
     },
   },
@@ -1194,6 +1199,34 @@ const HANDLERS = {
       }
       lootOrder(s);
       say(s, ctx, `${p.name} plays ${o.name} (${o.hand}).`, 'table');
+    },
+  },
+  // v3: a player builds their own organism into one of the four seats (data/chargen/build.js). The phone
+  // sends choices only; every number is computed here, and the seat keeps its story hook unless rewritten.
+  'org.build': {
+    run(s, a, ctx) {
+      const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
+      const p = s.players[pid];
+      if (!p) throw new RuleError('Join the table first.');
+      if (!p.agreed && ctx.role !== 'host') throw new RuleError('Read session zero and agree before you take an organism.');
+      if (s.zero.custom === false && ctx.role !== 'host') throw new RuleError('The host has turned off building your own at this table. Choose one of the ready-made organisms.');
+      const seat = String(a.seat || '');
+      const cur = s.organisms[seat];
+      if (!cur) throw new RuleError('Choose a seat.');
+      if (cur.playerId && cur.playerId !== pid) throw new RuleError(`That seat is already being played by ${(s.players[cur.playerId] || {}).name || 'someone'}.`);
+      const printed = (((ctx.scenario || {}).hands) || []).find((h) => h.id === seat) || {};
+      const choices = { ...(a.choices || {}) };
+      if (!String(choices.tie || '').trim()) choices.tie = printed.tie || '';
+      if (!String(choices.firstMove || '').trim()) choices.firstMove = printed.firstMove || '';
+      let hand;
+      try { hand = buildHand(choices, { level: printed.level || cur.level || 1, seat }); } catch (e) { throw new RuleError(e.message); }
+      if (p.organismId && p.organismId !== seat && s.organisms[p.organismId]) s.organisms[p.organismId].playerId = null;
+      const o = makeOrganism(hand);
+      o.custom = true; o.choices = hand.choices;
+      if (hand.name) { o.name = hand.name; o.named = true; }
+      o.playerId = pid; p.organismId = seat; s.organisms[seat] = o;
+      lootOrder(s);
+      say(s, ctx, `${p.name} builds their own organism: ${o.name}, a ${o.phenotype}, in the seat of ${printed.hand || seat}.`, 'table');
     },
   },
   release: {
