@@ -61,13 +61,33 @@ The bench now also reports how many secrets the Cohort learned.
   where you choose them, and a `look_up` tool so the Director can explain any
   word, law or custom.
 - **Society as cards.** The seven Precepts and ten customs, playable.
+- **Build your own organism** (17 Nov). A phone builder, one decision per screen: seat, Lineage,
+  Phenotype, Baselines, Pathways, Growth (above Level 1), kit with Vials, name. Suggest buttons and a
+  starter kit for every step. The server rebuilds every organism from the choices with the Players
+  Assistant's own maths (`director/data/chargen/`); the host can switch building off at session zero.
+- **Growth in play** (17 Nov). Codon past the next threshold opens a Growth at the next rest; the
+  player chooses on their phone (two choices at a Stage). Checks: `tools/check_gen.py`, `tools/check_grow.py`.
+- **A campaign** (17 Nov). A new game in the next Vector brings each organism into its seat, healed,
+  with catch-up Growths if it is below the printed Level (`tools/check_carry.py`). COLONY and CORE stand
+  in every game and travel with ORDER.
+- **The Clocks bite** (17 Nov). What each stage prints is paid by the Engine: SHIFT's cramped pumps and
+  THE SILENCE, BADGE dice against the Hegemony and the Court, GOODWILL as a track, IMMUNE's Mark and cap,
+  Tolerance Thresholds, the CHURN fill and a jammed pump, the Weep's wash. Routes priced at a Beat pay
+  it, and a day ends by itself after about ten Director turns.
+- **The Director's voice** is a British man by default (Kokoro `bm_fable`, or each screen's own).
 
 ## House rules added in v3
+
+Every ruling made while v3 was built is listed in [`RULINGS.md`](RULINGS.md) (single source:
+`director/data/kit/rulings.js`) and written into the original books, the v3 table editions, both
+Assistants and the Word copies. The short list:
+
 
 - **Rides It Out** (16 Nov 2026): every Flagellan marks Stress from a rolled 1 only three times in four. Written into the Player's Atlas and The First Carve (the `.md` originals), the v3 Core Rulebook, quick start, picture book and the Engine.
 - **Loud fights** cost TOLL half the time in The First Carve.
 - **People with no stat block** are struck with one roll, never a Pulse War.
 - **Total Lysis** ends an organism when its Countdown fills.
+- **Protean Folding** is rolled with RTC (17 Nov).
 
 ## Status, honestly
 
@@ -80,10 +100,10 @@ The bench now also reports how many secrets the Cohort learned.
 All three Vectors now run in the host. Each brings its own ready-made characters at its
 Levels (`director/data/levelled-hands.js`), its own creature blocks
 (`director/data/vector-blocks.js`) and its own Clocks, which the Engine reads from the
-Vector. The Ninth Shift's and the Long Swallow's day counter (SHIFT, LICENCE) moves only
-when the table ends a day. Some of their rules (the Shift's price changes, BADGE dice
-modifiers, Goodwill, the Level 6 and 7 Stage II features) are narrated by the Director, not
-enforced by the Engine. *What the Water Owed* is a story, not a Vector, so it has
+Vector. The Ninth Shift's and the Long Swallow's day counter (SHIFT, LICENCE) moves when a day
+ends: the Director ends it, a route priced at a Beat ends it, or the Engine does after about ten
+turns. Their Clock stages are paid by the Engine (17 Nov); what is still the Director's to play is
+listed in RULINGS.md and the briefing's "In force now" section. *What the Water Owed* is a story, not a Vector, so it has
 no kit; it remains the source for Society.
 
 The Core Rulebook and the Lytic Bestiary now have v3 table editions (18 rule
@@ -93,6 +113,7 @@ every book. The prompts for it are in `plan/03`; the players' quick start, the
 Society table edition and the QUORUM table edition (17 cards covering what a
 table needs; the full book remains the reference for the rest) are the first pieces.
 
-v3 has passed its 173 automated tests, the screen checks at three sizes, and a
-full turn loop against the stand-in model. **It has not yet been benched on the
-local model.** That is the next step.
+v3 passes 227 automated tests and the screen checks at three sizes. On the local model
+(Qwen3.8-Flash-Next iq3_s, thinking low) all three Vectors are benched end to end: The Ninth Shift
+(bench 7) and The Long Swallow (bench 5) reach every room and every secret, with the gate failing
+only on an occasional refused invention, which is the Engine doing its job.

@@ -14,6 +14,7 @@ Every ruling made while the v3 AI Director was built and played, and where it no
 
 - **Starting higher, in full** (Step 8 · Starting higher; 17 Nov 2026). Spend every Synthesis Choice your Level gives (one per Level above 1). Adaptations taken at creation pay their Substrate from your starting Substrate; an Adaptation that also costs a Specimen cannot be taken at creation. Bursts are limited to the Tier your Level reaches.
 - **Growth at the table** (4.1 What a Growth gives you; 17 Nov 2026). At a Stage transition (Levels 6, 11, 16) you choose two Synthesis Choices, but still at most one Baseline grade per Growth. An organism carried into a higher-Level Vector takes its catch-up Growths at once (Codex §5.7). Adaptation Substrate comes from your own purse.
+- **Chemical Literacy and Pressure Nerves** (4.2 Adaptations; 17 Nov 2026). Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' "+2 Pressure Tolerance" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks.
 
 ## Director's Codex
 

@@ -382,3 +382,12 @@ test('a player taking a listed exit is recognised; a question about the place is
   assert.equal(exitTaken(st('churn', 'What is on the Shelf?'), sc), null);
   assert.equal(exitTaken(st('churn', 'I look at the pump.'), sc), null);
 });
+
+test('a player who speaks for their own organism gets the opening of the reply', async () => {
+  const { checkNarration } = await import('../brain/director.js');
+  const st = { organisms: { wall: { id: 'wall', name: 'Bresk of the Sixth Choir', playerId: 'p1' }, eyes: { id: 'eyes', name: 'Brost of the Third Current', playerId: 'p2' } }, creatures: {}, story: [{ kind: 'say', orgId: 'eyes', text: 'I take the bowl and eat.' }], log: [], requests: [] };
+  assert.ok(checkNarration('Bresk lifts the bowl and drinks. Brost, what now?', st).some((f) => /^Gives Brost/.test(f.text)));
+  assert.ok(!checkNarration('Brost lifts the bowl. Bresk watches. Bresk, what now?', st).some((f) => /^Gives/.test(f.text)));
+  st.story[0].text = 'We go now.';
+  assert.ok(!checkNarration('Bresk walks on. Brost, what now?', st).some((f) => /^Gives/.test(f.text)), '"we" may be anyone');
+});

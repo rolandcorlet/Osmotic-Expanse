@@ -6,6 +6,28 @@ Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, 
 **`edfe4bb`** and everything written above this line is **already pushed**. What is unpushed is the site 3
 and 4 prep below it.
 
+## State at 17 November 2026 (read this first; the dated sections below are history)
+
+All pushed to `main` (Vercel READY for both sites after each push). `node --test`: 228.
+
+- **Vectors:** The First Carve, The Ninth Shift (L4) and The Long Swallow (L7) all run. Latest benches
+  (iq3_s, thinking low): Ninth Shift 7 passed, every room and secret, SHIFT ran its whole course;
+  Long Swallow 5 reached the Nodule with every secret and failed only on a refused invented award.
+- **The Clocks bite:** `rules.stateAt` / `stateBelow` / `onStage` / `churn` / `tolerance` / `badgeDice` /
+  `routeBeats` / `beatAfterTurns` in the Vector data, paid by `engine/ledger.js` (`worldNow`,
+  `payStages`, `endBeat`). The briefing's "IN FORCE NOW" says what is active.
+- **Characters:** the phone builder (`public/gen.js`, `data/chargen/`), Growth in play (`org.grow`),
+  carrying organisms to the next Vector (`restart(..., { carry })`), campaign Clocks COLONY / CORE / ORDER.
+- **Director guards added this week:** a player taking a listed exit is moved (turn sent back once:
+  `exitTaken`), a lapsed question stays lapsed, an invented secret id is a note, BADGE dice paid once,
+  "Gives X's action to Y" is a rewrite flag.
+- **Rulings:** every ruling is in `../RULINGS.md` (source `data/kit/rulings.js`), written into the
+  original books, the v3 editions, both Assistants (`../../tools/rebake_assistants.py`) and the Word
+  copies (`../../tools/patch_rulings_docx.py`).
+- **Open:** Goodwill set by the Intake (not chosen in the app); SHIFT 2 suspended graft and SHIFT 5 Relief
+  still the Director's; creatures with no art; `players/build_players.py` no longer
+  applies to today's Director's Assistant (re-bake in place instead); the full prose rewrite of the books.
+
 ## Bench of 14 Nov (thinking low, 4 runs, 3 failed) and the fixes (`node --test` now 145)
 
 What the gate failed on, and what each turned out to be: **three false leaks and a refusal habit, not the model leaking.**

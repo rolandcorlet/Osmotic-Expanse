@@ -27,6 +27,7 @@ These rulings were made while the AI Director was built and played (v3). Each is
 | :-- | :-- | :-- |
 | Step 8 · Starting higher | Starting higher, in full | 17 Nov 2026 |
 | 4.1 What a Growth gives you | Growth at the table | 17 Nov 2026 |
+| 4.2 Adaptations | Chemical Literacy and Pressure Nerves | 17 Nov 2026 |
 
 ---
 
@@ -857,12 +858,12 @@ Adaptations are one-time body decisions: permanent, cheap, and the fastest way t
 | **Momentum Banker** | 80 S | Momentum persists if you move 2+ Drifts on your next turn | Striker, Rider |
 | **Etched Hide** | 150 S | Corrodes, Brittle, and Acidic surges can never drop your soak below **2** | Tank, Guard, any Lytic victim |
 | **Vent Master** | 100 S | Vent clears **3 Stress and one condition** for 1 PP | Splicer, Hijacker, any Burst-heavy |
-| **Chemical Literacy** | 60 S | +1 Sequence Reading rank; learn one Burst free | Engineer, Hijacker, Mimic |
+| **Chemical Literacy** | 60 S | +1 Sequence Reading rank; learn one Burst (it still costs a Synthesis Choice: v3 ruling) | Engineer, Hijacker, Mimic |
 | **Antigen Discipline** | 200 S | +2 dice on all saves against Genetic effects and Hijacks | Guard, Detector, Scout |
 | **Burst Efficiency** | 250 S | Pick a domain: its Bursts cost −2 ATP (min 1) | Corrosor, Weaver, Diver |
 | **Sustained Control** | 200 S | Your Sustained Reactions cost no Stress; you may hold two | Navigator, Weaver, Constructor |
 | **Overdrive Training** | 300 S | Overdrive costs 3 ATP / 3 MI; you may Overdrive twice per Cycle (different rolls) | Brute, Striker, Engineer |
-| **Pressure Nerves** | 120 S | Ignore the first hazard or environmental damage each scene; +2 Pressure Tolerance | Diver, Tank, Reclaimer |
+| **Pressure Nerves** | 120 S | Ignore the first hazard or environmental damage each scene; +2 dice on Pressure Tolerance rolls (v3 ruling) | Diver, Tank, Reclaimer |
 | **Harvest Hands** | 90 S | Harvest checks +2 dice; on Overflow 4+ gain one extra Specimen grade | Reclaimer, Smith, everyone |
 | **Current Reader** | 90 S | Currents never force saves against you; +2 Drifts in any Flow | Rider, Navigator, Messenger |
 | **Symbiotic Authority** | 150 S | +1 creature under control; your minions gain +1 PP | Constructor, Commander, Mimic |
@@ -873,6 +874,8 @@ Adaptations are one-time body decisions: permanent, cheap, and the fastest way t
 | **Chimeric Growth** | 600 S + 1 P | Take another Phenotype's **Stage I** feature (and its granted Pathway at rank 1). Requires Stage II. Prerequisite: you must have been *harvested* by or of that tradition at least once | everyone, at great narrative cost |
 
 **Chimeric Growth is the multiclass rule.** It grants one Stage I feature, not the class's Hull, and it cannot be taken twice for the same Phenotype. At Stage IV you may take a second Chimeric Growth for the same Phenotype to gain its **Stage II** feature. This is deliberately expensive and weird — the Expanse rewards hybrid organisms, and every faction has a law about them.
+
+> **v3 ruling (17 Nov 2026) — Chemical Literacy and Pressure Nerves.** Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' "+2 Pressure Tolerance" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks.
 
 ## 4.3 Stage transitions
 

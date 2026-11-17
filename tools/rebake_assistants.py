@@ -94,6 +94,11 @@ def bake(path):
   n = s.count('Protean Folding 1 · ')
   s = s.replace('Protean Folding 1 · ', 'Protean Folding 1 (rolled with RTC) · ')
   print('Protean Folding lines', n)
+  # 5. Compendium cards: the 17 Nov readings of Chemical Literacy and Pressure Nerves
+  for x, y in [('learn one Burst free', 'learn one Burst (it still costs a Synthesis Choice)'),
+               ('; +2 Pressure Tolerance', '; +2 dice on Pressure Tolerance rolls'),
+               ('"Ignore the first hazard or environmental damage each scene", "+2 Pressure Tolerance"]', '"Ignore the first hazard or environmental damage each scene", "+2 dice on Pressure Tolerance rolls"]')]:
+      s = s.replace(x, y)
 
   open(path, 'w', encoding='utf-8').write(s)
 

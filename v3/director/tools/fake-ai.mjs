@@ -24,7 +24,7 @@ http.createServer((req, res) => {
   let raw = '';
   req.on('data', (c) => { raw += c; });
   req.on('end', () => {
-    const send = (code, body) => setTimeout(() => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); }, req.method === 'GET' ? 0 : 400);
+    const send = (code, body) => setTimeout(() => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); }, req.method === 'GET' ? 0 : Number(process.env.FAKE_DELAY || 400));
     const path = req.url.split('?')[0];
     const body = raw ? JSON.parse(raw) : {};
 

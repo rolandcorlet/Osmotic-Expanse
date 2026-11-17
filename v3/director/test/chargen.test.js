@@ -105,3 +105,39 @@ test('starting higher: Growth choices must all be spent, Adaptations cost Substr
   assert.throws(() => buildHand({ ...g7, bursts: [], adaptations: ['Graft Mastery'] }, { level: 7, seat: 'wall' }), /Specimen/);
   assert.throws(() => buildHand({ ...c, bursts: ['Peptide Snare'] }, { level: 1, seat: 'wall' }), /Synthesis Choices spent/);
 });
+
+test('kit: one weapon and one graft at Level 1; more above it, as the purse allows; Vials by the handful', () => {
+  const base = { lineage: 'Barophil', phenotype: 'Osmotic Brute', array: { VSC: 4, DFF: 3, RTC: 2, OSM: 3, AFF: 4 }, extras: ['Chemoreception', 'Signal Discourse'] };
+  assert.ok(preview({ ...base, kit: { apparatus: ['Chitin Flail', 'Peptide Blade'] } }, 1).problems.some((p) => /one Apparatus/.test(p)));
+  const h1 = buildHand({ ...base, kit: { apparatus: ['Chitin Flail'], vials: { 'Glucose Ampule': 2 } } }, { level: 1, seat: 'wall' });
+  assert.equal(h1.substrate, 40 - 15 - 6);
+  assert.ok(h1.kit.some((k) => /Glucose Ampule x2/.test(k)));
+  const g7 = { ...base, grown: { VSC: 1, AFF: 1 }, rankBumps: { Vigour: 3 }, bursts: ['Bridge Fold'] };
+  const h7 = buildHand({ ...g7, kit: { apparatus: ['Chitin Flail', 'Spore Pistol'], graft: ['Lipid Weave Wrap', 'Reinforced Weave'] } }, { level: 7, seat: 'wall' });
+  assert.equal(h7.weapons.length, 2);
+  assert.equal(h7.substrate, 150 - 15 - 30 - 20 - 60);
+  assert.equal(buildHand({ ...base, kit: { apparatus: 'Chitin Flail', graft: 'Lipid Weave Wrap' } }, { level: 1, seat: 'wall' }).weapons.length, 1, 'a single name still works');
+});
+
+test('rulings of 17 Nov: Chemical Literacy\'s Burst costs a Choice and gives Sequence Reading +1; Pressure Nerves is +2 dice', async () => {
+  const base = { lineage: 'Barophil', phenotype: 'Osmotic Brute', array: { VSC: 4, DFF: 3, RTC: 2, OSM: 3, AFF: 4 }, extras: ['Chemoreception', 'Signal Discourse'], kit: {} };
+  // Level 7: six Choices. Chemical Literacy + a Burst + four more = six; it is not a free Burst any more.
+  const c = { ...base, adaptations: ['Chemical Literacy'], bursts: ['Bridge Fold'], grown: { VSC: 1, AFF: 1 }, rankBumps: { Vigour: 2 } };
+  assert.ok(!preview(c, 7).problems.length, preview(c, 7).problems.join(' | '));
+  assert.match(preview({ ...c, rankBumps: { Vigour: 3 } }, 7).problems.join(' '), /7 Synthesis Choices spent/);
+  assert.equal(preview(c, 7).m.pw.find((p) => p.n === 'Sequence Reading').rank, 1);
+  const h = buildHand({ ...base, adaptations: ['Pressure Nerves'], grown: { VSC: 1, AFF: 1 }, rankBumps: { Vigour: 3 } }, { level: 7, seat: 'wall' });
+  assert.deepEqual(h.adaptations, ['Pressure Nerves']);
+  const { newSession, apply } = await import('../engine/ledger.js');
+  const { scenario } = await import('../data/long-swallow.js');
+  const { makeRng } = await import('../engine/dice.js');
+  let s = newSession(scenario);
+  const ctx = (role, pid) => ({ role, pid, rng: makeRng(2), now: 0, scenario, bestiary: {} });
+  s = apply(s, { type: 'join', name: 'R' }, ctx('player', 'p1')); s = apply(s, { type: 'zero.agree' }, ctx('player', 'p1'));
+  s = apply(s, { type: 'org.build', seat: 'wall', choices: { ...base, adaptations: ['Pressure Nerves'], grown: { VSC: 1, AFF: 1 }, rankBumps: { Vigour: 3 } } }, ctx('player', 'p1'));
+  s = apply(s, { type: 'request.check', organismId: 'wall', baseline: 'VSC', pathway: 'Pressure Tolerance', at: 12, label: 'hold' }, ctx('host', null));
+  assert.ok(s.requests[0].pool.mods.some((m) => m.label === 'Pressure Nerves' && m.dice === 2));
+  const mi = s.organisms.wall.mi;
+  s = apply(s, { type: 'hazard', amount: 6, dtype: 'Kinetic', area: true, why: 'gas pocket' }, ctx('host', null));
+  assert.equal(s.organisms.wall.mi, mi, 'the first hazard of the scene does not touch them');
+});

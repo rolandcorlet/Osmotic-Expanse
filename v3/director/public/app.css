@@ -277,8 +277,9 @@ details>summary{cursor:pointer;color:var(--dim);font-size:13px}
 
 /* The player's fold buttons: each label on one line; whole buttons move to a second row when
    they do not fit, and every row fills the width. Never clipped. */
-.showbar{flex-wrap:wrap}
-.showbar .btn{flex:1 1 auto;white-space:nowrap}
+.showbar{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.showbar .btn{width:100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:760px){.showbar{grid-template-columns:repeat(4,1fr)}}
 
 /* The living-organism face on the table screen */
 .face-slot{display:flex;justify-content:center;margin-bottom:6px}
@@ -356,3 +357,27 @@ details>summary{cursor:pointer;color:var(--dim);font-size:13px}
 .meter .bar i{display:block;height:100%;background:var(--accent)}
 .ginfo{border-color:var(--accent)}
 @media (max-width:420px){ .pips{display:none} }
+
+/* Show pictures: flashes red while a creature is in sight */
+.btn.alert{border-color:var(--no);color:var(--ink);animation:picalert 1.1s ease-in-out infinite}
+.btn.alert.primary{animation:none;background:color-mix(in srgb,var(--no) 35%,var(--panel2))}
+@keyframes picalert{0%,100%{background:color-mix(in srgb,var(--no) 12%,var(--panel2))}50%{background:color-mix(in srgb,var(--no) 55%,var(--panel2));box-shadow:0 0 0 3px color-mix(in srgb,var(--no) 30%,transparent)}}
+@media (prefers-reduced-motion: reduce){.btn.alert{animation:none;background:color-mix(in srgb,var(--no) 40%,var(--panel2))}}
+.pic .wheres{display:flex;flex-direction:column;gap:2px;margin-top:4px}
+.pic .where{font-size:13px}
+.pic .where b{display:inline-block;min-width:22px;color:var(--accent)}
+
+/* The Director thinking: a small organism in the chip and at the foot of the story */
+.face.mini{display:inline-block;width:18px;height:18px;vertical-align:-4px;margin-right:6px}
+.face.mini .mem{stroke-width:5}
+.face.mini .cil line{stroke-width:5}
+.face.mini .v{stroke-width:0}
+.chip.thinkchip{display:inline-flex;align-items:center}
+.st.thinking{display:flex;align-items:center;gap:10px}
+.st.thinking .face.mini{width:46px;height:46px;margin:0}
+.st.thinking .face.mini .mem{stroke-width:3}
+.st.thinking .face.mini .cil line{stroke-width:3}
+.dots i{font-style:normal;animation:tdot 1.4s infinite;opacity:.2}
+.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+@keyframes tdot{0%,60%,100%{opacity:.2}30%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.dots i{animation:none;opacity:1}}

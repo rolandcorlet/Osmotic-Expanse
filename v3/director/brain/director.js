@@ -526,6 +526,20 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     const before = (state.story || []).filter((e) => e.kind === 'narration').slice(-4);
     if (before.some((e) => { const th = shingles(e.text); let n = 0; for (const g of mine) if (th.has(g)) n++; return n / mine.size >= 0.4; })) flags.push({ kind: 'style', text: 'Repeats an earlier line.' });
   }
+  // Whose action it is. Bench 17 Nov (Ninth Shift 5): Brost said he went, and the Director walked Bresk
+  // off instead. When a player speaks for their own organism ("I take the bowl"), the opening of the
+  // reply should be about that organism, not another one.
+  {
+    const said = [...(state.story || [])].reverse().find((e) => e.kind === 'say' && e.orgId);
+    const me = said && (state.organisms || {})[said.orgId];
+    if (me && /(^|[^a-z])(i|i'm|my)\b/i.test(said.text) && !/\b(we|us|our)\b/i.test(said.text)) {
+      const nm = (o) => String(o.name).split(/\s+/)[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const open = (text.match(/[^.!?]+[.!?]*/g) || [''])[0];
+      const others = Object.values(state.organisms || {}).filter((o) => o.playerId && o.id !== me.id);
+      const actor = others.find((o) => new RegExp(`^\\s*${nm(o)}\\b`).test(open.trim()));
+      if (actor && !new RegExp(`\\b${nm(me)}\\b`).test(open)) flags.push({ kind: 'style', text: `Gives ${me.name}'s action to ${actor.name}.`, speaker: me.name });
+    }
+  }
   const words = text.split(/\s+/).filter(Boolean).length;
   if (words > 170) flags.push({ kind: 'style', text: `Long: ${words} words.` });
   if (asksRollInWords(text, state)) flags.push({ kind: 'style', text: 'Asks for a roll in words, but no roll is waiting on a screen.' });
@@ -752,7 +766,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const buriedF = (f) => f.kind === 'rule' && /is dead or dissolved, but the Engine/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names .+ moving when nothing moved it/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters)/.test(f.text));
+  const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives )/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -769,6 +783,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     if (flags.some((f) => /^Repeats an earlier/.test(f.text))) asks.push('It repeats words you already used in an earlier line: say what is new this time, as this roll changed it, in fresh words.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
+    const gave = flags.find((f) => /^Gives /.test(f.text));
+    if (gave) asks.push(`${gave.speaker} is the one who spoke and acted: open with what ${gave.speaker} does and what happens to them, in their own words, before anyone else moves.`);
     const wrongSeat = flags.find((f) => /^Puts the question to/.test(f.text));
     if (wrongSeat) asks.push(`It puts the closing question to the wrong player: it is ${wrongSeat.turnOf}'s turn. End on one question for ${wrongSeat.turnOf}.`);
     if (flags.some((f) => /^Puts a new question/.test(f.text))) {

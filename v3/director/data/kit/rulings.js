@@ -169,5 +169,12 @@ export const RULINGS = [
   "date": "17 Nov 2026",
   "name": "A challenge is a cost",
   "text": "A Host that is Wary or worse sets every Tolerance contest at AT 18, sponsored or not. A Sentinel's challenge is a cost on the way (a contest, a Mark, a Clock), never a stop: an honest answer of what you are passes it."
- }
+ },
+{
+ "book": "atlas",
+ "section": "4.2 Adaptations",
+ "date": "17 Nov 2026",
+ "name": "Chemical Literacy and Pressure Nerves",
+ "text": "Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' \"+2 Pressure Tolerance\" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks."
+}
 ];

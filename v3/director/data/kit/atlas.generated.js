@@ -757,7 +757,7 @@ export const ATLAS_ADAPTATIONS = [
  {
   "name": "Chemical Literacy",
   "cost": "60 S",
-  "effect": "+1 Sequence Reading rank; learn one Burst free",
+  "effect": "+1 Sequence Reading rank; learn one Burst (it still costs a Synthesis Choice: v3 ruling)",
   "wants": "Engineer, Hijacker, Mimic"
  },
  {
@@ -787,7 +787,7 @@ export const ATLAS_ADAPTATIONS = [
  {
   "name": "Pressure Nerves",
   "cost": "120 S",
-  "effect": "Ignore the first hazard or environmental damage each scene; +2 Pressure Tolerance",
+  "effect": "Ignore the first hazard or environmental damage each scene; +2 dice on Pressure Tolerance rolls (v3 ruling)",
   "wants": "Diver, Tank, Reclaimer"
  },
  {

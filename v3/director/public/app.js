@@ -419,6 +419,14 @@ function bandMap() {
     <div class="band cohort"><span class="bn">The Cohort</span><span class="row">${cohort || '<span class="faint small">no organisms yet</span>'}</span></div></div></section>`;
 }
 
+// The players' Show pictures button: always on the bar, the same size as the others, and flashing red
+// while something is in sight (Roly, 17 Nov). It opens the pictures with each creature's distance.
+function picsButton() {
+  const up = creaturesHere().filter((c) => !c.hidden && !c.down);
+  return `<button class="btn grow${ui.pics ? ' primary' : ''}${up.length ? ' alert' : ''}" data-act="${ui.pics ? 'pics.off' : 'pics.on'}" aria-pressed="${ui.pics ? 'true' : 'false'}" title="${up.length ? `${up.length} creature${up.length > 1 ? 's' : ''} in sight` : 'Nothing in sight'}">${ui.pics ? 'Hide: ' : ''}Show pictures${up.length ? ` (${up.length})` : ''}</button>`;
+}
+const bandLabel = (id) => { const b = R.BANDS.find((x) => x.id === (id || 'near')) || R.BANDS[1]; const r = b.max === Infinity ? `${b.min}+` : b.min === b.max ? `${b.min}` : `${b.min}–${b.max}`; return `${b.name} · ${r} Drifts`; };
+
 function picturesHtml(list) {
   const kinds = [];
   for (const c of list) { let k = kinds.find((x) => x.blockId === c.blockId); if (!k) kinds.push(k = { blockId: c.blockId, name: String(c.name).replace(/\s+[A-Z]$/, ''), all: [] }); k.all.push(c); }
@@ -426,9 +434,11 @@ function picturesHtml(list) {
     const has = sc.art && sc.art[k.blockId];
     const up = k.all.filter((c) => !c.down).length;
     const note = k.all.length > 1 ? `${k.all.length} here${up < k.all.length ? `, ${k.all.length - up} down` : ''}` : (k.all[0].down ? 'down' : (k.all[0].looks || ''));
-    return `<figure class="pic${up ? '' : ' gone'}">${has ? `<img alt="${esc(k.name)}" src="/creatures/${esc(k.blockId)}.webp">` : '<div class="nopic">No picture yet</div>'}<figcaption><b>${esc(k.name)}</b>${note ? `<span class="dim small">${esc(note)}</span>` : ''}</figcaption></figure>`;
+    // Distance from the Cohort, one line per body, so a pair at two bands reads as two.
+    const where = k.all.map((c) => `<span class="where${c.down ? ' dim' : ''}"><b>${esc(k.all.length > 1 ? (String(c.name).match(/\s([A-Z])$/) || [, ''])[1] || c.name : 'Distance')}</b> ${esc(bandLabel(c.band))}${c.down ? ' · down' : ''}</span>`).join('');
+    return `<figure class="pic${up ? '' : ' gone'}">${has ? `<img alt="${esc(k.name)}" src="/creatures/${esc(k.blockId)}.webp">` : '<div class="nopic">No picture yet</div>'}<figcaption><b>${esc(k.name)}</b>${note ? `<span class="dim small">${esc(note)}</span>` : ''}<span class="wheres">${where}</span></figcaption></figure>`;
   }).join('');
-  return `<div class="pics" data-act="pics.off"><div class="picsin"><div class="row"><b>In this scene</b><span class="grow"></span><button class="btn sm" data-act="pics.off">Close</button></div><div class="picgrid">${cards || '<div class="empty">Nothing to see here yet.</div>'}</div></div></div>`;
+  return `<div class="pics" data-act="pics.off"><div class="picsin"><div class="row"><b>In this scene</b><span class="grow"></span><button class="btn sm" data-act="pics.off">Close</button></div><div class="picgrid">${cards || '<div class="empty">Nothing is in sight right now.</div>'}</div></div></div>`;
 }
 
 function pips(pp, max, waiting) {
@@ -460,8 +470,10 @@ function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {
   const rows = (state.story || []).slice(-n).reverse().map((e) => (e.kind === 'narration'
     ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
     : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
-  return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${(d.on || (state.story || []).some((e) => e.kind === 'narration')) && (canSpeakLocal() || serverVoice()) ? `<button class="chip${speakOn() ? ' on' : ''}" data-act="speak" title="Read the Director's narration aloud on this screen">${V.blocked ? 'Tap to start the voice' : speakOn() ? 'Voice on' : 'Voice off'}</button>` : ''}${d.on ? `<span class="chip${d.thinking ? ' on' : ''}">${d.thinking ? 'The Director is thinking…' : 'AI Director'}</span>` : ''}</span></h3>
-    <div class="story${fill ? ' scroll' : ' scroll short'}" data-scroll="story">${rows || '<div class="empty">Nothing has been said yet.</div>'}</div>
+  // While the Director thinks, its organism churns at the foot of the story where its words will land.
+  const thinkRow = d.on && d.thinking ? `<div class="st dir thinking" role="status">${miniFace()}<span class="dim">The Director is thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>` : '';
+  return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${(d.on || (state.story || []).some((e) => e.kind === 'narration')) && (canSpeakLocal() || serverVoice()) ? `<button class="chip${speakOn() ? ' on' : ''}" data-act="speak" title="Read the Director's narration aloud on this screen">${V.blocked ? 'Tap to start the voice' : speakOn() ? 'Voice on' : 'Voice off'}</button>` : ''}${d.on ? `<span class="chip${d.thinking ? ' on thinkchip' : ''}">${d.thinking ? `${miniFace()}Thinking…` : 'AI Director'}</span>` : ''}</span></h3>
+    <div class="story${fill ? ' scroll' : ' scroll short'}" data-scroll="story">${thinkRow}${rows || (thinkRow ? '' : '<div class="empty">Nothing has been said yet.</div>')}</div>
     ${input}</section>`;
 }
 
@@ -809,7 +821,7 @@ function playHtml(o) {
   const bodies = creaturesHere().filter((c) => c.down && !c.harvested);
   const cut = site().harvest;
   const canHarvest = (bodies.length || cut) && !o.dormant;
-  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}${sw('zero', 'Session zero')}${creaturesHere().length ? '<button class="btn sm" data-act="pics.on">Show pictures</button>' : ''}</div>${ui.pics ? picturesHtml(creaturesHere()) : ''}`);
+  out.push(`<div class="row showbar">${sw('scene', 'Where you are')}${state.fight ? '' : sw('quick', 'Roll something')}${canHarvest ? sw('harvest', 'Harvest') : ''}${sw('zero', 'Session zero')}${picsButton()}</div>${ui.pics ? picturesHtml(creaturesHere().filter((c) => !c.hidden)) : ''}`);
   if (ui.show.zero) out.push(zeroCard());
   if (ui.show.scene) out.push(sceneCard());
   if (ui.show.harvest && canHarvest) {
@@ -1577,6 +1589,16 @@ function splitSentences(text) {
     else out.push(t);
   }
   return out;
+}
+
+// A small copy of the Director's organism in its thinking state (Roly, 17 Nov). The phase comes from
+// the clock so a redraw doesn't restart the motion.
+const MINI_CIL = Array.from({ length: 12 }, (_, i) => {
+  const a = (i / 12) * Math.PI * 2;
+  return `<line x1="${(60 + Math.cos(a) * 44).toFixed(1)}" y1="${(60 + Math.sin(a) * 44).toFixed(1)}" x2="${(60 + Math.cos(a) * 56).toFixed(1)}" y2="${(60 + Math.sin(a) * 56).toFixed(1)}"/>`;
+}).join('');
+function miniFace() {
+  return `<span class="face think mini" style="--ph:${-((performance.now() / 1000) % 6).toFixed(2)}s" aria-hidden="true"><svg viewBox="0 0 120 120"><g class="cil">${MINI_CIL}</g><path class="mem" d="M60 14c22 0 42 16 42 40s-14 52-42 52S16 84 18 56 38 14 60 14z"/><g class="inner"><circle class="nuc" cx="60" cy="58" r="13"/><circle class="v v1" cx="40" cy="48" r="6"/><circle class="v v2" cx="82" cy="70" r="7"/><circle class="v v3" cx="72" cy="40" r="4.5"/></g></svg></span>`;
 }
 
 function setFace(f) {

@@ -168,12 +168,12 @@ var ATLAS = {
 {"n":"Momentum Banker","s":"80 S","e":"Momentum persists if you move 2+ Drifts","c":"ATLAS §4.2"},
 {"n":"Etched Hide","s":"150 S","e":"Corrodes, Brittle and Acidic surges can never drop your soak below 2","c":"ATLAS §4.2"},
 {"n":"Vent Master","s":"100 S","e":"Vent clears 3 Stress and one condition for 1 PP","c":"ATLAS §4.2"},
-{"n":"Chemical Literacy","s":"60 S","e":"+1 Sequence Reading rank; learn one Burst free","c":"ATLAS §4.2"},
+{"n":"Chemical Literacy","s":"60 S","e":"+1 Sequence Reading rank; learn one Burst (it still costs a Synthesis Choice)","c":"ATLAS §4.2"},
 {"n":"Antigen Discipline","s":"200 S","e":"+2 dice on saves against Genetic effects and Hijacks","c":"ATLAS §4.2"},
 {"n":"Burst Efficiency","s":"250 S","e":"one domain's Bursts cost −2 ATP (min 1)","c":"ATLAS §4.2"},
 {"n":"Sustained Control","s":"200 S","e":"Sustained Reactions cost no Stress; hold two","c":"ATLAS §4.2"},
 {"n":"Overdrive Training","s":"300 S","e":"Overdrive 3 ATP / 3 MI; twice per Cycle","c":"ATLAS §4.2"},
-{"n":"Pressure Nerves","s":"120 S","e":"ignore first hazard each scene; +2 Pressure Tolerance","c":"ATLAS §4.2"},
+{"n":"Pressure Nerves","s":"120 S","e":"ignore first hazard each scene; +2 dice on Pressure Tolerance rolls","c":"ATLAS §4.2"},
 {"n":"Harvest Hands","s":"90 S","e":"Harvest +2 dice; Overflow 4+ gives an extra Specimen grade","c":"ATLAS §4.2"},
 {"n":"Current Reader","s":"90 S","e":"currents never force saves; +2 Drifts in any Flow","c":"ATLAS §4.2"},
 {"n":"Symbiotic Authority","s":"150 S","e":"+1 creature under control; minions +1 PP","c":"ATLAS §4.2"},
@@ -368,9 +368,10 @@ var OSMOTIC = {
     for (n in granted) if (names.indexOf(n) < 0) names.push(n);
     for (n in extra) if (names.indexOf(n) < 0) names.push(n);
     for (n in bumps) if (names.indexOf(n) < 0) names.push(n);
+    if (ad["Chemical Literacy"] && names.indexOf("Sequence Reading") < 0) names.push("Sequence Reading");
     for (i = 0; i < names.length; i++) {
       n = names[i];
-      var rank = (granted[n] | 0) + (extra[n] ? 1 : 0) + (bumps[n] | 0);
+      var rank = (granted[n] | 0) + (extra[n] ? 1 : 0) + (bumps[n] | 0) + (ad["Chemical Literacy"] && n === "Sequence Reading" ? 1 : 0);
       var def = null;
       for (var q2 = 0; q2 < a.pathways.length; q2++) if (a.pathways[q2].n === n) def = a.pathways[q2];
       if (!def) for (q2 = 0; q2 < a.classPathways.length; q2++) if (a.classPathways[q2].n === n) def = a.classPathways[q2];
@@ -435,7 +436,7 @@ var OSMOTIC = {
     }
     var growthChoices = st.level - 1, bumpTotal = 0;
     for (n in bumps) bumpTotal += bumps[n] | 0;
-    var burstChoices = Math.max(0, (in_.bursts || []).length - (ad["Chemical Literacy"] ? 1 : 0)), adaptChoices = adaptations.length;
+    var burstChoices = (in_.bursts || []).length, adaptChoices = adaptations.length; /* v3 ruling (17 Nov 2026): Chemical Literacy's Burst still costs a Synthesis Choice */
     var spentChoices = OSMOTIC.sum([grown.VSC, grown.DFF, grown.RTC, grown.OSM, grown.AFF]) + bumpTotal + burstChoices + adaptChoices;
     if (spentChoices > growthChoices) warnings.push(spentChoices + " Synthesis Choices spent (Baseline grades, Pathway ranks, Bursts and Adaptations each cost one) but only " + growthChoices + " Growth" + (growthChoices === 1 ? "" : "s") + " have happened — Level " + st.level + " gives " + growthChoices + " (ATLAS §4.1)");
     if (st.level === 1) {

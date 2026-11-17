@@ -1054,12 +1054,12 @@
 - Momentum Banker (80 S): Momentum persists if you move 2+ Drifts on your next turn Wants it: Striker, Rider.
 - Etched Hide (150 S): Corrodes, Brittle, and Acidic surges can never drop your soak below 2 Wants it: Tank, Guard, any Lytic victim.
 - Vent Master (100 S): Vent clears 3 Stress and one condition for 1 PP Wants it: Splicer, Hijacker, any Burst-heavy.
-- Chemical Literacy (60 S): +1 Sequence Reading rank; learn one Burst free Wants it: Engineer, Hijacker, Mimic.
+- Chemical Literacy (60 S): +1 Sequence Reading rank; learn one Burst (it still costs a Synthesis Choice: v3 ruling) Wants it: Engineer, Hijacker, Mimic.
 - Antigen Discipline (200 S): +2 dice on all saves against Genetic effects and Hijacks Wants it: Guard, Detector, Scout.
 - Burst Efficiency (250 S): Pick a domain: its Bursts cost −2 ATP (min 1) Wants it: Corrosor, Weaver, Diver.
 - Sustained Control (200 S): Your Sustained Reactions cost no Stress; you may hold two Wants it: Navigator, Weaver, Constructor.
 - Overdrive Training (300 S): Overdrive costs 3 ATP / 3 MI; you may Overdrive twice per Cycle (different rolls) Wants it: Brute, Striker, Engineer.
-- Pressure Nerves (120 S): Ignore the first hazard or environmental damage each scene; +2 Pressure Tolerance Wants it: Diver, Tank, Reclaimer.
+- Pressure Nerves (120 S): Ignore the first hazard or environmental damage each scene; +2 dice on Pressure Tolerance rolls (v3 ruling) Wants it: Diver, Tank, Reclaimer.
 - Harvest Hands (90 S): Harvest checks +2 dice; on Overflow 4+ gain one extra Specimen grade Wants it: Reclaimer, Smith, everyone.
 - Current Reader (90 S): Currents never force saves against you; +2 Drifts in any Flow Wants it: Rider, Navigator, Messenger.
 - Symbiotic Authority (150 S): +1 creature under control; your minions gain +1 PP Wants it: Constructor, Commander, Mimic.
@@ -1390,3 +1390,4 @@
 
 - **Starting higher, in full** (Step 8 · Starting higher; 17 Nov 2026). Spend every Synthesis Choice your Level gives (one per Level above 1). Adaptations taken at creation pay their Substrate from your starting Substrate; an Adaptation that also costs a Specimen cannot be taken at creation. Bursts are limited to the Tier your Level reaches.
 - **Growth at the table** (4.1 What a Growth gives you; 17 Nov 2026). At a Stage transition (Levels 6, 11, 16) you choose two Synthesis Choices, but still at most one Baseline grade per Growth. An organism carried into a higher-Level Vector takes its catch-up Growths at once (Codex §5.7). Adaptation Substrate comes from your own purse.
+- **Chemical Literacy and Pressure Nerves** (4.2 Adaptations; 17 Nov 2026). Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' "+2 Pressure Tolerance" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks.

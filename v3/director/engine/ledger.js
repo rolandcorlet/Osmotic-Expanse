@@ -138,6 +138,8 @@ function makeOrganism(h) {
     codon: h.codon || 0,
     weapons: (h.weapons || []).map((w) => ({ ...w })),
     kit: (h.kit || []).slice(),
+    adaptations: (h.adaptations || []).slice(),
+    bursts: (h.bursts || []).slice(),
     notes: h.notes || '',
     tie: h.tie || '',
     firstMove: h.firstMove || '',
@@ -286,7 +288,7 @@ function payStanding(s, ctx, w, why) {
   const bodies = Object.values(s.organisms).filter((o) => o.playerId && !o.dormant);
   if (!bodies.length) return;
   say(s, ctx, `${h.why}: ${h.amount} ${h.dtype} to everyone here${why ? ` (${why})` : ''}.`, 'hazard');
-  for (const o of bodies) applyDamage(s, ctx, { kind: 'org', id: o.id }, h.amount, h.dtype, false);
+  for (const o of bodies) if (!nervesHold(s, ctx, o)) applyDamage(s, ctx, { kind: 'org', id: o.id }, h.amount, h.dtype, false);
 }
 
 // A peristaltic Clock (The Long Swallow's CHURN): when it fills, everyone inside is thrown and hurt,
@@ -304,7 +306,7 @@ function churnFill(s, ctx, w) {
   const held = bodies.filter((o) => hasCond(o, 'Braced'));
   const thrown = bodies.filter((o) => !hasCond(o, 'Braced'));
   say(s, ctx, `${c.name} fills: everything in the compartment is pushed ${bands} band${bands > 1 ? 's' : ''} deeper and takes ${rule.amount} ${rule.dtype}${held.length ? ` (${held.map((o) => o.name).join(', ')} braced and held)` : ''}. ${c.name} starts again at 0.`, 'hazard');
-  for (const o of thrown) applyDamage(s, ctx, { kind: 'org', id: o.id }, rule.amount, rule.dtype, false);
+  for (const o of thrown) if (!nervesHold(s, ctx, o)) applyDamage(s, ctx, { kind: 'org', id: o.id }, rule.amount, rule.dtype, false);
   shiftAllBands(s, ctx, [...thrown, ...Object.values(s.creatures).filter((x) => x.siteId === s.scene.siteId && !x.down)], bands, c.name);
 }
 
@@ -981,10 +983,24 @@ function poolForCheck(o, { baseline, pathway, mods, scene }) {
   // "every contest in the room is -2 dice for everyone", so it is a property of the place, not a
   // condition on each organism.
   const sceneMods = scene && scene.cloud ? [{ label: String(scene.cloud.why || 'Clouded lane').slice(0, 40), dice: Math.trunc(Number(scene.cloud.dice) || 0) }] : [];
-  const p = R.buildPool({ baseline: o.base[baseline] + condBase(o, baseline), pathway: rank, mods: [...(mods || []), ...sceneMods], stress: o.stress });
+  // v3 ruling (Roly, 17 Nov 2026): Pressure Nerves is +2 dice on Pressure Tolerance rolls.
+  const own = pathway === 'Pressure Tolerance' && hasAdaptation(o, 'Pressure Nerves') ? [{ label: 'Pressure Nerves', dice: 2 }] : [];
+  const p = R.buildPool({ baseline: o.base[baseline] + condBase(o, baseline), pathway: rank, mods: [...(mods || []), ...sceneMods, ...own], stress: o.stress });
   p.baselineName = baseline;
   p.pathwayName = pathway || null;
   return p;
+}
+
+// Adaptations are kept by name, or by name and what it does ("Denser Wall (+6 MI, -1 Flow)").
+function hasAdaptation(o, name) { return (o.adaptations || []).some((a) => String(a).startsWith(name)); }
+// Pressure Nerves (ATLAS 4.2): ignore the first hazard or environmental damage each scene.
+function nervesHold(s, ctx, o) {
+  if (!hasAdaptation(o, 'Pressure Nerves')) return false;
+  const scene = s.sceneNo || 1;
+  if (o.nervesScene === scene) return false;
+  o.nervesScene = scene;
+  say(s, ctx, `${o.name}'s Pressure Nerves hold: the first hazard this scene does not touch them.`, 'hazard');
+  return true;
 }
 
 // Conditions that change a Baseline Grade for pools (§4.7).
@@ -1922,14 +1938,15 @@ const HANDLERS = {
       const bands = Math.max(0, Math.trunc(Number(a.bands) || 0));
       if (a.area) {
         const bodies = Object.values(s.organisms).filter((o) => o.playerId);
-        for (const o of bodies) applyDamage(s, ctx, { kind: 'org', id: o.id }, amount, a.dtype, a.ignoreSoak);
+        for (const o of bodies) if (!nervesHold(s, ctx, o)) applyDamage(s, ctx, { kind: 'org', id: o.id }, amount, a.dtype, a.ignoreSoak);
         for (const n of paid) applyConditionTo(s, ctx, bodies, n, true);
         // Same clause, same firing: the page writes the shift beside the damage, so the Engine moves
         // the chamber rather than leaving the Director to narrate a price it never paid.
         if (bands) shiftAllBands(s, ctx, [...bodies, ...Object.values(s.creatures).filter((c) => c.siteId === siteId && !c.down)], bands, name);
         return;
       }
-      applyDamage(s, ctx, a.target || {}, amount, a.dtype, a.ignoreSoak);
+      const tgt = (a.target || {}).kind === 'org' ? s.organisms[(a.target || {}).id] : null;
+      if (!(tgt && nervesHold(s, ctx, tgt))) applyDamage(s, ctx, a.target || {}, amount, a.dtype, a.ignoreSoak);
       if (paid.length && (a.target || {}).kind === 'org') {
         for (const n of paid) applyConditionTo(s, ctx, [org(s, a.target.id)], n, true);
       }

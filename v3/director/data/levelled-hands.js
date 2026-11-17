@@ -66,7 +66,7 @@ export const HANDS_L4 = [
   }),
   growHand(L1.ledger, {
     level: 4, pathAdd: { Synthesis: 1, 'Sequence Reading': 1 },
-    adaptations: ['Harvest Hands (+2 dice on Harvest; Overflow 4+ gives an extra Specimen grade)', 'Chemical Literacy (+1 Sequence Reading, one Burst free)'], choices: ['Adaptation: Harvest Hands', 'Adaptation: Chemical Literacy', '+1 Pathway rank: Synthesis 3'],
+    adaptations: ['Harvest Hands (+2 dice on Harvest; Overflow 4+ gives an extra Specimen grade)', 'Chemical Literacy (+1 Sequence Reading; a Burst learned with it still costs a Synthesis Choice)'], choices: ['Adaptation: Harvest Hands', 'Adaptation: Chemical Literacy', '+1 Pathway rank: Synthesis 3'],
     tie: 'You quoted the price of Shift Nine\'s output out loud, in front of an Auditor.', firstMove: '"Let me read the small print."',
     notes: 'Level 4. Amino Acid Smith: your gear is worth double and theirs worth nothing. Harvest pool RTC 4 + Synthesis 3 = 7 dice, 9 with the Claw.',
   }),
@@ -78,7 +78,7 @@ export const HANDS_L4 = [
   }),
   growHand(L1.eyes, {
     level: 4, pathAdd: { Chemoreception: 1, Concealment: 1, 'Sequence Reading': 1 },
-    adaptations: ['Chemical Literacy (+1 Sequence Reading, one Burst free)'], choices: ['Adaptation: Chemical Literacy', '+1 Pathway rank: Chemoreception 3', '+1 Pathway rank: Concealment 3'],
+    adaptations: ['Chemical Literacy (+1 Sequence Reading; a Burst learned with it still costs a Synthesis Choice)'], choices: ['Adaptation: Chemical Literacy', '+1 Pathway rank: Chemoreception 3', '+1 Pathway rank: Concealment 3'],
     tie: 'Someone at the Court paid you in advance to bring back one specific document.', firstMove: '"Something in here is not paperwork."',
     notes: 'Level 4. Pathogen Scout: you smell the inherited trait on the exhibit; the Court cannot. Chemoreception 3 reads a lineage trait on sight.',
   }),
@@ -97,7 +97,7 @@ export const HANDS_L7 = [
   }),
   growHand(L1.ledger, {
     level: 7, baseAdd: { RTC: 1 }, pathAdd: { Synthesis: 2, 'Sequence Reading': 1, Chemoreception: 1, 'Membrane Penetration': 1 }, substrate: 80,
-    adaptations: ['Harvest Hands (+2 dice on Harvest; Overflow 4+ gives an extra Specimen grade)', 'Chemical Literacy (+1 Sequence Reading, one Burst free)', 'Graft Mastery (+1 Graft Slot)'],
+    adaptations: ['Harvest Hands (+2 dice on Harvest; Overflow 4+ gives an extra Specimen grade)', 'Chemical Literacy (+1 Sequence Reading; a Burst learned with it still costs a Synthesis Choice)', 'Graft Mastery (+1 Graft Slot)'],
     choices: ['Harvest Hands', 'Chemical Literacy', 'Synthesis 3', 'Graft Mastery', 'RTC 5', 'Chemoreception 2', 'Membrane Penetration 2', 'Stage II +1 Pathway: Synthesis 4'],
     features: 'Stage II Amino Acid Smith feature (Atlas 3, Epithalian tradition).',
     tie: 'You priced a body inside the Host out loud, and the Host was listening.', firstMove: '"Let me read the small print."',
@@ -113,7 +113,7 @@ export const HANDS_L7 = [
   }),
   growHand(L1.eyes, {
     level: 7, baseAdd: { VSC: 1 }, pathAdd: { Chemoreception: 2, Concealment: 1, 'Sequence Reading': 2 }, oathAdd: 1, substrate: 80,
-    adaptations: ['Chemical Literacy (+1 Sequence Reading, one Burst free)', 'Antigen Discipline (+2 dice on saves against Genetic effects and Hijacks)', 'Oathkeeper (+1 Oath box; keeping a costly Oath gives +1 Cohesion and clears 1 Stress)'],
+    adaptations: ['Chemical Literacy (+1 Sequence Reading; a Burst learned with it still costs a Synthesis Choice)', 'Antigen Discipline (+2 dice on saves against Genetic effects and Hijacks)', 'Oathkeeper (+1 Oath box; keeping a costly Oath gives +1 Cohesion and clears 1 Stress)'],
     choices: ['Chemical Literacy', 'Chemoreception 3', 'Concealment 3', 'Antigen Discipline', 'VSC 4', 'Chemoreception 4', 'Oathkeeper (Stage II free choice)', 'Stage II +1 Pathway: Sequence Reading 3'],
     features: 'Stage II Latent Period (Atlas 3, Lysosan tradition).',
     tie: 'You can smell what the Nodule answers to, and you have not told anyone.', firstMove: '"Something in here is not tissue."',

@@ -144,13 +144,18 @@ function kitStep(G, pv) {
   const meter = (l, v, max) => `<div class="meter"><span class="small dim">${l}</span><div class="bar"><i style="width:${Math.min(100, (v / Math.max(1, max)) * 100)}%"></i></div><span class="small">${v}/${max}</span></div>`;
   const tab = (id, l) => `<button class="${G.kitTab === id ? 'on' : ''}" data-act="gen.kittab" data-v="${id}">${l}</button>`;
   let list = '';
-  if (G.kitTab === 'weapon') list = ATLAS.apparatus.map((a) => { const on = c.kit.apparatus === a.n, cant = !on && a.s - (c.kit.apparatus ? (byN(ATLAS.apparatus, c.kit.apparatus) || {}).s || 0 : 0) > left;
+  const many = pv.m.stage.level > 1;  // Level 1 buys one weapon and one graft; above it, as the purse allows
+  const has = (f, n) => [].concat(c.kit[f] || []).includes(n);
+  const swapCost = (f, list) => (many ? 0 : [].concat(c.kit[f] || []).reduce((t, n) => t + ((byN(list, n) || {}).s || 0), 0));
+  if (G.kitTab === 'weapon') list = ATLAS.apparatus.map((a) => { const on = has('apparatus', a.n), cant = !on && a.s - swapCost('apparatus', ATLAS.apparatus) > left;
     return `<button class="gcard${on ? ' on' : ''}" data-act="gen.kit" data-f="apparatus" data-v="${esc(a.n)}" ${cant ? 'disabled' : ''}><b>${esc(a.n)} <span class="chip">${a.s} S</span></b><span class="small">${esc(a.c)} · reach ${esc(String(a.b).split(' ')[0])} · ${esc(a.ty)} · damage ${esc(a.bd.split('/')[0])}</span><span class="small dim">${esc(a.pr)}</span></button>`; }).join('');
-  else list = ATLAS.grafts.map((g) => { const on = c.kit.graft === g.n, cant = !on && g.s - (c.kit.graft ? (byN(ATLAS.grafts, c.kit.graft) || {}).s || 0 : 0) > left;
+  else if (G.kitTab === 'vials') list = `<div class="small dim">Vials are one-use chemistry: a quick dose of ATP, a cure, a cloud. Buy as many as you like.</div>` + ATLAS.vials.map((v) => { const q = (c.kit.vials || {})[v.n] || 0;
+    return `<div class="grow-row${q ? ' set' : ''}"><span class="gname"><b>${esc(v.n)} <span class="chip">${v.s} S</span></b><br><span class="small dim">${esc(v.e)}</span></span><span class="row"><button class="btn sm" data-act="gen.vial" data-v="${esc(v.n)}" data-d="-1" ${q ? '' : 'disabled'} aria-label="fewer">−</button><b style="min-width:18px;text-align:center">${q}</b><button class="btn sm" data-act="gen.vial" data-v="${esc(v.n)}" data-d="1" ${v.s > left ? 'disabled' : ''} aria-label="more">+</button></span></div>`; }).join('');
+  else list = ATLAS.grafts.map((g) => { const on = has('graft', g.n), cant = !on && g.s - swapCost('graft', ATLAS.grafts) > left;
     return `<button class="gcard${on ? ' on' : ''}" data-act="gen.kit" data-f="graft" data-v="${esc(g.n)}" ${cant ? 'disabled' : ''}><b>${esc(g.n)} <span class="chip">${g.s} S</span></b><span class="small">${esc(g.f)} graft · soak ${g.so ?? 0}${g.mi ? ` · +${g.mi} MI` : ''}${g.dff ? ` · ${g.dff} Speed` : ''}</span>${g.sp ? `<span class="small dim">${esc(g.sp)}</span>` : ''}</button>`; }).join('');
   return `${meter('Substrate', m.spent + (m.adaptS || 0), m.budget)}${meter('Graft slots', m.slotsUsed, m.slots)}
     <div class="row"><button class="btn grow" data-act="gen.starter">Starter kit for a ${esc(c.phenotype || 'beginner')}</button></div>
-    <div class="seg">${tab('weapon', 'Weapon')}${tab('graft', 'Protection')}</div><div class="glist">${list}</div>`;
+    <div class="seg">${tab('weapon', many ? 'Weapons' : 'Weapon')}${tab('graft', 'Protection')}${tab('vials', 'Vials')}</div>${many ? '<div class="small dim">Above Level 1 you may buy more than one weapon or graft. Grafts need Graft Slots.</div>' : ''}<div class="glist">${list}</div>`;
 }
 
 function nameStep(G, pv, state) {
@@ -225,13 +230,17 @@ function suggestGrowth(G, lv) {
 function starterKit(G, pv) {
   const ph = byN(ATLAS.phenotypes, G.c.phenotype) || {}, k = String(ph.k || '');
   const weapon = /VSC/.test(k.split(',')[0]) ? 'Chitin Flail' : /RTC/.test(k.split(',')[0]) ? 'Spore Pistol' : 'Peptide Blade';
-  const kit = { apparatus: weapon };
+  const kit = { apparatus: [weapon], vials: {} };
   const cost = (byN(ATLAS.apparatus, weapon) || {}).s || 0;
   // The best protective graft the rest of the Substrate buys (Adaptations already paid for).
   const rem = pv.m.budget - cost - (pv.m.adaptS || 0);
   const armour = ATLAS.grafts.filter((g) => (g.so || 0) >= 1 && g.s <= rem && (g.sl || 0) + (G.c.lineage === 'Amoeban' ? 1 : 0) <= pv.m.slots && !(G.c.lineage === 'Amoeban' && g.f === 'Testate') && !(G.c.lineage === 'Lysosan' && g.n === 'Antigen Hood') && !/\+\s*\d/.test(String(g.s)))
     .sort((x, y) => y.s - x.s)[0];
-  if (armour) kit.graft = armour.n;
+  if (armour) kit.graft = [armour.n];
+  // two of the cheapest Vial with what is left, so a new player has a dose of ATP in reserve
+  const spare = rem - (armour ? armour.s : 0);
+  const vial = ATLAS.vials.slice().sort((x, y) => x.s - y.s)[0];
+  if (vial && spare >= vial.s * 2) kit.vials[vial.n] = 2;
   return kit;
 }
 
@@ -249,7 +258,13 @@ export function genActs(ui, getState, { send, toast, randomName }) {
     'gen.place': (d) => { const g = G(); if (g.pick) { g.c.array = { ...g.c.array, [d.k]: g.pick.v }; g.pick = null; } else if (g.c.array[d.k]) { const a = { ...g.c.array }; delete a[d.k]; g.c.array = a; } else toast('Tap a number first, then the talent.'); },
     'gen.extra': (d) => { const e = G().c.extras; G().c.extras = e.includes(d.v) ? e.filter((x) => x !== d.v) : [...e, d.v].slice(0, 2); },
     'gen.kittab': (d) => { G().kitTab = d.v; },
-    'gen.kit': (d) => { const k = { ...G().c.kit }; k[d.f] = k[d.f] === d.v ? null : d.v; G().c.kit = k; },
+    'gen.kit': (d) => {
+      const g = G(), k = { ...g.c.kit }, cur = [].concat(k[d.f] || []);
+      const many = level(S(), g) > 1;
+      k[d.f] = cur.includes(d.v) ? cur.filter((x) => x !== d.v) : many ? [...cur, d.v] : [d.v];
+      g.c.kit = k;
+    },
+    'gen.vial': (d) => { const g = G(), v = { ...(g.c.kit.vials || {}) }; v[d.v] = Math.max(0, (v[d.v] || 0) + Number(d.d)); if (!v[d.v]) delete v[d.v]; g.c.kit = { ...g.c.kit, vials: v }; },
     'gen.starter': () => { G().c.kit = starterKit(G(), preview(G().c, level(S(), G()))); },
     'gen.random': () => { G().c.name = randomName(); },
     'gen.go': (d) => { G().step = Number(d.i); },

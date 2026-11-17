@@ -25,7 +25,8 @@ export function sheetFrom(c = {}, level = 1) {
   S.rankBumps = Object.fromEntries(Object.entries(c.rankBumps || {}).map(([k, v]) => [k, num(v)]).filter(([, v]) => v));
   S.level = Math.max(1, Math.min(20, Math.trunc(Number(level) || 1)));
   const kit = c.kit || {};
-  const one = (v) => (v ? { [v]: 1 } : {});
+  // One weapon and one graft at Level 1 (ATLAS §1 Step 5); above it, as many as the purse and Slots allow.
+  const one = (v) => Object.fromEntries([].concat(v || []).filter((n) => typeof n === 'string' && n).map((n) => [n, 1]));
   S.kit = { apparatus: one(kit.apparatus), grafts: one(kit.graft), vials: Object.fromEntries(Object.entries(kit.vials || {}).map(([k, v]) => [k, num(v)]).filter(([, v]) => v)) };
   S.bursts = [].concat(c.bursts || []).filter((n) => typeof n === 'string');
   S.adaptations = [].concat(c.adaptations || []).filter((n) => typeof n === 'string');
@@ -92,6 +93,7 @@ export function buildHand(c = {}, { level = 1, seat = 'wall' } = {}) {
     mi: m.mi, atp: m.atpMax, pp: m.pp, mt: m.mt, flow: m.flow, countdown: m.countdown, soak: m.soak,
     oath: m.oathBoxes, substrate: m.budget - m.spent - (m.adaptS || 0), codon: m.codon,
     pathways: Object.fromEntries(m.pw.filter((p) => p.rank > 0).map((p) => [p.n, p.rank])),
+    adaptations: (m.adaptations || []).slice(), bursts: (m.bursts || []).slice(),
     weapons, kit,
     name: String(c.name || '').trim().slice(0, 40) || undefined,
     tie: String(c.tie || '').slice(0, 200), firstMove: String(c.firstMove || '').slice(0, 120),
