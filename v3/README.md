@@ -5,8 +5,8 @@ say or type anything in their own words, an AI Director answers as the world, an
 rules Engine owns every number. It has every feature of the first Director, plus the
 structure a Director needs to hold a game together.
 
-Nothing outside this folder was changed. `director/` (the first Director) and
-`engine-redesign/` (the v2 experiment) are untouched.
+The first Director and the v2 experiment are kept in `archive/` at the top of the
+repo; nothing here depends on them.
 
 ## What is here
 

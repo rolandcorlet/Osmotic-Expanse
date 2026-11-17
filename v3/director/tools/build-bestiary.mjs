@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const src = join(here, '..', '..', 'The Osmotic Expanse - LYTIC BESTIARY.md');
+const src = join(here, '..', '..', '..', 'books', 'The Osmotic Expanse - LYTIC BESTIARY.md');
 const out = join(here, '..', 'data', 'bestiary.json');
 const lines = readFileSync(src, 'utf8').split(/\r?\n/);
 

@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/DMAssistant_Osmotic_Expanse.html" }
+    { "source": "/", "destination": "/site/DMAssistant_Osmotic_Expanse.html" }
   ]
 }

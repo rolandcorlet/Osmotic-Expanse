@@ -10,4 +10,4 @@ The player-facing edition of the Director's Assistant, published by its own Verc
 
 Rebuild from the Director's file:
 
-    python3 players/build_players.py DMAssistant_Osmotic_Expanse.html players/index.html
+    python3 players/build_players.py site/DMAssistant_Osmotic_Expanse.html players/index.html

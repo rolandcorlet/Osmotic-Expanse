@@ -42,9 +42,9 @@ In either app's Reader tab, **+ Add a document** converts a Word (`.docx`), Mark
 ## Converting a new document
 
 1. **Build the Lexicon** (only after editing `lexicon_src.py`):
-   `python3 lexicon_src.py "../The Osmotic Expanse - CORE RULEBOOK.md"`
+   `python3 lexicon_src.py "../books/The Osmotic Expanse - CORE RULEBOOK.md"`
 2. **Convert:**
-   `python3 build_reader.py "../The Osmotic Expanse - QUORUM.md" --id quorum --out quorum.html --report quorum-report.txt`
+   `python3 build_reader.py "../books/The Osmotic Expanse - QUORUM.md" --id quorum --out quorum.html --report quorum-report.txt`
    - Add `--level director` for the Director's version, which includes the director-only cards.
 3. **Read the report.** It lists capitalised words that have no card. For each one, either:
    - add a `t(...)` line to `lexicon_src.py`, or
@@ -52,7 +52,7 @@ In either app's Reader tab, **+ Add a document** converts a Word (`.docx`), Mark
 
    Then repeat steps 1 and 2.
 4. **Put it in the apps:**
-   `python3 patch_reader.py ../DMAssistant_Osmotic_Expanse.html ../DMAssistant_Osmotic_Expanse.html --level=director what-the-water-owed=wtwo-director.html society-rules=society-director.html quorum=quorum-director.html`
+   `python3 patch_reader.py ../site/DMAssistant_Osmotic_Expanse.html ../site/DMAssistant_Osmotic_Expanse.html --level=director what-the-water-owed=wtwo-director.html society-rules=society-director.html quorum=quorum-director.html`
    - Do the same for `../players/index.html`, using the player builds.
    - List every document each time; the tab shows them in that order. Re-running replaces the earlier set.
 

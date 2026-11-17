@@ -4,7 +4,7 @@
 //   node tools/gen-atlas.mjs      ->  data/kit/atlas.generated.js
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const src = readFileSync(new URL('../../../The Osmotic Expanse - PLAYER\'S ATLAS.md', import.meta.url), 'utf8').replace(/\r/g, '');
+const src = readFileSync(new URL('../../../books/The Osmotic Expanse - PLAYER\'S ATLAS.md', import.meta.url), 'utf8').replace(/\r/g, '');
 const lines = src.split('\n');
 const clean = (t) => String(t || '').replace(/\*\*/g, '').replace(/(^|[^*])\*([^*\n]+)\*/g, '$1$2').replace(/`/g, '').replace(/\s+/g, ' ').trim();
 const slug = (t) => clean(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

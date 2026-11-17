@@ -35,7 +35,7 @@ def new_par_before(anchor_el, d, style):
 def clean(t): return re.sub(r'[*`]', '', t).strip()
 
 for book, name in FILES.items():
-    path = f'{ROOT}The Osmotic Expanse - {name}.docx'
+    path = f'{ROOT}books/The Osmotic Expanse - {name}.docx'
     d = docx.Document(path)
     paras = d.paragraphs
     if any(MARK in p.text for p in paras): print('skip', name); continue

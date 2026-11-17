@@ -3,7 +3,7 @@ import re, copy, sys
 import docx
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
-R = "/home/claude/osmotic-expanse/The Osmotic Expanse - %s.%s"
+R = "/home/claude/osmotic-expanse/books/The Osmotic Expanse - %s.%s"
 STAND_OLD = "**Standing ladder** (Core VIII) is one of six rungs: *Hostile / Wary / Neutral / Obliging / Confided / Bound*."
 STAND_NEW = ("**Standing ladder.** Standing is Core §8.7's 0–10 track and its four bands (Hostile 0–1 · Wary 2–5 · Client 6–8 · Kin 9–10). "
              "The Codex names six rungs inside those bands: *Hostile* (0–1) · *Wary* (2–3) · *Neutral* (4–5) · *Obliging* (6–7) · *Confided* (8) · *Bound* (9–10).")

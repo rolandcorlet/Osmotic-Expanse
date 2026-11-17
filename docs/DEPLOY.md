@@ -17,18 +17,18 @@ git push
 ```
 
 The repo is on branch `main`. `saves/`, `.env*`, `.vercel/` and `node_modules/` are
-ignored, so `director/saves/director.json` (which holds a live Gemini API key) never
+ignored, so `v3/director/saves/director.json` (which holds a live Gemini API key) never
 leaves this computer. If that key is ever pushed by mistake, revoke it at
 aistudio.google.com — deleted-in-a-later-commit is still in history forever.
 
 ## 2. Vercel — two projects from this one repo
 
 Both projects import the same GitHub repo; they differ only in **Root Directory**.
-`.vercelignore` keeps the books, saves and `director/` off both websites.
+`.vercelignore` keeps the books, docs, archive, saves and `v3/` off both websites.
 
 | Project | Root Directory | Serves |
 | --- | --- | --- |
-| Director's site | repo root | `DMAssistant_Osmotic_Expanse.html` (via the `vercel.json` rewrite of `/`) |
+| Director's site | repo root | `site/DMAssistant_Osmotic_Expanse.html` (via the `vercel.json` rewrite of `/`) |
 | Players' site | `players` | `players/index.html` |
 
 Setup once: vercel.com → **Add New… → Project → Import** the GitHub repo → in
@@ -64,6 +64,6 @@ pushing changes it.
 
 ## 5. Not on Vercel
 
-`director/` is a local Node server (`node server.js`, port 8787) that keeps AI keys on
+`v3/director/` is a local Node server (`node server.js`) that keeps AI keys on
 disk, so it is excluded from both websites. It would need rewriting as serverless
 functions with the keys moved into env vars to run on Vercel.

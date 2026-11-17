@@ -1,5 +1,5 @@
 # Keep the source books and working files off both websites.
-# The Director's site serves DMAssistant_Osmotic_Expanse.html (vercel.json rewrites / to it);
+# The Director's site serves site/DMAssistant_Osmotic_Expanse.html (vercel.json rewrites / to it);
 # the Players site (Root Directory "players") serves players/index.html.
 # Written as a deny list: Vercel cannot re-include a file under a folder that "*" has excluded.
 *.md
@@ -10,5 +10,10 @@
 *.py
 chargen/
 lessons/
-# The AI Director prototype runs on a home computer, not on these websites.
-director/
+# The AI Director runs on a home computer, not on these websites.
+v3/
+archive/
+books/
+docs/
+reader/
+tools/

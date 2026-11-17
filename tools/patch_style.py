@@ -926,7 +926,7 @@ h = h.replace("The character generator and BitSight frames keep their own colour
 # Ask the Books (and BitSight's library): the Society Rules and QUORUM join the four rulebooks
 import os
 def _book(bid, title, short, fname):
-    md = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", fname), encoding="utf-8-sig").read()
+    md = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "books", fname), encoding="utf-8-sig").read()
     secs, cur, n = [], None, 0
     for line in md.split("\n"):
         m = re.match(r"^(#{1,6})\s+(.*)$", line)

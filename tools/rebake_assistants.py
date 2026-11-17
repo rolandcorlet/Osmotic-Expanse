@@ -14,7 +14,7 @@ file, so the Players Assistant is re-baked in place.)
 """
 import base64, json, re, sys
 ROOT = __file__.rsplit('/tools/', 1)[0] + '/'
-DM = ROOT + 'DMAssistant_Osmotic_Expanse.html'
+DM = ROOT + 'site/DMAssistant_Osmotic_Expanse.html'
 BOOKS = {'core': 'The Osmotic Expanse - CORE RULEBOOK.md', 'atlas': "The Osmotic Expanse - PLAYER'S ATLAS.md",
          'codex': "The Osmotic Expanse - DIRECTOR'S CODEX.md", 'bestiary': 'The Osmotic Expanse - LYTIC BESTIARY.md'}
 VECTORS = {'first-carve': 'The Osmotic Expanse - THE FIRST CARVE.md', 'ninth-shift': 'The Osmotic Expanse - THE NINTH SHIFT.md',
@@ -23,7 +23,7 @@ VECTORS = {'first-carve': 'The Osmotic Expanse - THE FIRST CARVE.md', 'ninth-shi
 ENGINE_ONLY = [" The AI Director's Engine makes this roll for you."]
 
 def read(p):
-    t = open(ROOT + p, encoding='utf-8').read().lstrip('﻿').replace('\r\n', '\n')
+    t = open(ROOT + 'books/' + p, encoding='utf-8').read().lstrip('﻿').replace('\r\n', '\n')
     for x in ENGINE_ONLY: t = t.replace(x, '')
     return t
 

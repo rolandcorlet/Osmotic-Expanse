@@ -3,7 +3,7 @@
 //   node tools/gen-codex.mjs   ->  data/kit/codex.generated.js
 import { readFileSync, writeFileSync } from 'node:fs';
 
-const src = readFileSync(new URL('../../../The Osmotic Expanse - DIRECTOR\'S CODEX.md', import.meta.url), 'utf8').replace(/\r/g, '');
+const src = readFileSync(new URL('../../../books/The Osmotic Expanse - DIRECTOR\'S CODEX.md', import.meta.url), 'utf8').replace(/\r/g, '');
 const lines = src.split('\n');
 const clean = (t) => String(t || '').replace(/\*\*/g, '').replace(/(^|[^*\w])\*([^*\n]+)\*/g, '$1$2').replace(/`/g, '').replace(/\s+/g, ' ').trim();
 
