@@ -30,6 +30,11 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   L.push(`Exits: ${site.exits.join(' | ')}`);
   const near = reachable(scenario, site).map((id) => scenario.sites.find((x) => x.id === id)).filter(Boolean).map((x) => `${x.name} = "${x.id}"`);
   L.push(`Reachable with change_site: ${near.join(', ')}`);
+  // Bench 17 Nov (Long Swallow 3): the Engine closed the Sentinel's question, then the Director asked
+  // it four more times. A lapsed question stays lapsed.
+  if ((state.story || []).some((e) => e.kind === 'narration' && e.site === site.id && /Nobody answers, and the moment passes/.test(e.text))) {
+    L.push('A question at this site lapsed (the story says "Nobody answers, and the moment passes"). Do not ask it again in any form. Whatever was waiting on it settles the plain way (a challenge is taken as answered, an offer is withdrawn), and the scene moves on.');
+  }
   if (site.harvest) L.push(`This site can be cut: ${site.harvest.what} — call \`harvest\` with no creature to cut the site itself. The grade depends on CARCASS, not on the roll.`);
   // The Soft Field can be carved; the wound mouth cannot. Saying only the positive left the Director
   // to try a site cut at the Toll-Vent, where nothing is printed to cut (bench run, 13 Nov 2026).
@@ -604,6 +609,32 @@ export function asksRollInWords(text, state) {
 // then says nothing gets one fresh attempt before the host sees a problem.
 const ATTEMPTS = 2;
 
+// A player taking a listed exit. Bench 17 Nov (Long Swallow 3): "We go on to the Shelf" was met by a
+// Sentinel holding the channel for eight turns although the notes print the Sentinels as a challenge,
+// never a wall. The words the players use name the place, so the Engine can tell; it sends the turn
+// back once, the way it does for a roll asked in words.
+const GO = /\b(go|goes|going|head|heading|take|taking|cross|crossing|walk|swim|ride|leave|move|on to|onto|through|into|up to|down to|out to)\b/i;
+const NAME_SKIP = new Set(['the', 'of', 'not', 'things', 'thing', 'nine', 'behind', 'organ', 'great', 'house', 'room']);
+export function exitTaken(state, scenario) {
+  const story = state.story || [];
+  let i = story.length - 1;
+  while (i >= 0 && story[i].kind !== 'say') { if (story[i].kind === 'narration') return null; i -= 1; }
+  if (i < 0) return null;
+  const text = String(story[i].text || '');
+  if (!GO.test(text) || /\?\s*$/.test(text.trim())) return null;
+  const site = scenario.sites.find((x) => x.id === state.scene.siteId);
+  if (!site) return null;
+  const low = text.toLowerCase();
+  const here = new Set(String(site.name).toLowerCase().match(/[a-z]{4,}/g) || []);
+  for (const id of reachable(scenario, site)) {
+    const to = scenario.sites.find((x) => x.id === id);
+    if (!to) continue;
+    const words = (String(to.name).toLowerCase().match(/[a-z]{4,}/g) || []).filter((w) => !NAME_SKIP.has(w) && !here.has(w));
+    if (words.some((w) => new RegExp(`\\b${w}`).test(low))) return to;
+  }
+  return null;
+}
+
 export async function directorTurn(args) {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const done = await oneAttempt(args);
@@ -625,6 +656,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   let narration = '';
   let nudged = false;
   let rollNudged = false;
+  let exitNudged = false;
   // Phase 6 ("no rescue"): every point where a human host would have had to step in, or the code had to
   // step in for the model. Hard ones are what the gate counts; soft ones are reported.
   const rescues = [];
@@ -651,6 +683,17 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       narration = '';
       reply = await chat.send('You told a player to roll, but you did not call ask_for_roll, so nothing is on their screen. Call ask_for_roll now for that roll (or swear_oath if it was an oath), then give your narration again, ending on one question. If no roll is needed, narrate again without asking for one.');
       continue;
+    }
+    // The player took a listed exit and nothing moved: send it back once to call change_site.
+    if (narration && !exitNudged && T.state.scene.siteId === state.scene.siteId) {
+      const to = exitTaken(state, scenario);
+      if (to) {
+        exitNudged = true;
+        narration = '';
+        rescues.push({ kind: 'held-at-exit', hard: false, text: `A player took the listed exit to ${to.name} and the Director held the Cohort; the Engine sent the turn back.` });
+        reply = await chat.send(`The player took a listed exit: they are going to ${to.name}. Call change_site with "${to.id}" now. Anything in the way (a creature's challenge, a hazard, a toll) is played as a cost on the way: a roll, damage or a Clock, never a stop. Then narrate the crossing and the arrival, and end on one question.`);
+        continue;
+      }
     }
     if (narration || nudged) { ranOut = false; break; }
     nudged = true;

@@ -372,3 +372,13 @@ test('the Director\'s Codex v3 cards cover all thirteen chapters and look_up fin
   assert.ok(lookUp('trap discovery trigger').some((c) => /Codex/.test(c.kind || '')));
   assert.ok(lookUp('five-room site').some((c) => /Codex/.test(c.kind || '')));
 });
+
+test('a player taking a listed exit is recognised; a question about the place is not', async () => {
+  const { exitTaken } = await import('../brain/director.js');
+  const { vectorById } = await import('../data/vectors.js');
+  const sc = vectorById('long-swallow').scenario || vectorById('long-swallow');
+  const st = (site, text) => ({ scene: { siteId: site }, story: [{ kind: 'narration', text: 'x' }, { kind: 'say', text }] });
+  assert.equal((exitTaken(st('churn', 'The way is clear. We go on to the Shelf.'), sc) || {}).id, 'shelf');
+  assert.equal(exitTaken(st('churn', 'What is on the Shelf?'), sc), null);
+  assert.equal(exitTaken(st('churn', 'I look at the pump.'), sc), null);
+});
