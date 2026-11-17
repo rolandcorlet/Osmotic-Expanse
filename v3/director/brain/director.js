@@ -6,7 +6,7 @@
 import { kitBriefing, breakLoop } from './kit.js';
 import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, orgMT, printedPays, hazardSpec, reachable, toleranceAT, goodwillName } from './tools.js';
-import { worldNow, turnsSinceBeat } from '../engine/ledger.js';
+import { worldNow, turnsSinceBeat, directed } from '../engine/ledger.js';
 import { hazardBudget } from '../engine/ledger.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
@@ -244,13 +244,15 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
           can = why ? `; CANNOT Strike now (${why})` : '; can Strike now';
         }
       }
-      L.push(`- ${body.name} (${a.kind === 'org' ? 'player' : 'creature'}): ${a.status}${a.status === 'acting' || a.status === 'holding' ? `, ${a.pp} Pulse Points left` : ''}${a.reserve ? ', holding a Reserve' : ''}${can}${f.turn === k ? '  <= ACTING NOW' : ''}`);
+      const away = a.kind === 'org' && directed(body) ? ' (AWAY: you play this organism)' : '';
+      L.push(`- ${body.name} (${a.kind === 'org' ? 'player' : 'creature'}${away}): ${a.status}${a.status === 'acting' || a.status === 'holding' ? `, ${a.pp} Pulse Points left` : ''}${a.reserve ? ', holding a Reserve' : ''}${can}${f.turn === k ? '  <= ACTING NOW' : ''}`);
     }
     const cur = f.turn ? f.actors[f.turn] : null;
     L.push('Creature costs: a Strike 2 Pulse Points, a Drift 1, a Reserve 1. A creature with fewer Pulse Points left than an action costs cannot take it: end its turn instead. Count before you act: a Drift then a Strike needs 3.');
     const up = Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId && !c.down && !c.stoodDown);
     if (up.length) L.push(`Still fighting: ${up.map((c) => c.name).join(', ')}. While any of these is up you cannot end the Pulse War or change site: if a player wants to leave, say the creatures block the way and ask what they do. A creature that has yielded, fled or was never fighting does not belong in this list: use creature_stand_down for it, with the reason.`);
     if (cur && cur.kind === 'cre') L.push('It is a creature\'s turn: act for it now, then end its turn.');
+    else if (cur && directed(state.organisms[cur.id])) L.push(`It is ${state.organisms[cur.id].name}'s turn and their player is away: you play it. Take one action with organism_act (or organism_strike at a creature in reach), then end its turn with organism_end_turn. Play it sensibly, as the player would, and say what the Cohort does in the fiction. Ask nobody for a choice. Never act for an organism that is not marked AWAY.`);
     else if (cur) L.push('It is a player\'s turn: they act on their own screen. Do not act for any creature now — no creature_move, creature_strike, creature_special, creature_reserve. Creatures act only on their own turns. Narrate and ask.');
   } else {
     L.push('# NO PULSE WAR. Pulse Points do not exist right now: do not mention them. Nobody has a turn, so nothing acts on one: creature_move, creature_strike, creature_special and creature_reserve are all refused out of a fight. Say what a creature here is doing in the fiction - drifting in, tasting the water, holding a way - and open the Pulse War with start_pulse_war the moment someone commits to violence.');

@@ -1780,3 +1780,25 @@ test('the Churn prices its enzyme sheets (4 Lytic per Cycle), so hazard_damage c
   const h = hazardSpec(sw.sites.find((s) => s.id === 'churn'));
   assert.deepEqual([h.amount, h.type, h.standing], [4, 'Lytic', true]);
 });
+
+// v3: an away player's organism is played by the Director during a Pulse War. The player cannot act for it,
+// the host can cover and take it back, and the Director's tools act and roll for it in the open.
+test('an away player: the Director plays their turn, and the player cannot act for it', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  s = apply(s, { type: 'organism.cover', organismId: 'wall', on: true }, ctx('host', null));
+  assert.throws(() => apply(s, { type: 'act', organismId: 'wall', action: 'sense' }, ctx('player', 'p1')), /not your organism/);
+  // Get the turn round to the away organism (the host passes the others on).
+  for (let i = 0; i < 20 && s.fight.turn !== 'org:wall'; i++) s = apply(s, { type: 'turn.next' }, ctx('host', null));
+  assert.equal(s.fight.turn, 'org:wall', 'Bresk comes up in the order');
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const acted = T.run('organism_act', { organism: 'Bresk', action: 'sense' });
+  assert.equal(acted.done, 'sense', JSON.stringify(acted));
+  const ended = T.run('organism_end_turn', { organism: 'Bresk' });
+  assert.ok(ended.acting_now, 'the turn passes on');
+  assert.notEqual(T.state.fight.turn, 'org:wall');
+  // Put back in their own hands: the Director may no longer act for them.
+  s = apply(T.state, { type: 'organism.cover', organismId: 'wall', on: false }, ctx('host', null));
+  const T2 = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.match(T2.run('organism_act', { organism: 'Bresk', action: 'sense' }).note, /not away/);
+});

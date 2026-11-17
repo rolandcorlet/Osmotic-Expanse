@@ -6,6 +6,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { build, pickDefaultModel, providerInfo, publicProviders, testConnection, PROVIDERS, ProviderError } from './providers.js';
 import { directorTurn } from './director.js';
+import { directed } from '../engine/ledger.js';
 
 const MODES = ['off', 'copilot', 'auto'];
 
@@ -174,7 +175,9 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
   function after() {
     const s = getState();
     const cur = s.fight && s.fight.turn ? s.fight.actors[s.fight.turn] : null;
-    if (cur && cur.kind === 'cre' && !s.requests.length && selfRuns < 4) {
+    // A creature's turn, or an away player's (the Director plays that one), goes on without a player.
+    const playsIt = cur && (cur.kind === 'cre' || directed(s.organisms[cur.id]));
+    if (playsIt && !s.requests.length && selfRuns < 4) {
       selfRuns += 1;
       schedule('a creature is still to act', '', true);
     }

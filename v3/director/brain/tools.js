@@ -3,7 +3,7 @@
 // The model can change nothing except through these.
 
 import { lookUp } from '../data/kit/society.js';
-import { apply, RuleError, orgMT, worldNow } from '../engine/ledger.js';
+import { apply, RuleError, orgMT, worldNow, directed } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 
 const S = (description, extra = {}) => ({ type: 'string', description, ...extra });
@@ -17,7 +17,8 @@ const lower = (v) => String(v || '').trim().toLowerCase();
 // ---- finding things by id or by name ----------------------------------------
 function findOrg(s, ref) {
   const k = lower(ref);
-  const list = Object.values(s.organisms).filter((o) => o.playerId);
+  // Organisms in the Pulse War are found even when their player has left: the Director plays them.
+  const list = Object.values(s.organisms).filter((o) => o.playerId || (s.fight && s.fight.actors[`org:${o.id}`]));
   return list.find((o) => o.id === k) || list.find((o) => lower(o.name) === k) || list.find((o) => lower(o.hand) === k || lower(o.hand) === `the ${k}`)
     || list.find((o) => k && lower(o.name).startsWith(k)) || null;
 }
@@ -116,6 +117,13 @@ const withTurn = (T, no) => {
 const outOfTurn = (T, no, c) => (T.state.fight && /\bnot .*\bturn\b/i.test(String(no))
   ? { note: `${c.name} has no turn right now, so nothing changed. Acting now: ${T.fightBrief().acting_now}.`, ...T.fightBrief() }
   : { refused: withTurn(T, no) });
+// The organism an away-player tool acts for. Only a directed organism is the Director's to play.
+const awayOrg = (T, ref) => {
+  const o = findOrg(T.state, ref);
+  if (!o) return noOrg(ref, T.state);
+  if (!directed(o)) return { note: `${o.name} is not away, so they act for themselves. Nothing changed. Put the question to them.`, ...(T.state.fight ? T.fightBrief() : {}) };
+  return { o };
+};
 const noCre = (ref, s) => ({ refused: `No creature called "${ref}" is in this scene. Here: ${whatIsHere(s) || 'nothing has been brought in at this site'}.` });
 
 function lastRoll(s) {
@@ -190,6 +198,12 @@ export const TOOLS = [
       if (no) return { refused: no };
       if (T.state.rolls.length > before) return { no_roll_needed: true, note: `Unhurried, and ${o.name}'s Homeostatic Baseline meets ${at}. It simply succeeds. There is no Overflow.` };
       const q = T.state.requests[T.state.requests.length - 1];
+      // An away player's organism is directed: the table rolls its dice in the open, now.
+      if (directed(o)) {
+        const no2 = T.do({ type: 'roll', requestId: q.id });
+        if (no2) return { refused: no2 };
+        return { ...lastRoll(T.state), note: `${o.name} is away, so the Director played this roll. Narrate the result, then go on.` };
+      }
       return { waiting_for: o.name, dice: q.pool.dice, threshold: at, chance_percent: Math.round((q.chance || 0) * 100), note: 'Tell the player what the roll is for, then end your turn.' };
     },
   },
@@ -302,6 +316,56 @@ export const TOOLS = [
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Reserve', cost: 1 });
       return no ? outOfTurn(T, no, c) : { holding_reserve: c.name, pulse_points_left: T.pp('cre', c.cid) };
+    },
+  },
+  {
+    name: 'organism_act',
+    description: 'On the turn of an organism whose player is away (the Director plays it): it spends Pulse Points on one action. Only for an away player; a player acts for themselves. Drift needs a band. Then end its turn with organism_end_turn, or strike with organism_strike.',
+    parameters: obj({
+      organism: S('Organism id, for example "wall".'),
+      action: S('Which action.', { enum: ['drift', 'vent', 'sense', 'synthesise', 'burst', 'reserve'] }),
+      band: S('For Drift: where it ends up, measured from the Cohort.', { enum: BAND_IDS }),
+      cost: I('For Burst only: 3 to 5 Pulse Points.'),
+    }, ['organism', 'action']),
+    run(a, T) {
+      const r = awayOrg(T, a.organism);
+      if (r.o === undefined) return r;
+      const o = r.o;
+      const act = a.action === 'drift' ? { type: 'act', organismId: o.id, action: 'drift', band: BAND_IDS.includes(a.band) ? a.band : undefined }
+        : a.action === 'burst' ? { type: 'act', organismId: o.id, action: 'burst', cost: a.cost }
+          : { type: 'act', organismId: o.id, action: a.action };
+      const no = T.do(act);
+      return no ? outOfTurn(T, no, o) : { done: a.action, name: o.name, pulse_points_left: T.pp('org', o.id), ...T.fightBrief() };
+    },
+  },
+  {
+    name: 'organism_strike',
+    description: 'On the turn of an organism whose player is away: it attacks one creature in reach. Its dice are rolled in the open and any damage lands at once. If the creature holds a Reserve, the roll waits and you must end the turn.',
+    parameters: obj({ organism: S('Organism id.'), target: S('Creature id in this scene.'), weapon: S('Apparatus id, or leave out for its first carried weapon.') }, ['organism', 'target']),
+    run(a, T) {
+      const r = awayOrg(T, a.organism);
+      if (r.o === undefined) return r;
+      const o = r.o;
+      const c = findCre(T.state, a.target);
+      if (!c) return noCre(a.target, T.state);
+      const no = T.do({ type: 'strike', organismId: o.id, targetId: c.cid, weaponId: a.weapon || undefined });
+      if (no) return outOfTurn(T, no, o);
+      const q = T.state.requests[T.state.requests.length - 1];
+      if (q.canReact) return { waiting: true, note: `${c.name} holds a Reserve and may Deflect before the dice fall. Say the strike is coming, and end the turn.` };
+      const no2 = T.do({ type: 'roll', requestId: q.id });
+      if (no2) return { refused: no2 };
+      return { ...lastRoll(T.state), who: o.name, target: c.name, pulse_points_left: T.pp('org', o.id) };
+    },
+  },
+  {
+    name: 'organism_end_turn',
+    description: 'End the turn of an away organism: it passes to whoever acts next, and you are told who.',
+    parameters: obj({ organism: S('Organism id.') }, ['organism']),
+    run(a, T) {
+      const r = awayOrg(T, a.organism);
+      if (r.o === undefined) return r;
+      const no = T.do({ type: 'turn.end', organismId: r.o.id });
+      return no ? outOfTurn(T, no, r.o) : T.fightBrief();
     },
   },
   {
@@ -759,7 +823,7 @@ export function toolbox({ state, scenario, bestiary, rng, now, memory = null }) 
         cycle: f.cycle,
         order: f.order.map(nm),
         acting_now: cur ? nm(f.turn) : 'nobody: waiting on those holding Pulse Points',
-        acting_is: cur ? (cur.kind === 'org' ? 'a player: describe the moment and ask what they do' : 'a creature: act for it') : '',
+        acting_is: cur ? (cur.kind === 'org' ? (directed(T.state.organisms[cur.id]) ? 'an away player: you act for them' : 'a player: describe the moment and ask what they do') : 'a creature: act for it') : '',
       };
     },
     run(name, args) {

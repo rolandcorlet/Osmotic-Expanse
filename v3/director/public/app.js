@@ -412,7 +412,13 @@ function bandMap() {
     const range = b.max === Infinity ? `${b.min}+` : b.min === b.max ? `${b.min}` : `${b.min}–${b.max}`;
     return `<div class="band"><span class="bn">${b.name}<small>${range} Drifts</small></span><span class="row">${toks}</span></div>`;
   }).join('');
-  const cohort = Object.values(state.organisms).filter((o) => o.playerId).map((o) => `<span class="tok org${o.dormant ? ' down' : ''}">${esc(o.name)}${o.band ? ` <small>${esc(o.band)}</small>` : ''}</span>`).join(' ');
+  // v3: an organism whose player is away, or has left, is marked: the Director plays it. The host
+  // can cover a body and take it back from here.
+  const inFight = (o) => !!(state.fight && state.fight.actors[`org:${o.id}`]);
+  const cohort = Object.values(state.organisms).filter((o) => o.playerId || inFight(o)).map((o) => {
+    const away = o.covered || !o.playerId;
+    return `<span class="tok org${o.dormant ? ' down' : ''}">${esc(o.name)}${o.band ? ` <small>${esc(o.band)}</small>` : ''}${away ? ' <small>with the Director</small>' : ''}</span>`;
+  }).join(' ');
   // v3: a button on the player, table and host screens to see what is in the scene.
   const seen = here.filter((c) => !c.hidden);
   const picBtn = seen.length ? `<span class="right"><button class="btn sm" data-act="pics.on">Show pictures</button></span>` : '';
@@ -939,9 +945,10 @@ function fightCard(o) {
   if (!a) return `<section class="card"><h3>Pulse War · Cycle ${f.cycle}</h3><div class="dim">${esc(o.name)} is not in this fight.</div>${orderList()}</section>`;
   const current = f.turn ? f.actors[f.turn] : null;
   const curName = current ? (current.kind === 'org' ? state.organisms[current.id].name : (state.creatures[current.id] || {}).name) : '';
-  const canAct = (a.status === 'acting' || a.status === 'holding') && !o.dormant;
+  const canAct = (a.status === 'acting' || a.status === 'holding') && !o.dormant && !o.covered;
   let banner;
-  if (o.dormant) banner = o.lysed ? '<div class="turn">Total Lysis: your organism is gone. Talk to the Director about what comes next.</div>' : '<div class="turn">You are Dormant. An ally at Contact can stabilise you.</div>';
+  if (o.covered) banner = `<div class="turn">The Director is playing ${esc(o.name)} while you are away. Rejoin when you can; the host will hand the body back.</div>`;
+  else if (o.dormant) banner = o.lysed ? '<div class="turn">Total Lysis: your organism is gone. Talk to the Director about what comes next.</div>' : '<div class="turn">You are Dormant. An ally at Contact can stabilise you.</div>';
   else if (a.status === 'acting') banner = '<div class="turn mine">Your turn</div>';
   else if (a.status === 'holding') banner = `<div class="turn mine">Holding ${a.pp} PP. Step back in after anyone else acts.</div>`;
   else if (a.status === 'done') banner = `<div class="turn">You are done this Cycle${curName ? `. ${esc(curName)} is acting.` : '.'}</div>`;
@@ -1190,8 +1197,8 @@ function hostFightCard() {
     const a = f.actors[k];
     const o = state.organisms[a.id];
     return `<div class="o org${f.turn === k ? ' now' : ''}${a.status === 'done' ? ' done' : ''}"><span class="f">${a.freq}</span>
-      <span class="nm">${esc(o.name)} <span class="small dim">MI ${o.mi}/${o.miMax} · ATP ${o.atp} · Stress ${o.stress}${a.reserve ? ' · Reserve' : ''}</span></span>
-      <span class="row">${a.status === 'acting' || a.status === 'holding' ? pips(a.pp, a.ppMax) : ''}<span class="small dim">${a.status}</span>${a.status === 'acting' || a.status === 'holding' ? `<button class="btn sm" data-act="h.org.end" data-id="${o.id}">End</button>` : ''}</span></div>`;
+      <span class="nm">${esc(o.name)} <span class="small dim">MI ${o.mi}/${o.miMax} · ATP ${o.atp} · Stress ${o.stress}${a.reserve ? ' · Reserve' : ''}${o.covered || !o.playerId ? ' · <b>the Director plays this one</b>' : ''}</span></span>
+      <span class="row">${a.status === 'acting' || a.status === 'holding' ? pips(a.pp, a.ppMax) : ''}<span class="small dim">${a.status}</span>${a.status === 'acting' || a.status === 'holding' ? `<button class="btn sm" data-act="h.org.end" data-id="${o.id}">End</button>` : ''}${a.status === 'done' || (!o.playerId && !o.covered) ? '' : `<button class="btn sm${o.covered ? ' primary' : ''}" data-act="org.cover" data-id="${o.id}" title="${o.covered ? 'Their player is back: take this body back' : 'Their player is away: the Director plays this body until they are back'}">${o.covered ? 'Take back' : 'Player away'}</button>`}</span></div>`;
   }).join('') : '';
   const head = f
     ? `<div class="row"><button class="btn primary grow" data-act="h.turn.next">Next turn</button><button class="btn" data-act="h.cycle.end">End the Cycle</button><button class="btn danger" data-act="h.fight.end">End the Pulse War</button></div>
@@ -1403,6 +1410,15 @@ const ACT = {
     pumpVoice();
   },
   'book.stop': () => { stopVoice(); },
+  // The host covers an organism whose player is away: the Director plays it. If it is that body's turn
+  // now, the Director is asked to take it straight away.
+  'org.cover': async (d) => {
+    const o = state.organisms[d.id];
+    if (!o) return;
+    const on = !o.covered;
+    const ok = await send({ type: 'organism.cover', organismId: o.id, on });
+    if (ok && on && state.fight && state.fight.turn === `org:${o.id}`) sendDirector({ op: 'run', note: '' });
+  },
   'pics.on': () => { ui.pics = true; },
   'pics.off': () => { ui.pics = false; },
   'p.show': (d) => { ui.show[d.what] = !ui.show[d.what]; },

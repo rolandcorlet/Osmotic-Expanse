@@ -652,10 +652,13 @@ function cre(s, cid) {
   return c;
 }
 
+// v3: an organism is directed when its player is away (the host covers it) or has left it. The
+// Director plays a directed organism's turns and rolls for it, in the open; no player acts for it.
+export const directed = (o) => !!o && (!!o.covered || !o.playerId);
 function mayControl(s, ctx, orgId) {
   if (ctx.role === 'host') return true;
   const o = s.organisms[orgId];
-  return !!o && o.playerId === ctx.pid;
+  return !!o && o.playerId === ctx.pid && !o.covered;
 }
 
 function needControl(s, ctx, orgId) {
@@ -1646,6 +1649,18 @@ const HANDLERS = {
       if (a.unhurried) req.note = `Baseline ${base} does not meet Threshold ${at}, so this needs dice.`;
       pushRequest(s, req);
       say(s, ctx, `${o.name} is asked to roll ${label}: ${pool.dice} dice against Threshold ${at}.`, 'ask');
+    },
+  },
+  // v3: the host marks an organism's player as away (or back). The Director plays it while away.
+  'organism.cover': {
+    host: true,
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      const on = !!a.on;
+      if (!!o.covered === on) return;
+      o.covered = on;
+      if (on) say(s, ctx, `${o.name}'s player is away. The Director plays ${o.name}'s turns until they are back.`, 'turn');
+      else say(s, ctx, `${o.name} is back in their own hands.`, 'turn');
     },
   },
   'request.cancel': {
