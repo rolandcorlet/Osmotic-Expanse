@@ -487,9 +487,135 @@ function bandMap() {
 
 // The players' Show pictures button: always on the bar, the same size as the others, and flashing red
 // while something is in sight (Roly, 17 Nov). It opens the pictures with each creature's distance.
+// ---------------------------------------------------------------- the site map
+// Where everyone is (Roly, 18 Nov): a small radar of the site, centred on the Cohort. There is no
+// grid in this game, so the rings are the distance bands; creatures sit on their band's ring, the
+// site's landmarks on theirs, and the ways out point off the edge with where they go. Ideas taken
+// from the D&D table Roly sent: ringed tokens, a glow on whoever's turn it is.
+const MAP_RING = { contact: 0.27, near: 0.45, mid: 0.63, far: 0.81, loose: 0.95 };
+const mapAngle = (id, salt = 0) => { let h = 7 + salt; for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) | 0; return ((h >>> 0) % 3600) / 3600 * Math.PI * 2; };
+const ringOf = (band) => MAP_RING[String(band || 'near').toLowerCase()] ?? MAP_RING.near;
+function mapExits(list, sites = [], here = -1) {
+  const used = {};
+  const cap = (x) => x[0].toUpperCase() + x.slice(1);
+  const clip = (x, n) => (x.length > n ? x.slice(0, n - 1).trim() + '…' : x);
+  const bare = (x) => String(x || '').toLowerCase().replace(/^the\s+/, '');
+  return (list || []).map((text) => {
+    const full = String(text);
+    const t = full.replace(/\s*\(.*?(\)|$)/g, '').trim();
+    const lead = t.match(/^([A-Za-z]+)[:\s]/);
+    const first = lead ? lead[1].toLowerCase() : '';
+    const DIR = { onward: -90, inward: -90, deeper: -90, forward: -90, in: -90, down: -90, with: -90, back: 90, against: 90, out: 0, up: 0 };
+    // Where it goes: the words after "to", or after the colon.
+    const destM = t.match(/\b(?:to|towards|into)\s+(?:the\s+)?(.+)$/i);
+    let to = destM ? `to ${/^the /i.test(t.slice(destM.index + destM[0].indexOf(destM[1]) - 4)) ? 'the ' : ''}${destM[1]}` : '';
+    to = to.replace(/^to (the )?/i, (m) => m).split(/,| and |\s+going\s+/)[0];
+    let deg = DIR[first];
+    let word = deg != null ? cap(first) : '';
+    if (deg == null && /\bback\b/i.test(t)) { deg = 90; word = 'Back'; }
+    if (deg == null) {
+      // No direction given: the Vector's order of sites says onward or back.
+      const dest = bare(destM ? destM[1] : '');
+      const k = dest ? sites.findIndex((x) => [bare(x.name), bare(x.short)].some((n) => n && (dest.startsWith(n) || n.startsWith(dest)))) : -1;
+      deg = k > here && here >= 0 ? -90 : k >= 0 && k < here ? 90 : 0;
+    }
+    if (!word) word = cap(clip(t.split(/\s+(?:to|back|through|across)\s+/i)[0].replace(/^the\s+/i, ''), 20));
+    else if (!to) to = clip(t.replace(/^\S+[:\s]+/, ''), 26);
+    if (word.toLowerCase() === to.toLowerCase()) to = '';
+    used[deg] = (used[deg] || 0) + 1;
+    if (used[deg] > 1) deg += (used[deg] % 2 ? -1 : 1) * 34 * Math.ceil((used[deg] - 1) / 2);
+    return { word, to: clip(to, 26), deg, full };
+  });
+}
+function siteMapSvg({ mini = false } = {}) {
+  const st = site();
+  const f = state.fight;
+  const me = mine();
+  const R = mini ? 48 : 88;
+  const out = [];
+  const pt = (r, a) => [Math.cos(a) * r, Math.sin(a) * r].map((v) => +v.toFixed(1));
+  const turnKey = f && f.turn;
+  // water and the band rings
+  out.push(`<circle r="${R + (mini ? 2 : 10)}" class="sm-water"/>`);
+  for (const id of ['far', 'mid', 'near', 'contact']) {
+    const r = MAP_RING[id] * R;
+    out.push(`<circle r="${r.toFixed(1)}" class="sm-ring sm-${id}"/>`);
+    if (!mini) out.push(`<text class="sm-band" x="${(-r * 0.5).toFixed(1)}" y="${(r * 0.866 + 2).toFixed(1)}" text-anchor="middle">${esc(R_BANDS[id])}</text>`);
+  }
+  const foes = creaturesHere().filter((x) => !x.hidden);
+  const byRing = {};
+  for (const c of foes) (byRing[ringOf(c.band)] = byRing[ringOf(c.band)] || []).push(c);
+  const foeAngle = (c) => {
+    const ring = byRing[ringOf(c.band)];
+    // Spread a ring's creatures evenly from a fixed start, keeping clear of the ways out (up and down).
+    return -Math.PI / 2 + 0.6 + mapAngle(ring.map((x) => x.cid).join(), 1) % 0.5 + (ring.indexOf(c) * Math.PI * 2) / ring.length;
+  };
+  if (!mini) {
+    // Landmarks on their band, each in the clearest gap on its ring: away from the creatures there,
+    // the other landmarks and the ways out at the top and bottom.
+    const taken = {};
+    for (const c of foes) (taken[ringOf(c.band)] = taken[ringOf(c.band)] || []).push(foeAngle(c));
+    const gap = (a, b) => { const d = Math.abs(((a - b) % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2); return Math.min(d, Math.PI * 2 - d); };
+    for (const z of (st.zones || [])) {
+      if (!z.band) continue;
+      const ring = ringOf(z.band);
+      const busy = [...(taken[ring] || []), -Math.PI / 2, Math.PI / 2];
+      let best = 0;
+      let bestGap = -1;
+      for (let k = 0; k < 24; k++) {
+        const a = (k / 24) * Math.PI * 2 + 0.13;
+        const g = Math.min(...busy.map((b) => gap(a, b)));
+        if (g > bestGap) { bestGap = g; best = a; }
+      }
+      (taken[ring] = taken[ring] || []).push(best);
+      const [x, y] = pt(ring * R, best);
+      const [lx, ly] = pt(ring * R + 6, best);
+      const anc = Math.cos(best) > 0.35 ? 'start' : Math.cos(best) < -0.35 ? 'end' : 'middle';
+      out.push(`<g class="sm-zone"><path d="M${x} ${y - 3.2}l3.2 3.2l-3.2 3.2l-3.2-3.2z"/><text x="${lx}" y="${(ly + 2 + (anc === 'middle' ? Math.sign(Math.sin(best)) * 4 : 0)).toFixed(1)}" text-anchor="${anc}">${esc(String(z.name).replace(/^the /i, ''))}</text><title>${esc(`${z.name}${z.note ? `: ${z.note}` : ''} (${z.band})`)}</title></g>`);
+    }
+    // the ways out
+    for (const e of mapExits(st.exits, sc.sites || [], (sc.sites || []).indexOf(st))) {
+      const a = (e.deg * Math.PI) / 180;
+      const [x, y] = pt(R + 3, a);
+      const [lx, ly] = pt(R - 13, a);
+      const rot = e.deg + 90;
+      const anchor = Math.abs(Math.cos(a)) < 0.3 ? 'middle' : Math.cos(a) > 0 ? 'end' : 'start';
+      out.push(`<g class="sm-exit"><path transform="translate(${x} ${y}) rotate(${rot})" d="M0 -7L6 3L-6 3Z"/><text x="${lx}" y="${(ly + (Math.sin(a) > 0.3 ? -4 : Math.sin(a) < -0.3 ? 8 : 0)).toFixed(1)}" text-anchor="${anchor}"><tspan class="w">${esc(e.word)}</tspan><tspan x="${lx}" dy="7">${esc(e.to)}</tspan></text><title>${esc(e.full)}</title></g>`);
+    }
+  }
+  // the creatures, on their ring
+  for (const c of foes) {
+    const [x, y] = pt(ringOf(c.band) * R, foeAngle(c));
+    const turn = turnKey === `cre:${c.cid}`;
+    const letter = (String(c.name).match(/\s([A-Z])$/) || [, String(c.name)[0]])[1];
+    const r = mini ? 9 : 7;
+    out.push(`<g class="sm-tok sm-foe${c.down ? ' down' : ''}${turn ? ' turn' : ''}" transform="translate(${x} ${y})">${turn ? `<circle r="${r + 4}" class="sm-glow"/>` : ''}<circle r="${r}"/>${mini ? '' : `<text y="2.6">${esc(c.down ? '✕' : letter)}</text>`}<title>${esc(`${c.name}: ${bandLabel(c.band)}${c.down ? ', down' : ''}`)}</title></g>`);
+  }
+  // the Cohort, in the middle
+  const cohort = mini ? (me ? [me] : []) : Object.values(state.organisms || {}).filter((o) => o.playerId || (f && f.actors[`org:${o.id}`]));
+  cohort.forEach((o, i) => {
+    const n = cohort.length;
+    const [x, y] = n > 1 ? pt((mini ? 5 : 9), (i / n) * Math.PI * 2 - Math.PI / 2) : [0, 0];
+    const turn = turnKey === `org:${o.id}`;
+    const r = mini ? 8 : 6;
+    out.push(`<g class="sm-tok ${me && o.id === me.id ? 'sm-me' : 'sm-ally'}${o.dormant ? ' down' : ''}${turn ? ' turn' : ''}" transform="translate(${x} ${y})">${turn ? `<circle r="${r + 4}" class="sm-glow"/>` : ''}<circle r="${r}"/>${mini ? '' : `<text y="2.3">${esc(String(o.name)[0])}</text>`}<title>${esc(`${o.name}${me && o.id === me.id ? ' (you)' : ''}`)}</title></g>`);
+  });
+  const pad = mini ? 52 : 100;
+  return `<svg class="sitemap${mini ? ' mini' : ''}" viewBox="${-pad} ${-pad} ${pad * 2} ${pad * 2}" role="img" aria-label="${esc(`Map of ${st.name}: where everyone is, and the ways out`)}">${out.join('')}</svg>`;
+}
+const R_BANDS = { contact: 'Contact', near: 'Near', mid: 'Mid', far: 'Far' };
+function siteMapCard() {
+  const st = site();
+  const f = state.fight;
+  const turn = f && f.turn && f.actors[f.turn];
+  const who = turn ? (turn.kind === 'org' ? state.organisms[turn.id] : state.creatures[turn.id]) : null;
+  return `<div class="smcard"><div class="row"><b>Where everyone is</b><span class="dim small">${esc(st.name)}${who ? ` · ${esc(who.name)}'s turn` : ''}</span></div>${siteMapSvg()}
+    <div class="smkey small dim"><span><i class="k me"></i>You</span><span><i class="k ally"></i>Cohort</span><span><i class="k foe"></i>Creature</span><span><i class="k exit"></i>Way out</span><span><i class="k zone"></i>Landmark</span></div></div>`;
+}
+
 function picsButton() {
   const up = creaturesHere().filter((c) => !c.hidden && !c.down);
-  return `<button class="btn grow${ui.pics ? ' primary' : ''}${up.length ? ' alert' : ''}" data-act="${ui.pics ? 'pics.off' : 'pics.on'}" aria-pressed="${ui.pics ? 'true' : 'false'}" title="${up.length ? `${up.length} creature${up.length > 1 ? 's' : ''} in sight` : 'Nothing in sight'}">${ui.pics ? 'Hide: ' : ''}Show pictures${up.length ? ` (${up.length})` : ''}</button>`;
+  return `<button class="btn grow${ui.pics ? ' primary' : ''}${up.length ? ' alert' : ''}" data-act="${ui.pics ? 'pics.off' : 'pics.on'}" aria-pressed="${ui.pics ? 'true' : 'false'}" title="${up.length ? `${up.length} creature${up.length > 1 ? 's' : ''} in sight` : 'Nothing in sight'}">${up.length ? siteMapSvg({ mini: true }) : ''}${ui.pics ? 'Hide: ' : ''}Show pictures${up.length ? ` (${up.length})` : ''}</button>`;
 }
 const bandLabel = (id) => { const b = R.BANDS.find((x) => x.id === (id || 'near')) || R.BANDS[1]; const r = b.max === Infinity ? `${b.min}+` : b.min === b.max ? `${b.min}` : `${b.min}–${b.max}`; return `${b.name} · ${r} Drifts`; };
 
@@ -512,7 +638,7 @@ function picturesHtml(list) {
     }).join('');
     return `<figure class="pic${up ? '' : ' gone'}">${has ? `<img alt="${esc(k.name)}" src="/creatures/${esc(k.blockId)}.webp">` : '<div class="nopic">No picture yet</div>'}<figcaption><b>${esc(k.name)}</b>${note ? `<span class="dim small">${esc(note)}</span>` : ''}<div class="wheres">${where}</div></figcaption></figure>`;
   }).join('');
-  return `<div class="pics" data-act="pics.off"><div class="picsin"><div class="row"><b>In this scene</b><span class="grow"></span><button class="btn sm" data-act="pics.off">Close</button></div><div class="picgrid">${cards || '<div class="empty">Nothing is in sight right now.</div>'}</div></div></div>`;
+  return `<div class="pics" data-act="pics.off"><div class="picsin"><div class="row"><b>In this scene</b><span class="grow"></span><button class="btn sm" data-act="pics.off">Close</button></div>${siteMapCard()}<div class="picgrid">${cards || '<div class="empty">Nothing is in sight right now.</div>'}</div></div></div>`;
 }
 
 function pips(pp, max, waiting) {
