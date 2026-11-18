@@ -718,8 +718,65 @@ test('The Ninth Shift: BADGE moves on printed triggers more than once; a Vector 
   t.ai({ type: 'clock', id: 'BADGE', delta: 1, why: 'took the good money' });
   t.ai({ type: 'clock', id: 'BADGE', delta: 1, why: 'printed for the Hegemony' });
   assert.equal(t.s.clocks.BADGE.filled, 2);
-  const f = table();
-  assert.throws(() => f.host({ type: 'beat' }), /keeps no count/);
+  // A Vector that prints nothing for a day refuses one (The First Carve counts Beats since 18 Nov).
+  const bare = { ...scenario, rules: { ...scenario.rules, beatClocks: undefined, beatIdle: undefined, beatSets: undefined } };
+  const s0 = newSession(bare);
+  assert.throws(() => apply(s0, { type: 'beat' }, { role: 'host', pid: null, rng: makeRng(1), now: 0, scenario: bare, bestiary }), /keeps no count/);
+});
+
+test('The First Carve: a Beat moves TOLL, and CARCASS only when no cut was signed and no haul shipped', () => {
+  const t = seated();
+  t.host({ type: 'beat', why: 'a day in the queue' });
+  assert.equal(t.s.clocks.TOLL.filled, 1, 'a Beat passes: TOLL +1');
+  assert.equal(t.s.clocks.CARCASS.filled, 1, 'nothing signed or shipped: CARCASS +1');
+  t.s.beatWork = true; // a cut stamped at a Tally Post this Beat
+  t.host({ type: 'beat' });
+  assert.equal(t.s.clocks.TOLL.filled, 2);
+  assert.equal(t.s.clocks.CARCASS.filled, 1, 'a cut was signed: CARCASS holds');
+  assert.equal(t.s.beatWork, false, 'the next Beat starts clean');
+});
+
+test('The First Carve: salt rewinds CARCASS or HUNGER once a scene, and costs 10 S per 2 Drifts', () => {
+  const t = seated();
+  t.host({ type: 'clock', id: 'CARCASS', delta: 2 });
+  t.host({ type: 'clock', id: 'HUNGER', delta: 2 });
+  t.s.organisms.wall.substrate = 100;
+  const before = 100;
+  t.host({ type: 'salt', what: 'panel', drifts: 4, organismId: 'wall' });
+  assert.equal(t.s.organisms.wall.substrate, before - 20, '4 Drifts of salt is 20 S');
+  assert.equal(t.s.clocks.CARCASS.filled, 1);
+  t.host({ type: 'salt', what: 'panel', drifts: 2, organismId: 'wall' });
+  assert.equal(t.s.clocks.CARCASS.filled, 1, 'once a scene');
+  t.host({ type: 'salt', what: 'wound', free: true });
+  assert.equal(t.s.clocks.HUNGER.filled, 1);
+  assert.throws(() => t.host({ type: 'salt', what: 'panel', drifts: 200, organismId: 'wall' }), /takes 1000 S/);
+});
+
+test('The First Carve: paper and the Gut Stone serial rewind TOLL once each; a shipped haul pays a receipt', () => {
+  const t = seated();
+  t.host({ type: 'clock', id: 'TOLL', delta: 3 });
+  t.host({ type: 'paper', kind: 'chit', note: 'paid at the drone gate' });
+  assert.equal(t.s.clocks.TOLL.filled, 2);
+  assert.throws(() => t.host({ type: 'paper', kind: 'chit' }), /does not pay twice/);
+  t.host({ type: 'paper', kind: 'serial' });
+  assert.equal(t.s.clocks.TOLL.filled, 1);
+  assert.throws(() => t.host({ type: 'haul.ship' }), /nobody here to ship|Nothing stamped/);
+  t.s.organisms.wall.stamped = { C: 2, G: 1, P: 0, T: 0 };
+  t.host({ type: 'haul.ship', buyer: 'the Guild tally at the arch' });
+  assert.deepEqual(t.s.organisms.wall.shipped, { C: 2, G: 1, P: 0, T: 0 });
+  assert.equal(t.s.clocks.TOLL.filled, 0, 'the receipt is paper');
+  assert.equal(t.s.beatWork, true, 'a haul shipped this Beat');
+});
+
+test('The First Carve: CARCASS full, the whale goes over: unstamped cuts are lost, HUNGER jumps to 3, ORDER opens', () => {
+  const t = seated();
+  t.s.organisms.wall.specimens = { C: 3, G: 2, P: 0, T: 0 };
+  t.s.organisms.wall.stamped = { C: 1, G: 0, P: 0, T: 0 };
+  t.host({ type: 'clock', id: 'CARCASS', delta: 6 });
+  assert.deepEqual(t.s.organisms.wall.specimens, { C: 0, G: 0, P: 0, T: 0 });
+  assert.equal(t.s.organisms.wall.stamped.C, 1, 'stamped cuts are safe');
+  assert.equal(t.s.clocks.HUNGER.filled, 3);
+  assert.equal(t.s.clocks.ORDER.filled, 2);
 });
 
 // ---- The Long Swallow is seated: Level-7 Hands, its three Clocks, a Beat that moves LICENCE only.

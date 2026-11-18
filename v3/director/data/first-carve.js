@@ -255,7 +255,20 @@ export const scenario = {
     // HUNGER, so a Pulse War in the open moves both. Naming only TOLL is the 13 Nov afternoon gate's
     // defect — the Director told the table HUNGER had moved, which is what the book prints, and the
     // Engine had paid nothing to HUNGER at all.
-    clockTriggers: { panelOpens: 'CARCASS', bodyCut: 'HUNGER', bodyLeft: ['HUNGER', 'COLONY'], loud: ['TOLL', 'HUNGER'], oathKept: 'TOLL' },
+    clockTriggers: {
+      panelOpens: 'CARCASS', bodyCut: 'HUNGER', bodyLeft: ['HUNGER', 'COLONY'], loud: ['TOLL', 'HUNGER'], oathKept: 'TOLL',
+      // 3.1 and 3.3: salt is the Expanse's refrigeration (10 S per 2 Drifts). Once a scene each, so a
+      // sack of salt is a choice, not a way to empty the Clocks.
+      saltPanel: { CARCASS: -1, oncePerScene: true }, saltWound: { HUNGER: -1, oncePerScene: true },
+      // 3.2: "the Cohort produces paper" and "turns in the Gut Stone's serial to a Warden register arch".
+      paper: 'TOLL', serial: 'TOLL', haulShipped: { TOLL: -1, oncePerScene: true },
+    },
+    // 3.1 and 3.2: a Beat passes. TOLL moves every Beat; CARCASS only when no cut was signed and no
+    // haul shipped. The whole Vector runs in roughly 4 Beats (7.4), so a day closes itself after about
+    // a dozen of the Director's turns if nobody closes it.
+    beatClocks: ['TOLL'],
+    beatIdle: ['CARCASS'],
+    beatAfterTurns: 12,
     // 3.1 prices "the Cohort opens a new panel" on CARCASS. Both runs of the 13 Nov evening gate paid
     // that row twice for one panel — the Director's discretionary advance and the site cut — so this
     // Vector says how many panel openings one scene pays for. 1 keeps the Clock honest to the scene;
@@ -268,7 +281,10 @@ export const scenario = {
     // 3.3 segment 4. The Engine pays the grade drop; the swarm strip in the Soft Field is the Director's to
     // bring if the Cohort is there (printed: 3 Gnaw Swarms + 2 Detritus Feeders). The Order Clock it opens
     // at 2 is the campaign's: the Engine opens it here and carries it to the next Vector.
-    onFull: { HUNGER: { name: 'the Render Cascade', dropUnstampedGrade: true, opens: { ORDER: 2 }, says: 'Everything hungry in the Reach has found the carcass at once. Every cut the Cohort carries that has not been stamped has been nibbled, soured or stripped: it is worth one grade less than it was. Stamped cuts are untouched.' } },
+    onFull: {
+      // 3.1 segment 6: the whale goes over. The burst itself (Kinetic 12, Jostled, 2 band shift) is the Director's to narrate and pay as a hazard.
+      CARCASS: { name: 'the whale goes over', wipeUnstamped: true, raise: { HUNGER: 3 }, opens: { ORDER: 2 }, says: 'The carcass bursts. Every cut the Cohort carries that was never stamped is worth nothing now.' },
+      HUNGER: { name: 'the Render Cascade', dropUnstampedGrade: true, opens: { ORDER: 2 }, says: 'Everything hungry in the Reach has found the carcass at once. Every cut the Cohort carries that has not been stamped has been nibbled, soured or stripped: it is worth one grade less than it was. Stamped cuts are untouched.' } },
   },
 };
 
@@ -280,6 +296,8 @@ export function publicScenario(sc = scenario) {
     whale: sc.whale,
     clocks: sc.clocks,
     hasBeat: !!(sc.rules && (sc.rules.beatClocks || sc.rules.beatSets)),
+    // What the host console offers beyond the Clocks: salt, shipping and paper (3.1-3.2).
+    prices: { salt: !!(sc.rules.clockTriggers || {}).saltPanel, ship: !!(sc.rules.clockTriggers || {}).haulShipped, paper: !!(sc.rules.clockTriggers || {}).paper },
     restClock: (sc.rules && sc.rules.reconstitutionCostsClock) || '',
     placeLabel: sc.placeLabel || '',
     zeroLine: sc.zeroLine || '',

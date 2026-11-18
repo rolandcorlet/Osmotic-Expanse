@@ -37,7 +37,7 @@ let codeBad = false;
 const TABS = {
   player: [['play', 'Play'], ['sheet', 'Sheet'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['saves', 'Saves'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -57,6 +57,8 @@ const ui = {
   jumpTop: false,
   say: { text: '' },
   dir: { key: '', note: '', edit: '', editId: null, narrate: '', url: '', urlFor: null },
+  paperKind: 'chit',
+  saves: { slots: null, cloud: null, cloudSlots: null, name: '', url: '', key: '', busy: false, sure: '' }, // host: the Saves tab
   strike: null,
   drift: false,
   quick: { baseline: 'OSM', pathway: '', at: '', practice: false },
@@ -390,6 +392,13 @@ const lastRoll = () => state.rolls.slice().reverse().find((r) => r.kind !== 'fre
 const playerName = (o) => (o.borrow && o.playerId ? `${o.borrow.byName}, standing in for ${o.borrow.ownerName}` : o.playerId && state.players[o.playerId] ? state.players[o.playerId].name : '');
 // Who is really playing a borrowed body, for the Story and the fight order: "Jo for Roly".
 const standInNote = (o) => (o && o.borrow && o.playerId ? `${o.borrow.byName} for ${o.borrow.ownerName}` : '');
+// The host gets the whole Vector (its rules); players get the public half (hasBeat, prices). Either way:
+const vectorHasBeat = () => !!(sc && (sc.hasBeat || (sc.rules && (sc.rules.beatClocks || sc.rules.beatSets || sc.rules.beatIdle))));
+const vectorPrices = () => {
+  const ct = (sc && sc.rules && sc.rules.clockTriggers) || {};
+  const p = (sc && sc.prices) || { salt: !!ct.saltPanel, ship: !!ct.haulShipped, paper: !!ct.paper };
+  return { ...p, any: !!(p.salt || p.ship || p.paper) };
+};
 const theHand = (o) => (/^the\s/i.test(o.hand) ? o.hand : `the ${o.hand}`);
 const forNote = (e) => (e.standIn ? ` <span class="faint small">(${esc(e.standIn)} for ${esc(e.standInFor)})</span>` : '');
 
@@ -940,6 +949,62 @@ function hostSeatsCard() {
   return `<section class="card seats-card"><h3>Players and stand-ins</h3><div class="seats">${rows}</div></section>`;
 }
 
+// ------------------------------------------------------------------ saved games
+// The host's Saves tab (Roly, 18 Nov): named saves on this computer, the autosave, and a backup copy in
+// Supabase (slots.js). The list comes from /api/saves, fetched when the tab opens.
+const MY_SUPABASE = 'https://rqxejhkatenyytjqpuzy.supabase.co';
+async function savesOp(body) {
+  const S = ui.saves;
+  S.busy = true;
+  render();
+  let out = { ok: false, error: 'Cannot reach the Director host.' };
+  try {
+    const res = await fetch('/api/saves', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, ...body }) });
+    out = await res.json();
+  } catch (e) { /* reported below */ }
+  S.busy = false;
+  if (out.slots) S.slots = out.slots;
+  if (out.cloud) { S.cloud = out.cloud; if (!S.url) S.url = out.cloud.url || MY_SUPABASE; }
+  if (out.cloudSlots) S.cloudSlots = out.cloudSlots;
+  if (!out.ok) toast(out.error || 'That did not work.');
+  render();
+  return out;
+}
+const when = (iso) => { try { return new Date(iso).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return iso || ''; } };
+function savesHtml() {
+  const S = ui.saves;
+  if (S.slots === null && !S.busy) setTimeout(() => savesOp({ op: 'list' }), 0);
+  const st = site();
+  if (!S.name) S.name = `${sc.title} · ${st.name}`;
+  const slotsList = (S.slots || []).map((x) => {
+    const sureLoad = S.sure === `load:${x.id}`;
+    const sureDel = S.sure === `del:${x.id}`;
+    return `<div class="slot"><div class="grow"><b>${esc(x.name)}</b>${x.auto ? ' <span class="chip">autosave</span>' : ''}${x.cloud ? ' <span class="chip ok" title="A copy is in Supabase">backed up</span>' : ''}
+        <div class="small dim">${esc(x.vector || '')}${x.site ? ` · ${esc(x.site)}` : ''}${x.players ? ` · ${esc(x.players)}` : ''}</div><div class="small faint">${esc(when(x.savedAt))}</div></div>
+      <div class="row">${sureLoad ? `<button class="btn sm primary" data-act="sv.load" data-id="${esc(x.id)}">Yes, load it</button><button class="btn sm" data-act="sv.sure" data-id="">Cancel</button>`
+        : sureDel ? `<button class="btn sm danger" data-act="sv.del" data-id="${esc(x.id)}">Yes, delete</button><button class="btn sm" data-act="sv.sure" data-id="">Cancel</button>`
+          : `<button class="btn sm" data-act="sv.sure" data-id="load:${esc(x.id)}">Load</button><button class="btn sm" data-act="sv.sure" data-id="del:${esc(x.id)}">Delete</button>`}</div></div>`;
+  }).join('');
+  const C = S.cloud || {};
+  const status = !C.configured ? '<span class="chip">not set up</span>' : C.status === 'ok' ? `<span class="chip ok">working${C.at ? `, last copy ${esc(when(C.at))}` : ''}</span>` : C.status === 'error' ? '<span class="chip warn">not working</span>' : '<span class="chip">set up, not tested</span>';
+  const cloudRows = (S.cloudSlots || []).map((x) => `<div class="slot"><div class="grow"><b>${esc(x.name)}</b><div class="small dim">${esc(x.vector || '')}${x.site ? ` · ${esc(x.site)}` : ''}</div><div class="small faint">${esc(when(x.savedAt))}</div></div>
+    <div class="row"><button class="btn sm" data-act="sv.restore" data-id="${esc(x.id)}" title="Bring this copy onto this computer as a saved game">Bring back</button></div></div>`).join('');
+  return `<div class="lay-two">
+    <section class="card fill"><h3>Saved games<span class="right">${S.busy ? '<span class="small dim">Working…</span>' : ''}</span></h3>
+      <div class="row"><input type="text" class="grow" data-k="sv.name" data-bind="saves.name" value="${esc(S.name)}" maxlength="60" placeholder="A name for this save"><button class="btn primary" data-act="sv.save" ${S.busy ? 'disabled' : ''}>Save this game</button></div>
+      <p class="small dim">Saves stay on this computer. The same name saves over the old one. An autosave of each game is kept every five minutes while you play. Loading a game replaces the one on the table; Undo brings it back.</p>
+      <div class="scroll" data-scroll="slots">${S.slots === null ? '<div class="dim">Reading the saves…</div>' : slotsList || '<div class="empty">No saved games yet.</div>'}</div>
+    </section>
+    <section class="card fill"><h3>Backup copy in Supabase<span class="right">${status}</span></h3>
+      <p class="small dim">Every save, and the autosave, is copied to your Supabase project, so a game survives this computer. The copies go to one table only the secret key can open. Supabase's free plan pauses a project after 7 days without use and keeps no backups of its own: open the dashboard now and then.</p>
+      <label class="fld"><span class="fl">Project address</span><input type="text" data-k="sv.url" data-bind="saves.url" value="${esc(S.url || MY_SUPABASE)}" placeholder="https://your-project.supabase.co"></label>
+      <label class="fld"><span class="fl">Secret key ${C.keySet ? '(saved on this computer; paste a new one to change it)' : ''}</span><input type="password" data-k="sv.key" data-bind="saves.key" value="${esc(S.key)}" placeholder="${C.keySet ? '••••••••' : 'sb_secret_… from Project Settings, API Keys'}" autocomplete="off"></label>
+      <div class="row"><button class="btn primary" data-act="sv.cfg" ${S.busy ? 'disabled' : ''}>Save and test</button><button class="btn" data-act="sv.pushAll" ${!C.configured || S.busy ? 'disabled' : ''}>Copy all saves now</button><button class="btn" data-act="sv.cloud" ${!C.configured || S.busy ? 'disabled' : ''}>Show the backups</button></div>
+      ${C.error ? `<div class="note warn small">${esc(C.error)}</div>` : ''}
+      ${S.cloudSlots ? `<div class="fl dim small">IN SUPABASE</div><div class="scroll" data-scroll="cloud">${cloudRows || '<div class="empty">No copies yet.</div>'}</div>` : ''}
+    </section></div>`;
+}
+
 // Session zero: read before anyone takes an organism.
 function zeroCard({ host = false } = {}) {
   const z = state.zero || { pauseWord: 'SLACK WATER', lines: [] };
@@ -1321,6 +1386,7 @@ function hostHtml() {
   if (ui.tab === 'bestiary') return bestiaryHtml();
   if (ui.tab === 'director') return directorHtml();
   if (ui.tab === 'memory') return memoryHtml();
+  if (ui.tab === 'saves') return savesHtml();
   if (ui.tab === 'voice') return `<div class="stack" style="max-width:760px">${voiceCard()}</div>`;
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}${hostSeatsCard()}</div>
@@ -1516,7 +1582,12 @@ function hostToolsCard() {
     <div class="row"><input type="number" style="width:86px" data-k="aw.c" data-bind="host.award.codon" value="${esc(A.codon)}" placeholder="Codon"><input type="number" style="width:86px" data-k="aw.s" data-bind="host.award.substrate" value="${esc(A.substrate)}" placeholder="S">
       <input type="text" class="grow" data-k="aw.w" data-bind="host.award.why" value="${esc(A.why)}" placeholder="What for"><button class="btn sm" data-act="h.award">Award each</button></div>
     ${info && info.online ? `<div class="row"><span class="small dim">Outside link</span><span class="small grow" style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</span><button class="btn sm" data-act="link.copy" data-v="${esc(info.online)}">Copy</button></div>` : ''}
-    <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval.${rc ? ` In this Vector it costs a ${rc} segment.` : ''}">Reconstitution${rc ? ` (${rc} +1)` : ''}</button>${sc && sc.hasBeat ? `<button class="btn sm" data-act="h.beat" title="A working day ends. The Vector moves the Clocks a day pays.">End the day (Beat ${(state.beat || 0) + 1})</button>` : ''}<button class="btn sm danger" data-act="h.new">New game…</button></div>
+    <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval.${rc ? ` In this Vector it costs a ${rc} segment.` : ''}">Reconstitution${rc ? ` (${rc} +1)` : ''}</button>${vectorHasBeat() ? `<button class="btn sm" data-act="h.beat" title="A working day ends. The Vector moves the Clocks a day pays.">End the day (Beat ${(state.beat || 0) + 1})</button>` : ''}<button class="btn sm danger" data-act="h.new">New game…</button></div>
+    ${vectorPrices().any && !state.fight ? `<details class="prices"><summary class="small dim">Salt, shipping and paper</summary><div class="row">
+      ${vectorPrices().salt ? '<button class="btn sm" data-act="h.salt" data-what="panel" title="10 S per 2 Drifts, paid by whoever carries the most Substrate: CARCASS back one, once a scene">Salt a panel</button><button class="btn sm" data-act="h.salt" data-what="wound" title="10 S per 2 Drifts, paid by whoever carries the most Substrate: HUNGER back one, once a scene">Salt a wound</button>' : ''}
+      ${vectorPrices().ship ? '<button class="btn sm" data-act="h.ship" title="Stamped cuts are shipped and safe; the receipt turns TOLL back one">Ship the haul</button>' : ''}
+      ${vectorPrices().paper ? `<select data-k="h.paper" data-bind="paperKind"><option value="chit">a toll chit</option><option value="claim">a valid claim</option><option value="licence">a licence</option><option value="witness">an Ash witness</option><option value="receipt">a Guild tally receipt</option><option value="serial">the Gut Stone's serial</option></select><button class="btn sm" data-act="h.paper" title="Each kind turns TOLL back one, once in a game">Paper</button>` : ''}
+    </div></details>` : ''}
   </section>`;
 }
 
@@ -1615,8 +1686,8 @@ function memoryHtml() {
   const chron = `<section class="card fill"><h3>The chronicle<span class="right">${d.writing ? '<span class="chip on">Writing…</span>' : ''}<button class="btn sm" data-act="m.night" title="Write a chapter for everything since the last one">End the night</button></span></h3>
     <div class="small dim">A paragraph is written each time the Cohort leaves a site, and when you end the night. The Director reads the latest three every turn.${d.kept ? ` Kept so far: ${d.kept.lines} line${d.kept.lines === 1 ? '' : 's'}, ${d.kept.chapters} chapter${d.kept.chapters === 1 ? '' : 's'}.` : ''}</div>
     <div class="fld"><span class="fl">How far the Director may go beyond the page</span>
-      <div class="seg">${[['page', 'Page only'], ['callbacks', 'Callbacks']].map(([id, name]) => `<button class="${(state.improv || 'callbacks') === id ? 'on' : ''}" data-act="m.improv" data-id="${id}">${name}</button>`).join('')}</div>
-      <span class="small dim">${(state.improv || 'callbacks') === 'page' ? 'It uses only what this site prints.' : 'People and threads from earlier may come back, in conversation and scene-dressing. Fights still use only the creatures printed for the site.'}</span></div>
+      <div class="seg">${[['page', 'Page only'], ['callbacks', 'Callbacks'], ['adlib', 'Ad-lib']].map(([id, name]) => `<button class="${(state.improv || 'callbacks') === id ? 'on' : ''}" data-act="m.improv" data-id="${id}">${name}</button>`).join('')}</div>
+      <span class="small dim">${(state.improv || 'callbacks') === 'page' ? 'It uses only what this site prints.' : state.improv === 'adlib' ? 'It may invent people, places and threads (marked "made up by the Director" here, and canon from then on), and one small encounter a site from the Bestiary, no tougher than the page\'s own. Numbers still come only from the page.' : 'People and threads from earlier may come back, in conversation and scene-dressing. Fights still use only the creatures printed for the site.'}</span></div>
     <div class="scroll" data-scroll="chron" style="display:flex;flex-direction:column;gap:10px">
       ${chapters.length ? chapters.map((c) => `<div class="note"><div class="row small"><b>${esc(c.site)}</b><span class="dim">${c.why === 'night' ? 'end of a night' : 'left'}${c.t ? ` · ${esc(new Date(c.t).toLocaleDateString())}` : ''}${c.by === 'engine' ? ' · written plainly' : ''}</span><span class="grow"></span><button class="btn sm" data-act="m.chdrop" data-id="${esc(c.id)}" title="Remove this chapter">x</button></div><div>${esc(c.text)}</div></div>`).join('')
         : '<p class="small dim">Nothing yet. The first chapter is written when the Cohort leaves its first site.</p>'}
@@ -1771,6 +1842,21 @@ const ACT = {
     await send({ type: 'join', name });
   },
   'claim.pick': (d) => { ui.claim.hand = d.id; },
+  'sv.save': async () => { const out = await savesOp({ op: 'save', name: ui.saves.name }); if (out.ok) toast(out.saved && out.saved.copied ? 'Saved, and a copy is in Supabase.' : 'Saved on this computer.', true); },
+  'sv.sure': (d) => { ui.saves.sure = d.id || ''; },
+  'sv.load': async (d) => { ui.saves.sure = ''; const out = await savesOp({ op: 'load', id: d.id }); if (out.ok) { toast('Loaded. Undo brings the last game back.', true); ui.tab = 'run'; } },
+  'sv.del': async (d) => { ui.saves.sure = ''; await savesOp({ op: 'delete', id: d.id }); },
+  'sv.cfg': async () => {
+    const S = ui.saves;
+    const out = await savesOp({ op: 'config', url: S.url || MY_SUPABASE, key: S.key });
+    if (!out.ok) return;
+    S.key = '';
+    const t = await savesOp({ op: 'test' });
+    if (t.ok) toast('Supabase answered. Saves will be copied there.', true);
+  },
+  'sv.pushAll': async () => { const out = await savesOp({ op: 'pushAll' }); if (out.ok) toast(`${out.copied || 0} saved game${out.copied === 1 ? '' : 's'} copied to Supabase.`, true); },
+  'sv.cloud': () => savesOp({ op: 'cloudList' }),
+  'sv.restore': async (d) => { const out = await savesOp({ op: 'restore', id: d.id }); if (out.ok) toast('It is on this computer now, under Saved games.', true); },
   'si.take': (d) => send({ type: 'standin.take', organismId: d.id }),
   'si.open': (d) => send({ type: 'standin.open', organismId: d.id, on: d.on === '1' }),
   'si.return': (d) => send({ type: 'standin.return', organismId: d.id }),
@@ -1897,6 +1983,9 @@ const ACT = {
   },
   'h.rest': () => send({ type: 'rest' }),
   'h.beat': () => send({ type: 'beat', why: 'The host ends the day.' }),
+  'h.salt': (d) => send({ type: 'salt', what: d.what, drifts: 2 }),
+  'h.ship': () => send({ type: 'haul.ship' }),
+  'h.paper': () => send({ type: 'paper', kind: ui.paperKind || 'chit' }),
   'h.undo': () => send({ type: 'undo' }),
   'loot.take': (d) => send({ type: 'loot.take', itemId: d.id }),
   'loot.always': (d) => send({ type: d.rule === 'take' ? 'loot.take' : 'loot.pass', itemId: d.id, always: true }),

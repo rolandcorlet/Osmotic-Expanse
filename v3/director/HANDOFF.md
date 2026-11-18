@@ -518,7 +518,7 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    two narration checks that now fail the gate, so read the flags before blaming the model. Qwen3.8-27B
    Q4_K_M is still untried. Phase 4 still needs a real group playing two sites — that is the gate, not
    another scripted run.
-3. Not built: save slots and Supabase copy (plan: rules and Vectors stay in GitHub; saves local first, Supabase as a copy; free plan pauses after 7 days idle and has no backups); ad-libbing (`improv: 'adlib'` is refused until built); Discord sign-in (deferred).
+3. **Built 18 Nov:** save slots (host Saves tab; `slots.js`, saves in `saves/slots/`, an autosave per game every five minutes) with a Supabase backup copy (table `public.oxd_saves` in Roly's project, RLS on with no policies, written only with the secret key kept in `saves/backup.json`; the free plan pauses after 7 days idle and has no backups). Ad-lib (`improv: 'adlib'`, the Memory tab): the Director may invent people, places and threads as canon, and one encounter a site through `invent_encounter` (Bestiary, at most three bodies, no tougher than the site's printed creatures). Still deferred: Discord sign-in.
 4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
 5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Built at
    `95d1271`:** opening a panel is one Engine event (`panel.open`, and `open_panel` for the Director),
@@ -536,7 +536,8 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    the Cohort being loud (paid through `payTrigger`, still once per scene), and `checkNarration` flags a
    Clock the narration moves that nothing moved — **Unpaid Clocks in narration** — which the bench tallies
    and the gate fails on.
-   Also unbuilt: the **Beat**
+   **Built 18 Nov:** The First Carve now counts Beats (TOLL every Beat; CARCASS only when no cut was stamped and no haul shipped; a day closes itself after 12 Director turns), salt (`salt`: a panel rewinds CARCASS, a wound HUNGER, once a scene each, 10 S per 2 Drifts), shipping (`haul.ship`: stamped cuts become shipped, the receipt is paper, TOLL −1 once a scene), paper and the Gut Stone serial (`paper`: TOLL −1, each kind once a game), CARCASS full ("the whale goes over": unstamped cuts lost, HUNGER to 3, ORDER opens at 2) and the opaque lane on creature attacks. The host's controls are under "Salt, shipping and paper" on the Clocks card (hidden in a Pulse War).
+   Was unbuilt: the **Beat**
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
    (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, the Gut Stone's serial turned in at a
    Warden register arch, and the Soft Field's opacity at 4+ Overflow ("every contest in the room is -2 dice

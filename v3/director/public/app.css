@@ -62,7 +62,7 @@ button.chip{background:transparent}
 button.chip:hover{border-color:var(--accent);color:var(--ink)}
 .fld{display:flex;flex-direction:column;gap:4px;min-width:0}
 .fld>.fl{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
-input[type=text],input[type=number],select,textarea{background:var(--input);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-height:36px;width:100%;min-width:0}
+input[type=text],input[type=number],input[type=password],select,textarea{background:var(--input);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-height:36px;width:100%;min-width:0}
 input[type=color]{width:44px;height:32px;border:1px solid var(--line);border-radius:6px;background:var(--input);padding:2px}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .fields.four{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -469,3 +469,14 @@ svg.sitemap .sm-tok text{stroke:none}
 .seat{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
 .seat .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 140px}
 .seat .row{flex-wrap:nowrap;gap:6px}
+
+/* ---- Saved games (host Saves tab). */
+.slot{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.slot:last-child{border-bottom:0}
+.slot .row{flex-wrap:nowrap;gap:6px}
+
+/* ---- Salt, shipping and paper (host Clocks card). */
+details.prices>summary{cursor:pointer;list-style-position:inside}
+details.prices .row{flex-wrap:wrap;gap:5px;margin-top:4px}
+details.prices .btn.sm{min-height:28px;padding:3px 9px}
+details.prices select{width:auto;flex:1 1 130px;min-height:30px;padding:4px 8px}

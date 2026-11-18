@@ -211,13 +211,15 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       const b = state.clocks.BADGE.filled;
       lines.push(`BADGE ${b} (${R2.badgeDice.reads[b]}): in any contest with the Hegemony or the Court, pass facing "hegemony" or "court" to ask_for_roll and the Engine adds ${R2.badgeDice.dice[b] >= 0 ? '+' : ''}${R2.badgeDice.dice[b]} dice. Do not add BADGE dice yourself.`);
     }
+    const CT = R2.clockTriggers || {};
+    if (CT.saltPanel || CT.paper || CT.haulShipped) lines.push(`This place prices more than the harvest: ${[CT.saltPanel ? 'salt (a panel turns CARCASS back, a wound turns HUNGER back, once a scene each: call salt)' : '', CT.haulShipped ? 'shipping stamped cuts (call ship_haul)' : '', CT.paper ? 'paper the law accepts, and the Gut Stone\'s serial at a Warden register arch (call produce_paper)' : ''].filter(Boolean).join('; ')}. Use them only when the players do the thing.`);
     if (R2.beatAfterTurns) {
       const left = R2.beatAfterTurns - turnsSinceBeat(state);
       lines.push(`A day (a Beat) is about ${R2.beatAfterTurns} of your turns. ${left > 1 ? `In ${left} more turns the day closes by itself` : 'This turn closes the day by itself'} unless you call end_beat first: call it yourself when the printed scene has turned (a day in the queue, the work done, a night's rest), and say what the day cost.${R2.routeBeats ? ' A route the page prices at a Beat is paid for you when the Cohort takes it.' : ''}`);
     }
     const growing = Object.values(state.organisms).filter((o) => o.playerId && o.growTo > o.level);
     if (growing.length) lines.push(`${growing.map((o) => o.name).join(', ')} can Grow (the Codon is there and they have rested). They choose on their own screen; do not choose for them. When one reaches a new Stage (Levels 6, 11, 16), ask them what changed in their body and who notices.`);
-    if (lines.length) { L.push('## IN FORCE NOW (the Engine pays these; say them when they matter)'); for (const x of lines) L.push(`- ${x}`); }
+    if (lines.length) { L.push('## IN FORCE NOW (these are paid for you; say them when they matter)'); for (const x of lines) L.push(`- ${x}`); }
   }
   if (state.clocks.ORDER) L.push('ORDER is the campaign\'s own Clock (five segments) and it stays with the Cohort from Vector to Vector. It advances when the Cohort harms, harvests or imitates an Order of creatures, in front of that Order\'s own kind: the swarms, the Bleeders, the Sentinels. Never because a roll failed. Name it aloud. The players may rewind it by spending time, Cohesion or Specimens: let them. When it fills, that Order responds: it swarms, hunts the Cohort\'s register, mimics the Cohort, or (rarely) makes an offer.');
   if (state.clocks.COLONY) L.push('COLONY (six segments) and CORE (four) are the campaign\'s own Clocks and travel with the Cohort from Vector to Vector. COLONY advances when the Cohort disturbs a settlement: violence in a market, unlicensed synthesis, a corpse left unharvested (a broken Oath is paid for you). When it fills, the colony acts: wardens arrive, tolls rise, a contract is voided, a mob forms. CORE advances for touching Nucleoid material, a Relic\'s Rule Break, an Apotheotic Choice or a Deep Naming; when it fills, the Nucleoid notices. Same discipline as every Clock: one advance a session, in front of the players, for something loud that succeeded.');
@@ -302,11 +304,24 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
       if (rest > 0) L.push(`${rest} more on record: use recall to look anyone up before you bring them back.`);
       L.push(state.improv === 'page'
         ? 'The host has kept this game on the page: do not bring anyone back from another site.'
-        : 'You may bring these people and threads back in conversation and scene-dressing, at any site. They are people, not encounters: anything that fights still comes only from the creatures printed for this site.');
+        : state.improv === 'adlib'
+          ? 'You may bring these people and threads back at any site, and grow them: they are canon, so keep every fact on their card true.'
+          : 'You may bring these people and threads back in conversation and scene-dressing, at any site. They are people, not encounters: anything that fights still comes only from the creatures printed for this site.');
       L.push('');
     }
   }
 
+  if (state.improv === 'adlib') {
+    // Ad-lib (Roly, 18 Nov): the host lets the Director go beyond the page. People, places and threads
+    // may be invented freely and become canon; one encounter a site may be invented, through the tool.
+    const spent = (state.adlib || {})[site.id];
+    L.push('# AD-LIB IS ON (the host lets you go beyond the page)');
+    L.push('- Invent people, places, rumours and threads when the story wants them: a rival crew, a stranded clerk, a debt someone remembers. Give each a name and call remember the moment you name them: from then on they are canon, and you keep every fact true.');
+    L.push(spent ? `- You have already brought this site's invented encounter (${spent.what}: ${spent.why}). No more invented creatures here.` : '- You may bring ONE invented encounter at this site with invent_encounter: from the Bestiary, at most three bodies, no tougher than what this site prints, with a reason in the fiction. The printed encounters come first; invent one only when the story has earned it (a fight that would make sense here and is not on the page).');
+    L.push('- Still never invent a number: rewards, prices, items with effects and damage come only from the page and the tools. An invented person can offer a deal in words; anything paid is still paid with award, harvest or the post.');
+    L.push('- Keep to this Vector: its tone, its factions and its stakes. An invention should make the printed situation sharper, never replace it.');
+    L.push('');
+  }
   L.push('# THE STORY SO FAR (most recent last)');
   const story = (state.story || []).slice(-16);
   if (!story.length) L.push('Nothing yet. This is the opening: set the scene for the Cohort.');

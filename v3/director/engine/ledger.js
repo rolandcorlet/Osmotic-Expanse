@@ -55,8 +55,8 @@ export function newSession(scenario) {
     // keeps them consistent and can bring them back. Host and Director only.
     cast: {},
     // How far the Director may go beyond the page: 'page' (nothing it was not given),
-    // 'callbacks' (people and threads from earlier may return; the default), and later
-    // 'adlib' (it may also invent people and encounters, written down as canon).
+    // 'callbacks' (people and threads from earlier may return; the default), and
+    // 'adlib' (it may also invent people, places and one small encounter a site, written down as canon).
     improv: 'callbacks',
     // Sharing out the harvest (Roly, 12 Nov 2026): every Specimen is offered in turn, by a picking
     // order that rotates and is kept for the whole game. Take it or pass, you go to the back.
@@ -393,8 +393,23 @@ function clockFills(s, ctx) {
         }
       }
     }
+    // THE FIRST CARVE 3.1, segment 6, the whale goes over: "every un-shipped cut is worth nothing".
+    // Stamped and shipped cuts are safe, as with the Render Cascade.
+    let lost = 0;
+    if (ev.wipeUnstamped) {
+      for (const o of Object.values(s.organisms)) {
+        const sp = o.specimens;
+        if (!sp) continue;
+        for (const k of GRADES) { lost += sp[k] || 0; sp[k] = 0; }
+      }
+    }
+    // "HUNGER jumps to 3": a Clock raised to at least a printed segment.
+    for (const [rid, to] of Object.entries(ev.raise || {})) {
+      const rc = s.clocks[rid];
+      if (rc && rc.filled < to) { rc.filled = clamp(to, 0, rc.segments); say(s, ctx, `${rc.name} jumps to ${rc.filled} of ${rc.segments}.`, 'clock'); }
+    }
     if (ev.opens && ev.opens.ORDER != null) openOrderClock(s, ctx, ev.opens.ORDER);
-    say(s, ctx, `${c.name} is full: ${ev.name}.${ev.dropUnstampedGrade ? ` Every unstamped cut drops one grade (${moved} Specimen${moved === 1 ? '' : 's'} changed).` : ''}`, 'clock');
+    say(s, ctx, `${c.name} is full: ${ev.name}.${ev.dropUnstampedGrade ? ` Every unstamped cut drops one grade (${moved} Specimen${moved === 1 ? '' : 's'} changed).` : ''}${ev.wipeUnstamped ? ` Every cut not stamped is worth nothing now (${lost} Specimen${lost === 1 ? '' : 's'} lost).` : ''}`, 'clock');
   }
 }
 
@@ -482,10 +497,21 @@ function growOne(s, ctx, o, choices) {
 function endBeat(s, ctx, why) {
   const rules = (ctx.scenario || {}).rules || {};
   const clocks = [].concat(rules.beatClocks || []).filter((id) => s.clocks[id]);
-  if (!clocks.length && !rules.beatSets) throw new RuleError('This Vector keeps no count of working days.');
+  if (!clocks.length && !rules.beatSets && !rules.beatIdle) throw new RuleError('This Vector keeps no count of working days.');
   s.beat = (s.beat || 0) + 1;
   s.beatSeq = s.seq;
   say(s, ctx, `A working day ends: Beat ${s.beat}.${why ? ` ${String(why).slice(0, 120)}` : ''}`, 'clock');
+  // THE FIRST CARVE 3.1: "a Beat passes with no cut signed and no haul shipped" advances CARCASS.
+  // rules.beatIdle names the Clocks a day pays only when nothing was stamped or shipped in it.
+  for (const id of [].concat(rules.beatIdle || [])) {
+    const c = s.clocks[id];
+    if (!c || c.stopped) continue;
+    if (s.beatWork) { say(s, ctx, `A cut was signed or a haul shipped this Beat, so ${c.name} holds.`, 'clock'); continue; }
+    const before = c.filled;
+    c.filled = clamp(c.filled + 1, 0, c.segments);
+    if (c.filled !== before) say(s, ctx, `No cut was signed and no haul shipped this Beat: ${c.name} is at ${c.filled} of ${c.segments}.`, 'clock');
+  }
+  s.beatWork = false;
   for (const id of clocks) {
     const c = s.clocks[id];
     if (c.stopped) continue;
@@ -1919,6 +1945,44 @@ const HANDLERS = {
       if (made.length) say(s, ctx, `${made.map((c) => c.name).join(', ')} ${made.length > 1 ? 'are' : 'is'} here.`, 'scene');
     },
   },
+  // Ad-lib (Roly, 18 Nov): with the host's leave, the Director may bring one encounter a site that the
+  // page does not print. It comes from the Bestiary with its printed numbers, no tougher than the
+  // toughest thing printed for this site, at most three bodies, and it goes into the table's memory
+  // as canon. The host may always add anything (creature.add); these limits are the Director's.
+  'creature.adlib': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai && s.improv !== 'adlib') throw new RuleError('Ad-lib is off at this table: only the creatures printed for this site may come. The host turns ad-lib on in the Memory tab.');
+      const why = String(a.why || '').trim().slice(0, 160);
+      if (!why) throw new RuleError('Say why they are here, in the fiction: an invented encounter needs a reason the table can hear.');
+      const block = (ctx.bestiary || {})[String(a.blockId || '')];
+      if (!block) throw new RuleError(`No block called "${a.blockId}" in the Bestiary.`);
+      const site = ((ctx.scenario || {}).sites || []).find((x) => x.id === s.scene.siteId) || {};
+      const printedTier = Math.max(1, ...(site.encounter || []).map((e) => ((ctx.bestiary || {})[e.blockId] || {}).tier || 1));
+      const count = clamp(Math.trunc(Number(a.count) || 1), 1, 12);
+      s.adlib = s.adlib || {};
+      if (ctx.ai) {
+        if (s.adlib[s.scene.siteId]) throw new RuleError(`You have already brought an invented encounter to ${site.name || 'this site'} (${s.adlib[s.scene.siteId].what}). One a site.`);
+        if ((block.tier || 1) > printedTier) throw new RuleError(`${block.name} is Tier ${block.tier}; nothing printed here is above Tier ${printedTier}. An invented encounter is no tougher than the page's own.`);
+        if (count > 3) throw new RuleError('An invented encounter is at most three bodies.');
+      }
+      const made = spawn(s, ctx, [{ blockId: block.id, count, band: R.BANDS.some((b) => b.id === a.band) ? a.band : 'mid' }], ctx.bestiary);
+      for (const c of made) c.adlib = true;
+      if (s.fight) {
+        const roll = rollFrequency(s, ctx, 'Frequency', block.name, block.freqMod || 0, 'cre', made[0].cid);
+        for (const c of made) addToFight(s, ctx, 'cre', c.cid, roll.freq, roll.die);
+        sortOrder(s);
+      }
+      s.adlib[s.scene.siteId] = { seq: s.seq, what: `${count} ${block.name}`, why };
+      // Canon: the table's memory keeps it, marked as invented.
+      s.cast = s.cast || {};
+      const key = castKey(`${block.name} at ${site.name || s.scene.siteId}`);
+      if (!s.cast[key] && Object.keys(s.cast).length < MAX_CAST) {
+        s.cast[key] = { id: key, name: `${block.name} at ${site.name || s.scene.siteId}`, kind: 'thread', siteId: s.scene.siteId, origin: 'improvised', firstSeq: s.seq, lastSeq: s.seq, facts: [{ text: why, seen: true, seq: s.seq, siteId: s.scene.siteId }] };
+      }
+      say(s, ctx, `${made.map((c) => c.name).join(', ')} ${made.length > 1 ? 'are' : 'is'} here: ${why}`, 'scene');
+    },
+  },
   'creature.remove': {
     host: true,
     run(s, a) {
@@ -2368,6 +2432,72 @@ const HANDLERS = {
         say(s, ctx, `${o.name}'s cut is weighed, graded and stamped: now holding ${gradeText(o.stamped)} stamped.`, 'award');
       }
       if (!any) throw new RuleError('Nobody is carrying an unstamped cut.');
+      s.beatWork = true; // a cut signed this Beat (THE FIRST CARVE 3.1)
+    },
+  },
+  // ---- what the place prices (THE FIRST CARVE 3.1-3.3), beyond the harvest and the fight
+  // Salt is the Expanse's refrigeration (3.1): 10 S of salt per 2 Drifts. Salting a panel rewinds
+  // CARCASS, salting a wound rewinds HUNGER. The Vector names what each pays (rules.clockTriggers.salt).
+  salt: {
+    host: true,
+    run(s, a, ctx) {
+      const what = a.what === 'wound' ? 'wound' : 'panel';
+      const row = clockTrigger(s, ctx, what === 'wound' ? 'saltWound' : 'saltPanel');
+      if (!row) throw new RuleError('This Vector prints no price for salting.');
+      const drifts = Math.max(2, Math.ceil((Number(a.drifts) || 2) / 2) * 2);
+      const cost = (drifts / 2) * 10;
+      const o = a.organismId ? org(s, a.organismId) : Object.values(s.organisms).filter((x) => x.playerId).sort((x, y) => (y.substrate || 0) - (x.substrate || 0))[0];
+      if (!o) throw new RuleError('Nobody is carrying Substrate to buy salt with.');
+      if (!a.free) {
+        if ((o.substrate || 0) < cost) throw new RuleError(`Salting ${drifts} Drifts of ${what} takes ${cost} S of salt, and ${o.name} has ${o.substrate || 0} S.`);
+        o.substrate -= cost;
+      }
+      say(s, ctx, `${o.name} salts the ${what}${a.where ? ` (${String(a.where).slice(0, 60)})` : ''}: ${drifts} Drifts${a.free ? ', from salt they found' : `, ${cost} S of salt`}.`, 'award');
+      const notes = payTrigger(s, ctx, what === 'wound' ? 'saltWound' : 'saltPanel', -1, `salted a ${what}`);
+      if (!notes.length) say(s, ctx, `The ${what} is salted, but salt has already turned the Clock back once this scene.`, 'clock');
+    },
+  },
+  // A haul shipped to a buyer (3.1, 3.2): stamped cuts leave the Cohort's hands for good. The Guild
+  // tally receipt for a delivered haul is paper (TOLL -1), and a haul shipped keeps CARCASS from
+  // advancing at the end of the Beat.
+  'haul.ship': {
+    host: true,
+    run(s, a, ctx) {
+      const site = (ctx.scenario.sites || []).find((x) => x.id === s.scene.siteId) || {};
+      if (!site.post && !a.buyer) throw new RuleError('There is nobody here to ship a haul to: it goes through a Tally Post, or to a named buyer.');
+      const ids = a.organismIds && a.organismIds.length ? a.organismIds : Object.keys(s.organisms);
+      let any = false;
+      for (const id of ids) {
+        const o = org(s, id);
+        const st = o.stamped || {};
+        if (!GRADES.some((k) => st[k])) continue;
+        o.shipped = o.shipped || { C: 0, G: 0, P: 0, T: 0 };
+        for (const k of GRADES) { o.shipped[k] += st[k] || 0; st[k] = 0; }
+        o.stamped = st;
+        any = true;
+        say(s, ctx, `${o.name}'s stamped cut is shipped${a.buyer ? ` to ${String(a.buyer).slice(0, 60)}` : ''}: ${gradeText(o.shipped)} delivered in all.`, 'award');
+      }
+      if (!any) throw new RuleError('Nothing stamped to ship. A cut is stamped at a Tally Post first.');
+      s.beatWork = true;
+      payTrigger(s, ctx, 'haulShipped', -1, 'a tally receipt for a delivered haul');
+    },
+  },
+  // The Cohort produces paper (3.2: a valid claim, a licence, a toll chit, an Ash witness, a Guild tally
+  // receipt) or turns the Gut Stone's serial in at a Warden register arch. Each kind of paper turns
+  // the law Clock back once in a game; the serial is a Name, worth a segment and a future.
+  paper: {
+    host: true,
+    run(s, a, ctx) {
+      const KINDS = { claim: 'a valid claim', licence: 'a licence', chit: 'a toll chit', witness: 'an Ash witness', receipt: 'a Guild tally receipt', serial: 'the Gut Stone\'s serial, turned in at a Warden register arch' };
+      const kind = KINDS[a.kind] ? a.kind : null;
+      if (!kind) throw new RuleError(`Which paper? ${Object.keys(KINDS).join(', ')}.`);
+      const row = clockTrigger(s, ctx, kind === 'serial' ? 'serial' : 'paper');
+      if (!row) throw new RuleError('This Vector prints no price for paper.');
+      s.papers = s.papers || {};
+      if (s.papers[kind]) throw new RuleError(`The Cohort has already produced ${KINDS[kind]} in this game; the same paper does not pay twice.`);
+      s.papers[kind] = { seq: s.seq, siteId: s.scene.siteId, note: String(a.note || '').slice(0, 120) };
+      say(s, ctx, `The Cohort produces ${KINDS[kind]}${a.note ? `: ${String(a.note).slice(0, 120)}` : ''}.`, 'award');
+      payTrigger(s, ctx, kind === 'serial' ? 'serial' : 'paper', -1, KINDS[kind]);
     },
   },
   // An organism swears a promise into one of its Oath boxes. The box is spent and the
@@ -2558,7 +2688,7 @@ const HANDLERS = {
     host: true,
     run(s, a, ctx) {
       if (ctx.ai) throw new RuleError('Only the host decides how far the Director may go beyond the page.');
-      if (!['page', 'callbacks'].includes(a.improv)) throw new RuleError('Choose "page" or "callbacks". Ad-libbing is not built yet.');
+      if (!['page', 'callbacks', 'adlib'].includes(a.improv)) throw new RuleError('Choose "page", "callbacks" or "adlib".');
       s.improv = a.improv;
     },
   },
@@ -2867,6 +2997,8 @@ const HANDLERS = {
       }
       const mods = cleanMods(a.mods);
       if (hasCond(o, 'Marked')) mods.push({ label: 'Target is Marked', dice: 2 });
+      // "Every contest in the room is -2 dice for everyone": the opaque lane reaches the creatures too.
+      if (s.scene.cloud) mods.push({ label: String(s.scene.cloud.why || 'Clouded lane').slice(0, 40), dice: Math.trunc(Number(s.scene.cloud.dice) || 0) });
       const pool = R.buildPool({ fixed: c.pool, mods });
       const tAct = actorOf(s, 'org', o.id);
       pushRequest(s, {

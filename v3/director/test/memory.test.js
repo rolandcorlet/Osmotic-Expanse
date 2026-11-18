@@ -113,7 +113,7 @@ test('the cast: cards by name, origin, facts, and never on a player screen', () 
   assert.ok(!Object.values(s.cast).some((c) => /Ossa/.test(c.name)));
   // Only the host decides how far the Director may go.
   assert.throws(() => apply(s, { type: 'improv.set', improv: 'page' }, ctx('host', null, true)), /Only the host/);
-  assert.throws(() => apply(s, { type: 'improv.set', improv: 'adlib' }, ctx('host', null)), /not built yet/);
+  assert.throws(() => apply(s, { type: 'improv.set', improv: 'anything' }, ctx('host', null)), /Choose "page", "callbacks" or "adlib"/);
   assert.equal(apply(s, { type: 'improv.set', improv: 'page' }, ctx('host', null)).improv, 'page');
 });
 

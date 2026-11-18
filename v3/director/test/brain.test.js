@@ -1939,3 +1939,42 @@ test('an organism nobody owns any more is simply taken on, not borrowed', () => 
   s = apply(s, { type: 'rename', organismId: 'eyes', name: 'Jo the Eyes' }, ctx('player', 'p9'));
   assert.equal(s.organisms.eyes.name, 'Jo the Eyes');
 });
+
+test('the Director can salt, ship a haul and produce paper in The First Carve', () => {
+  let s = seated();
+  s.organisms.wall.substrate = 50;
+  s = apply(s, { type: 'clock', id: 'CARCASS', delta: 2 }, ctx('host', null));
+  s = apply(s, { type: 'clock', id: 'TOLL', delta: 2 }, ctx('host', null));
+  const T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const r1 = T.run('salt', { what: 'panel', drifts: 2, organism: 'Bresk of the Sixth Choir', where: 'the soft cut' });
+  assert.ok(!r1.refused, JSON.stringify(r1));
+  assert.equal(T.state.clocks.CARCASS.filled, 1);
+  assert.equal(T.state.organisms.wall.substrate, 40);
+  const r2 = T.run('produce_paper', { kind: 'chit', note: 'the drone gate' });
+  assert.ok(!r2.refused);
+  assert.equal(T.state.clocks.TOLL.filled, 1);
+  assert.ok(T.run('ship_haul', {}).refused, 'nothing stamped, and no post at the Toll-Vent');
+});
+
+test('ad-lib: off, the Director cannot invent an encounter; on, one a site, within the page\'s toughness, written down as canon', () => {
+  let s = seated();
+  let T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  assert.match(T.run('invent_encounter', { block: 'gnaw-swarm', count: 1, why: 'a stray swarm' }).refused, /Ad-lib is off/);
+  assert.throws(() => apply(s, { type: 'improv.set', improv: 'adlib' }, { ...ctx('host', null), ai: true }), /Only the host/);
+  s = apply(s, { type: 'improv.set', improv: 'adlib' }, ctx('host', null));
+  assert.match(briefing(s, scenario, bestiary, {}), /AD-LIB IS ON/);
+  T = toolbox({ state: s, scenario, bestiary, rng, now: 0 });
+  const tough = Object.values(bestiary).find((b) => b.tier >= 3);
+  assert.match(T.run('invent_encounter', { block: tough.id, count: 1, why: 'something big' }).refused, /no tougher/);
+  assert.match(T.run('invent_encounter', { block: 'gnaw-swarm', count: 5, why: 'a lot' }).refused, /at most three/);
+  assert.match(T.run('invent_encounter', { block: 'gnaw-swarm', count: 1, why: '' }).refused, /why they are here/);
+  const t1 = Object.values(bestiary).find((b) => b.tier === 1 && b.id !== 'gnaw-swarm');
+  const r = T.run('invent_encounter', { block: t1.id, count: 2, band: 'far', why: 'a rival crew\'s pets, loose in the channel' });
+  assert.ok(!r.refused, JSON.stringify(r));
+  assert.equal(r.arrived.length, 2);
+  assert.ok(Object.values(T.state.creatures).filter((c) => c.adlib).length === 2);
+  const card = Object.values(T.state.cast).find((c) => c.origin === 'improvised' && /rival crew/.test(c.facts[0].text));
+  assert.ok(card, 'written into the table\'s memory as canon');
+  assert.match(T.run('invent_encounter', { block: t1.id, count: 1, why: 'more' }).refused, /One a site/);
+  assert.match(briefing(T.state, scenario, bestiary, {}), /already brought this site's invented encounter/);
+});

@@ -26,6 +26,7 @@ import { vectorById, vectorList, DEFAULT_VECTOR } from './data/vectors.js';
 import { loadBestiary } from './data/bestiary-all.js';
 import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
+import { createSlots } from './slots.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -39,6 +40,18 @@ const bestiary = loadBestiary();
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
 const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state });
+// Saved games: named slots, an autosave, and the Supabase backup copy (slots.js).
+const slots = createSlots({
+  dir: SAVE_DIR,
+  getState: () => state,
+  chapters: (gameId) => (gameId ? memory.chapters(gameId) : []),
+  describe: (s) => {
+    const v = vectorById(s.scenarioId) || vector;
+    const site = ((v.scenario.sites || []).find((x) => x.id === (s.scene || {}).siteId) || {}).name || '';
+    const players = Object.values(s.players || {}).map((p) => p.name).join(', ');
+    return { vector: v.scenario.title, site, players };
+  },
+});
 const rng = systemRng();
 
 // ---------------------------------------------------------------- the session
@@ -256,6 +269,27 @@ function act(role, pid, action) {
   changed(prev, state);
 }
 
+// Load a saved game in place of this one. Undo brings this one back.
+function loadSaved(rec) {
+  if (director && director.busy && director.busy()) throw new RuleError('The Director is in the middle of a turn. Wait for it, or set it to Off, then load the game.');
+  const was = vectorById(rec.state && rec.state.scenarioId);
+  if (!was) throw new RuleError('That saved game is from a Vector this Director does not have.');
+  history.push(state);
+  const old = state;
+  const seq = state.seq;
+  useVector(was);
+  state = rec.state;
+  state.seq = seq + 1;
+  if (!state.cast) state.cast = {};
+  if (!state.improv) state.improv = 'callbacks';
+  // A game restored from the backup brings its chronicle with it.
+  if (state.gameId && !memory.chapters(state.gameId).length) for (const ch of rec.chapters || []) memory.addChapter(state.gameId, ch);
+  if (director) director.reset();
+  changed(old, state);
+  save();
+  broadcast();
+}
+
 // Every change to the Ledger goes into the game's history. Leaving a site closes a chapter.
 function changed(prev, next, opts = {}) {
   memory.observe(prev, next, opts);
@@ -394,6 +428,33 @@ const server = http.createServer(async (req, res) => {
       json(res, 200, await voice.hear(bytes, String(req.headers['content-type'] || 'audio/webm').split(';')[0]));
       return;
     }
+    // Saved games, for the host's Saves tab.
+    if (req.method === 'POST' && url.pathname === '/api/saves') {
+      const body = await readBody(req);
+      const who = access(req, { ...body, role: 'host' });
+      if (!who.role) { json(res, 403, who); return; }
+      const out = { ok: true };
+      try {
+        switch (body.op) {
+          case 'save': out.saved = await slots.save(body.name); break;
+          case 'load': loadSaved(slots.read(String(body.id || ''))); break;
+          case 'delete': slots.remove(String(body.id || '')); break;
+          case 'config': slots.configure({ url: body.url, key: body.key }); break;
+          case 'test': await slots.test(); break;
+          case 'pushAll': out.copied = await slots.pushAll(); break;
+          case 'cloudList': out.cloudSlots = await slots.cloudList(); break;
+          case 'restore': out.restored = await slots.restore(String(body.id || '')); break;
+          default: break;
+        }
+      } catch (e) {
+        out.ok = false;
+        out.error = e.message;
+      }
+      out.slots = slots.list();
+      out.cloud = slots.cloudView();
+      json(res, 200, out);
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/api/director') {
       const body = await readBody(req);
       const who = access(req, { ...body, role: 'host' });
@@ -476,6 +537,14 @@ setInterval(() => {
     } catch (e) { /* the next check tries again */ }
   }
 }, 15000).unref();
+
+// The autosave: every five minutes while the game is changing, one slot per game (and its backup copy).
+let autoSeq = -1;
+setInterval(() => {
+  if (!state || state.seq === autoSeq) return;
+  autoSeq = state.seq;
+  slots.autosave().catch((e) => console.log(`The autosave could not be written: ${e.message}`));
+}, Number(opt('--autosave-ms', '300000'))).unref();
 
 director = createDirector({ getState: () => state, commit, act: (a) => { act('host', null, a); save(); broadcast(); }, memory, getScenario: () => scenario, bestiary, saveDir: SAVE_DIR, rng, onChange: broadcast });
 director.init();

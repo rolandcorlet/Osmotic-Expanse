@@ -237,6 +237,17 @@ export const TOOLS = [
     },
   },
   {
+    name: 'invent_encounter',
+    description: 'Only when AD-LIB IS ON (the host has chosen it): bring creatures the page does not print here, from the Bestiary, because the story calls for them. One invented encounter a site, at most three bodies, no tougher than what this site prints. Say why they are here in a sentence the players could hear; it is written into the table\'s memory as canon. Use it rarely: the printed encounters come first.',
+    parameters: obj({ block: S('A Bestiary block id, for example "drifter-shoal".'), count: I('How many (1 to 3).'), band: S('How far from the Cohort.', { enum: BAND_IDS }), why: S('Why they are here, in the fiction.') }, ['block', 'count', 'why']),
+    run(a, T) {
+      const ids = new Set(Object.keys(T.state.creatures));
+      const no = T.do({ type: 'creature.adlib', blockId: lower(a.block), count: a.count, band: a.band, why: a.why });
+      if (no) return { refused: no };
+      return { arrived: Object.values(T.state.creatures).filter((c) => !ids.has(c.cid)).map((c) => ({ id: c.cid, name: c.name, band: c.band })) };
+    },
+  },
+  {
     name: 'start_pulse_war',
     description: 'Begin a Pulse War with the creatures in the scene. Frequency is rolled for everyone and the first turn begins.',
     parameters: obj({}),
@@ -546,6 +557,38 @@ export const TOOLS = [
       if (no) return { refused: no };
       const now = Object.values(T.state.clocks).map((c) => `${c.name} ${c.filled}/${c.segments}`).join(' · ');
       return { beat: T.state.beat, clocks: now, moved: before !== JSON.stringify(Object.values(T.state.clocks).map((c) => c.filled)) };
+    },
+  },
+  {
+    name: 'salt',
+    description: 'The Cohort salts a panel or a wound (salt is refrigeration here: 10 S of salt per 2 Drifts, paid by the organism you name, or free when it is salt they found). Salting a panel turns CARCASS back one, salting a wound turns HUNGER back one, once a scene each. Only when a player says they do it.',
+    parameters: obj({ what: { type: 'string', enum: ['panel', 'wound'], description: 'A panel (CARCASS) or a wound (HUNGER).' }, drifts: I('How many Drifts are salted (2 or more).'), organism: S('Who pays for the salt.'), free: { type: 'boolean', description: 'True when it is salt the Cohort found, such as the first crew\'s cache.' }, where: S('Which panel or wound, in a few words.') }, ['what']),
+    run(a, T) {
+      const o = a.organism ? findOrg(T.state, a.organism) : null;
+      if (a.organism && !o) return { refused: `There is no organism called "${a.organism}".` };
+      const no = T.do({ type: 'salt', what: a.what, drifts: a.drifts, organismId: o ? o.id : undefined, free: !!a.free, where: a.where });
+      if (no) return { refused: no };
+      return { clocks: Object.values(T.state.clocks).map((c) => `${c.name} ${c.filled}/${c.segments}`).join(' · ') };
+    },
+  },
+  {
+    name: 'ship_haul',
+    description: 'Ship the Cohort\'s stamped cuts to a buyer: through the Tally Post here, or to a buyer you name. Shipped cuts are safe for good, the tally receipt is paper (TOLL back one, once a scene), and a haul shipped today keeps CARCASS from moving at the end of the Beat. Only cuts already stamped can ship.',
+    parameters: obj({ buyer: S('Who takes the haul, when it is not the Tally Post here.') }, []),
+    run(a, T) {
+      const no = T.do({ type: 'haul.ship', buyer: a.buyer });
+      if (no) return { refused: no };
+      return { shipped: true, toll: T.state.clocks.TOLL ? `${T.state.clocks.TOLL.filled}/${T.state.clocks.TOLL.segments}` : undefined };
+    },
+  },
+  {
+    name: 'produce_paper',
+    description: 'The Cohort produces paper the law accepts: a valid claim, a licence, a toll chit, an Ash witness, a Guild tally receipt, or the Gut Stone\'s serial turned in at a Warden register arch. Each kind turns TOLL back one, once in a game. Only when the players have the paper in the fiction.',
+    parameters: obj({ kind: { type: 'string', enum: ['claim', 'licence', 'chit', 'witness', 'receipt', 'serial'], description: 'Which paper.' }, note: S('Whose paper, in a few words.') }, ['kind']),
+    run(a, T) {
+      const no = T.do({ type: 'paper', kind: a.kind, note: a.note });
+      if (no) return { refused: no };
+      return { toll: T.state.clocks.TOLL ? `${T.state.clocks.TOLL.filled}/${T.state.clocks.TOLL.segments}` : undefined };
     },
   },
   {
