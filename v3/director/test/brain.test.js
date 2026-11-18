@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { newSession, apply, restart, hazardBudget } from '../engine/ledger.js';
+import { newSession, apply, restart, hazardBudget, directed } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { scenario } from '../data/first-carve.js';
 import { toolbox, TOOLS, hazardSpec } from '../brain/tools.js';
@@ -1849,4 +1849,93 @@ test('the host can stop a stuck Director turn, and the answer that comes late is
   release(); // the old call finally returns
   await new Promise((r) => setTimeout(r, 20));
   assert.equal(d.view('host').proposal.narration, 'The new answer.', 'the late answer does not replace the new one');
+});
+
+test('a stand-in: the host offers a body, a new player borrows it, and the owner gets it back with what happened', () => {
+  let s = seated(); // Roly (p1) plays the Wall, Bresk
+  assert.throws(() => apply(s, { type: 'join', name: 'Jo' }, ctx('player', 'p9')) && apply(apply(s, { type: 'join', name: 'Jo' }, ctx('player', 'p9')), { type: 'standin.take', organismId: 'wall' }, ctx('player', 'p9')), /session zero|not been offered/);
+  s = apply(s, { type: 'join', name: 'Jo' }, ctx('player', 'p9'));
+  s = apply(s, { type: 'zero.agree' }, ctx('player', 'p9'));
+  assert.throws(() => apply(s, { type: 'standin.take', organismId: 'wall' }, ctx('player', 'p9')), /not been offered/);
+  assert.throws(() => apply(s, { type: 'standin.open', organismId: 'wall', on: true }, { ...ctx('host', null), ai: true }), /host's call/);
+  s = apply(s, { type: 'standin.open', organismId: 'wall', on: true }, ctx('host', null));
+  assert.equal(s.organisms.wall.open, true);
+  s = apply(s, { type: 'standin.take', organismId: 'wall' }, ctx('player', 'p9'));
+  const o = s.organisms.wall;
+  assert.equal(o.playerId, 'p9');
+  assert.equal(o.borrow.ownerId, 'p1');
+  assert.equal(o.borrow.ownerName, 'Roly');
+  assert.equal(o.borrow.byName, 'Jo');
+  assert.equal(o.open, false);
+  assert.equal(s.players.p9.organismId, 'wall');
+  assert.equal(s.players.p1.organismId, 'wall', 'the owner still owns it');
+  // The stand-in plays it, and the table is told who is playing.
+  s = apply(s, { type: 'say', text: 'I hold the gate.' }, ctx('player', 'p9'));
+  const said = s.story[s.story.length - 1];
+  assert.equal(said.who, 'Bresk of the Sixth Choir');
+  assert.equal(said.standIn, 'Jo');
+  assert.equal(said.standInFor, 'Roly');
+  // The owner cannot act for it while it is borrowed.
+  assert.throws(() => apply(s, { type: 'say', text: 'Me too.' }, ctx('player', 'p1')), /Jo is standing in/);
+  // Borrowed-body limits: no renaming, no standing harvest choices. The host still may.
+  assert.throws(() => apply(s, { type: 'rename', organismId: 'wall', name: 'Jo-Bresk' }, ctx('player', 'p9')), /Roly's, borrowed/);
+  assert.throws(() => apply(s, { type: 'loot.auto', grade: 'C', rule: 'take' }, ctx('player', 'p9')), /Roly's, borrowed/);
+  s = apply(s, { type: 'rename', organismId: 'wall', name: 'Bresk of the Sixth Choir' }, ctx('host', null));
+  // Something happens to it while Roly is away.
+  s.organisms.wall.codon += 4;
+  s.organisms.wall.kit.push('a cut-lane pass');
+  s = apply(s, { type: 'standin.recap', organismId: 'wall', text: 'You are Bresk, a wall of a body.' }, ctx('host', null));
+  assert.match(s.organisms.wall.borrow.recap, /You are Bresk/);
+  // Roly is back: the host gives it back, and Roly sees what happened.
+  s = apply(s, { type: 'standin.return', organismId: 'wall' }, ctx('host', null));
+  const back = s.organisms.wall;
+  assert.equal(back.playerId, 'p1');
+  assert.equal(back.borrow, undefined);
+  assert.equal(s.players.p9.organismId, null);
+  assert.equal(back.awayNote.by, 'Jo');
+  assert.ok(back.awayNote.changes.some((c) => /Codon/.test(c)), back.awayNote.changes.join('; '));
+  assert.ok(back.awayNote.changes.some((c) => /gained a cut-lane pass/.test(c)));
+  assert.ok(back.awayNote.lines.some((l) => l.text === 'I hold the gate.'));
+  s = apply(s, { type: 'say', text: 'I am back.' }, ctx('player', 'p1'));
+  s = apply(s, { type: 'standin.seen', organismId: 'wall' }, ctx('player', 'p1'));
+  assert.equal(s.organisms.wall.awayNote, undefined);
+});
+
+test('a stand-in who drops out leaves the body to the Director, and it is still the owner\'s', () => {
+  let s = seated();
+  s = apply(s, { type: 'join', name: 'Jo' }, ctx('player', 'p9'));
+  s = apply(s, { type: 'zero.agree' }, ctx('player', 'p9'));
+  s = apply(s, { type: 'standin.open', organismId: 'wall', on: true }, ctx('host', null));
+  s = apply(s, { type: 'standin.take', organismId: 'wall' }, ctx('player', 'p9'));
+  s = apply(s, { type: 'release' }, ctx('player', 'p9'));
+  const o = s.organisms.wall;
+  assert.equal(o.playerId, null);
+  assert.equal(directed(o), true, 'the Director plays it');
+  assert.equal(o.borrow.ownerId, 'p1');
+  assert.equal(s.players.p9.organismId, null);
+  // A second stand-in can take it on the same night; the record of who stood in is kept.
+  s = apply(s, { type: 'join', name: 'Mo' }, ctx('player', 'p8'));
+  s = apply(s, { type: 'zero.agree' }, ctx('player', 'p8'));
+  s = apply(s, { type: 'standin.open', organismId: 'wall', on: true }, ctx('host', null));
+  s = apply(s, { type: 'standin.take', organismId: 'wall' }, ctx('player', 'p8'));
+  assert.deepEqual(s.organisms.wall.borrow.hands, ['Jo', 'Mo']);
+  // Dropping connection: the host side covers it and says who lost connection.
+  s = apply(s, { type: 'organism.cover', organismId: 'wall', on: true, why: 'stand-in gone' }, ctx('host', null));
+  assert.match(s.log[s.log.length - 1].text, /Mo has lost connection/);
+  s = apply(s, { type: 'standin.return', organismId: 'wall' }, ctx('host', null));
+  assert.equal(s.organisms.wall.awayNote.by, 'Jo and Mo');
+  assert.equal(s.organisms.wall.covered, false);
+});
+
+test('an organism nobody owns any more is simply taken on, not borrowed', () => {
+  let s = seated();
+  s = apply(s, { type: 'release' }, ctx('player', 'p2')); // Sam leaves the Eyes
+  s = apply(s, { type: 'join', name: 'Jo' }, ctx('player', 'p9'));
+  s = apply(s, { type: 'zero.agree' }, ctx('player', 'p9'));
+  s = apply(s, { type: 'standin.open', organismId: 'eyes', on: true }, ctx('host', null));
+  s = apply(s, { type: 'standin.take', organismId: 'eyes' }, ctx('player', 'p9'));
+  assert.equal(s.organisms.eyes.playerId, 'p9');
+  assert.equal(s.organisms.eyes.borrow, undefined);
+  s = apply(s, { type: 'rename', organismId: 'eyes', name: 'Jo the Eyes' }, ctx('player', 'p9'));
+  assert.equal(s.organisms.eyes.name, 'Jo the Eyes');
 });

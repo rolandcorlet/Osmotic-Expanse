@@ -387,7 +387,11 @@ const me = () => (state && state.me) || null;
 const mine = () => { const m = me(); return m && m.organismId ? state.organisms[m.organismId] : null; };
 const creaturesHere = () => Object.values(state.creatures).filter((c) => c.siteId === state.scene.siteId);
 const lastRoll = () => state.rolls.slice().reverse().find((r) => r.kind !== 'frequency') || null;
-const playerName = (o) => (o.playerId && state.players[o.playerId] ? state.players[o.playerId].name : '');
+const playerName = (o) => (o.borrow && o.playerId ? `${o.borrow.byName}, standing in for ${o.borrow.ownerName}` : o.playerId && state.players[o.playerId] ? state.players[o.playerId].name : '');
+// Who is really playing a borrowed body, for the Story and the fight order: "Jo for Roly".
+const standInNote = (o) => (o && o.borrow && o.playerId ? `${o.borrow.byName} for ${o.borrow.ownerName}` : '');
+const theHand = (o) => (/^the\s/i.test(o.hand) ? o.hand : `the ${o.hand}`);
+const forNote = (e) => (e.standIn ? ` <span class="faint small">(${esc(e.standIn)} for ${esc(e.standInFor)})</span>` : '');
 
 function diceHtml(dice, fresh) {
   return `<span class="dice">${dice.map((d) => `<i class="die${d === 1 ? ' one' : d === 6 ? ' six' : ''}${fresh ? ' fresh' : ''}">${d}</i>`).join('')}</span>`;
@@ -658,7 +662,7 @@ function orderList({ numbers = true } = {}) {
     const extra = a.kind === 'org' && numbers ? `<small>MI ${body.mi}/${body.miMax} · Stress ${body.stress}</small>` : '';
     return `<div class="o ${a.kind}${f.turn === k ? ' now' : ''}${a.status === 'done' ? ' done' : ''}">
       <span class="f">${a.freq}</span>
-      <span class="nm">${esc(body.name)}${a.reserve ? ' <span class="chip on">Reserve</span>' : ''} ${extra}</span>
+      <span class="nm">${esc(body.name)}${a.reserve ? ' <span class="chip on">Reserve</span>' : ''}${a.kind === 'org' && standInNote(body) ? ` <small>${esc(standInNote(body))}</small>` : ''} ${extra}</span>
       <span class="row">${showPips && a.status !== 'waiting' && a.status !== 'done' ? pips(a.pp, a.ppMax) : ''}<span class="small dim">${st}</span></span></div>`;
   }).join('')}</div>`;
 }
@@ -670,8 +674,8 @@ function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {
   const rows = (state.story || []).slice(-n).reverse().map((e) => (e.kind === 'narration'
     ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
     : e.kind === 'action'
-      ? `<div class="st act"><b>${esc(e.who)}</b>${e.away ? ' <span class="faint small">played by the Director</span>' : ''} <span class="dim">${esc(e.text)}</span></div>`
-      : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
+      ? `<div class="st act"><b>${esc(e.who)}</b>${e.away ? ' <span class="faint small">played by the Director</span>' : forNote(e)} <span class="dim">${esc(e.text)}</span></div>`
+      : `<div class="st say"><b>${esc(e.who)}</b>${forNote(e)} ${esc(e.text)}</div>`)).join('');
   // While the Director thinks, its organism churns at the foot of the story where its words will land.
   const thinkRow = d.on && d.thinking ? `<div class="st dir thinking" role="status">${miniFace()}<span class="dim">The Director is thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>` : '';
   return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${(d.on || (state.story || []).some((e) => e.kind === 'narration')) && (canSpeakLocal() || serverVoice()) ? `<button class="chip${speakOn() ? ' on' : ''}" data-act="speak" title="Read the Director's narration aloud on this screen">${V.blocked ? 'Tap to start the voice' : speakOn() ? 'Voice on' : 'Voice off'}</button>` : ''}${d.on ? `<span class="chip${d.thinking ? ' on thinkchip' : ''}">${d.thinking ? `${miniFace()}Thinking…` : 'AI Director'}</span>` : ''}</span></h3>
@@ -862,8 +866,78 @@ function playerHtml() {
   if (!m.agreed) return zeroHtml();
   const o = mine();
   if (!o) return ui.gen ? genHtml(ui, state) : chooseHandHtml();
+  if (o.playerId !== pid) return ownerWaitHtml(o);
   if (ui.tab === 'sheet') return `<div class="stack">${sheetCard(o, { own: true })}</div>`;
   return `<div class="stack" data-scroll="play">${playHtml(o)}</div>`;
+}
+
+// ------------------------------------------------------------------ stand-ins
+// A new player can take over an organism whose player cannot come (Roly, 18 Nov). The host offers
+// the body; it stays its owner's, and goes back to them with a note of what happened.
+function standInListHtml() {
+  const open = Object.values(state.organisms).filter((o) => o.open);
+  if (!open.length) return '';
+  return `<section class="card standin"><h3>Characters needing a player</h3>
+    <p class="dim small">Their player cannot come tonight. Stand in for them: you play the organism, and it goes back to them when they return.</p>
+    <div class="hands">${open.map((o) => {
+      const owner = (o.borrow && o.borrow.ownerName) || playerName(o) || '';
+      return `<div class="hand si"><b>${esc(o.name)}</b><span class="dim small">${esc(o.phenotype)} · ${esc(theHand(o))} · Level ${o.level}</span>
+        ${owner ? `<span class="small">${esc(owner)}'s organism</span>` : ''}<span class="small dim">${esc(o.tie)}</span>
+        <button class="btn primary" data-act="si.take" data-id="${o.id}">Stand in as ${esc(o.name.replace(/ of .*$/, ''))}</button></div>`;
+    }).join('')}</div></section>`;
+}
+// The stand-in's catch-up card: who this is, what it carries and owes, and what just happened.
+function catchUpCard(o) {
+  const b = o.borrow;
+  const folded = ui.catchUp === `${o.id}:${b.since}`;
+  const head = `<h3>Standing in for ${esc(b.ownerName)}<span class="right"><button class="btn sm" data-act="si.fold" data-id="${o.id}">${folded ? 'Catch up' : 'Got it'}</button></span></h3>`;
+  if (folded) return `<section class="card standin">${head}<p class="small dim">You are playing ${esc(o.name)} tonight. It goes back to ${esc(b.ownerName)} when they return.</p></section>`;
+  const oaths = (o.oaths || []).filter((x) => x.open);
+  const conds = (o.conditions || []).map((c) => c.name);
+  const before = b.recap
+    ? `<p class="tale">${esc(b.recap)}</p>`
+    : (b.before || []).length ? `<div class="catch-lines">${b.before.map((e) => `<div class="small">${e.kind === 'narration' ? '' : `<b>${esc(e.who)}</b> `}${esc(e.text)}</div>`).join('')}</div>` : '<p class="small dim">Nothing has happened yet tonight.</p>';
+  return `<section class="card standin">${head}
+    <p class="tale">You are <b>${esc(o.name)}</b>: ${esc(o.phenotype)}, ${esc(theHand(o))}, Level ${o.level}.${o.tie ? ` ${esc(o.tie)}` : ''}</p>
+    <div class="small">Right now: MI ${o.mi} of ${o.miMax} · Stress ${o.stress} · Codon ${o.codon}${conds.length ? ` · ${esc(conds.join(', '))}` : ''}${o.dormant ? ' · <b>Dormant</b>' : ''}</div>
+    ${(o.kit || []).length ? `<div class="small"><b>Carries</b> ${esc(o.kit.join(', '))}</div>` : ''}
+    ${oaths.length ? `<div class="small"><b>Has sworn</b> ${oaths.map((x) => `"${esc(x.promise)}"${x.witness ? ` to ${esc(x.witness)}` : ''}`).join('; ')}</div>` : ''}
+    <div class="fl dim small">${b.recap ? 'PREVIOUSLY' : 'WHAT JUST HAPPENED'}</div>${before}
+    <p class="small dim">${esc(o.name)} is ${esc(b.ownerName)}'s, borrowed for tonight: fight, talk, roll and use its kit as you like. Its name, its Growth and its kit choices are ${esc(b.ownerName)}'s to change.</p>
+  </section>`;
+}
+// The owner, back: what their organism did while they were away.
+function awayCard(o) {
+  const n = o.awayNote;
+  return `<section class="card standin"><h3>While you were away<span class="right"><button class="btn sm" data-act="si.seen" data-id="${o.id}">Got it</button></span></h3>
+    <p class="small">${esc(n.by || 'A stand-in')} played ${esc(o.name)} for you.</p>
+    ${n.changes.length ? `<div class="small"><b>What changed</b><ul class="away-list">${n.changes.map((c) => `<li>${esc(c)}</li>`).join('')}</ul></div>` : '<p class="small dim">Nothing about your organism changed.</p>'}
+    ${n.lines.length ? `<div class="fl dim small">WHAT HAPPENED</div><div class="catch-lines">${n.lines.map((e) => `<div class="small">${e.kind === 'narration' ? '' : `<b>${esc(e.who)}</b> `}${esc(e.text)}</div>`).join('')}</div>` : ''}
+  </section>`;
+}
+// The owner's phone while someone else is playing their organism.
+function ownerWaitHtml(o) {
+  const by = o.borrow && o.playerId ? o.borrow.byName : '';
+  return `<div class="stack"><section class="card standin"><h3>${esc(o.name)} is in good hands</h3>
+    <p class="tale">${by ? `${esc(by)} is standing in for you tonight, playing ${esc(o.name)}.` : o.playerId ? `Someone else is playing ${esc(o.name)} right now.` : `The Director is playing ${esc(o.name)} until you are back.`}</p>
+    <p class="small dim">Ask the host to give ${esc(o.name)} back to you. You will see what happened while you were away.</p></section>
+    ${storyCard({ n: 20 })}</div>`;
+}
+// The host: who plays each body, and the stand-in and away controls.
+function hostSeatsCard() {
+  const list = Object.values(state.organisms).filter((o) => o.playerId || o.borrow || o.open);
+  if (!list.length) return '';
+  const rows = list.map((o) => {
+    const b = o.borrow;
+    const who = b && o.playerId ? `${b.byName}, standing in for ${b.ownerName}` : b ? `the Director (${b.ownerName}'s; the stand-in stepped away)` : o.playerId ? playerName(o) : 'nobody';
+    const btns = [];
+    if (o.open) btns.push(`<button class="btn sm" data-act="si.open" data-id="${o.id}" data-on="0">Stop offering</button>`);
+    else if (!(b && o.playerId)) btns.push(`<button class="btn sm" data-act="si.open" data-id="${o.id}" data-on="1" title="Their player cannot come: someone new can play this body tonight">Hand to a stand-in</button>`);
+    if (b) btns.push(`<button class="btn sm primary" data-act="si.return" data-id="${o.id}" title="${esc(b.ownerName)} is back">Give back to ${esc(b.ownerName)}</button>`);
+    if (o.playerId) btns.push(`<button class="btn sm${o.covered ? ' primary' : ''}" data-act="org.cover" data-id="${o.id}" title="${o.covered ? 'Their player is back: take this body back' : 'Their player is away: the Director plays this body until they are back'}">${o.covered ? 'Take back' : 'Player away'}</button>`);
+    return `<div class="seat"><span class="who"><b>${esc(o.name.replace(/ of .*$/, ''))}</b> <span class="small dim">${esc(who)}${o.covered ? ' · Director while away' : ''}</span>${o.open ? ' <span class="chip warn">offered</span>' : ''}</span><span class="row">${btns.join('')}</span></div>`;
+  }).join('');
+  return `<section class="card seats-card"><h3>Players and stand-ins</h3><div class="seats">${rows}</div></section>`;
 }
 
 // Session zero: read before anyone takes an organism.
@@ -999,7 +1073,7 @@ function chooseHandHtml() {
       <span class="small dim">${esc(o.tie)}</span>
       <span class="small faint">${taken ? `played by ${esc(playerName(o))}` : `MI ${o.miMax} · PP ${o.ppMax} · MT ${o.mt}`}</span></button>`;
   }).join('');
-  return `<div class="stack"><section class="card"><h3>Choose your character</h3>
+  return `<div class="stack">${standInListHtml()}<section class="card"><h3>Choose your character</h3>
     ${sc.pitch ? `<p class="tale" style="margin-bottom:10px">${esc(sc.pitch)}</p>` : ''}
     <p class="dim small" style="margin-bottom:8px">You play one of these. In this world a character is called an organism. Tap one to read it.</p>
     <div class="hands">${hands}${(state.zero || {}).custom === false ? '' : `<button class="hand build" data-act="gen.open"><b>Build your own</b><span class="dim small">Choose your own lineage, class, talents and kit.</span><span class="small">A short guided builder, one step per screen. About five minutes.</span></button>`}</div>
@@ -1094,6 +1168,8 @@ function standingLine(L, orgId) {
 
 function playHtml(o) {
   const out = [];
+  if (o.borrow && o.playerId === pid) out.push(catchUpCard(o));
+  if (o.awayNote && o.playerId === pid) out.push(awayCard(o));
   const myAsks = state.requests.filter((q) => q.actor.kind === 'org' && q.actor.id === o.id);
   const incoming = state.requests.filter((q) => q.kind === 'incoming' && q.target && q.target.id === o.id);
   for (const q of incoming) out.push(incomingCard(q, o));
@@ -1247,7 +1323,7 @@ function hostHtml() {
   if (ui.tab === 'memory') return memoryHtml();
   if (ui.tab === 'voice') return `<div class="stack" style="max-width:760px">${voiceCard()}</div>`;
   return `<div class="lay-host">
-    <div class="col">${hostSceneCard()}</div>
+    <div class="col">${hostSceneCard()}${hostSeatsCard()}</div>
     <div class="col">${hostAskCard()}${hostWaitingCard()}</div>
     <div class="col">${hostFightCard()}${hostToolsCard()}${shareItem() ? hostShareCard() : hostZeroCard()}</div>
   </div>`;
@@ -1392,7 +1468,7 @@ function hostFightCard() {
     const a = f.actors[k];
     const o = state.organisms[a.id];
     return `<div class="o org${f.turn === k ? ' now' : ''}${a.status === 'done' ? ' done' : ''}"><span class="f">${a.freq}</span>
-      <span class="nm">${esc(o.name)} <span class="small dim">MI ${o.mi}/${o.miMax} · ATP ${o.atp} · Stress ${o.stress}${a.reserve ? ' · Reserve' : ''}${o.covered || !o.playerId ? ' · <b>the Director plays this one</b>' : ''}</span></span>
+      <span class="nm">${esc(o.name)} <span class="small dim">MI ${o.mi}/${o.miMax} · ATP ${o.atp} · Stress ${o.stress}${a.reserve ? ' · Reserve' : ''}${o.covered || !o.playerId ? ' · <b>the Director plays this one</b>' : standInNote(o) ? ` · ${esc(standInNote(o))}` : ''}</span></span>
       <span class="row">${a.status === 'acting' || a.status === 'holding' ? pips(a.pp, a.ppMax) : ''}<span class="small dim">${a.status}</span>${a.status === 'acting' || a.status === 'holding' ? `<button class="btn sm" data-act="h.org.end" data-id="${o.id}">End</button>` : ''}${a.status === 'done' || (!o.playerId && !o.covered) ? '' : `<button class="btn sm${o.covered ? ' primary' : ''}" data-act="org.cover" data-id="${o.id}" title="${o.covered ? 'Their player is back: take this body back' : 'Their player is away: the Director plays this body until they are back'}">${o.covered ? 'Take back' : 'Player away'}</button>`}</span></div>`;
   }).join('') : '';
   const head = f
@@ -1695,6 +1771,11 @@ const ACT = {
     await send({ type: 'join', name });
   },
   'claim.pick': (d) => { ui.claim.hand = d.id; },
+  'si.take': (d) => send({ type: 'standin.take', organismId: d.id }),
+  'si.open': (d) => send({ type: 'standin.open', organismId: d.id, on: d.on === '1' }),
+  'si.return': (d) => send({ type: 'standin.return', organismId: d.id }),
+  'si.seen': (d) => send({ type: 'standin.seen', organismId: d.id }),
+  'si.fold': (d) => { const o = state.organisms[d.id]; if (!o || !o.borrow) return; const k = `${o.id}:${o.borrow.since}`; ui.catchUp = ui.catchUp === k ? null : k; },
   'claim.go': async () => {
     if (!ui.claim.name.trim()) { toast('Give your organism a name first.'); return; }
     if (await send({ type: 'claim', organismId: ui.claim.hand, name: ui.claim.name.trim() })) ui.claim = { hand: null, name: '' };

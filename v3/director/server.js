@@ -341,6 +341,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/poll') {
       const who = access(req, q);
       if (!who.role) { json(res, 403, who); return; }
+      if (q.pid) polled.set(q.pid, Date.now());
       json(res, 200, payloadFor(who.role, q.pid || null));
       return;
     }
@@ -371,6 +372,7 @@ const server = http.createServer(async (req, res) => {
       broadcast();
       const type = (body.action || {}).type;
       if (director && ANSWERED[type] && (role === 'player' || type === 'say')) director.playerActed(ANSWERED[type]);
+      if (director && type === 'standin.take' && director.recap) director.recap(String(body.action.organismId || '')).then(() => {}, () => {});
       json(res, 200, { ok: true, seq: state.seq });
       return;
     }
@@ -449,6 +451,32 @@ function startTunnel() {
 }
 
 load();
+// A stand-in whose phone has gone (Roly, 18 Nov): after 90 seconds with no screen open for them, the
+// Director plays the body, and it goes back to them by itself when they reconnect. Only stand-ins:
+// for an owner, "Player away" stays the host's call.
+const polled = new Map();
+const goneSince = new Map();
+const connected = (pid) => [...screens].some((x) => x.pid === pid) || Date.now() - (polled.get(pid) || 0) < 20000;
+setInterval(() => {
+  for (const o of Object.values(state.organisms || {})) {
+    if (!o.borrow || !o.playerId) continue;
+    const here = connected(o.playerId);
+    try {
+      if (here) {
+        goneSince.delete(o.id);
+        if (o.covered && o.coverWhy === 'stand-in gone') { act('host', null, { type: 'organism.cover', organismId: o.id, on: false }); save(); broadcast(); }
+      } else if (!o.covered) {
+        if (!goneSince.has(o.id)) goneSince.set(o.id, Date.now());
+        else if (Date.now() - goneSince.get(o.id) > 90000) {
+          act('host', null, { type: 'organism.cover', organismId: o.id, on: true, why: 'stand-in gone' });
+          goneSince.delete(o.id);
+          save(); broadcast();
+        }
+      }
+    } catch (e) { /* the next check tries again */ }
+  }
+}, 15000).unref();
+
 director = createDirector({ getState: () => state, commit, act: (a) => { act('host', null, a); save(); broadcast(); }, memory, getScenario: () => scenario, bestiary, saveDir: SAVE_DIR, rng, onChange: broadcast });
 director.init();
 server.listen(PORT, '0.0.0.0', () => {

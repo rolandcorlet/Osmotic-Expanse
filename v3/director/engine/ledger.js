@@ -575,7 +575,7 @@ function lootDecide(s, a, ctx, take) {
   if (ctx.ai) throw new RuleError('The players choose what they take. Wait for them.');
   if (ctx.role !== 'host') {
     const p = s.players[ctx.pid];
-    if (!p || p.organismId !== off.orgId) throw new RuleError(`It is ${s.organisms[off.orgId].name}'s choice.`);
+    if (!p || p.organismId !== off.orgId || s.organisms[off.orgId].playerId !== ctx.pid) throw new RuleError(`It is ${s.organisms[off.orgId].name}'s choice.`);
   }
   if (a.itemId && a.itemId !== off.itemId) throw new RuleError('That item has already been decided.');
   // "Take it, and every one of this grade after": the standing choice is set, then this item is taken.
@@ -638,7 +638,60 @@ function say(s, ctx, text, kind = 'info') {
 // player is away from is marked as played by the Director.
 function announce(s, ctx, o, text) {
   if (!s.story) s.story = [];
-  s.story.push({ id: newId(s, 'a'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'action', who: o.name, away: !!(o.covered || !o.playerId), text });
+  s.story.push({ id: newId(s, 'a'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'action', who: o.name, orgId: o.id, away: !!(o.covered || !o.playerId), ...standInTag(s, o), text });
+}
+
+// ---- stand-ins (Roly, 18 Nov): a new player can take over an organism whose player cannot come.
+// The organism stays its owner's: `ownerId` is the owner, `playerId` the stand-in playing it now,
+// and `borrow` holds who, since when, what it was like then, and the Director's "Previously".
+const playerNameOf = (s, pid) => ((s.players || {})[pid] || {}).name || 'someone';
+function standInTag(s, o) {
+  if (!o || !o.borrow || !o.playerId) return {};
+  return { standIn: o.borrow.byName, standInFor: o.borrow.ownerName };
+}
+// What a stand-in may not do with a borrowed body: changes its owner should make. The host may.
+function needOwn(s, ctx, o, what) {
+  if (ctx.role === 'host' || !o || !o.borrow || o.playerId !== ctx.pid) return;
+  throw new RuleError(`${o.name} is ${o.borrow.ownerName}'s, borrowed for tonight: ${what} is their call. Ask the host if it cannot wait.`);
+}
+function bodySnapshot(o) {
+  return {
+    level: o.level, mi: o.mi, miMax: o.miMax, stress: o.stress, codon: o.codon, substrate: o.substrate, dormant: !!o.dormant,
+    kit: (o.kit || []).slice(), specimens: { ...(o.specimens || {}) }, conditions: (o.conditions || []).map((c) => c.name),
+    oaths: (o.oaths || []).map((x) => ({ id: x.id, promise: x.promise, open: x.open })),
+  };
+}
+// What changed while the stand-in had it, in words the owner can read.
+function bodyChanges(was, o) {
+  const now = bodySnapshot(o);
+  const out = [];
+  const num = (k, label) => { if (was[k] !== now[k] && was[k] != null && now[k] != null) out.push(`${label} ${was[k]} → ${now[k]}`); };
+  num('level', 'Level'); num('codon', 'Codon'); num('substrate', 'Substrate'); num('mi', 'MI'); num('stress', 'Stress');
+  if (!was.dormant && now.dormant) out.push('went Dormant');
+  const gained = now.kit.filter((k) => !was.kit.includes(k));
+  const lost = was.kit.filter((k) => !now.kit.includes(k));
+  if (gained.length) out.push(`gained ${gained.join(', ')}`);
+  if (lost.length) out.push(`no longer has ${lost.join(', ')}`);
+  for (const g of ['C', 'G', 'P', 'T']) { const a = was.specimens[g] || 0; const b = now.specimens[g] || 0; if (a !== b) out.push(`${g} Specimens ${a} → ${b}`); }
+  const newC = now.conditions.filter((c) => !was.conditions.includes(c));
+  const goneC = was.conditions.filter((c) => !now.conditions.includes(c));
+  if (newC.length) out.push(`now ${newC.join(', ')}`);
+  if (goneC.length) out.push(`no longer ${goneC.join(', ')}`);
+  for (const x of now.oaths) {
+    const before = was.oaths.find((y) => y.id === x.id);
+    if (!before) out.push(`swore an Oath: "${x.promise}"`);
+    else if (before.open && !x.open) out.push(`settled the Oath "${x.promise}"`);
+  }
+  return out;
+}
+// The stand-in leaves the body: it goes to the Director until the host hands it on or gives it back.
+function standInLeaves(s, ctx, o, why) {
+  const by = o.borrow.byName;
+  const p = s.players[o.playerId];
+  if (p && p.organismId === o.id) { p.organismId = null; delete p.standIn; }
+  o.playerId = null;
+  o.borrow.left = true;
+  say(s, ctx, `${by} has stepped away from ${o.name}${why ? ` (${why})` : ''}. The Director plays ${o.name} until the host hands it on or gives it back to ${o.borrow.ownerName}.`, 'turn');
 }
 
 function newId(s, prefix) {
@@ -1495,7 +1548,10 @@ const HANDLERS = {
       if (!p.agreed && ctx.role !== 'host') throw new RuleError('Read session zero and agree before you take an organism.');
       const o = org(s, a.organismId);
       if (o.playerId && o.playerId !== pid) throw new RuleError(`${o.name} is already being played.`);
-      if (p.organismId && p.organismId !== o.id && s.organisms[p.organismId]) s.organisms[p.organismId].playerId = null;
+      if (o.borrow && o.borrow.ownerId && o.borrow.ownerId !== pid && ctx.role !== 'host') throw new RuleError(`${o.name} is ${o.borrow.ownerName}'s. Ask the host to hand it to you as a stand-in.`);
+      const had = p.organismId && p.organismId !== o.id ? s.organisms[p.organismId] : null;
+      if (had && had.borrow && had.playerId === pid) standInLeaves(s, ctx, had, 'to play their own organism');
+      else if (had && had.playerId === pid) had.playerId = null;
       o.playerId = pid;
       p.organismId = o.id;
       const nm = String(a.name || '').trim().slice(0, 40);
@@ -1518,6 +1574,7 @@ const HANDLERS = {
         const next = OSMOTIC.codonAt(o.level + 1);
         throw new RuleError(o.codon >= next ? `${o.name} has the Codon for Level ${o.level + 1}; Growth happens at the next Reconstitution (a rest).` : `${o.name} Grows to Level ${o.level + 1} at ${next} Codon, and has ${o.codon}.`);
       }
+      needOwn(s, ctx, o, 'Growing a Level');
       growOne(s, ctx, o, a.choices);
       if (o.growTo <= o.level) delete o.growTo;
     },
@@ -1532,6 +1589,7 @@ const HANDLERS = {
       const seat = String(a.seat || '');
       const cur = s.organisms[seat];
       if (!cur) throw new RuleError('Choose a seat.');
+      needOwn(s, ctx, cur, 'Rebuilding it');
       if (cur.playerId && cur.playerId !== pid) throw new RuleError(`That seat is already being played by ${(s.players[cur.playerId] || {}).name || 'someone'}.`);
       const printed = (((ctx.scenario || {}).hands) || []).find((h) => h.id === seat) || {};
       const choices = { ...(a.choices || {}) };
@@ -1552,7 +1610,10 @@ const HANDLERS = {
     run(s, a, ctx) {
       const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
       const p = s.players[pid];
-      if (p && p.organismId && s.organisms[p.organismId]) s.organisms[p.organismId].playerId = null;
+      const o = p && p.organismId ? s.organisms[p.organismId] : null;
+      if (o && o.borrow && o.playerId === pid) { standInLeaves(s, ctx, o, ''); return; }
+      if (o && o.borrow && o.borrow.ownerId === pid) { p.organismId = null; o.borrow.ownerName = o.borrow.ownerName || p.name; o.borrow.ownerLeft = true; return; }
+      if (o && o.playerId === pid) o.playerId = null;
       if (p) p.organismId = null;
     },
   },
@@ -1560,6 +1621,7 @@ const HANDLERS = {
     run(s, a, ctx) {
       needControl(s, ctx, a.organismId);
       const o = org(s, a.organismId);
+      needOwn(s, ctx, o, 'Its name');
       const nm = String(a.name || '').trim().slice(0, 40);
       if (!nm) throw new RuleError('A name cannot be empty.');
       o.name = nm;
@@ -1573,6 +1635,7 @@ const HANDLERS = {
       const o = org(s, a.organismId);
       const w = o.weapons.find((x) => x.id === a.weaponId);
       if (!w) throw new RuleError('That Apparatus is not in this kit.');
+      needOwn(s, ctx, o, 'Which Apparatus it carries');
       o.weapons.forEach((x) => { if (x.choice && x.choice === w.choice) x.carried = x.id === w.id; });
     },
   },
@@ -1590,8 +1653,9 @@ const HANDLERS = {
         if (!p) throw new RuleError('Join the table first.');
         o = p.organismId ? s.organisms[p.organismId] : null;
         if (!o) throw new RuleError('Choose your organism first.');
+        if (o.playerId !== ctx.pid) throw new RuleError(o.borrow ? `${o.borrow.byName} is standing in as ${o.name} tonight. Ask the host to give it back to you.` : `${o.name} is not yours to speak for.`);
       }
-      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'say', who: o ? o.name : 'The host', orgId: o ? o.id : null, text });
+      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'say', who: o ? o.name : 'The host', orgId: o ? o.id : null, ...standInTag(s, o), text });
     },
   },
   narrate: {
@@ -1668,8 +1732,107 @@ const HANDLERS = {
       const on = !!a.on;
       if (!!o.covered === on) return;
       o.covered = on;
-      if (on) say(s, ctx, `${o.name}'s player is away. The Director plays ${o.name}'s turns until they are back.`, 'turn');
+      if (on && a.why) o.coverWhy = String(a.why).slice(0, 20); else delete o.coverWhy;
+      if (on && a.why === 'stand-in gone' && o.borrow) say(s, ctx, `${o.borrow.byName} has lost connection. The Director plays ${o.name} until they are back.`, 'turn');
+      else if (on) say(s, ctx, `${o.name}'s player is away. The Director plays ${o.name}'s turns until they are back.`, 'turn');
       else say(s, ctx, `${o.name} is back in their own hands.`, 'turn');
+    },
+  },
+  // ---- stand-ins
+  // The host opens a body to a stand-in: it shows on the join screen under "Characters needing a player".
+  'standin.open': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('Who plays a body is the host\'s call, not the Director\'s.');
+      const o = org(s, a.organismId);
+      const on = !!a.on;
+      if (on && o.borrow && o.playerId) throw new RuleError(`${o.borrow.byName} is already standing in for ${o.borrow.ownerName} as ${o.name}.`);
+      if (!!o.open === on) return;
+      o.open = on;
+      if (on) say(s, ctx, `${o.name} needs a player tonight. Anyone joining can stand in.`, 'table');
+      else say(s, ctx, `${o.name} is no longer offered to a stand-in.`, 'table');
+    },
+  },
+  // A player takes an offered body. It stays its owner's: the stand-in borrows it.
+  'standin.take': {
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('A player chooses to stand in.');
+      const pid = ctx.role === 'host' && a.pid ? a.pid : ctx.pid;
+      const p = s.players[pid];
+      if (!p) throw new RuleError('Join the table first.');
+      if (!p.agreed && ctx.role !== 'host') throw new RuleError('Read session zero and agree before you take an organism.');
+      const o = org(s, a.organismId);
+      if (!o.open && ctx.role !== 'host') throw new RuleError(`${o.name} has not been offered to a stand-in. Ask the host.`);
+      const ownerId = (o.borrow && o.borrow.ownerId) || o.playerId || null;
+      if (ownerId === pid) throw new RuleError(`${o.name} is yours. Ask the host to give it back to you.`);
+      if (o.borrow && o.playerId && o.playerId !== pid) throw new RuleError(`${o.borrow.byName} is already standing in as ${o.name}.`);
+      const had = p.organismId && p.organismId !== o.id ? s.organisms[p.organismId] : null;
+      if (had && had.borrow && had.playerId === pid) standInLeaves(s, ctx, had, `to stand in as ${o.name}`);
+      else if (had && had.playerId === pid) had.playerId = null;
+      const ownerName = (o.borrow && o.borrow.ownerName) || (ownerId ? playerNameOf(s, ownerId) : '');
+      o.open = false;
+      o.covered = false;
+      delete o.coverWhy;
+      o.playerId = pid;
+      p.organismId = o.id;
+      if (!ownerId) { // nobody owns it any more: this is simply taking it on
+        delete o.borrow;
+        lootOrder(s);
+        say(s, ctx, `${p.name} takes on ${o.name}.`, 'table');
+        return;
+      }
+      p.standIn = true;
+      const keep = o.borrow && o.borrow.ownerId === ownerId ? o.borrow : null; // a second stand-in the same night keeps the first record
+      o.borrow = {
+        ownerId, ownerName, by: pid, byName: p.name, since: keep ? keep.since : s.seq,
+        was: keep ? keep.was : bodySnapshot(o), recap: keep ? keep.recap || '' : '',
+        before: keep ? keep.before || [] : [], hands: [...(keep ? keep.hands || [] : []), p.name],
+      };
+      // What happened just before, for the stand-in's catch-up card when there is no Director recap.
+      o.borrow.before = keep ? o.borrow.before : (s.story || []).filter((e) => e.kind === 'say' || e.kind === 'narration' || e.kind === 'action').slice(-6).map((e) => ({ who: e.who, kind: e.kind, text: String(e.text).slice(0, 300) }));
+      lootOrder(s);
+      say(s, ctx, `${p.name} stands in for ${ownerName} tonight, playing ${o.name}.`, 'table');
+      s.story.push({ id: newId(s, 'a'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'action', who: o.name, orgId: o.id, away: false, text: `is played tonight by ${p.name}, standing in for ${ownerName}` });
+    },
+  },
+  // The Director's "Previously…", written for the stand-in (brain/manager.js).
+  'standin.recap': {
+    host: true,
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      if (!o.borrow) return;
+      o.borrow.recap = String(a.text || '').trim().slice(0, 1500);
+    },
+  },
+  // The owner is back: the host gives the body back, and the owner is told what happened to it.
+  'standin.return': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('Giving a body back is the host\'s call.');
+      const o = org(s, a.organismId);
+      const b = o.borrow;
+      if (!b) throw new RuleError(`${o.name} is not borrowed.`);
+      const sp = o.playerId && o.playerId !== b.ownerId ? s.players[o.playerId] : null;
+      if (sp && sp.organismId === o.id) { sp.organismId = null; delete sp.standIn; }
+      const owner = s.players[b.ownerId];
+      o.playerId = owner ? b.ownerId : null;
+      if (owner) owner.organismId = o.id;
+      o.covered = false;
+      delete o.coverWhy;
+      o.open = false;
+      const lines = (s.story || []).filter((e) => e.seq >= b.since && (e.orgId === o.id || e.who === o.name || e.kind === 'narration')).slice(-12).map((e) => ({ who: e.who, kind: e.kind, text: String(e.text).slice(0, 300) }));
+      o.awayNote = { by: [...new Set(b.hands || [b.byName])].join(' and '), changes: bodyChanges(b.was, o), lines, at: s.seq };
+      delete o.borrow;
+      lootOrder(s);
+      say(s, ctx, `${b.ownerName} is back, and ${o.name} is theirs again.${o.awayNote.by ? ` Thanks to ${o.awayNote.by} for standing in.` : ''}`, 'table');
+    },
+  },
+  // The owner has read what happened while they were away.
+  'standin.seen': {
+    run(s, a, ctx) {
+      const o = org(s, a.organismId);
+      if (ctx.role !== 'host' && o.playerId !== ctx.pid) throw new RuleError('That is not your organism.');
+      delete o.awayNote;
     },
   },
   'request.cancel': {
@@ -2281,6 +2444,7 @@ const HANDLERS = {
       lootOrder(s);
       const orgId = ctx.role === 'host' ? a.organismId : (s.players[ctx.pid] || {}).organismId;
       if (!orgId || !s.organisms[orgId]) throw new RuleError('Which organism?');
+      needOwn(s, ctx, s.organisms[orgId], 'A standing choice for the harvest');
       if (!GRADES.includes(a.grade)) throw new RuleError('Choose a grade: C, G, P or T.');
       if (a.rule != null && !['take', 'pass'].includes(a.rule)) throw new RuleError('Choose take, pass, or nothing.');
       setAuto(s, orgId, a.grade, a.rule || null);

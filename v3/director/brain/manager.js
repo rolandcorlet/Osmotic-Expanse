@@ -151,6 +151,39 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
     pump();
   }
 
+  // A stand-in has taken a body (Roly, 18 Nov): the Director writes them a short "Previously…" from
+  // the game's history, in the second person, so they can play it straight away. No AI, no recap:
+  // the phone then shows the last few lines of the story instead.
+  async function recap(orgId) {
+    const state = getState();
+    const o = state.organisms[orgId];
+    if (!o || !o.borrow || cfg.mode === 'off' || !ready()) return;
+    const gameId = state.gameId;
+    const chapters = memory && gameId ? memory.chapters(gameId).slice(-2).map((c) => `${c.site}: ${c.text}`) : [];
+    const lastSeq = memory && gameId ? ((memory.chapters(gameId).slice(-1)[0] || {}).toSeq || 0) : 0;
+    const lines = (memory && gameId ? memory.linesSince(gameId, lastSeq) : (state.story || [])).slice(-30).map((l) => `${l.who ? `${l.who}: ` : ''}${String(l.text).slice(0, 280)}`);
+    const oaths = (o.oaths || []).filter((x) => x.open).map((x) => `"${x.promise}"${x.witness ? ` (witnessed by ${x.witness})` : ''}`);
+    const site = ((scenarioNow().sites || []).find((x) => x.id === state.scene.siteId) || {}).name || '';
+    const ask = [
+      `${o.borrow.byName} is standing in tonight for ${o.borrow.ownerName}, playing ${o.name} (${o.phenotype}, the ${o.hand}, Level ${o.level}).`,
+      site ? `The Cohort is at ${site}.` : '',
+      o.tie ? `${o.name}'s tie to the Cohort: ${o.tie}` : '',
+      oaths.length ? `Open Oaths ${o.name} has sworn: ${oaths.join('; ')}.` : `${o.name} has no open Oaths.`,
+      chapters.length ? `The story so far:\n${chapters.join('\n')}` : '',
+      lines.length ? `Most recently:\n${lines.join('\n')}` : '',
+      `Write "Previously…" for ${o.borrow.byName}: at most 110 words, in the second person ("You are ${o.name}…"), plain words, no rules or numbers. Say who ${o.name} is, where the Cohort is and what is happening now, and anything ${o.name} has promised or owes. Use only what is written above; invent nothing.`,
+    ].filter(Boolean).join('\n\n');
+    try {
+      const quick = makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx, thinking: 'off' });
+      const chat = quick.start({ system: 'You are the Director of The Osmotic Expanse, a tabletop roleplaying game. You write short, clear catch-up notes for players.', tools: [] });
+      const reply = await chat.send(ask);
+      if (reply.usage) { st.totals.in += reply.usage.in || 0; st.totals.out += reply.usage.out || 0; }
+      const text = String(reply.text || '').trim();
+      const now = getState().organisms[orgId];
+      if (text && now && now.borrow && act) act({ type: 'standin.recap', organismId: orgId, text });
+    } catch (e) { console.log(`The stand-in recap could not be written: ${e.message}`); }
+  }
+
   async function writeChapter({ siteId, why }) {
     if (!memory) return;
     const state = getState();
@@ -355,6 +388,7 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
     busy() { return st.phase === 'thinking'; },
     // Close a chapter of the chronicle: the Cohort left a site, or the host ended the night.
     chapter(job) { chapterQueue.push(job); pump(); },
+    recap(orgId) { return recap(orgId); },
     reset() { st.proposal = null; st.recall = null; again = null; st.error = ''; if (st.phase !== 'thinking') st.phase = 'idle'; onChange(); },
     init() { if (usable() && (info().group === 'cloud' || cfg.urls[cfg.provider] || cfg.models[cfg.provider])) refreshModels().then(onChange).catch(() => {}); },
   };

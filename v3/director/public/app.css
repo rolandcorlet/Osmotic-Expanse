@@ -456,3 +456,16 @@ svg.sitemap .sm-glow{fill:none!important;stroke:var(--warn-c)!important;stroke-w
 .btn svg.sitemap.mini .sm-tok circle{stroke-width:3}
 svg.sitemap text{paint-order:stroke;stroke:color-mix(in srgb,var(--bg) 85%,transparent);stroke-width:2.2px;stroke-linejoin:round}
 svg.sitemap .sm-tok text{stroke:none}
+
+/* ---- Stand-ins: the catch-up, the away note, the host's seats. */
+.card.standin{border-color:color-mix(in srgb,var(--warn-c) 55%,var(--line))}
+.card.standin h3{color:var(--warn-c)}
+.hand.si{cursor:default;gap:6px}
+.hand.si .btn{margin-top:4px}
+.catch-lines{display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-left:3px solid color-mix(in srgb,var(--accent) 50%,transparent);background:color-mix(in srgb,var(--panel2) 50%,transparent);border-radius:6px}
+.away-list{margin:4px 0 0;padding-left:18px}
+.seats-card{flex:none}
+.seats{display:flex;flex-direction:column;gap:6px}
+.seat{display:flex;align-items:center;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.seat .who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1 1 140px}
+.seat .row{flex-wrap:nowrap;gap:6px}
