@@ -439,7 +439,7 @@ const server = http.createServer(async (req, res) => {
           case 'save': out.saved = await slots.save(body.name); break;
           case 'load': loadSaved(slots.read(String(body.id || ''))); break;
           case 'delete': slots.remove(String(body.id || '')); break;
-          case 'config': slots.configure({ url: body.url, key: body.key }); break;
+          case 'config': slots.configure({ url: body.url, key: body.secret }); break; // `key` is the host key
           case 'test': await slots.test(); break;
           case 'pushAll': out.copied = await slots.pushAll(); break;
           case 'cloudList': out.cloudSlots = await slots.cloudList(); break;

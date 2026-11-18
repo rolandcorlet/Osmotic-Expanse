@@ -38,7 +38,13 @@ export function createSlots({ dir, getState, describe, chapters = () => [], fetc
   // them as a Bearer token. An older service_role key is a JWT and is sent both ways, as it expects.
   const heads = (extra = {}) => ({ apikey: cfg.key, ...(/^eyJ/.test(cfg.key) ? { authorization: `Bearer ${cfg.key}` } : {}), 'content-type': 'application/json', ...extra });
   async function call(path, opts = {}) {
-    const res = await fetchImpl(`${base()}/rest/v1/${path}`, { ...opts, headers: heads(opts.headers) });
+    let res;
+    try {
+      res = await fetchImpl(`${base()}/rest/v1/${path}`, { ...opts, headers: heads(opts.headers) });
+    } catch (e) {
+      const why = (e.cause && (e.cause.code || e.cause.message)) || e.message;
+      throw new Error(`Could not reach Supabase (${why}). Check this computer is online, the address is right, and the project is not paused in the Supabase dashboard (the free plan pauses after 7 days unused).`);
+    }
     const text = await res.text();
     if (!res.ok) {
       let why = text.slice(0, 200);

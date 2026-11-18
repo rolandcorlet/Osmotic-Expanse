@@ -95,3 +95,9 @@ test('a new secret key goes on the apikey header only; an old JWT key also as a 
   await sl2.test();
   assert.equal(sb2.calls.at(-1).opts.headers.authorization, 'Bearer eyJhbGciOi.legacy.jwt');
 });
+
+test('no connection to Supabase says what to check, not "fetch failed"', async () => {
+  const sl = createSlots({ dir: mkdtempSync(join(tmpdir(), 'oxs-')), getState: game, describe: () => ({}), fetchImpl: async () => { const e = new TypeError('fetch failed'); e.cause = { code: 'ENOTFOUND' }; throw e; } });
+  sl.configure({ url: 'https://abc.supabase.co', key: 'sb_secret_x' });
+  await assert.rejects(() => sl.test(), /Could not reach Supabase \(ENOTFOUND\).*paused/);
+});

@@ -1848,7 +1848,8 @@ const ACT = {
   'sv.del': async (d) => { ui.saves.sure = ''; await savesOp({ op: 'delete', id: d.id }); },
   'sv.cfg': async () => {
     const S = ui.saves;
-    const out = await savesOp({ op: 'config', url: S.url || MY_SUPABASE, key: S.key });
+    // The Supabase key travels as `secret`: `key` is the host key every request to this host carries.
+    const out = await savesOp({ op: 'config', url: S.url || MY_SUPABASE, secret: S.key });
     if (!out.ok) return;
     S.key = '';
     const t = await savesOp({ op: 'test' });
