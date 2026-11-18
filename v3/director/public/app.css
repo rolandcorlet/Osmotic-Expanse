@@ -480,3 +480,6 @@ details.prices>summary{cursor:pointer;list-style-position:inside}
 details.prices .row{flex-wrap:wrap;gap:5px;margin-top:4px}
 details.prices .btn.sm{min-height:28px;padding:3px 9px}
 details.prices select{width:auto;flex:1 1 130px;min-height:30px;padding:4px 8px}
+
+/* ---- Story seeds (host Seeds tab). */
+textarea.seed-text{flex:1 1 auto;min-height:180px;font-family:var(--mono);font-size:13px;line-height:1.45;resize:none}

@@ -265,10 +265,10 @@ export const scenario = {
     },
     // 3.1 and 3.2: a Beat passes. TOLL moves every Beat; CARCASS only when no cut was signed and no
     // haul shipped. The whole Vector runs in roughly 4 Beats (7.4), so a day closes itself after about
-    // a dozen of the Director's turns if nobody closes it.
+    // ten of the Director's turns if nobody closes it (Codex 5.1).
     beatClocks: ['TOLL'],
     beatIdle: ['CARCASS'],
-    beatAfterTurns: 12,
+    beatAfterTurns: 10,
     // 3.1 prices "the Cohort opens a new panel" on CARCASS. Both runs of the 13 Nov evening gate paid
     // that row twice for one panel — the Director's discretionary advance and the site cut — so this
     // Vector says how many panel openings one scene pays for. 1 keeps the Clock honest to the scene;

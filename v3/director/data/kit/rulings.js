@@ -170,11 +170,53 @@ export const RULINGS = [
   "name": "A challenge is a cost",
   "text": "A Host that is Wary or worse sets every Tolerance contest at AT 18, sponsored or not. A Sentinel's challenge is a cost on the way (a contest, a Mark, a Clock), never a stop: an honest answer of what you are passes it."
  },
-{
- "book": "atlas",
- "section": "4.2 Adaptations",
- "date": "17 Nov 2026",
- "name": "Chemical Literacy and Pressure Nerves",
- "text": "Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' \"+2 Pressure Tolerance\" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks."
-}
+ {
+  "book": "atlas",
+  "section": "4.2 Adaptations",
+  "date": "17 Nov 2026",
+  "name": "Chemical Literacy and Pressure Nerves",
+  "text": "Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' \"+2 Pressure Tolerance\" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks."
+ },
+ {
+  "book": "codex",
+  "section": "1.1 Four jobs, in order",
+  "date": "18 Nov 2026",
+  "name": "A player who cannot come",
+  "text": "When a player is away, the Director plays their organism in the open until they are back, as plainly as a creature and no further than the scene needs. Or a stand-in may play it: the organism stays its owner's, borrowed for the night. A stand-in fights, talks, rolls and uses its kit; its name, its Growth, a rebuild and which Apparatus it carries stay the owner's to change. When the owner returns, give it back and tell them what it did and what changed."
+ },
+ {
+  "book": "codex",
+  "section": "4.3 Build an encounter in five moves",
+  "date": "18 and 19 Nov 2026",
+  "name": "Going beyond the page",
+  "text": "A Director may invent people, places and threads; once named they are canon, so write them down and keep them true. Invent at most one encounter a site: from the Bestiary, at most three bodies, no tougher than the toughest creature the site prints, with a reason the players can hear. Never invent a price, a reward or damage: those come from the page. A **story seed** written ahead (People, Places, Threads, one Encounter, Secrets, How it can end) is the easiest way to bring your own material to the table."
+ },
+ {
+  "book": "first-carve",
+  "section": "3.1 CARCASS",
+  "date": "18 Nov 2026",
+  "name": "A Beat in the carcass",
+  "text": "A cut stamped at a Tally Post is a cut signed. TOLL advances every Beat; CARCASS advances only on a Beat when no cut was stamped and no haul shipped. If about ten exchanges at the table pass with no Beat, the day has run out: close it (Codex §5.1)."
+ },
+ {
+  "book": "first-carve",
+  "section": "3.1 CARCASS",
+  "date": "18 Nov 2026",
+  "name": "Salt, priced",
+  "text": "Salt costs 10 S per 2 Drifts. A salted panel rewinds CARCASS and a salted wound rewinds HUNGER, each **once a scene**, so a sack of salt is a choice, not a way to empty the Clocks. Salt the Cohort finds (the first crew's cache) costs nothing."
+ },
+ {
+  "book": "first-carve",
+  "section": "3.1 CARCASS",
+  "date": "18 Nov 2026",
+  "name": "A stamped cut is safe",
+  "text": "When the whale goes over (CARCASS 6) and in the Render Cascade (HUNGER 4), a cut stamped at a Tally Post counts as shipped: only unstamped cuts are lost or drop a grade. When the whale goes over, HUNGER jumps to 3 and the ORDER Clock opens at 2, as printed."
+ },
+ {
+  "book": "first-carve",
+  "section": "3.2 TOLL",
+  "date": "18 Nov 2026",
+  "name": "Paper pays once",
+  "text": "Each kind of paper (a valid claim, a licence, a toll chit, an Ash witness, a Guild tally receipt) rewinds TOLL once in a Vector, and the Gut Stone's serial once more. Shipping a stamped haul earns its own tally receipt: TOLL −1, once a scene."
+ }
 ];

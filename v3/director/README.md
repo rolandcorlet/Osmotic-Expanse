@@ -146,8 +146,16 @@ By default the Director may bring people and threads back at any site, in conver
 scene-dressing (**Callbacks**). Fights still use only the creatures printed for the site. **Page
 only** keeps it to what each site prints. The **Memory** tab on the host console shows the
 chronicle and the cast, lets you search the whole game, add or remove a card or a chapter, and
-**End the night**. Ad-libbing new people and encounters is the planned next step: the cast
-already records what was improvised.
+**End the night**. **Ad-lib** (built 18 Nov) lets the Director also invent people, places and
+threads (written to the cast as improvised, canon from then on) and one small encounter a site
+through `invent_encounter`. The host's own material goes in as **story seeds** on the **Seeds** tab
+(`engine/seeds.js` reads and checks them, `brain/seedwriter.js` writes one from an idea; guide in
+`../../docs/STORY-SEEDS.md`).
+
+**Saves.** The **Saves** tab keeps named save slots in `saves/slots/` and an autosave of each game
+every five minutes, and copies them to Supabase (`public.oxd_saves`, secret key in
+`saves/backup.json`). `slots.js` holds it; `test/slots.test.js` checks it against a stand-in for
+Supabase.
 
 **Testing a model.** `node tools/bench.mjs` plays a scripted Toll-Vent through the real model
 and counts Engine refusals, leak flags and style slips. A model passes the gate with no

@@ -4,6 +4,7 @@
 
 import { rollDice, checkOwnDice, d6 } from './dice.js';
 import * as R from './rules.js';
+import { parseSeed } from './seeds.js';
 import { successChance } from './odds.js';
 import { buildHand } from '../data/chargen/build.js';
 import { ATLAS, OSMOTIC } from '../data/chargen/model.generated.js';
@@ -76,6 +77,8 @@ export function newSession(scenario) {
 // sheets. A different Vector has different organisms, so everyone chooses again.
 export function restart(old, scenario, { keepPlayers = false, carry = true } = {}) {
   const s = newSession(scenario);
+  // The host's story seeds are a library, not one game's state: they stay, and the ad-lib setting with them.
+  if (old && old.seeds) { s.seeds = clone(old.seeds); s.improv = old.improv || s.improv; }
   if (keepPlayers && old) {
     const same = old.scenarioId === scenario.id;
     s.zero = { ...s.zero, ...clone(old.zero || {}) };
@@ -1963,8 +1966,13 @@ const HANDLERS = {
       s.adlib = s.adlib || {};
       if (ctx.ai) {
         if (s.adlib[s.scene.siteId]) throw new RuleError(`You have already brought an invented encounter to ${site.name || 'this site'} (${s.adlib[s.scene.siteId].what}). One a site.`);
-        if ((block.tier || 1) > printedTier) throw new RuleError(`${block.name} is Tier ${block.tier}; nothing printed here is above Tier ${printedTier}. An invented encounter is no tougher than the page's own.`);
+        // A host's story seed was checked against the whole Vector when it was saved: its own encounter
+        // may come at any site it fits, at the count and Tier the host wrote.
+        const seed = a.seedId ? (s.seeds || {})[a.seedId] : null;
+        const fromSeed = seed && seed.on && seed.encounter && seed.encounter.blockId === block.id && count <= seed.encounter.count;
+        if (!fromSeed && (block.tier || 1) > printedTier) throw new RuleError(`${block.name} is Tier ${block.tier}; nothing printed here is above Tier ${printedTier}. An invented encounter is no tougher than the page's own.`);
         if (count > 3) throw new RuleError('An invented encounter is at most three bodies.');
+        if (/\(/.test(block.name || '')) throw new RuleError(`${block.name} is a named character from a printed Vector, not a creature to invent.`);
       }
       const made = spawn(s, ctx, [{ blockId: block.id, count, band: R.BANDS.some((b) => b.id === a.band) ? a.band : 'mid' }], ctx.bestiary);
       for (const c of made) c.adlib = true;
@@ -2684,6 +2692,39 @@ const HANDLERS = {
       else delete s.cast[a.id];
     },
   },
+  // Story seeds (engine/seeds.js): the host's own material for ad-lib. Saved only when the seed reads
+  // cleanly against the Bestiary and the Vector; the host's choices, never the Director's.
+  'seed.save': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('Story seeds are the host\'s.');
+      const text = String(a.text || '').slice(0, 8000);
+      const seed = parseSeed(text, { bestiary: ctx.bestiary || {}, scenario: ctx.scenario || {} });
+      if (seed.problems.length) throw new RuleError(`The seed needs fixing first: ${seed.problems.join(' ')}`);
+      s.seeds = s.seeds || {};
+      if (!a.id && Object.keys(s.seeds).length >= 30) throw new RuleError('This game holds 30 seeds. Delete one first.');
+      const id = a.id && s.seeds[a.id] ? a.id : newId(s, 'seed');
+      const was = s.seeds[id];
+      s.seeds[id] = { id, text, on: a.on != null ? !!a.on : was ? was.on : true, title: seed.title, fits: seed.fits, tone: seed.tone, cards: seed.cards, encounter: seed.encounter, secrets: seed.secrets, endings: seed.endings, warnings: seed.warnings, seq: s.seq };
+      say(s, ctx, `Story seed ${was ? 'updated' : 'saved'}: ${seed.title}.`, 'note-host');
+    },
+  },
+  'seed.toggle': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('Story seeds are the host\'s.');
+      const x = (s.seeds || {})[a.id];
+      if (!x) throw new RuleError('That seed is not in this game.');
+      x.on = !!a.on;
+    },
+  },
+  'seed.remove': {
+    host: true,
+    run(s, a, ctx) {
+      if (ctx.ai) throw new RuleError('Story seeds are the host\'s.');
+      if (s.seeds) delete s.seeds[a.id];
+    },
+  },
   'improv.set': {
     host: true,
     run(s, a, ctx) {
@@ -3050,6 +3091,7 @@ export function viewFor(state, role, pid) {
   for (const q of s.requests) { delete q.bd; }
   s.log = s.log.filter((l) => l.kind !== 'note-host');
   delete s.cast; // the Director's memory, which may hold what the players have not been told
+  delete s.seeds; // the host's story seeds: their secrets are the host's
   s.me = pid && s.players[pid] ? { pid, ...s.players[pid] } : null;
   return s;
 }

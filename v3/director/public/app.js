@@ -37,7 +37,7 @@ let codeBad = false;
 const TABS = {
   player: [['play', 'Play'], ['sheet', 'Sheet'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['saves', 'Saves'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['seeds', 'Seeds'], ['saves', 'Saves'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -58,6 +58,7 @@ const ui = {
   say: { text: '' },
   dir: { key: '', note: '', edit: '', editId: null, narrate: '', url: '', urlFor: null },
   paperKind: 'chit',
+  seeds: { idea: '', text: '', edit: null, from: null, sure: '' }, // host: the Seeds tab
   saves: { slots: null, cloud: null, cloudSlots: null, name: '', url: '', key: '', busy: false, sure: '' }, // host: the Saves tab
   strike: null,
   drift: false,
@@ -949,6 +950,70 @@ function hostSeatsCard() {
   return `<section class="card seats-card"><h3>Players and stand-ins</h3><div class="seats">${rows}</div></section>`;
 }
 
+// ------------------------------------------------------------------ story seeds
+// The host's own story material for ad-lib (Roly, 19 Nov), in the layout engine/seeds.js reads: type
+// an idea or paste a story, the Director writes it up, the host edits it and saves it; a saved seed
+// is checked against the Bestiary and the Vector, and used while ad-lib is on.
+const SEED_TEMPLATE = (title) => `# Seed: A title for your story
+Fits: ${title}, any site
+Tone: a few words for the feel
+
+## People
+- A name (person): who they are. What they want. What they fear.
+
+## Places
+- A name (place): what it looks like, and why it matters.
+
+## Threads
+- A name (thread): a debt, a grudge, a promise or a rumour that ties things together.
+
+## Encounter
+- 2 drifter-shoal at Mid: why they are here, in the fiction.
+
+## Secrets
+- Something true the players can only find out by playing.
+
+## How it can end
+- Two or three ways this could go.
+`;
+function seedsHtml() {
+  const d = state.director || {};
+  const S = ui.seeds;
+  const D = d.seed || null;
+  // A fresh write-up from the Director lands in the editor once.
+  if (D && D.text && S.from !== D.text) { S.text = D.text; S.from = D.text; S.edit = null; }
+  const adlib = state.improv === 'adlib';
+  const list = Object.values(state.seeds || {}).sort((a, b) => b.seq - a.seq);
+  const ai = d.usable && d.model && d.mode !== 'off';
+  const checks = D && !D.busy && D.text === S.text ? [...(D.problems || []).map((x) => `<div class="note warn small">${esc(x)}</div>`), ...(D.warnings || []).map((x) => `<div class="small" style="color:var(--warn-c)">${esc(x)}</div>`)].join('') : '';
+  const left = `<section class="card fill"><h3>Write a story seed<span class="right">${D && D.busy ? '<span class="chip on">Writing…</span>' : ''}</span></h3>
+    <p class="small dim">Type an idea in a few sentences, or paste a whole story. The Director writes it up in the layout it plays best, checked against the Bestiary and ${esc(sc.title)}. Read it, change anything, then save it.</p>
+    <textarea rows="4" data-k="sd.idea" data-bind="seeds.idea" maxlength="6000" placeholder="For example: a rival salvage captain, almost friendly, wants the Gut Stone first; her nephew wants out; she owes the Ash a rite.">${esc(S.idea)}</textarea>
+    <div class="row"><button class="btn primary" data-act="sd.write" ${!ai || (D && D.busy) || !S.idea.trim() ? 'disabled' : ''} title="${ai ? '' : 'Set up the AI on the Director tab first'}">Write it up</button><button class="btn" data-act="sd.template">Start from the template</button>${ai ? '' : '<span class="small dim">The AI is off: start from the template and write it yourself.</span>'}</div>
+    ${D && D.error ? `<div class="note warn small">${esc(D.error)}</div>` : ''}
+    <div class="fl dim small">${S.edit ? 'EDITING A SAVED SEED' : 'THE SEED'}</div>
+    <textarea class="grow seed-text" data-k="sd.text" data-bind="seeds.text" maxlength="8000" placeholder="The seed appears here. You can also write or paste one by hand.">${esc(S.text)}</textarea>
+    ${checks}
+    <div class="row"><button class="btn primary" data-act="sd.save" ${S.text.trim() ? '' : 'disabled'}>${S.edit ? 'Save changes' : 'Save this seed'}</button>${S.text ? '<button class="btn" data-act="sd.clear">Clear</button>' : ''}</div>
+  </section>`;
+  const rows = list.map((x) => {
+    const n = (k) => x.cards.filter((c) => c.kind === k).length;
+    const many = (k, one, more) => (k ? `${k} ${k === 1 ? one : more}` : '');
+    const parts = [many(n('person'), 'person', 'people'), many(n('place'), 'place', 'places'), many(n('thread') + n('faction'), 'thread', 'threads'), many(x.secrets.length, 'secret', 'secrets')].filter(Boolean).join(' · ');
+    const sure = S.sure === x.id;
+    return `<div class="slot"><div class="grow"><b>${esc(x.title)}</b>${x.warnings.length ? ` <span class="chip warn" title="${esc(x.warnings.join(' '))}">${x.warnings.length} note${x.warnings.length > 1 ? 's' : ''}</span>` : ''}
+        <div class="small dim">${esc(x.fits.vector || 'any Vector')}${x.fits.site ? ` · ${esc(x.fits.site)}` : ''}${x.tone ? ` · ${esc(x.tone)}` : ''}</div>
+        <div class="small faint">${esc(parts)}${x.encounter ? ` · encounter: ${x.encounter.count} ${esc(x.encounter.name)}` : ''}</div></div>
+      <div class="row"><div class="seg"><button class="${x.on ? 'on' : ''}" data-act="sd.on" data-id="${x.id}" data-on="1">On</button><button class="${x.on ? '' : 'on'}" data-act="sd.on" data-id="${x.id}" data-on="0">Off</button></div>
+        <button class="btn sm" data-act="sd.edit" data-id="${x.id}">Edit</button>${sure ? `<button class="btn sm danger" data-act="sd.del" data-id="${x.id}">Yes, delete</button>` : `<button class="btn sm" data-act="sd.sure" data-id="${x.id}">Delete</button>`}</div></div>`;
+  }).join('');
+  const right = `<section class="card fill"><h3>Your story seeds<span class="right">${adlib ? '<span class="chip ok">ad-lib on</span>' : '<button class="btn sm" data-act="m.improv" data-id="adlib" title="Seeds are used only while ad-lib is on">Turn ad-lib on</button>'}</span></h3>
+    <p class="small dim">${adlib ? 'Seeds switched on, and written for this Vector, are the Director\'s to weave in: their people, places and threads become canon when used, secrets stay secret until played, and a seed\'s encounter is that site\'s one invented encounter.' : 'Seeds are used only while ad-lib is on (the Memory tab). Until then they wait here.'} Players never see them.</p>
+    <div class="scroll" data-scroll="seeds">${rows || '<div class="empty">No seeds yet. Write one on the left.</div>'}</div>
+  </section>`;
+  return `<div class="lay-two">${left}${right}</div>`;
+}
+
 // ------------------------------------------------------------------ saved games
 // The host's Saves tab (Roly, 18 Nov): named saves on this computer, the autosave, and a backup copy in
 // Supabase (slots.js). The list comes from /api/saves, fetched when the tab opens.
@@ -1387,6 +1452,7 @@ function hostHtml() {
   if (ui.tab === 'director') return directorHtml();
   if (ui.tab === 'memory') return memoryHtml();
   if (ui.tab === 'saves') return savesHtml();
+  if (ui.tab === 'seeds') return seedsHtml();
   if (ui.tab === 'voice') return `<div class="stack" style="max-width:760px">${voiceCard()}</div>`;
   return `<div class="lay-host">
     <div class="col">${hostSceneCard()}${hostSeatsCard()}</div>
@@ -1858,6 +1924,17 @@ const ACT = {
   'sv.pushAll': async () => { const out = await savesOp({ op: 'pushAll' }); if (out.ok) toast(`${out.copied || 0} saved game${out.copied === 1 ? '' : 's'} copied to Supabase.`, true); },
   'sv.cloud': () => savesOp({ op: 'cloudList' }),
   'sv.restore': async (d) => { const out = await savesOp({ op: 'restore', id: d.id }); if (out.ok) toast('It is on this computer now, under Saved games.', true); },
+  'sd.write': () => sendDirector({ op: 'seed.write', idea: ui.seeds.idea }),
+  'sd.template': () => { ui.seeds.text = SEED_TEMPLATE(sc.title); ui.seeds.edit = null; },
+  'sd.clear': () => { ui.seeds.text = ''; ui.seeds.edit = null; sendDirector({ op: 'seed.clear' }); },
+  'sd.save': async () => {
+    const S = ui.seeds;
+    if (await send({ type: 'seed.save', id: S.edit || undefined, text: S.text })) { toast(S.edit ? 'Seed updated.' : 'Seed saved.', true); S.text = ''; S.edit = null; S.idea = ''; sendDirector({ op: 'seed.clear' }); }
+  },
+  'sd.on': (d) => send({ type: 'seed.toggle', id: d.id, on: d.on === '1' }),
+  'sd.edit': (d) => { const x = (state.seeds || {})[d.id]; if (x) { ui.seeds.text = x.text; ui.seeds.edit = x.id; } },
+  'sd.sure': (d) => { ui.seeds.sure = d.id; },
+  'sd.del': (d) => { ui.seeds.sure = ''; return send({ type: 'seed.remove', id: d.id }); },
   'si.take': (d) => send({ type: 'standin.take', organismId: d.id }),
   'si.open': (d) => send({ type: 'standin.open', organismId: d.id, on: d.on === '1' }),
   'si.return': (d) => send({ type: 'standin.return', organismId: d.id }),

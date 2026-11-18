@@ -75,6 +75,21 @@ The bench now also reports how many secrets the Cohort learned.
   Tolerance Thresholds, the CHURN fill and a jammed pump, the Weep's wash. Routes priced at a Beat pay
   it, and a day ends by itself after about ten Director turns.
 - **The Director's voice** is a British man by default (Kokoro `bm_fable`, or each screen's own).
+- **The table, 17–19 Nov.** A **Books** tab on every screen that reads any public book aloud;
+  **Stop thinking** and **Restart** when the Director gets stuck; **Player away** (the Director plays
+  an absent player's organism, in the open) and **stand-ins** (a new player borrows an organism for
+  the night, with a catch-up card, and gives it back with a "while you were away" note); every action
+  in a Pulse War told on the Story card; the **living water** behind the player screen (WebGPU, with a
+  2D backup) under frosted-glass panels; a **site map** on the Show pictures button with the distance
+  bands and the ways out.
+- **Saves** (18 Nov). Named save slots and an autosave every five minutes on the host's **Saves**
+  tab, copied to a Supabase backup (`director/slots.js`).
+- **The First Carve's Clocks, complete** (18 Nov). Beats, salt, shipping a haul, paper and the Gut
+  Stone serial, the whale going over, and the opaque lane on creature attacks.
+- **Ad-lib and story seeds** (18–19 Nov). With **Ad-lib** on, the Director may invent people,
+  places and threads, and one small encounter a site. The host's own stories go in as **story
+  seeds** on the **Seeds** tab: type an idea, the Director writes it up, the app checks it. Guide:
+  [`../docs/STORY-SEEDS.md`](../docs/STORY-SEEDS.md).
 
 ## House rules added in v3
 
@@ -88,6 +103,9 @@ Assistants and the Word copies. The short list:
 - **People with no stat block** are struck with one roll, never a Pulse War.
 - **Total Lysis** ends an organism when its Countdown fills.
 - **Protean Folding** is rolled with RTC (17 Nov).
+- **A player who cannot come** is played by the Director, or by a stand-in who borrows the organism (18 Nov).
+- **Going beyond the page**: one invented encounter a site, no tougher than the page's own (18–19 Nov).
+- **The First Carve**: salt and paper rewind a Clock once (a scene, a game); a stamped cut is safe when the whale goes over (18 Nov).
 
 ## Status, honestly
 

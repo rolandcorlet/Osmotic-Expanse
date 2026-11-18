@@ -16,7 +16,9 @@ Keep this beside you. Nothing here needs the code open.
    * Leave the mode on **Co-pilot** for the first session.
 5. **Run tab, Session zero card:** set the pause word (default *SLACK WATER*) and a one-line
    tone note, for example *body horror is in, cruelty to animals is out*.
-6. Starting over: **New game…** on the clocks card. Choose the Vector, and whether the players
+6. **Saves tab:** set up the backup once (paste your Supabase secret key, **Save and test**).
+   From then on every save, and the autosave every five minutes, is copied there too.
+7. Starting over: **New game…** on the clocks card. Choose the Vector, and whether the players
    stay seated (same people, same organisms, fresh sheets, same session-zero terms). Undo brings
    the old game back if you press it by mistake.
 
@@ -33,10 +35,27 @@ name is not** — do not ask who added one.
 
 When everyone is ready, press **Take a turn** to open the scene.
 
+**Somebody can't come?** Two choices, both under **Players and stand-ins** on the Run tab (bottom
+left):
+
+* **Player away** — the Director plays their organism in the open until they are back.
+  **Take back** returns it.
+* **Hand to a stand-in** — someone new plays it tonight. They join on the player link, read
+  session zero, and pick it from **Characters needing a player**. They get a catch-up card (with a
+  "Previously…" from the Director when the AI is on). It stays the owner's: no renaming, Growing,
+  rebuilding or changing which Apparatus it carries. When the owner is back, **Give back to …**: the
+  owner sees what it did and what changed. If a stand-in's phone drops out, the Director covers
+  after about 90 seconds and hands it back when they reconnect.
+
 ## During play
 
 The Director takes a turn whenever a player types what they do, rolls, or ends a turn. You do
 not need to press anything.
+
+On the phones: the **Books** tab reads any public book aloud; the flashing **Show pictures** button
+(with a little radar on it) opens the creatures and a map of where everyone is and the ways out;
+the living water behind the screen answers the game (players can switch it off on Colours). In a
+Pulse War, everyone's actions are told on the Story card, so nobody misses a turn.
 
 **In Co-pilot, every turn waits for you.** You see what it did with the Engine and what it
 will say.
@@ -53,7 +72,7 @@ you.
 
 | What you see | What to do |
 | :-- | :-- |
-| It stalls on "thinking" | Wait one more turn, then press **Take a turn**. A local model on a long briefing is slow, not stuck. |
+| It stalls on "thinking" | Press **Stop thinking**, or **Restart** to stop and start a fresh turn (Director tab). A local model on a long briefing is slow, so give it a minute first. |
 | It says a number for a creature | Discard and **Try again**. It is not meant to, and the check usually catches it. |
 | It invents a price, item or seller | Discard. Tell them in your own words what the page actually sells. |
 | It forgets someone | Type a note in the box: *Vash has not acted — ask Vash*. |
@@ -82,6 +101,12 @@ everything is shared.
   they meet it or walk away from it, press **Kept** or **Broken**. Keeping pays the table a
   Cohesion; breaking marks two Lysis boxes and a scar. Play the consequence, do not scold.
 * **Move a clock** by hand with the + and − buttons.
+* **End the day** — in a Vector that counts Beats, this closes a day and moves the Clocks a day
+  pays. A day also closes itself after about ten of the Director's turns.
+* **Salt, shipping and paper** (The First Carve, under the clocks card, outside a Pulse War): salt
+  a panel (CARCASS back one) or a wound (HUNGER back one), once a scene each at 10 S per 2 Drifts;
+  ship the stamped haul (TOLL back one); and produce paper or the Gut Stone's serial (TOLL back
+  one, each kind once a game).
 
 ## The Memory tab
 
@@ -96,8 +121,17 @@ Everything said at the table is kept. The **Memory** tab shows:
 * **Search:** ask it anything, like *what did the clerk say about Neth*, before you answer a
   player yourself.
 
-**Callbacks / Page only:** with Callbacks, the Director may bring back people from earlier sites
-in conversation. Page only keeps it to what each site prints.
+**Page only / Callbacks / Ad-lib:** Page only keeps the Director to what each site prints. With
+Callbacks it may bring back people from earlier sites in conversation. With **Ad-lib** it may also
+invent people, places and threads (canon once named), and one small encounter a site from the
+Bestiary, no tougher than the page's own.
+
+## The Seeds tab: your own stories
+
+Write your own material for ad-lib as a **story seed**. Type an idea or paste a story, press
+**Write it up**, read and change it, and **Save this seed**. Switch seeds on and off any time; they
+are used while ad-lib is on, and players never see them. The full guide, with a prompt for writing
+seeds in any chat app, is `docs/STORY-SEEDS.md`.
 
 ## The Voice tab
 
@@ -108,7 +142,9 @@ The table screen reads the Director's narration aloud and shows a small living f
 Press **End the night** on the Memory tab first. It writes the night's chapter, so next time the
 Director remembers where you left off.
 
-The session saves itself after every change. Close the window. Next time, start the same way
+The session saves itself after every change. To keep a copy you can come back to, **Saves tab →
+Save this game** with a name (it goes to Supabase too). **Load** brings any save back; Undo undoes
+a load. Close the window. Next time, start the same way
 and it carries on where you left off — in whichever Vector you were playing.
 
 To play the same Vector again with the same group, **New game…** with *Keep the players seated*

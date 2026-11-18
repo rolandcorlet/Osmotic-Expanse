@@ -2,11 +2,38 @@
 
 Written 12 November 2026, after Phase 5 was pushed (commit `2ac11f4` on `main`, repo `rolandcorlet/Osmotic-Expanse`, folder `director/`). **Rewritten at the end of 13 November 2026, HEAD `caf1b2a` plus this file, and extended the same night with the site 3 and 4 prep below.** Read this first, then `README.md` and `HOST-GUIDE.md` in the same folder.
 
-**Push state:** Roly pushed at 11:01, 12:35, 13:18, 22:37 **and 22:44** — so `origin/main` sits at
-**`edfe4bb`** and everything written above this line is **already pushed**. What is unpushed is the site 3
-and 4 prep below it.
+**Push state:** see the newest *State* section below; the notes under it are dated history.
 
-## State at 17 November 2026 (read this first; the dated sections below are history)
+## State at 19 November 2026 (read this first; everything below is history)
+
+All pushed to `main` up to `672ded5` (Vercel READY for both sites after each push); this section's
+work is the next push. `node --test`: 250. The repo was tidied on 18 Nov: books in `../../books/`, notes
+in `../../docs/`, the Director's Assistant in `../../site/`, old versions in `../../archive/`.
+
+- **Table features since 17 Nov:** Books tab with read-aloud; Stop thinking / Restart (`manager.js`
+  `gen` counter); Player away (`organism.cover`, the Director plays it: `organism_act` /
+  `organism_strike` / `organism_end_turn`); Pulse War actions told in the Story (`announce`); stand-ins
+  (`standin.*` in `engine/ledger.js`, catch-up card, the Director's "Previously…" via `manager.recap`,
+  a dropped stand-in covered after 90 s by `server.js`); living water (`public/membrane.js`, WebGPU
+  with a 2D backup) and frosted glass on the player screen; the site map on Show pictures.
+- **Saves:** `slots.js` and the host Saves tab: named slots, a five-minute autosave, and a Supabase
+  copy (`public.oxd_saves` in Roly's project, RLS on with no policies, secret key in
+  `saves/backup.json`; working since 19 Nov after the `secret` field fix).
+- **The First Carve's Clocks:** Beats (TOLL; CARCASS when nothing stamped or shipped; a day closes
+  after 10 turns), `salt`, `haul.ship`, `paper`, the whale going over, the opaque lane on creature
+  attacks. Director tools `salt`, `ship_haul`, `produce_paper`.
+- **Ad-lib and story seeds:** `improv: 'adlib'`, `creature.adlib` / `invent_encounter` (one a site,
+  at most three, no tougher than the page; a seed's own encounter checked against the Vector), and
+  story seeds (`engine/seeds.js` parses and checks, `brain/seedwriter.js` writes from an idea, host
+  Seeds tab, briefing section "YOUR HOST'S STORY SEEDS"; guide `../../docs/STORY-SEEDS.md`).
+- **Rulings:** 31, all in `../RULINGS.md` (regenerated from `data/kit/rulings.js`), the books (.md and
+  .docx), the v3 editions and both Assistants. New ones go in with `python3 ../../tools/add_rulings.py`.
+- **Open:** a real game night (Phase 4's gate) and a bench on the real model for everything built
+  since 17 Nov (away players, stand-in recap, salt/ship/paper, ad-lib, seeds); Goodwill set by the
+  Long Swallow's Intake; SHIFT 2's graft and SHIFT 5's Relief; creatures with no art; the full prose
+  rewrite of the books.
+
+## State at 17 November 2026 (history)
 
 All pushed to `main` (Vercel READY for both sites after each push). `node --test`: 228.
 
@@ -519,7 +546,7 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    Q4_K_M is still untried. Phase 4 still needs a real group playing two sites — that is the gate, not
    another scripted run.
 3. **Built 18 Nov:** save slots (host Saves tab; `slots.js`, saves in `saves/slots/`, an autosave per game every five minutes) with a Supabase backup copy (table `public.oxd_saves` in Roly's project, RLS on with no policies, written only with the secret key kept in `saves/backup.json`; the free plan pauses after 7 days idle and has no backups). Ad-lib (`improv: 'adlib'`, the Memory tab): the Director may invent people, places and threads as canon, and one encounter a site through `invent_encounter` (Bestiary, at most three bodies, no tougher than the site's printed creatures). Still deferred: Discord sign-in.
-4. The project doc `claude/director-phase3-build.md` named in the 12 Nov draft is not in this repo — not tracked and not on disk. If it lives outside this folder it still needs updating for the picker, memory and Phase 5; otherwise the item is void.
+4. **Settled 19 Nov:** `claude/director-phase3-build.md` lives in Roly's claude.ai Project, not this repo. It and the other `director-*` Project docs describe the first Director (now `archive/director-v1`) and are history; the current summary is the Project doc `claude/v3-handoff.md`.
 5. The Clocks: 3.1-3.3's triggers are now Engine rules (see the Clocks finding above). **Built at
    `95d1271`:** opening a panel is one Engine event (`panel.open`, and `open_panel` for the Director),
    which closes the gap where a panel opened by a roll rather than a `harvest` paid nothing and the
@@ -536,7 +563,7 @@ The Director talks to any OpenAI-compatible or Ollama-style server; set it on th
    the Cohort being loud (paid through `payTrigger`, still once per scene), and `checkNarration` flags a
    Clock the narration moves that nothing moved — **Unpaid Clocks in narration** — which the bench tallies
    and the gate fails on.
-   **Built 18 Nov:** The First Carve now counts Beats (TOLL every Beat; CARCASS only when no cut was stamped and no haul shipped; a day closes itself after 12 Director turns), salt (`salt`: a panel rewinds CARCASS, a wound HUNGER, once a scene each, 10 S per 2 Drifts), shipping (`haul.ship`: stamped cuts become shipped, the receipt is paper, TOLL −1 once a scene), paper and the Gut Stone serial (`paper`: TOLL −1, each kind once a game), CARCASS full ("the whale goes over": unstamped cuts lost, HUNGER to 3, ORDER opens at 2) and the opaque lane on creature attacks. The host's controls are under "Salt, shipping and paper" on the Clocks card (hidden in a Pulse War).
+   **Built 18 Nov:** The First Carve now counts Beats (TOLL every Beat; CARCASS only when no cut was stamped and no haul shipped; a day closes itself after 10 Director turns), salt (`salt`: a panel rewinds CARCASS, a wound HUNGER, once a scene each, 10 S per 2 Drifts), shipping (`haul.ship`: stamped cuts become shipped, the receipt is paper, TOLL −1 once a scene), paper and the Gut Stone serial (`paper`: TOLL −1, each kind once a game), CARCASS full ("the whale goes over": unstamped cuts lost, HUNGER to 3, ORDER opens at 2) and the opaque lane on creature attacks. The host's controls are under "Salt, shipping and paper" on the Clocks card (hidden in a Pulse War).
    Was unbuilt: the **Beat**
    ("a Beat passes with no cut signed and no haul shipped" is three of those rows), salting a panel or a wound
    (the printed CARCASS/HUNGER rewind), shipping a haul to a buyer, the Gut Stone's serial turned in at a

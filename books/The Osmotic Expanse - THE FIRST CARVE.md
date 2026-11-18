@@ -57,6 +57,10 @@ These rulings were made while the AI Director was built and played (v3). Each is
 | 3.2 TOLL | TOLL and a loud fight | 13 and 16 Nov 2026 |
 | 3.1 CARCASS | Opening a panel | 13 Nov 2026 |
 | 3.3 HUNGER | A body left uncut | 17 Nov 2026 |
+| 3.1 CARCASS | A Beat in the carcass | 18 Nov 2026 |
+| 3.1 CARCASS | Salt, priced | 18 Nov 2026 |
+| 3.1 CARCASS | A stamped cut is safe | 18 Nov 2026 |
+| 3.2 TOLL | Paper pays once | 18 Nov 2026 |
 
 ---
 
@@ -150,6 +154,12 @@ The whale is digesting itself. Autolysis does not care that you are new.
 
 > **v3 ruling (13 Nov 2026) — Opening a panel.** Opening a panel is one event the site pays: the first panel opened in a scene advances CARCASS, and further panels in the same scene do not (the host may set every panel to pay its own segment).
 
+> **v3 ruling (18 Nov 2026) — A Beat in the carcass.** A cut stamped at a Tally Post is a cut signed. TOLL advances every Beat; CARCASS advances only on a Beat when no cut was stamped and no haul shipped. If about ten exchanges at the table pass with no Beat, the day has run out: close it (Codex §5.1).
+
+> **v3 ruling (18 Nov 2026) — Salt, priced.** Salt costs 10 S per 2 Drifts. A salted panel rewinds CARCASS and a salted wound rewinds HUNGER, each **once a scene**, so a sack of salt is a choice, not a way to empty the Clocks. Salt the Cohort finds (the first crew's cache) costs nothing.
+
+> **v3 ruling (18 Nov 2026) — A stamped cut is safe.** When the whale goes over (CARCASS 6) and in the Render Cascade (HUNGER 4), a cut stamped at a Tally Post counts as shipped: only unstamped cuts are lost or drop a grade. When the whale goes over, HUNGER jumps to 3 and the ORDER Clock opens at 2, as printed.
+
 ## 3.2 TOLL (5 segments) — the law clock
 
 The Flow Guilds have contracted a Hegemony clearance crew to set a **Render Charge** and dredge the Reach. The charge is on a schedule.
@@ -160,6 +170,8 @@ The Flow Guilds have contracted a Hegemony clearance crew to set a **Render Char
 **Say it out loud:** *"Toll is at four. The charge is set for the end of the next Beat, and Foreman Vesk will not say which Beat."*
 
 > **v3 ruling (13 and 16 Nov 2026) — TOLL and a loud fight.** A loud fight reaches the law only half the time: roll a d6, and TOLL advances on 4–6 (HUNGER is paid every time). Once TOLL stands at 3 or more, the Director no longer spends their own discretionary advance on it; only the printed triggers move it from there.
+
+> **v3 ruling (18 Nov 2026) — Paper pays once.** Each kind of paper (a valid claim, a licence, a toll chit, an Ash witness, a Guild tally receipt) rewinds TOLL once in a Vector, and the Gut Stone's serial once more. Shipping a stamped haul earns its own tally receipt: TOLL −1, once a scene.
 
 ## 3.3 HUNGER (4 segments) — the danger clock
 

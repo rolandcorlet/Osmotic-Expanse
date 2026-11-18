@@ -239,10 +239,10 @@ export const TOOLS = [
   {
     name: 'invent_encounter',
     description: 'Only when AD-LIB IS ON (the host has chosen it): bring creatures the page does not print here, from the Bestiary, because the story calls for them. One invented encounter a site, at most three bodies, no tougher than what this site prints. Say why they are here in a sentence the players could hear; it is written into the table\'s memory as canon. Use it rarely: the printed encounters come first.',
-    parameters: obj({ block: S('A Bestiary block id, for example "drifter-shoal".'), count: I('How many (1 to 3).'), band: S('How far from the Cohort.', { enum: BAND_IDS }), why: S('Why they are here, in the fiction.') }, ['block', 'count', 'why']),
+    parameters: obj({ block: S('A Bestiary block id, for example "drifter-shoal".'), count: I('How many (1 to 3).'), band: S('How far from the Cohort.', { enum: BAND_IDS }), why: S('Why they are here, in the fiction.'), seed: S('The id of the host\'s story seed this encounter comes from, when it does.') }, ['block', 'count', 'why']),
     run(a, T) {
       const ids = new Set(Object.keys(T.state.creatures));
-      const no = T.do({ type: 'creature.adlib', blockId: lower(a.block), count: a.count, band: a.band, why: a.why });
+      const no = T.do({ type: 'creature.adlib', blockId: lower(a.block), count: a.count, band: a.band, why: a.why, seedId: a.seed || undefined });
       if (no) return { refused: no };
       return { arrived: Object.values(T.state.creatures).filter((c) => !ids.has(c.cid)).map((c) => ({ id: c.cid, name: c.name, band: c.band })) };
     },

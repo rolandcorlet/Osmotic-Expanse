@@ -11,6 +11,8 @@ import { directed } from '../engine/ledger.js';
 const MODES = ['off', 'copilot', 'auto'];
 
 import { CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, plainChapter, filterCast } from './chronicle.js';
+import { SEED_WRITER, seedRequest, seedText } from './seedwriter.js';
+import { parseSeed } from '../engine/seeds.js';
 
 export function createDirector({ getState, commit, act = null, memory = null, scenario, getScenario, bestiary, saveDir, rng, onChange, makeProvider = build }) {
   const scenarioNow = getScenario || (() => scenario); // the Vector can change when the host starts a new game
@@ -184,6 +186,31 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
     } catch (e) { console.log(`The stand-in recap could not be written: ${e.message}`); }
   }
 
+  // The host's idea or story, written up as a story seed (brain/seedwriter.js) and checked
+  // (engine/seeds.js). If the first try does not pass the check, the model gets the problems back once.
+  async function writeSeed(idea) {
+    if (!ready()) { st.seed = { error: need() || 'Set up the AI on the Director tab first (or write the seed yourself from the template).' }; onChange(); return; }
+    st.seed = { busy: true };
+    onChange();
+    try {
+      const quick = makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx, thinking: 'off' });
+      const chat = quick.start({ system: SEED_WRITER, tools: [] });
+      const sc = scenarioNow();
+      let reply = await chat.send(seedRequest({ idea, scenario: sc, bestiary }));
+      let text = seedText(reply.text);
+      let check = parseSeed(text, { bestiary, scenario: sc });
+      if (check.problems.length) {
+        reply = await chat.send(`The seed does not pass the check: ${check.problems.join(' ')} Fix these and send the whole seed again, in the layout, and nothing else.`);
+        text = seedText(reply.text);
+        check = parseSeed(text, { bestiary, scenario: sc });
+      }
+      st.seed = { text, problems: check.problems, warnings: check.warnings };
+    } catch (e) {
+      st.seed = { error: e instanceof ProviderError ? e.message : `The seed could not be written: ${e.message}` };
+    }
+    onChange();
+  }
+
   async function writeChapter({ siteId, why }) {
     if (!memory) return;
     const state = getState();
@@ -259,6 +286,13 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
           break;
         }
         // The host searches the game's history from the Memory tab.
+        // The host asks the Director to write up an idea or a story as a story seed.
+        case 'seed.write':
+          writeSeed(String(body.idea || '').slice(0, 6000)); // not awaited: the Seeds tab shows "Writing…"
+          return;
+        case 'seed.clear':
+          st.seed = null;
+          break;
         case 'recall': {
           const s0 = getState();
           const q = String(body.query || '').slice(0, 200);
@@ -382,6 +416,7 @@ export function createDirector({ getState, commit, act = null, memory = null, sc
         kept: memory && getState().gameId ? memory.size(getState().gameId) : null,
         writing: writing || chapterQueue.length > 0,
         recall: st.recall || null,
+        seed: st.seed || null,
       };
     },
     // A new game: whatever the Director was holding belongs to the old one.

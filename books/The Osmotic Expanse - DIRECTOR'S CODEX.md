@@ -36,6 +36,8 @@ These rulings were made while the AI Director was built and played (v3). Each is
 | 5.2 Clocks: the only world-state you need to track | The campaign's Clocks | 17 Nov 2026 |
 | 5.7 Downtime between Vectors | Carrying organisms into the next Vector | 17 Nov 2026 |
 | 9.1 The five-room site | Exits and lapsed questions | 17 Nov 2026 |
+| 1.1 Four jobs, in order | A player who cannot come | 18 Nov 2026 |
+| 4.3 Build an encounter in five moves | Going beyond the page | 18 and 19 Nov 2026 |
 
 ---
 
@@ -47,6 +49,8 @@ These rulings were made while the AI Director was built and played (v3). Each is
 2. **Be honest about numbers.** Thresholds do not move to help or hurt. If a player has built a 7-dice pool, they have *earned* 99% at AT 16 — let them have it, and make the next thing 7 dice harder to see, not luckier to fail.
 3. **Be a witness, not a referee of taste.** The Expanse is a game about bodies: consumption, assimilation, parasitism, breeding, decay, and the politics of who counts as "self". Your table will need to know where its membranes are.
 4. **Ask what happens next, then who smells it.** Nothing in this world is secret for long. A fight is a chemical announcement.
+
+> **v3 ruling (18 Nov 2026) — A player who cannot come.** When a player is away, the Director plays their organism in the open until they are back, as plainly as a creature and no further than the scene needs. Or a stand-in may play it: the organism stays its owner's, borrowed for the night. A stand-in fights, talks, rolls and uses its kit; its name, its Growth, a rebuild and which Apparatus it carries stay the owner's to change. When the owner returns, give it back and tell them what it did and what changed.
 
 ## 1.2 The three tensions to play against
 
@@ -302,6 +306,8 @@ Adjust for Cohort size: **3 organisms × 0.75**, **5 organisms × 1.2**, **6+ or
    - a **third party** is present (another Order, a colony patrol, a rival Cohort);
    - the terrain is **changing** (a Bloom surge, a current shift, a collapsing bridge, a pump starting).
 5. **Set the yield** before you run it: Codon (Bestiary yields), Substrate, one **Specimen that enables the next plan**, and one **consequence** (who heard, what broke, what is now owed).
+
+> **v3 ruling (18 and 19 Nov 2026) — Going beyond the page.** A Director may invent people, places and threads; once named they are canon, so write them down and keep them true. Invent at most one encounter a site: from the Bestiary, at most three bodies, no tougher than the toughest creature the site prints, with a reason the players can hear. Never invent a price, a reward or damage: those come from the page. A **story seed** written ahead (People, Places, Threads, one Encounter, Secrets, How it can end) is the easiest way to bring your own material to the table.
 
 ## 4.4 Catastrophes: designing a boss
 

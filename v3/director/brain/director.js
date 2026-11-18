@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, orgMT, printedPays, hazardSpec, reachable, toleranceAT, goodwillName } from './tools.js';
 import { worldNow, turnsSinceBeat, directed } from '../engine/ledger.js';
 import { hazardBudget } from '../engine/ledger.js';
+import { seedHere } from '../engine/seeds.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
 
@@ -321,6 +322,20 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     L.push('- Still never invent a number: rewards, prices, items with effects and damage come only from the page and the tools. An invented person can offer a deal in words; anything paid is still paid with award, harvest or the post.');
     L.push('- Keep to this Vector: its tone, its factions and its stakes. An invention should make the printed situation sharper, never replace it.');
     L.push('');
+    // The host's own story seeds (engine/seeds.js), switched on and fitting this Vector and site.
+    const seeds = Object.values(state.seeds || {}).filter((x) => seedHere(x, state, scenario));
+    if (seeds.length) {
+      L.push(`# YOUR HOST'S STORY SEEDS (${seeds.length}): material the host wrote for this table. Weave it in when the play gives it room; it is canon from the moment you use it.`);
+      for (const x of seeds) {
+        L.push(`## ${x.title}${x.tone ? ` (tone: ${x.tone})` : ''}`);
+        for (const c of x.cards) L.push(`- ${c.name} (${c.kind}): ${c.facts.join(' ')}`);
+        for (const t of x.secrets) L.push(`- SECRET (the players learn it only by play; never say it outright): ${t}`);
+        if (x.endings.length) L.push(`- How it can end: ${x.endings.join(' / ')}`);
+        if (x.encounter) L.push(spent ? '- Its encounter cannot come here: this site has had its invented encounter.' : `- Its encounter, when the story reaches it: ${x.encounter.count} ${x.encounter.name} at ${x.encounter.band} (${x.encounter.why}). Bring it with invent_encounter, block "${x.encounter.blockId}", seed "${x.id}". It is this site's one invented encounter.`);
+      }
+      L.push('- When you first name someone from a seed in play, call remember with their name and what the table saw, so they stay the same.');
+      L.push('');
+    }
   }
   L.push('# THE STORY SO FAR (most recent last)');
   const story = (state.story || []).slice(-16);
