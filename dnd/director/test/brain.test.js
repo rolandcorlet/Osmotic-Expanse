@@ -100,8 +100,11 @@ test('a monster\'s turn through the tools: attack, end turn', () => {
     assert.ok(r.happened && /Goblin attacks Bryn/.test(r.happened[0]));
     assert.ok(!B.run('end_turn', { whose: 'Goblin' }).refused);
   } else {
-    assert.match(B.run('monster_action', { monster: 'Goblin', action: 'Scimitar', targets: ['Bryn'] }).refused, /not Goblin's turn/);
-    assert.match(B.run('end_turn', { whose: 'Goblin' }).refused, /Bryn's turn/);
+    // Out of turn changes nothing and is not counted as a refusal: a note says who is acting.
+    const r = B.run('monster_action', { monster: 'Goblin', action: 'Scimitar', targets: ['Bryn'] });
+    assert.match(r.note, /not Goblin's turn/);
+    assert.match(B.run('end_turn', { whose: 'Goblin' }).note, /Bryn is acting now/);
+    assert.equal(B.refusals, 0);
   }
   void pc;
 });
@@ -139,4 +142,27 @@ test('moving the party says which monsters are already there, hidden', () => {
   const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 1 });
   const r = B.run('move_party', { place: 'mill-road' });
   assert.match(r.monsters_already_here, /Goblin scout 1.*Do not add more/);
+});
+
+test('number leaks in words are caught, and the closing question goes to whoever is acting', async () => {
+  const T = table(8);
+  const pc = hero(T, 'p1', 'Bryn');
+  hero(T, 'p2', 'Ila');
+  assert.ok(checkNarration('The goblin has only two hit-points of spite left. Bryn, what now?', T.s).some((f) => f.kind === 'leak'));
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  while (T.s.fight.order[T.s.fight.turn].key !== `pc:${pc.id}`) T.host({ type: 'fight.next' });
+  const provider = scripted([{ text: 'The goblin snarls in the rain. Ila, what do you do?' }]);
+  const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1) });
+  assert.match(out.narration, /Bryn, what do you do\?$/);
+  assert.doesNotMatch(out.narration, /Ila, what/);
+});
+
+test('monsters can take the actions every creature has', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  const f = Object.values(T.s.foes)[0];
+  T.host({ type: 'foe.act', foeId: f.id, action: 'Disengage' });
+  assert.match(T.s.story.at(-1).text, /takes the Disengage action/);
 });

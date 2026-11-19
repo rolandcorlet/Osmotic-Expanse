@@ -92,7 +92,9 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
 
 // ---- checking what the model wants to say -------------------------------------------------------
 export const LEAK = /\bthe notes\b|\bbriefing\b|\bthe Engine\b|\bthe Ledger\b|\bthe tools?\b|\bread-aloud\b|\bfor you only\b|\bstat block\b|\bDM only\b/i;
-const NUMBERS = /\b(?:AC|Armou?r Class)\s*(?:of\s*)?\d+|\bDC\s*\d+|\b\d+\s*(?:hit points?|hp)\s*(?:left|remaining)\b|\b(?:has|with|at)\s+\d+\s*(?:hit points?|hp)\b|\+\d+\s*to hit\b/i;
+// Bench, 20 Nov: "only two hit-points of spite left in him" (a goblin's hit points, in words) got through.
+const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a few|a couple of)';
+const NUMBERS = new RegExp(`\\b(?:AC|Armou?r Class)\\s*(?:of\\s*)?\\d+|\\bDC\\s*\\d+|\\b${NUM}\\s*(?:hit[- ]points?|hp)\\b|\\+\\d+\\s*to hit\\b`, 'i');
 const ROLL_WORDS = /\b(?:make|roll|give me|i need|let's see)\b[^.?!]{0,40}\b(?:check|saving throw|save|roll)\b|\broll (?:a|for|me)\b/i;
 
 export function checkNarration(text, state, { asked = false } = {}) {
@@ -213,6 +215,21 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
     if (kept.length && kept.length < parts.length) {
       narration = kept.join(' ');
       flags = checkNarration(narration, T.state, { asked: askedNow }).concat([{ kind: 'note', text: 'The Engine cut a sentence that gave something away.' }]);
+    }
+  }
+  // In a fight, the closing question goes to the player whose turn it is. Local models often ask the
+  // last speaker instead (bench, 20 Nov): the Engine knows whose turn it is, so it sets the question.
+  {
+    const who = actingPlayer(T.state);
+    const waiting = (T.state.requests || []).some((q) => !who || q.pcId !== who.id);
+    if (who && who.playerId && !waiting) {
+      const parts = narration.split(/(?<=[.!?]["”]?)\s+/);
+      const lastQ = parts.length ? parts[parts.length - 1] : '';
+      if (!new RegExp(`\\b${who.name.split(/\s+/)[0]}\\b`).test(lastQ)) {
+        const body = /\?["”]?$/.test(lastQ.trim()) && !/^["“]/.test(lastQ.trim()) ? parts.slice(0, -1) : parts;
+        narration = `${body.join(' ')} ${who.name}, what do you do?`.trim();
+        flags = flags.filter((f) => !/^Does not end/.test(f.text)).concat([{ kind: 'note', text: `The Engine set the closing question to ${who.name}, whose turn it is.` }]);
+      }
     }
   }
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });

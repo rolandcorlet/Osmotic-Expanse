@@ -4,6 +4,7 @@
 import { apply, RuleError } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 
+const COND_LIST = ['blinded', 'charmed', 'deafened', 'exhaustion', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'];
 const S = (description, extra = {}) => ({ type: 'string', description, ...extra });
 const I = (description) => ({ type: 'integer', description });
 const B = (description) => ({ type: 'boolean', description });
@@ -78,7 +79,7 @@ export const TOOLS = [
   },
   {
     name: 'move_party',
-    description: 'Move the party to another place when they choose to go there. Only an exit the briefing lists can be taken. Monsters placed at the new place stay hidden until revealed or a fight starts.',
+    description: 'Move the party to another place when they choose to go there. Only an exit the briefing lists can be taken, and never during a fight (end_combat first if they flee). Monsters placed at the new place stay hidden until revealed or a fight starts.',
     parameters: obj({ place: S('The id of the place (from the exits list).') }, ['place']),
     run(a, T) {
       const before = T.state.seq;
@@ -132,7 +133,7 @@ export const TOOLS = [
     description: 'A monster uses one action from its stat block: an attack (the Engine rolls to hit against the target\'s AC and applies damage) or an ability with a saving throw (the targets roll on their screens). For Multiattack, call once per attack.',
     parameters: obj({
       monster: S('The monster\'s id or name.'),
-      action: S('The action\'s name exactly as the stat block lists it, e.g. Scimitar, Bite, Fire Breath.'),
+      action: S('The action\'s name exactly as the stat block lists it (Scimitar, Bite, Fire Breath), or one every creature has: Dash, Disengage, Dodge, Hide, Help, Ready.'),
       targets: A('Ids or names of the characters it targets.'),
       advantage: S('"adv", "dis" or empty, from the situation (the Engine already counts conditions).'),
     }, ['monster', 'action', 'targets']),
@@ -142,6 +143,8 @@ export const TOOLS = [
       const targets = listOf(a.targets).map((x) => (findPc(T.state, x) || {}).id).filter(Boolean);
       const before = T.state.seq;
       const no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
+      // Acting out of turn changes nothing: a note that says who is up, not a rule broken (as in the v3 Director).
+      if (no && /\bnot .*\bturn\b/i.test(no)) return { note: `Nothing changed: ${no}`, ...T.fightBrief() };
       if (no) return { refused: no };
       return { ...since(T, before), party: T.partyBrief() };
     },
@@ -164,6 +167,14 @@ export const TOOLS = [
     parameters: obj({ whose: S('The name of the creature whose turn is ending (must be the one acting now).') }, ['whose']),
     run(a, T) {
       const ref = targetRef(T.state, a.whose);
+      const f = T.state.fight;
+      const cur = f && f.phase === 'turns' ? f.order[f.turn].key : '';
+      // Ending a turn that is not running changes nothing: say whose turn it is instead of refusing.
+      // (Bench, 20 Nov: after a player had already ended their own turn, the model ended it again.)
+      if (f && cur && ref && ref !== cur) {
+        const pcNow = cur.startsWith('pc:') ? T.state.pcs[cur.slice(3)] : null;
+        return { note: `Nothing changed: that turn is already over. ${T.fightBrief().acting_now} is acting now${pcNow && pcNow.playerId ? ': a player, so describe the moment and ask them what they do' : ''}.`, ...T.fightBrief() };
+      }
       const before = T.state.seq;
       const no = T.do({ type: 'fight.next', expect: ref || undefined });
       if (no) return { refused: no };
@@ -221,7 +232,7 @@ export const TOOLS = [
   {
     name: 'add_condition',
     description: 'Give a character or monster a condition (blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious) or a level of exhaustion.',
-    parameters: obj({ target: S('Id or name.'), condition: S('The condition.') }, ['target', 'condition']),
+    parameters: obj({ target: S('Id or name.'), condition: S('One of the 5e conditions.', { enum: COND_LIST }) }, ['target', 'condition']),
     run(a, T) {
       const ref = targetRef(T.state, a.target);
       if (!ref) return { refused: `Nobody called "${a.target}".` };
@@ -232,7 +243,7 @@ export const TOOLS = [
   {
     name: 'remove_condition',
     description: 'End a condition on a character or monster.',
-    parameters: obj({ target: S('Id or name.'), condition: S('The condition.') }, ['target', 'condition']),
+    parameters: obj({ target: S('Id or name.'), condition: S('One of the 5e conditions.', { enum: COND_LIST }) }, ['target', 'condition']),
     run(a, T) {
       const ref = targetRef(T.state, a.target);
       if (!ref) return { refused: `Nobody called "${a.target}".` };
@@ -247,13 +258,14 @@ export const TOOLS = [
     run(a, T) {
       const pc = a.character ? findPc(T.state, a.character) : null;
       if (a.character && !pc) return { refused: `No character called "${a.character}". Party: ${party(T.state)}.` };
+      if (!(Number(a.gold) > 0) && !String(a.item || '').trim()) return { note: 'Nothing was given: name gold or an item to give.' };
       const no = T.do({ type: 'loot.give', pcId: pc ? pc.id : undefined, gold: a.gold, item: a.item, qty: a.qty });
       return no ? { refused: no } : { ok: true };
     },
   },
   {
     name: 'award_xp',
-    description: 'Award experience points for a milestone, a clever plan or good roleplay (fights award their own XP when they end). The amount is shared between the characters unless each=true.',
+    description: 'Award experience points at a milestone the place\'s notes name, or for overcoming a real challenge without a fight. Not for ordinary rolls or conversation (fights award their own XP when they end). The amount is shared between the characters unless each=true.',
     parameters: obj({ amount: I('The XP.'), each: B('True to give every character the full amount.'), why: S('What it is for.') }, ['amount', 'why']),
     run(a, T) {
       const no = T.do({ type: 'xp.award', amount: a.amount, each: truthy(a.each), why: a.why });
@@ -262,7 +274,7 @@ export const TOOLS = [
   },
   {
     name: 'complete_quest',
-    description: 'Mark one of the party\'s quests as done.',
+    description: 'Mark one of the party\'s quests as done: only when everything it asks is finished (the lantern back on its hook, not just a lead on who took it).',
     parameters: obj({ quest: S('The quest id or a few words of it.') }, ['quest']),
     run(a, T) { const no = T.do({ type: 'quest.done', id: a.quest }); return no ? { refused: no } : { ok: true }; },
   },

@@ -90,6 +90,29 @@ function fakeProvider() {
     return { send(t) { if (/^WHY YOU ARE/.test(t)) briefing = t; return Promise.resolve(say()); }, results() { return Promise.resolve(say()); } };
   } };
 }
+// ms = a + in/P + out/D, fitted by least squares over the calls: P is prompt reading speed, D is writing speed.
+function speeds(list) {
+  const n = list.length;
+  if (n < 8) return null;
+  const X = list.map((c) => [1, c.in / 1000, c.out / 1000]);
+  const A = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], b = [0, 0, 0];
+  X.forEach((x, i) => { for (let r = 0; r < 3; r++) { b[r] += x[r] * list[i].ms; for (let c = 0; c < 3; c++) A[r][c] += x[r] * x[c]; } });
+  for (let i = 0; i < 3; i++) { // Gauss-Jordan
+    let m = i; for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[m][i])) m = r;
+    if (Math.abs(A[m][i]) < 1e-9) return null;
+    [A[i], A[m]] = [A[m], A[i]]; [b[i], b[m]] = [b[m], b[i]];
+    for (let r = 0; r < 3; r++) if (r !== i) { const f = A[r][i] / A[i][i]; for (let c = i; c < 3; c++) A[r][c] -= f * A[i][c]; b[r] -= f * b[i]; }
+  }
+  const [a, perKin, perKout] = [b[0] / A[0][0], b[1] / A[1][1], b[2] / A[2][2]];
+  if (!(perKin > 0) || !(perKout > 0)) return null;
+  return { overhead: a / 1000, prefill: 1000 / perKin, decode: 1000 / perKout };
+}
+function speedLine(list, label) {
+  if (!list.length) return;
+  const ms = list.reduce((x, c) => x + c.ms, 0), tin = list.reduce((x, c) => x + c.in, 0), tout = list.reduce((x, c) => x + c.out, 0);
+  const f = speeds(list);
+  console.log(`  ${label}: ${list.length} model calls, ${(ms / list.length / 1000).toFixed(1)} s each; ${Math.round(tin / list.length)} tokens in and ${Math.round(tout / list.length)} out per call; ${(tout / (ms / 1000)).toFixed(1)} tok/s out counting everything${f ? `; fitted: reads ${Math.round(f.prefill)} tok/s, writes ${f.decode.toFixed(1)} tok/s, ${f.overhead.toFixed(1)} s fixed per call` : ''}`);
+}
 const makeProvider = () => timed(fake ? fakeProvider() : build({ provider, apiKey, baseUrl, model, numCtx, thinking }));
 
 const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.json'), 'utf8'));
@@ -116,6 +139,8 @@ const SCRIPT = [
 
 // ---- one run ---------------------------------------------------------------------------------
 async function runOnce(n) {
+  const t0 = Date.now();
+  const callsAt = calls.length;
   const tally = { turns: 0, refusal: 0, leak: 0, rule: 0, 'roll-words': 0, 'wrong-seat': 0, stall: 0, error: 0, style: 0, missing: 0 };
   const notes = [];
   let s = newSession(adventure);
@@ -237,7 +262,7 @@ async function runOnce(n) {
   }
   const xp = Object.values(s.pcs).map((p) => `${p.name} ${p.xp} XP, ${p.hp}/${p.maxHp} hp`).join('; ');
   console.log(`  End: ${s.scene.siteId}; ${xp}`);
-  return { tally, notes };
+  return { tally, notes, secs: (Date.now() - t0) / 1000, calls: calls.slice(callsAt) };
 }
 
 const GATED = ['refusal', 'leak', 'rule', 'roll-words', 'wrong-seat', 'stall', 'error'];
@@ -248,12 +273,14 @@ console.log(`Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fak
 results.forEach((x, i) => {
   const t = x.tally;
   const bad = GATED.filter((k) => t[k]);
-  console.log(`Run ${i + 1}: ${t.turns} turns · ${bad.length ? `FAIL (${bad.map((k) => `${k} ${t[k]}`).join(', ')})` : 'PASS'} · style ${t.style} · expected tool missing ${t.missing}`);
+  console.log(`Run ${i + 1}: ${t.turns} turns in ${Math.round(x.secs / 60)} min ${Math.round(x.secs % 60)} s (${(x.secs / Math.max(1, t.turns)).toFixed(1)} s a Director turn) · ${bad.length ? `FAIL (${bad.map((k) => `${k} ${t[k]}`).join(', ')})` : 'PASS'} · style ${t.style} · expected tool missing ${t.missing}`);
   for (const nline of x.notes) console.log(`   - ${nline}`);
 });
-if (calls.length) {
-  const ms = calls.reduce((a, c) => a + c.ms, 0);
-  console.log(`Model calls: ${calls.length}, ${(ms / calls.length / 1000).toFixed(1)} s each on average, ${Math.round(calls.reduce((a, c) => a + c.in, 0) / calls.length)} tokens in and ${Math.round(calls.reduce((a, c) => a + c.out, 0) / calls.length)} out per call.`);
+if (calls.length && !fake) {
+  console.log('Speed:');
+  speedLine(calls, 'all runs');
+  const turns = results.reduce((a, x) => a + x.tally.turns, 0);
+  console.log(`  ${(calls.length / Math.max(1, turns)).toFixed(1)} model calls per Director turn; ${(calls.reduce((a, c) => a + c.ms, 0) / 1000 / Math.max(1, turns)).toFixed(1)} s of model time per turn.`);
 }
 const pass = results.every((x) => GATED.every((k) => !x.tally[k]));
 console.log(pass ? 'GATE: PASS' : 'GATE: FAIL. Send this log to Sponge.');

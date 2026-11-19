@@ -893,6 +893,16 @@ H['foe.act'] = (s, a, ctx) => {
   if (!foe || foe.dead) no('Name a monster that is still standing.');
   const m = monsterOf(ctx, foe);
   const pool = [...(m.actions || []), ...(m.reactions || []), ...(m.legendary || [])];
+  // The actions every creature has (PHB/SRD "Actions in Combat"), whatever its stat block lists.
+  // Bench, 20 Nov: a goblin was refused "Disengage".
+  const STD = { dash: 'Dash', disengage: 'Disengage', dodge: 'Dodge', hide: 'Hide', help: 'Help', ready: 'Ready', search: 'Search', 'use an object': 'Use an Object' };
+  const stdKey = String(a.action || '').toLowerCase().trim();
+  if (STD[stdKey]) {
+    if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
+    if (ctx.ai && s.fight && s.fight.phase === 'turns') inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
+    story(s, ctx, 'event', `${foe.name} takes the ${STD[stdKey]} action.`, 'Engine');
+    return;
+  }
   const act = pool.find((x) => x.n.toLowerCase() === String(a.action || '').toLowerCase()) || pool.find((x) => x.n.toLowerCase().startsWith(String(a.action || '').toLowerCase().slice(0, 5)) && a.action);
   if (!act) no(`${foe.name} has no action called "${a.action}". Its actions: ${pool.map((x) => x.n).join(', ')}.`);
   if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
