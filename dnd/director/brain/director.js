@@ -91,7 +91,7 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
 }
 
 // ---- checking what the model wants to say -------------------------------------------------------
-export const LEAK = /\bthe notes\b|\bbriefing\b|\bthe Engine\b|\bthe Ledger\b|\bthe tools?\b|\bread-aloud\b|\bfor you only\b|\bstat block\b|\bDM only\b/i;
+export const LEAK = /\bno tools? (?:needed|called|required|used)\b|\b(?:tool|function) calls?\b|\bthe notes\b|\bbriefing\b|\bthe Engine\b|\bthe Ledger\b|\bthe tools?\b|\bread-aloud\b|\bfor you only\b|\bstat block\b|\bDM only\b/i;
 // Bench, 20 Nov: "only two hit-points of spite left in him" (a goblin's hit points, in words) got through.
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a few|a couple of)';
 const NUMBERS = new RegExp(`\\b(?:AC|Armou?r Class)\\s*(?:of\\s*)?\\d+|\\bDC\\s*\\d+|\\b${NUM}\\s*(?:hit[- ]points?|hp)\\b|\\+\\d+\\s*to hit\\b`, 'i');
@@ -105,13 +105,17 @@ export function checkNarration(text, state, { asked = false } = {}) {
   const words = t.split(/\s+/).filter(Boolean).length;
   if (words > 170) flags.push({ kind: 'style', text: `Long: ${words} words.` });
   const outside = t.replace(/"[^"]*"|“[^”]*”/g, '');
-  if (!/\?\s*["”]?\s*$/.test(t.trim())) flags.push({ kind: 'style', text: 'Does not end on a question.' });
+  // A turn that asked for a roll may end on the roll itself: the player's next move is to roll it.
+  if (!asked && !/\?\s*["”]?\s*$/.test(t.trim())) flags.push({ kind: 'style', text: 'Does not end on a question.' });
   const q = (outside.match(/\?/g) || []).length;
   if (q > 2) flags.push({ kind: 'style', text: `Asks ${q} questions.` });
   if (/\*\*|^#+\s|^\s*[-*]\s/m.test(t)) flags.push({ kind: 'style', text: 'Uses formatting.' });
   if (!asked && ROLL_WORDS.test(outside)) flags.push({ kind: 'roll', text: 'Asks for a roll in words.' });
   for (const p of Object.values(state.pcs || {})) {
     if (p.dead) continue;
+    // Bench 4: "Bryn is sitting up now" while the Engine still had him dying at 0 hit points.
+    const first = p.name.split(/\s+/)[0];
+    if (p.hp <= 0 && new RegExp(`\\b${first}\\b[^.?!]{0,30}\\b(?:sits? up|sitting up|stands? up|gets? up|on (?:his|her|their) feet|climbs? to (?:his|her|their) feet)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is up, but they are at 0 hit points: only healing wakes them.` });
     if (new RegExp(`\\b${p.name.split(/\s+/)[0]}\\b[^.?!]{0,40}\\b(?:dies|is dead|lies dead|breathes (?:his|her|their) last)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is dead, but they are alive.` });
   }
   return flags;
@@ -191,7 +195,8 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
     if (flags.some((f) => /^Long/.test(f.text))) asks.push('It is too long: keep it under 110 words.');
     if (flags.some((f) => /^Asks \d+ questions/.test(f.text))) asks.push('Ask exactly one question, to one named character.');
     if (flags.some((f) => /^Uses formatting/.test(f.text))) asks.push('Write plain sentences only: no lists, headings or bold.');
-    if (flags.some((f) => f.kind === 'rule')) asks.push('A character you called dead is alive: only the rules can kill a character. Keep them alive.');
+    if (flags.some((f) => f.kind === 'rule' && /is dead/.test(f.text))) asks.push('A character you called dead is alive: only the rules can kill a character. Keep them alive.');
+    if (flags.some((f) => f.kind === 'rule' && /is up, but/.test(f.text))) asks.push('A character you said is up is still at 0 hit points and unconscious: keep them down until someone heals them (or stabilizes them, which keeps them unconscious).');
     const who = actingPlayer(T.state);
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push(`End on exactly one question to one named character${who ? ` (it is ${who.name}'s turn)` : ''}.`);
     try {

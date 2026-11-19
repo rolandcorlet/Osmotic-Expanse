@@ -179,3 +179,16 @@ test('nothing-to-do calls are notes, and a dying character can be stabilized by 
   assert.ok(B.state.pcs[pc.id].stable);
   assert.equal(B.refusals, 0);
 });
+
+test('bench 4: treasure named for its giver goes to the party, and a downed character cannot sit up', () => {
+  const T = table(3);
+  const pc = hero(T, 'p1', 'Bryn');
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 1 });
+  const r = B.run('give_treasure', { character: 'Marta Hale', item: 'Potion of Healing' });
+  assert.ok(r.ok && /not in the party/.test(r.note));
+  assert.equal(B.state.loot[0].name, 'Potion of Healing');
+  T.host({ type: 'damage', target: pc.id, amount: pc.maxHp });
+  assert.ok(checkNarration('Bryn is sitting up now, pale. Ila, what do you do?', T.s).some((f) => f.kind === 'rule'));
+  assert.ok(checkNarration('No tools needed here. Bryn, what now?', T.s).some((f) => f.kind === 'leak'));
+  assert.equal(checkNarration('The mill creaks.', T.s, { asked: true }).length, 0);
+});

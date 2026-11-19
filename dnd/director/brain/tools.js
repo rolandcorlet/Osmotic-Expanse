@@ -274,13 +274,14 @@ export const TOOLS = [
   {
     name: 'give_treasure',
     description: 'Give gold or an item the party finds or is given. With no character named, gold is split evenly and items go to the party\'s shared loot.',
-    parameters: obj({ character: S('Optional: who receives it.'), gold: I('Gold pieces.'), item: S('An item\'s name (SRD names like "Potion of Healing" are recognised).'), qty: I('How many of the item.') }),
+    parameters: obj({ character: S('Optional: the party member who receives it (not the person giving it).'), gold: I('Gold pieces.'), item: S('An item\'s name (SRD names like "Potion of Healing" are recognised).'), qty: I('How many of the item.') }),
     run(a, T) {
+      // A name that is not a party member is usually the giver ("Marta Hale"): it goes to the party (bench 4).
       const pc = a.character ? findPc(T.state, a.character) : null;
-      if (a.character && !pc) return { refused: `No character called "${a.character}". Party: ${party(T.state)}.` };
       if (!(Number(a.gold) > 0) && !String(a.item || '').trim()) return { note: 'Nothing was given: name gold or an item to give.' };
       const no = T.do({ type: 'loot.give', pcId: pc ? pc.id : undefined, gold: a.gold, item: a.item, qty: a.qty });
-      return no ? { refused: no } : { ok: true };
+      if (no) return { refused: no };
+      return a.character && !pc ? { ok: true, note: `"${a.character}" is not in the party, so it went to the party: gold split, items to the shared loot. Party: ${party(T.state)}.` } : { ok: true };
     },
   },
   {
