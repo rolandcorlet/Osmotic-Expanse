@@ -1844,7 +1844,13 @@ const HANDLERS = {
         const p = s.players[ctx.pid];
         if (!p) throw new RuleError('Join the table first.');
         o = p.organismId ? s.organisms[p.organismId] : null;
-        if (!o) throw new RuleError('Choose your organism first.');
+        if (!o) {
+          // Before play (Roly, 20 Nov 2026): a player who has joined but not yet taken an organism may
+          // talk to the Director (questions about the game, the world, which organism to pick). Their
+          // line is marked so the Director answers it as a guide and does not start the adventure.
+          s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'say', who: p.name || 'A player', orgId: null, pid: ctx.pid, pre: true, text });
+          return;
+        }
         if (o.playerId !== ctx.pid) throw new RuleError(o.borrow ? `${o.borrow.byName} is standing in as ${o.name} tonight. Ask the host to give it back to you.` : `${o.name} is not yours to speak for.`);
       }
       s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'say', who: o ? o.name : 'The host', orgId: o ? o.id : null, ...standInTag(s, o), text });
@@ -1855,7 +1861,10 @@ const HANDLERS = {
     run(s, a, ctx) {
       const text = String(a.text || '').trim().slice(0, 2400);
       if (!text) throw new RuleError('There is nothing to narrate.');
-      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text });
+      // An answer to a player who is still choosing (before play) is part of that talk, not the story.
+      const lastSay = [...s.story].reverse().find((e) => e.kind === 'say');
+      const pre = !!(lastSay && lastSay.pre && !((s.players[lastSay.pid] || {}).organismId));
+      s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text, ...(pre ? { pre: true } : {}) });
       // A day has plainly gone by and nobody closed it: the Engine does (bench 17 Nov, Ninth Shift 5:
       // one Beat in thirty-five turns, so SHIFT never bit).
       const every = Number(((ctx.scenario || {}).rules || {}).beatAfterTurns);

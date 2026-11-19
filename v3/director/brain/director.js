@@ -339,8 +339,8 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
   }
   L.push('# THE STORY SO FAR (most recent last)');
   const story = (state.story || []).slice(-16);
-  if (!story.length) L.push('Nothing yet. This is the opening: set the scene for the Cohort.');
-  for (const e of story) L.push(`${e.kind === 'narration' ? 'DIRECTOR' : e.who.toUpperCase()}: ${e.text}`);
+  if (!(state.story || []).some((e) => !e.pre)) L.push('Nothing yet. This is the opening: set the scene for the Cohort.');
+  for (const e of story) L.push(`${e.kind === 'narration' ? 'DIRECTOR' : e.who.toUpperCase()}${e.pre ? (e.kind === 'narration' ? ' (before play)' : ' (a player, before play: no organism yet)') : ''}: ${e.text}`);
   const recent = state.log.slice(-8).filter((l) => ['act', 'hit', 'clock', 'scene', 'rest', 'award', 'danger'].includes(l.kind));
   if (recent.length) {
     L.push('');
@@ -359,6 +359,10 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
 
   L.push('');
   if (hostNote) L.push(`# NOTE FROM THE HOST (follow it): ${hostNote}`);
+  const lastLine = [...(state.story || [])].reverse().find((e) => e.kind === 'say');
+  if (lastLine && lastLine.pre && !((state.players || {})[lastLine.pid] || {}).organismId) {
+    L.push(`# BEFORE PLAY: ${lastLine.who} has joined but has not chosen an organism yet. They are talking to you out of the story, as a guide at the table. Answer what they asked in a few plain sentences: what this game is, what a word means, what the organisms on offer are like and which might suit them, how session zero works. Do not set a scene, do not narrate the adventure, and call no tools that change the world. You may use look_up_rules. End on one short question that helps them get ready.`);
+  }
   L.push(`# YOUR MOVE${reason ? ` (${reason})` : ''}. If the world must change, make the calls that pay for it first, then narrate in plain text and end on one question.`);
   return L.join('\n');
 }

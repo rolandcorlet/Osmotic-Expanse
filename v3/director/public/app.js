@@ -691,7 +691,7 @@ function orderList({ numbers = true } = {}) {
 // the list is drawn bottom-up so it stays pinned to the latest line.
 function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {}) {
   const d = state.director || {};
-  const rows = (state.story || []).slice(-n).reverse().map((e) => (e.kind === 'narration'
+  const rows = (state.story || []).filter((e) => !e.pre || role === 'host').slice(-n).reverse().map((e) => (e.kind === 'narration'
     ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
     : e.kind === 'action'
       ? `<div class="st act"><b>${esc(e.who)}</b>${e.away ? ' <span class="faint small">played by the Director</span>' : forNote(e)} <span class="dim">${esc(e.text)}</span></div>`
@@ -883,12 +883,34 @@ function playerHtml() {
       <label class="fld"><span class="fl">Your name</span><input type="text" data-k="join.name" data-bind="join.name" value="${esc(ui.join.name)}" maxlength="24" placeholder="What the table calls you" autocomplete="off"></label>
       <button class="btn primary big" data-act="join">Join</button></section></div></div>`;
   }
-  if (!m.agreed) return zeroHtml();
+  if (!m.agreed) return withChat(zeroHtml());
   const o = mine();
-  if (!o) return ui.gen ? genHtml(ui, state) : chooseHandHtml();
+  if (!o) return withChat(ui.gen ? genHtml(ui, state) : chooseHandHtml());
   if (o.playerId !== pid) return ownerWaitHtml(o);
   if (ui.tab === 'sheet') return `<div class="stack">${sheetCard(o, { own: true })}</div>`;
   return `<div class="stack" data-scroll="play">${playHtml(o)}</div>`;
+}
+
+// Before play: a player who has joined can already talk to the Director (ask what the game is,
+// what a word means, which organism suits them). The talk is kept apart from the story.
+function preChatCard() {
+  const d = state.director || {};
+  // Each player sees their own questions and the answers to them.
+  let asker = null;
+  const mineP = (state.story || []).filter((e) => {
+    if (e.kind === 'say') asker = e.pre ? e.pid : null;
+    return e.pre && (e.kind === 'say' ? e.pid === pid : asker === pid);
+  }).slice(-12).reverse();
+  const rows = mineP.map((e) => (e.kind === 'narration' ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>` : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
+  const thinkRow = d.on && d.thinking ? `<div class="st dir thinking" role="status">${miniFace()}<span class="dim">The Director is thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>` : '';
+  return `<section class="card prechat"><h3>Talk to the Director<span class="right dim small">${d.on ? 'before you play' : 'the AI Director is off: the host will answer'}</span></h3>
+    <p class="small dim">Ask anything before you start: what this game is, what a word means, which organism might suit you.</p>
+    <div class="story scroll short" data-scroll="prechat">${thinkRow}${rows || (thinkRow ? '' : '<div class="empty">Nothing asked yet.</div>')}</div>
+    <div class="row"><input type="text" class="grow" data-k="say" data-bind="say.text" value="${esc(ui.say.text)}" maxlength="600" placeholder="Ask the Director…" autocomplete="off">${talkButtonHtml()}<button class="btn primary" data-act="say">Ask</button></div>
+    ${ui.talkAsk && !hearOk() && canHear() ? hearConsentHtml() : ''}</section>`;
+}
+function withChat(html) {
+  return `<div class="stack">${html}${preChatCard()}</div>`;
 }
 
 // ------------------------------------------------------------------ stand-ins
@@ -2309,8 +2331,10 @@ function voiceFollows() {
   if (!V.seen) { V.seen = new Set(lines.map((e) => e.id)); faceFollows(); return; } // what was said before this screen joined is not read out
   const fresh = lines.filter((e) => !V.seen.has(e.id));
   for (const e of fresh) V.seen.add(e.id);
-  if (fresh.length && speakOn()) {
-    for (const e of fresh) for (const text of splitSentences(e.text)) V.q.push({ text, clip: serverVoice() ? fetchClip(text) : null });
+  // A before-play answer is read out only on the screens of players who are still choosing.
+  const heard = fresh.filter((e) => !e.pre || (role === 'player' && !mine()));
+  if (heard.length && speakOn()) {
+    for (const e of heard) for (const text of splitSentences(e.text)) V.q.push({ text, clip: serverVoice() ? fetchClip(text) : null });
     pumpVoice();
   }
   faceFollows();

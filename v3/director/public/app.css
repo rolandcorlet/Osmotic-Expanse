@@ -490,3 +490,8 @@ textarea.seed-text{flex:1 1 auto;min-height:180px;font-family:var(--mono);font-s
 .burst-row:hover{border-color:var(--accent)}
 .burst-row.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel2))}
 .burst-row b{color:var(--accent)}
+
+/* Before play: the start screen and the Director chat share one scrolling column */
+.phone .stack>.stack{height:auto;overflow:visible;flex:0 0 auto;max-width:none}
+.prechat{flex:0 0 auto}
+.prechat .story.short{max-height:260px}

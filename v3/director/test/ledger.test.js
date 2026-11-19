@@ -1011,3 +1011,20 @@ test('COLONY and CORE stand in every Vector; a broken Oath moves COLONY; a full 
   t.host({ type: 'note', text: 'x' });
   assert.equal(t.s.log.filter((e) => /CORE is full/.test(e.text)).length, 1);
 });
+
+test('before play: a joined player with no organism can talk to the Director', () => {
+  const t = table();
+  t.as('p1', { type: 'join', name: 'Roly' });
+  t.as('p1', { type: 'say', text: 'What is this game about?' });
+  const said = t.s.story.at(-1);
+  assert.deepEqual([said.kind, said.who, said.pre, said.orgId], ['say', 'Roly', true, null]);
+  t.host({ type: 'narrate', text: 'You play microbes in a dead whale. Which kind of organism appeals to you?', by: 'ai' });
+  assert.equal(t.s.story.at(-1).pre, true);
+  t.as('p1', { type: 'zero.agree' });
+  t.as('p1', { type: 'claim', organismId: 'wall', name: 'Bresk' });
+  t.as('p1', { type: 'say', text: 'I look around.' });
+  assert.equal(t.s.story.at(-1).pre, undefined);
+  t.host({ type: 'narrate', text: 'The water is dark. What do you do?', by: 'ai' });
+  assert.equal(t.s.story.at(-1).pre, undefined);
+  assert.throws(() => t.as('p9', { type: 'say', text: 'hello' }), /Join the table first/);
+});
