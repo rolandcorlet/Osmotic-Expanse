@@ -68,9 +68,21 @@ export function gemini({ apiKey, model, fetchImpl = fetch, temperature = 0.8 }) 
         generationConfig: { temperature },
       };
       if (declarations.length) body.tools = [{ functionDeclarations: declarations }];
-      const data = await call(`models/${encodeURIComponent(model)}:generateContent`, apiKey, body, fetchImpl);
-      const cand = (data.candidates || [])[0];
-      if (!cand || !cand.content || !Array.isArray(cand.content.parts)) {
+      let data = await call(`models/${encodeURIComponent(model)}:generateContent`, apiKey, body, fetchImpl);
+      let cand = (data.candidates || [])[0];
+      const empty = (c) => !c || !c.content || !Array.isArray(c.content.parts) || !c.content.parts.length;
+      // Gemini sometimes finishes (STOP) with no content at all. D&D bench, 20 Nov: it happened on the same
+      // step in all three runs and failed the turn. Ask again once; if it is still empty, hand back an
+      // empty reply so the Director's own nudge ("you have not said anything yet") takes over.
+      if (empty(cand) && !(data.promptFeedback && data.promptFeedback.blockReason) && (!cand || cand.finishReason === 'STOP' || !cand.finishReason)) {
+        data = await call(`models/${encodeURIComponent(model)}:generateContent`, apiKey, body, fetchImpl);
+        cand = (data.candidates || [])[0];
+        if (empty(cand) && !(data.promptFeedback && data.promptFeedback.blockReason) && (!cand || cand.finishReason === 'STOP' || !cand.finishReason)) {
+          const u0 = data.usageMetadata || {};
+          return { text: '', calls: [], usage: { in: u0.promptTokenCount || 0, out: 0 } };
+        }
+      }
+      if (empty(cand)) {
         const why = (data.promptFeedback && data.promptFeedback.blockReason) || (cand && cand.finishReason) || 'no content';
         throw new ProviderError(`Gemini returned nothing to use (${why}).`);
       }
@@ -85,7 +97,9 @@ export function gemini({ apiKey, model, fetchImpl = fetch, temperature = 0.8 }) 
 
     return {
       send(text) {
-        contents.push({ role: 'user', parts: [{ text }] });
+        // After an empty reply nothing was added for the model, so this joins the waiting user turn.
+        const last = contents[contents.length - 1];
+        if (last && last.role === 'user') last.parts.push({ text }); else contents.push({ role: 'user', parts: [{ text }] });
         return turn();
       },
       results(list) {

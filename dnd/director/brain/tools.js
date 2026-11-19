@@ -85,12 +85,14 @@ export const TOOLS = [
       const no = T.do({ type: 'site.move', siteId: lower(a.place) });
       if (no) return { refused: no };
       const site = T.site();
-      return { arrived: site.name, first_visit: !(T.state.scene.visited || []).includes(site.id), describe: site.read, notes: site.notes, ...since(T, before) };
+      const hidden = Object.values(T.state.foes).filter((f) => f.siteId === site.id && !f.dead && f.hidden).map((f) => `${f.id} (${f.name})`);
+      return { arrived: site.name, first_visit: !(T.state.scene.visited || []).includes(site.id), describe: site.read, notes: site.notes,
+        monsters_already_here: hidden.length ? `${hidden.join(', ')}: placed and hidden. Do not add more; reveal them (reveal_monsters) when they are seen, or start_combat when the fight begins.` : 'none', exits: (site.exits || []).map((e) => `${e.to} (${e.label})`), ...since(T, before) };
     },
   },
   {
     name: 'add_monsters',
-    description: 'Place SRD monsters at the party\'s current place. Use hidden=true for monsters lying in wait that the players have not seen.',
+    description: 'Place SRD monsters at the party\'s current place, for an encounter the adventure does not already place. Check MONSTERS HERE first: the adventure\'s own monsters are already placed (hidden) when the party arrives. Use hidden=true for monsters lying in wait that the players have not seen.',
     parameters: obj({ monster: S('The SRD monster id or name, e.g. goblin, wolf, skeleton, orc, giant-spider.'), count: I('How many (1-12).'), name: S('Optional name for them, e.g. "Grisk" or "Bandit".'), hidden: B('True if the players cannot see them yet.') }, ['monster']),
     run(a, T) {
       const no = T.do({ type: 'foe.add', monster: a.monster, count: a.count || 1, name: a.name || '', hidden: truthy(a.hidden) });

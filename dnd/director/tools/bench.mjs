@@ -180,9 +180,12 @@ async function runOnce(n) {
       if (!Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead)) act('host', null, { type: 'foe.add', monster: 'goblin', count: 3 });
       act('host', null, { type: 'fight.start' });
     }
+    const turnsBefore = tally.turns;
     await answerRolls('initiative');
+    // The last initiative roll already gave the Director its turn; only a fight started without
+    // waiting on anyone needs one here.
     if (s.fight && s.fight.phase === 'initiative') act('host', null, { type: 'fight.begin' });
-    await turn('a roll was made', 'battle joined');
+    if (tally.turns === turnsBefore) await turn('the fight begins', 'battle joined');
     let steps = 0;
     while (s.fight && steps++ < 40) {
       const pc = actingPc();
@@ -228,7 +231,9 @@ async function runOnce(n) {
     if (verbose) console.log(`  ${pcOf(step.pid).name}: ${step.say}`);
     const before = s.requests.length;
     await turn('a player spoke', `step ${k}`, step.expect);
-    if (s.requests.length > before || s.requests.length) await answerRolls(`step ${k}`);
+    // Initiative is rolled by the fight step that follows, so the battle opens with one Director turn.
+    if (s.requests.length && !s.fight) await answerRolls(`step ${k}`);
+    void before;
   }
   const xp = Object.values(s.pcs).map((p) => `${p.name} ${p.xp} XP, ${p.hp}/${p.maxHp} hp`).join('; ');
   console.log(`  End: ${s.scene.siteId}; ${xp}`);

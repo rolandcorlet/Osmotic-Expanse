@@ -112,3 +112,31 @@ test('looking up the SRD', () => {
   assert.equal(lookUp(srd, 'prone').condition, 'Prone');
   assert.ok(lookUp(srd, 'grapple').rules);
 });
+
+test('an empty Gemini reply is asked again, and a second empty one becomes a nudge, not an error', async () => {
+  const { gemini } = await import('../brain/gemini.js');
+  const replies = [
+    { candidates: [{ finishReason: 'STOP' }] },
+    { candidates: [{ finishReason: 'STOP', content: { parts: [] } }] },
+    { candidates: [{ finishReason: 'STOP', content: { role: 'model', parts: [{ text: 'The fog thickens. Bryn, what do you do?' }] } }] },
+  ];
+  const bodies = [];
+  const fetchImpl = async (url, opts) => { bodies.push(JSON.parse(opts.body)); const r = replies.shift(); return { ok: true, status: 200, text: async () => JSON.stringify(r), json: async () => r }; };
+  const g = gemini({ apiKey: 'k', model: 'gemini-x', fetchImpl });
+  const chat = g.start({ system: 's', tools: [] });
+  const first = await chat.send('briefing');
+  assert.equal(first.text, '');
+  const second = await chat.send('You have not said anything yet.');
+  assert.match(second.text, /Bryn/);
+  // The nudge joined the waiting user turn rather than making two user turns in a row.
+  assert.equal(bodies[2].contents.length, 1);
+  assert.equal(bodies[2].contents[0].parts.length, 2);
+});
+
+test('moving the party says which monsters are already there, hidden', () => {
+  const T = table();
+  hero(T, 'p1', 'Bryn');
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 1 });
+  const r = B.run('move_party', { place: 'mill-road' });
+  assert.match(r.monsters_already_here, /Goblin scout 1.*Do not add more/);
+});
