@@ -3,6 +3,7 @@
 // Ledger the server sends and post actions back; the Engine on the server decides everything.
 
 import * as R from '/engine/rules.js';
+import * as PG from '/engine/pregen.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -665,7 +666,8 @@ function buildHtml() {
   const errs = R.validateInput(b, srd);
   let body = '';
   if (ui.buildStep === 'basics') {
-    body = `<div class="fields">
+    body = `<div class="fld"><span class="fl">Ready-made characters: pick one to play straight away, or change anything after</span><div class="pregens">${PG.PREGENS.map((x) => { const v = preview(PG.pregenBuild(x.id, srd)); return v ? `<button class="pregen${b.pregen === x.id ? ' on' : ''}" data-act="b.pregen" data-id="${x.id}" title="${esc(x.blurb)}"><b>${esc(x.input.name)}</b><span class="small">${esc(v.raceName)} ${esc(v.clsName)}</span><span class="chip">${esc(x.role)}</span><span class="small dim">${esc(x.blurb)}</span></button>` : ''; }).join('')}</div></div>
+      <div class="fields">
       <label class="fld wide"><span class="fl">Character name</span><input type="text" data-k="b.name" data-bind="build.name" data-save="1" value="${esc(b.name)}" maxlength="40"></label>
       <label class="fld"><span class="fl">Race</span><select data-k="b.race" data-bind="build.race" data-save="1" data-live="1">${srd.races.map((r) => `<option value="${r.id}" ${r.id === b.race ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
       ${race.subraces.length ? `<label class="fld"><span class="fl">Subrace</span><select data-k="b.sub" data-bind="build.subrace" data-save="1" data-live="1">${race.subraces.map((r) => `<option value="${r.id}" ${r.id === (b.subrace || race.subraces[0].id) ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>` : '<div></div>'}
@@ -713,7 +715,7 @@ function buildHtml() {
     body = pv ? `<dl class="kv"><dt>Name</dt><dd>${esc(b.name || '—')}</dd><dt>Race and class</dt><dd>${esc(pv.raceName)} ${esc(pv.clsName)}, level ${pv.level}</dd><dt>Hit points</dt><dd>${pv.maxHp}</dd><dt>Armor Class</dt><dd>${pv.ac} (${esc(pv.acNote)})</dd><dt>Abilities</dt><dd>${AB.map((a) => `${a.toUpperCase()} ${pv.ab[a]} (${sg(pv.mods[a])})`).join(' · ')}</dd><dt>Skills</dt><dd>${esc(pv.skills.map(skillName).join(', '))}</dd><dt>Attacks</dt><dd>${esc(pv.attacks.map((a) => `${a.name} ${sg(a.hit)} (${a.dmg})`).join('; '))}</dd>${pv.cast ? `<dt>Spells</dt><dd>${esc([...pv.cast.cantrips, ...(pv.cast.kind === 'prepared' ? pv.cast.prepared : pv.cast.known)].map((id) => (spellOf(id) || {}).name).join(', ') || 'none chosen')}</dd>` : ''}</dl>` : '';
   }
   const stepIdx = STEPS.findIndex(([id]) => id === ui.buildStep);
-  return `<div class="lay-two"><div class="col scroll" data-scroll="b1"><section class="card"><h3>Make a character<span class="right"><button class="btn sm ghost" data-act="b.reset">Start again</button></span></h3>
+  return `<div class="lay-two"><div class="col scroll" data-scroll="b1"><section class="card"><h3>Make a character<span class="right"><button class="btn sm" data-act="b.random" title="Fill every choice at random: race, class, scores, skills, gear and spells. Change anything you like after.">&#127922; Random fill</button><button class="btn sm ghost" data-act="b.reset">Start again</button></span></h3>
       <div class="seg">${STEPS.map(([id, n]) => `<button class="${ui.buildStep === id ? 'on' : ''}" data-act="b.step" data-v="${id}">${n}</button>`).join('')}</div>
       ${body}
       <div class="row">${stepIdx > 0 ? `<button class="btn" data-act="b.step" data-v="${STEPS[stepIdx - 1][0]}">Back</button>` : ''}<span class="grow"></span>${stepIdx < STEPS.length - 1 ? `<button class="btn primary" data-act="b.step" data-v="${STEPS[stepIdx + 1][0]}">Next</button>` : `<button class="btn primary big" data-act="b.create" ${errs.length ? 'disabled' : ''}>Create ${esc(b.name || 'character')}</button>`}</div>
@@ -1282,6 +1284,8 @@ const ACT = {
   'b.bg': (d) => { ui.build.background = d.v; saveDraft(); },
   'b.kit': (d) => { const b = ui.build; b.kit = b.kit || []; b.kit[Number(d.n)] = Number(d.k2); saveDraft(); },
   'b.step': (d) => { ui.buildStep = d.v; },
+  'b.random': () => { const lv = role === 'host' ? Number(ui.build.level) || 1 : 1; ui.build = { ...BLANK_BUILD(), ...PG.randomBuild(srd, Math.random, lv) }; ui.buildStep = 'review'; saveDraft(); toast(`Rolled up ${ui.build.name}. Change anything you like, then create.`, true); },
+  'b.pregen': (d) => { const lv = role === 'host' ? Number(ui.build.level) || 1 : 1; const x = PG.pregenBuild(d.id, srd, lv); if (!x) return; ui.build = { ...BLANK_BUILD(), ...x, pregen: d.id }; ui.buildStep = 'review'; saveDraft(); toast(`${x.name} is ready to check. Create them on this page.`, true); },
   'b.reset': () => { ui.build = BLANK_BUILD(); ui.buildStep = 'basics'; saveDraft(); },
   'b.create': async () => {
     const b = { ...ui.build, level: role === 'host' ? Number(ui.build.level) || 1 : 1 };

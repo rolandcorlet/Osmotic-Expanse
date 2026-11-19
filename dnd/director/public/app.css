@@ -242,3 +242,11 @@ details>summary:hover{color:var(--ink)}
 @media (min-width:1051px){ #nav{display:none} }
 .slotrow{padding:8px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 55%,transparent);align-items:flex-start}
 .stack>*,.col.scroll>*,.col>.card:not(.fill){flex-shrink:0}
+
+/* Ready-made characters in the builder */
+.pregens{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.pregen{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:9px 11px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;font:inherit}
+.pregen:hover{border-color:var(--accent)}
+.pregen.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel2))}
+.pregen b{font-size:15px;color:var(--accent)}
+.pregen .chip{font-size:11px}

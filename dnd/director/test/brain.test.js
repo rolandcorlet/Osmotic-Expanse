@@ -234,3 +234,11 @@ test('voice: a typed speech-server address is tidied to its /v1 API', async () =
   assert.equal(tidyUrl('https://api.openai.com/v1'), 'https://api.openai.com/v1');
   assert.equal(tidyUrl(''), '');
 });
+
+test('builder: the six ready-made characters and random fills are all valid', async () => {
+  const P = await import('../engine/pregen.js');
+  const R = await import('../engine/rules.js');
+  assert.equal(P.PREGENS.length, 6);
+  for (const p of P.PREGENS) assert.deepEqual(R.validateInput(P.pregenBuild(p.id, srd), srd), [], p.id);
+  for (let i = 0; i < 200; i++) assert.deepEqual(R.validateInput(P.randomBuild(srd, makeRng(i), 1 + (i % 20)), srd), []);
+});

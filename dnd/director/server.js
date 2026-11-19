@@ -161,6 +161,7 @@ const FILES = {
   '/app.css': ['public/app.css', 'text/css'],
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/dice.js': ['engine/dice.js', 'text/javascript'],
+  '/engine/pregen.js': ['engine/pregen.js', 'text/javascript'],
 };
 const PAGES = new Set(['/', '/table', '/play', '/host']);
 
