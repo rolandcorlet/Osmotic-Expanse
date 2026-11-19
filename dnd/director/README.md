@@ -54,6 +54,22 @@ village inn to a drowned chapel, with read-aloud text, DM notes, people with voi
 checks and what they reveal, treasure, SRD encounters and XP milestones. A blank **Your own campaign**
 start is there too; write your own side quests on the **Seeds** tab and the AI weaves them in.
 
+## The bench (testing the AI with a real model)
+
+`director/tools/bench.mjs` plays a scripted two-player table through the opening of the Lantern
+(the inn, an Insight check, the road north, a Perception check, the goblin fight to the end, searching
+the bodies) with whichever AI is set up on the Director tab, and counts what went wrong.
+
+```
+cd dnd/director
+node tools/bench.mjs --runs 3 --log bench.log
+```
+
+A model passes the gate when no run has an Engine refusal, a leak (a DC, AC or hit points, or the
+machinery), a living character called dead, a roll asked for in words, a closing question to the
+wrong player in a fight, a stalled fight, or an error. Style notes and an expected tool not used are
+reported but not gated. `--fake` runs it with a stand-in that only narrates, to check the bench.
+
 ## The Assistants
 
 Both are the Director's screens running with no server: the Engine runs in the browser and the game
