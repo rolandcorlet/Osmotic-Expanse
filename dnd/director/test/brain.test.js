@@ -209,3 +209,20 @@ test('bench 5: a monster target written any way is found, and the dying are not 
   assert.match(r.note, /death save is their only roll/);
   assert.equal(B.refusals, 0);
 });
+
+test('ten-run bench: harmless slips are notes, and a roll with no ability named reads it from the reason', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  assert.ok(B.run('remove_condition', { target: 'the mill-road villager', condition: 'prone' }).note);
+  assert.ok(B.run('add_condition', { target: 'Bryn', condition: 'nothing' }).note);
+  assert.ok(B.run('ask_for_roll', { characters: ['Bryn'], kind: 'check', dc: 12, reason: 'An Athletics check to climb' }).asked);
+  assert.equal(B.state.requests.at(-1).skill, 'athletics');
+  B.do({ type: 'fight.start', autoRoll: true });
+  assert.ok(B.run('move_party', { place: 'thornwick' }).note);
+  const g = Object.values(B.state.foes)[0];
+  B.do({ type: 'damage', target: `foe:${g.id}`, amount: 50 });
+  assert.ok(B.run('monster_flees', { monster: g.name }).note);
+  assert.equal(B.refusals, 0);
+});

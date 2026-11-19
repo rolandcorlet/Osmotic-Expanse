@@ -88,7 +88,16 @@ export const TOOLS = [
       if (!ids.length) return { note: `Nothing asked: ${down.map((p) => p.name).join(' and ')} ${down.length > 1 ? 'are' : 'is'} at 0 hit points. The death save is their only roll, and the Engine asks for it on their turn. To help them, ask someone else for a Medicine check (DC 10), then stabilize_character, or heal them.` };
       const effect = a.damage_on_fail || a.condition_on_fail ? { dmg: a.damage_on_fail || '', type: a.damage_type || '', half: truthy(a.half_on_success), cond: lower(a.condition_on_fail) } : null;
       if (effect && effect.dmg && !/^\s*\d*d\d+(\s*[+-]\s*\d+)?\s*$/i.test(effect.dmg)) return { refused: `"${effect.dmg}" is not a dice amount like 2d6 or 3d8+2.` };
-      const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill: lower(a.skill).replace(/\s+/g, '-'), ability: lower(a.ability), dc: a.dc, reason: a.reason, adv: lower(a.advantage), effect });
+      // No skill or ability named (ten-run bench): read one from the words of the reason, if they name one.
+      let skill = lower(a.skill).replace(/\s+/g, '-');
+      let ability = lower(a.ability).slice(0, 3);
+      if (!skill && !['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(ability)) {
+        const why = lower(`${a.reason} ${a.ability} ${a.skill}`);
+        const sk = lower(a.kind) === 'save' ? null : (T.srd.skills || []).find((x) => why.includes(x.name.toLowerCase()));
+        const ab = Object.entries({ str: 'strength', dex: 'dexterity', con: 'constitution', int: 'intelligence', wis: 'wisdom', cha: 'charisma' }).find(([, n]) => why.includes(n));
+        if (sk) skill = sk.id; else if (ab) ability = ab[0];
+      }
+      const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill, ability, dc: a.dc, reason: a.reason, adv: lower(a.advantage), effect });
       if (no) return { refused: no };
       return { asked: ids.map((id) => T.state.pcs[id].name).join(', '), note: 'The roll is on their screen. Stop here and wait for it: do not describe the outcome.' };
     },
@@ -98,6 +107,7 @@ export const TOOLS = [
     description: 'Move the party to another place when they choose to go there. Only an exit the briefing lists can be taken, and never during a fight (end_combat first if they flee). Monsters placed at the new place stay hidden until revealed or a fight starts.',
     parameters: obj({ place: S('The id of the place (from the exits list).') }, ['place']),
     run(a, T) {
+      if (T.state.fight) return { note: 'Nothing changed: the party cannot travel during a fight. If they flee, end_combat first (award_xp false), then move_party.', ...T.fightBrief() };
       const before = T.state.seq;
       const no = T.do({ type: 'site.move', siteId: lower(a.place) });
       if (no) return { refused: no };
@@ -218,8 +228,8 @@ export const TOOLS = [
     description: 'A monster runs away or surrenders and leaves the fight (the party still earns its XP).',
     parameters: obj({ monster: S('Id or name.') }, ['monster']),
     run(a, T) {
-      const foe = findFoe(T.state, a.monster);
-      if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
+      const foe = findFoe(T.state, a.monster, { all: true });
+      if (!foe || foe.dead) return { note: `Nothing changed: ${foe ? `${foe.name} is already down or gone` : `no monster called "${a.monster}"`}. Still standing: ${here(T.state)}.` };
       const no = T.do({ type: 'foe.flee', foeId: foe.id });
       return no ? { refused: no } : { gone: foe.name };
     },
@@ -257,7 +267,9 @@ export const TOOLS = [
     parameters: obj({ target: S('Id or name.'), condition: S('One of the 5e conditions.', { enum: COND_LIST }) }, ['target', 'condition']),
     run(a, T) {
       const ref = targetRef(T.state, a.target);
-      if (!ref) return { refused: `Nobody called "${a.target}".` };
+      // Naming nobody, or no condition at all, changes nothing: a note, not a refusal (ten-run bench).
+      if (!ref) return { note: `Nothing changed: nobody here is called "${a.target}". Party: ${party(T.state)}. Monsters: ${here(T.state)}.` };
+      if (!COND_LIST.includes(lower(a.condition))) return { note: `Nothing changed: "${a.condition}" is not a condition. Conditions: ${COND_LIST.join(', ')}.` };
       const no = T.do({ type: 'cond.add', target: ref, cond: lower(a.condition) });
       return no ? { refused: no } : { ok: true };
     },
@@ -268,7 +280,8 @@ export const TOOLS = [
     parameters: obj({ target: S('Id or name.'), condition: S('One of the 5e conditions.', { enum: COND_LIST }) }, ['target', 'condition']),
     run(a, T) {
       const ref = targetRef(T.state, a.target);
-      if (!ref) return { refused: `Nobody called "${a.target}".` };
+      if (!ref) return { note: `Nothing changed: nobody here is called "${a.target}". Party: ${party(T.state)}. Monsters: ${here(T.state)}.` };
+      if (!COND_LIST.includes(lower(a.condition))) return { note: `Nothing changed: "${a.condition}" is not a condition.` };
       const p = ref.startsWith('pc:') ? T.state.pcs[ref.slice(3)] : null;
       if (p && p.hp <= 0 && lower(a.condition) === 'unconscious') return { note: `Nothing changed: ${p.name} is at 0 hit points. Heal them to wake them, or stabilize_character after a successful Medicine check (DC 10).` };
       const no = T.do({ type: 'cond.remove', target: ref, cond: lower(a.condition) });

@@ -227,7 +227,8 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
   {
     const who = actingPlayer(T.state);
     const waiting = (T.state.requests || []).some((q) => !who || q.pcId !== who.id);
-    if (who && who.playerId && !waiting) {
+    // A dying character has no choices to make, so their turn's question is not theirs to answer.
+    if (who && who.playerId && who.hp > 0 && !waiting) {
       const parts = narration.split(/(?<=[.!?]["”]?)\s+/);
       const lastQ = parts.length ? parts[parts.length - 1] : '';
       if (!new RegExp(`\\b${who.name.split(/\s+/)[0]}\\b`).test(lastQ)) {

@@ -171,7 +171,9 @@ async function runOnce(n) {
     for (const e of expect) if (!used.has(e)) { tally.missing += 1; notes.push(`${label}: did not use ${e}`); }
     // On a player's turn in a fight, the closing question goes to that player.
     const who = actingPc();
-    if (who && who.playerId) {
+    const otherRoll = (s.requests || []).some((q) => !who || q.pcId !== who.id);
+    // A dying character has nothing to choose, and a roll in the air belongs to whoever must make it.
+    if (who && who.playerId && who.hp > 0 && !otherRoll) {
       const last = out.narration.split(/(?<=[.!?])\s+/).filter((x) => x.includes('?')).pop() || '';
       if (!new RegExp(`\\b${who.name}\\b`).test(last)) { tally['wrong-seat'] += 1; notes.push(`${label}: closing question not to ${who.name}: "${last.slice(0, 120)}"`); }
     }
