@@ -336,12 +336,25 @@ export const TOOLS = [
       organism: S('Organism id, for example "wall".'),
       action: S('Which action.', { enum: ['drift', 'vent', 'sense', 'synthesise', 'burst', 'reserve'] }),
       band: S('For Drift: where it ends up, measured from the Cohort.', { enum: BAND_IDS }),
-      cost: I('For Burst only: 3 to 5 Pulse Points.'),
+      burst: S('For Burst: the name of a Burst this organism knows, for example "Enzyme Spit". It pays the printed ATP and PP, rolls in the open and lands at once.'),
+      target: S('For a Burst aimed at a creature: the creature id.'),
+      ally: S('For a Burst aimed at an organism (a heal or shield): its id. Leave out for itself.'),
+      cost: I('Only for a Burst with no name: 3 to 5 Pulse Points.'),
     }, ['organism', 'action']),
     run(a, T) {
       const r = awayOrg(T, a.organism);
       if (r.o === undefined) return r;
       const o = r.o;
+      if (a.action === 'burst' && a.burst) {
+        const c = a.target ? findCre(T.state, a.target) : null;
+        if (a.target && !c) return noCre(a.target, T.state);
+        const no = T.do({ type: 'act', organismId: o.id, action: 'burst', burst: a.burst, targetId: c ? c.cid : undefined, allyId: a.ally || undefined });
+        if (no) return outOfTurn(T, no, o);
+        const q = T.state.requests[T.state.requests.length - 1];
+        const no2 = T.do({ type: 'roll', requestId: q.id });
+        if (no2) return { refused: no2 };
+        return { ...lastRoll(T.state), who: o.name, burst: a.burst, pulse_points_left: T.pp('org', o.id) };
+      }
       const act = a.action === 'drift' ? { type: 'act', organismId: o.id, action: 'drift', band: BAND_IDS.includes(a.band) ? a.band : undefined }
         : a.action === 'burst' ? { type: 'act', organismId: o.id, action: 'burst', cost: a.cost }
           : { type: 'act', organismId: o.id, action: a.action };

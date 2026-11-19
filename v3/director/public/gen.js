@@ -3,6 +3,8 @@
 // the same maths the server uses (data/chargen); the server rebuilds the organism and is the judge.
 import { preview, SEATS } from '/data/chargen/build.js';
 import { ATLAS, INFO } from '/data/chargen/model.generated.js';
+import { burstByName } from '/engine/bursts.js';
+const burstWords = (n) => { const b = burstByName(n); return b ? `<br><span class="small">${esc(b.e)}</span>` : ''; };
 
 const KEYS = ['VSC', 'DFF', 'RTC', 'OSM', 'AFF'];
 const PLAIN = { VSC: ['Toughness', 'health, carrying, how long you last when down'], DFF: ['Speed', 'actions per round, how hard you are to hit'], RTC: ['Chemistry', 'energy, making things, Bursts'], OSM: ['Senses', 'noticing, tasting, not being fooled'], AFF: ['Talk', 'persuading, leading, Oaths'] };
@@ -129,7 +131,7 @@ function growthStep(G, pv) {
     const dom = String(ph.dom || '').toUpperCase();
     const list = ATLAS.bursts.filter((b) => b.t <= m.tierMax).sort((a, b) => (b.d === dom) - (a.d === dom) || a.t - b.t);
     body = `<div class="small dim">Bursts are chemical moves powered by ATP. Your class's domain is ${esc(ph.dom || '')}; Bursts from other domains cost more. You can hold ${m.aeCapacity} hot at once.</div>` + list.map((b) => { const on = c.bursts.includes(b.n);
-      return `<button class="grow-row${on ? ' set' : ''}" data-act="gen.burst" data-v="${esc(b.n)}" ${!on && left <= 0 ? 'disabled' : ''}><span class="gname"><b>${esc(b.n)}</b> ${b.d === dom ? '<span class="chip ok">your domain</span>' : ''}<br><span class="small dim">${esc(b.d[0] + b.d.slice(1).toLowerCase())} · Tier ${b.t} · cost ${esc(b.c)} · ${esc(b.b)}</span></span><span class="gval">${on ? '✓' : '+'}</span></button>`; }).join('');
+      return `<button class="grow-row${on ? ' set' : ''}" data-act="gen.burst" data-v="${esc(b.n)}" ${!on && left <= 0 ? 'disabled' : ''}><span class="gname"><b>${esc(b.n)}</b> ${b.d === dom ? '<span class="chip ok">your domain</span>' : ''}<br><span class="small dim">${esc(b.d[0] + b.d.slice(1).toLowerCase())} · Tier ${b.t} · cost ${esc(b.c)} ATP/PP · ${esc(b.b)}</span>${burstWords(b.n)}</span><span class="gval">${on ? '✓' : '+'}</span></button>`; }).join('');
   } else {
     const sLeft = m.budget - m.spent - (m.adaptS || 0);
     body = `<div class="small dim">Adaptations change your body for good. Each costs one Choice and the Substrate shown, out of the ${m.budget} S you start with (${sLeft} S left).</div>` + ATLAS.adaptations.map((a) => { const on = c.adaptations.includes(a.n), spec = /\+\s*\d/.test(a.s), cost = parseInt(a.s, 10) || 0;
@@ -321,7 +323,7 @@ export function growHtml(ui, o) {
     const dom = String(ph.dom || '').toUpperCase();
     const known = o.bursts || [];
     body = ATLAS.bursts.filter((b) => b.t <= need.tier && !known.includes(b.n)).sort((a, b) => (b.d === dom) - (a.d === dom) || a.t - b.t)
-      .map((b) => row('burst', b.n, `${esc(b.n)}${b.d === dom ? ' <span class="chip ok">your domain</span>' : ''}`, `${esc(b.d[0] + b.d.slice(1).toLowerCase())} · Tier ${b.t} · cost ${esc(b.c)} · ${esc(b.b)}`)).join('');
+      .map((b) => row('burst', b.n, `${esc(b.n)}${b.d === dom ? ' <span class="chip ok">your domain</span>' : ''}`, `${esc(b.d[0] + b.d.slice(1).toLowerCase())} · Tier ${b.t} · cost ${esc(b.c)} ATP/PP · ${esc(b.b)}${burstWords(b.n)}`)).join('');
   } else {
     const spent = G.picks.filter((p) => p.kind === 'adapt').reduce((t, p) => t + (parseInt((ATLAS.adaptations.find((a) => a.n === p.key) || {}).s, 10) || 0), 0);
     const left = o.substrate - spent;

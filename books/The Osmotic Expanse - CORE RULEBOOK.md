@@ -700,7 +700,7 @@ A Burst is a printed procedure. Every Burst has:
 | **GALVANIC** | Voltaic | Signal Discourse | Interrupt, mark, command, hijack timing |
 | **SOMATIC** | Genetic | Somatic Shaping | Grow, heal, mutate, rewrite the self and allies |
 
-## 6.4 Burst Catalogue (24 universal Bursts)
+## 6.4 Burst Catalogue (30 universal Bursts)
 
 These are open to any organism that learns them. Class Bursts (Atlas) follow the same format and often do things these cannot.
 

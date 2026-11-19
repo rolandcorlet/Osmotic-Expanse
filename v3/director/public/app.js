@@ -4,7 +4,16 @@
 
 import * as R from '/engine/rules.js';
 import { oddsCard } from '/engine/odds.js';
+import { burstByName, EV as BURST_EV } from '/engine/bursts.js';
+import { ATLAS } from '/data/chargen/model.generated.js';
 import { genHtml, genActs, growHtml, growActs, codonLine } from '/gen.js';
+
+// The Bonded Domain of an organism's Phenotype (a Burst from another domain costs +2 ATP, +1 Stress).
+function myDomain(o) {
+  const n = String((o && o.phenotype) || '');
+  const ph = (ATLAS.phenotypes || []).find((p) => p.n === n) || (ATLAS.phenotypes || []).find((p) => n.endsWith(` ${p.n}`));
+  return ph && ph.dom ? String(ph.dom).toUpperCase() : null;
+}
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -61,6 +70,7 @@ const ui = {
   seeds: { idea: '', text: '', edit: null, from: null, sure: '' }, // host: the Seeds tab
   saves: { slots: null, cloud: null, cloudSlots: null, name: '', url: '', key: '', busy: false, sure: '' }, // host: the Saves tab
   strike: null,
+  burst: null,
   drift: false,
   quick: { baseline: 'OSM', pathway: '', at: '', practice: false },
   rollsMine: false,
@@ -1373,6 +1383,26 @@ function fightCard(o) {
       ${w.props.includes('Braced') ? `<div class="small dim">${a.drifted ? 'You Drifted this Cycle: no Braced die.' : 'Braced: +1 die, because you have not Drifted this Cycle.'}</div>` : `<label class="chip${ui.strike.momentum ? ' on' : ''}"><input type="checkbox" data-bind="strike.momentum" ${ui.strike.momentum ? 'checked' : ''}> Momentum: I Drifted 3 in a straight line (+2 dice, Kinetic)</label>`}
       <div class="row"><button class="btn primary grow" data-act="strike.go" ${ui.strike.targetId && a.pp >= strikeCost(w) ? '' : 'disabled'}>Strike <span class="cost">${strikeCost(w)}</span></button><button class="btn ghost" data-act="strike.cancel">Cancel</button></div></div>`;
   }
+  let burstBox = '';
+  const known = (o.bursts || []).map(burstByName).filter(Boolean);
+  if (ui.burst) {
+    const dom = myDomain(o);
+    const b = burstByName(ui.burst.name) || known[0];
+    const costOf = (x) => ({ atp: x.atp + (dom && dom !== x.d ? 2 : 0), pp: x.pp, off: dom && dom !== x.d });
+    const c = b ? costOf(b) : null;
+    const allies = Object.values(state.organisms).filter((x) => (b && b.apply.revive ? x.dormant : !x.dormant));
+    const needT = b && (b.on === 'creature' || b.vs === 'MT');
+    const needA = b && b.on === 'ally';
+    const ready = b && (!needT || ui.burst.targetId) && a.pp >= c.pp && o.atp >= c.atp;
+    burstBox = `<div class="card ask" style="padding:10px">
+      <div class="bursts">${known.map((x) => { const k = costOf(x); return `<button class="burst-row${b && x.n === b.n ? ' on' : ''}" data-act="burst.pick" data-id="${esc(x.n)}"><b>${esc(x.n)}</b><span class="chip">${k.atp} ATP · ${k.pp} PP</span><span class="small dim">${esc(cap(x.d.toLowerCase()))} · Tier ${x.t} · ${esc(x.band)}${k.off ? ' · outside your domain: +2 ATP, +1 Stress' : ''}</span></button>`; }).join('')}</div>
+      ${b ? `<div class="small">${esc(b.e)}${b.r ? ` <span class="dim">Runaway Catalysis adds: ${esc(b.r)}</span>` : ''}</div>
+        <div class="small dim">Roll RTC + ${esc(((b.d === 'OSMOTIC' ? 'Pressure Folding or Fluid Navigation' : b.d === 'PROTEAN' ? 'Protean Folding' : b.d === 'GALVANIC' ? 'Signal Discourse' : b.d === 'SOMATIC' ? 'Somatic Shaping' : 'Catalysis')))} against ${b.vs === 'MT' ? "the target's Membrane Threshold" : b.vs}. Effect Value ${BURST_EV[b.t]}.</div>` : ''}
+      ${needT ? `<div class="small dim">Choose a target.</div><div class="row">${targets.map((x) => `<button class="chip${ui.burst.targetId === x.cid ? ' on' : ''}" data-act="burst.target" data-id="${x.cid}">${esc(x.name)} · ${esc(x.band || '')}</button>`).join('') || '<span class="faint small">Nothing to aim at.</span>'}</div>` : ''}
+      ${needA ? `<div class="small dim">Who is it for?</div><div class="row">${allies.map((x) => `<button class="chip${(ui.burst.allyId || (b.apply.revive ? '' : o.id)) === x.id ? ' on' : ''}" data-act="burst.ally" data-id="${x.id}">${esc(x.id === o.id ? 'Yourself' : x.name)}</button>`).join('') || '<span class="faint small">Nobody to reach.</span>'}</div>` : ''}
+      <div class="row"><button class="btn primary grow" data-act="burst.go" ${ready ? '' : 'disabled'}>${b ? esc(b.n) : 'Burst'}${c ? ` <span class="cost">${c.pp}</span>` : ''}</button><button class="btn ghost" data-act="burst.cancel">Cancel</button></div>
+      ${c && o.atp < c.atp ? `<div class="small" style="color:var(--no)">You need ${c.atp} ATP and have ${o.atp}.</div>` : ''}</div>`;
+  }
   let driftBox = '';
   if (ui.drift) {
     driftBox = `<div class="card ask" style="padding:10px"><div class="small dim">Drift up to ${o.flow} Drifts. Where do you end up, relative to the enemy?</div>
@@ -1388,14 +1418,15 @@ function fightCard(o) {
       <div class="tile"><div class="tl">MT</div><div class="tv">${o.mt}</div></div></div>
     ${o.stress >= 3 ? `<div class="small dim">Stress ${o.stress}: ${R.stressNote(o.stress)}.</div>` : ''}
     ${o.conditions.length ? `<div class="row">${o.conditions.map((c) => `<span class="chip warn" title="${esc((R.CONDITIONS[c.name] || {}).effect || '')}">${esc(c.name)}</span>`).join('')}${a.reserve ? '<span class="chip on">Reserve held</span>' : ''}</div>` : (a.reserve ? '<div class="row"><span class="chip on">Reserve held</span></div>' : '')}
-    ${strikeBox || driftBox || `<div class="acts">
+    ${strikeBox || burstBox || driftBox || `<div class="acts">
       <button class="btn primary" data-act="strike.open" ${!canAct || a.pp < minStrike ? 'disabled' : ''}>Strike <span class="cost">${minStrike === 99 ? 2 : minStrike}</span></button>
       <button class="btn" data-act="drift.open" ${!canAct || a.pp < 1 ? 'disabled' : ''}>Drift <span class="cost">1</span></button>
       ${btn('sense', 'Sense', 1)}
       ${btn('vent', 'Vent', 1, 'title="Stress −2, costs 2 ATP"', o.stress === 0)}
       ${btn('synthesise', 'Synthesise', 2)}
       ${btn('reserve', 'Reserve', 1, 'title="Hold 1 PP to Deflect, Brace or Inhibit when you are attacked later this Cycle"', a.reserve)}
-      <button class="btn" data-act="act" data-a="burst" data-cost="3" ${!canAct || a.pp < 3 ? 'disabled' : ''}>Burst <span class="cost">3+</span></button>
+      ${known.length ? `<button class="btn" data-act="burst.open" ${!canAct || a.pp < Math.min(...known.map((x) => x.pp)) ? 'disabled' : ''} title="${esc(known.map((x) => x.n).join(', '))}">Burst <span class="cost">${Math.min(...known.map((x) => x.pp))}+</span></button>`
+        : `<button class="btn" data-act="act" data-a="burst" data-cost="3" ${!canAct || a.pp < 3 ? 'disabled' : ''} title="You know no Bursts: this spends 3 PP and 3 ATP and the Director says what happens">Burst <span class="cost">3+</span></button>`}
       ${fallen.map((x) => `<button class="btn danger" data-act="stabilise" data-id="${x.id}" ${!canAct || a.pp < 2 ? 'disabled' : ''}>Stabilise ${esc(x.name)} <span class="cost">2</span></button>`).join('')}
     </div>
     <div class="row"><button class="btn grow" data-act="turn.end" ${canAct ? '' : 'disabled'}>${a.status === 'holding' ? 'Finish for this Cycle' : 'End my turn'}</button>
@@ -1994,6 +2025,16 @@ const ACT = {
   },
   overdrive: (d) => send({ type: 'overdrive', requestId: d.id, with: d.with }),
   'strike.cancel': () => { ui.strike = null; },
+  'burst.open': () => { const k = (mine().bursts || []); ui.burst = { name: k[0] || '', targetId: '', allyId: '' }; ui.strike = null; ui.drift = null; },
+  'burst.pick': (d) => { ui.burst = { ...ui.burst, name: d.id, allyId: '' }; },
+  'burst.target': (d) => { ui.burst.targetId = d.id; },
+  'burst.ally': (d) => { ui.burst.allyId = d.id; },
+  'burst.cancel': () => { ui.burst = null; },
+  'burst.go': async () => {
+    const b = ui.burst;
+    const o = mine();
+    if (await send({ type: 'act', organismId: o.id, action: 'burst', burst: b.name, targetId: b.targetId || undefined, allyId: b.allyId && b.allyId !== o.id ? b.allyId : undefined })) ui.burst = null;
+  },
   'strike.go': async () => {
     const s = ui.strike;
     if (await send({ type: 'strike', organismId: mine().id, weaponId: s.weaponId, targetId: s.targetId, momentum: s.momentum, situation: Object.keys(s.sit) })) ui.strike = null;

@@ -39,6 +39,8 @@ export function growHand(h, g) {
     weapons: g.weapons || h.weapons,
     kit: g.kit || h.kit,
     adaptations: g.adaptations || [],
+    // A Burst taken as a Growth ("Burst: Vortex Lure (…)") is a Burst the organism knows.
+    bursts: g.bursts || (g.choices || []).map((c) => (String(c).match(/^Burst: ([^(]+)/) || [])[1]).filter(Boolean).map((n) => n.trim()),
     choices: g.choices || [],
     features: g.features || '',
     tie: g.tie || h.tie,

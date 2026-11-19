@@ -483,3 +483,10 @@ details.prices select{width:auto;flex:1 1 130px;min-height:30px;padding:4px 8px}
 
 /* ---- Story seeds (host Seeds tab). */
 textarea.seed-text{flex:1 1 auto;min-height:180px;font-family:var(--mono);font-size:13px;line-height:1.45;resize:none}
+
+/* The Burst picker in a Pulse War */
+.bursts{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;margin-bottom:6px}
+.burst-row{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;font:inherit}
+.burst-row:hover{border-color:var(--accent)}
+.burst-row.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel2))}
+.burst-row b{color:var(--accent)}

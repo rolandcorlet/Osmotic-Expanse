@@ -8,6 +8,7 @@ import { parseSeed } from './seeds.js';
 import { successChance } from './odds.js';
 import { buildHand } from '../data/chargen/build.js';
 import { ATLAS, OSMOTIC } from '../data/chargen/model.generated.js';
+import { BURSTS, EV as BURST_EV, DOMAIN as BURST_DOMAIN, BONDED_EXTRA, burstByName } from './bursts.js';
 
 export class RuleError extends Error {}
 
@@ -1229,6 +1230,8 @@ function resolve(s, ctx, req, ownDice) {
     resolveAttack(s, ctx, req, read, entry, notes);
   } else if (req.kind === 'incoming') {
     resolveIncoming(s, ctx, req, read, entry, notes);
+  } else if (req.kind === 'burst') {
+    resolveBurst(s, ctx, req, read, entry, notes);
   } else if (req.kind === 'harvest') {
     const o = s.organisms[req.actor.id];
     if (o) entry.harvest = applyHarvest(s, ctx, o, req.harvest, { success: read.success, overflow: read.overflow || 0 }, notes);
@@ -1336,6 +1339,153 @@ function resolveAttack(s, ctx, req, read, entry, notes) {
   if (sig) notes.push(`${w.type} signature, choose one: ${sig}.`);
 }
 
+// ------------------------------------------------------------------ Bursts
+// CORE §6.1 to §6.4: name the Burst, pay its printed ATP and PP (+2 ATP and +1 Stress outside your
+// Bonded Domain), then roll RTC + the domain's Pathway against the target's Membrane Threshold or
+// the printed number. Effect Value by Tier (4, 6, 8, 10), doubled by Runaway Catalysis, halved
+// when Denatured. The Rider comes only with Runaway Catalysis.
+export function bondedDomain(o) {
+  const name = String(o.phenotype || '');
+  const ph = (ATLAS.phenotypes || []).find((p) => p.n === name) || (ATLAS.phenotypes || []).find((p) => name.endsWith(` ${p.n}`));
+  return ph && ph.dom ? String(ph.dom).toUpperCase() : null;
+}
+export function burstTierMax(level) {
+  return OSMOTIC && OSMOTIC.burstTierMax ? OSMOTIC.burstTierMax(level) : level >= 16 ? 4 : level >= 11 ? 3 : level >= 6 ? 2 : 1;
+}
+export function burstCost(o, b) {
+  const off = bondedDomain(o) && bondedDomain(o) !== b.d;
+  const atp = R.atpCost(b.atp + (off ? BONDED_EXTRA.atp : 0), { stress: o.stress, conditions: o.conditions.map((c) => c.name) });
+  return { atp, pp: b.pp, off, stress: off ? BONDED_EXTRA.stress : 0 };
+}
+function burstPathway(o, b) {
+  const paths = (BURST_DOMAIN[b.d] || {}).paths || ['Catalysis'];
+  let best = { name: paths[0], rank: 0 };
+  for (const n of [...paths, 'Catalysis']) if ((o.pathways[n] || 0) > best.rank) best = { name: n, rank: o.pathways[n] };
+  return best;
+}
+
+function beginBurst(s, ctx, o, act, a) {
+  const b = burstByName(a.burst);
+  if (!b) throw new RuleError(`There is no Burst called "${a.burst}". The Bursts: ${BURSTS.map((x) => x.n).join(', ')}.`);
+  const known = o.bursts || [];
+  if (known.length && !known.includes(b.n)) throw new RuleError(`${o.name} does not know ${b.n}. ${o.name} knows ${known.join(', ')}.`);
+  if (!known.length && ctx.role !== 'host') throw new RuleError(`${o.name} knows no Bursts.`);
+  if (b.t > burstTierMax(o.level)) throw new RuleError(`${b.n} is a Tier ${b.t} Burst; ${o.name} reaches Tier ${burstTierMax(o.level)} at Level ${o.level}.`);
+  if (hasCond(o, 'Locked')) throw new RuleError(`${o.name} is Locked and cannot begin a Burst.`);
+  const cost = burstCost(o, b);
+  if (o.atp < cost.atp) throw new RuleError(`${b.n} costs ${cost.atp} ATP${cost.off ? ' (outside your Bonded Domain: +2)' : ''} and ${o.name} has ${o.atp}.`);
+  if (b.apply.self && b.apply.self.substrate && (o.substrate || 0) < b.apply.self.substrate) throw new RuleError(`${b.n} costs ${b.apply.self.substrate} Substrate and ${o.name} has ${o.substrate || 0}.`);
+  // Who it is aimed at.
+  let target = null;
+  let at = typeof b.vs === 'number' ? b.vs : null;
+  if (b.on === 'creature' || (b.on === 'zone' && b.vs === 'MT')) {
+    const c = cre(s, a.targetId);
+    if (c.down) throw new RuleError(`${c.name} is already down.`);
+    target = { kind: 'cre', id: c.cid, name: c.name };
+    if (b.vs === 'MT') at = creMT(c);
+  } else if (b.on === 'ally') {
+    const t = a.allyId ? org(s, a.allyId) : o;
+    if (b.apply.revive ? !t.dormant : t.dormant) throw new RuleError(b.apply.revive ? `${t.name} is not Dormant.` : `${t.name} is Dormant: only Resynthesis Call or a stabilise reaches them.`);
+    target = { kind: 'org', id: t.id, name: t.name };
+  }
+  spendPP(s, act, cost.pp, b.n);
+  o.atp -= cost.atp;
+  act.spentAtp = true;
+  if (cost.stress) addStress(s, ctx, o, cost.stress, `${b.n} is outside ${o.name}'s Bonded Domain`);
+  if (b.apply.self && b.apply.self.substrate) o.substrate -= b.apply.self.substrate;
+  const path = burstPathway(o, b);
+  let baseName = 'RTC';
+  if (b.alt && (o.base[b.alt] || 0) > (o.base.RTC || 0)) baseName = b.alt;
+  const mods = [];
+  if (target && target.kind === 'cre' && hasCond(s.creatures[target.id], 'Marked')) mods.push({ label: 'Target is Marked', dice: 2 });
+  for (const m of situationMods(a.situation)) mods.push(m);
+  if (ctx.role === 'host') for (const m of cleanMods(a.mods)) mods.push(m);
+  const pool = R.buildPool({ baseline: o.base[baseName] + condBase(o, baseName), pathway: path.rank, mods, stress: o.stress });
+  pool.baselineName = baseName;
+  pool.pathwayName = path.name;
+  pushRequest(s, {
+    kind: 'burst', actor: { kind: 'org', id: o.id, name: o.name }, target,
+    label: `Burst: ${b.n}${target ? ` at ${target.name}` : ''}`, pool, at, atLabel: b.vs === 'MT' ? 'Membrane Threshold' : 'Threshold',
+    burst: b.n, ppCost: cost.pp,
+  });
+  say(s, ctx, `${o.name} begins ${b.n}: ${cost.atp} ATP and ${cost.pp} PP${cost.off ? ' (outside the Bonded Domain: +2 ATP, +1 Stress)' : ''}, ${act.pp} PP left. ${pool.dice} dice against ${at}.`, 'act');
+  announce(s, ctx, o, `begins ${b.n}${target ? ` at ${target.name}` : ''}`);
+}
+
+function resolveBurst(s, ctx, req, read, entry, notes) {
+  const b = burstByName(req.burst);
+  const o = s.organisms[req.actor.id];
+  if (!b || !o) return;
+  entry.burst = b.n;
+  const ap = b.apply || {};
+  // What the caster pays whatever the roll (Supernova Vent, Cascade Protocol).
+  if (ap.self && ap.self.stress) addStress(s, ctx, o, ap.self.stress, b.n);
+  if (ap.self && ap.self.mi) { o.mi = Math.max(0, o.mi - ap.self.mi); notes.push(`${o.name} pays ${ap.self.mi} MI to ${b.n}: MI ${o.mi}.`); if (o.mi === 0) hurtOrganism(s, ctx, o, 0); }
+  if (!read.success) { notes.push(`${b.n} fizzles: the ATP and PP are spent.`); return; }
+  let ev = BURST_EV[b.t] || 4;
+  if (hasCond(o, 'Denatured')) { ev = Math.floor(ev / 2); notes.push('Denatured: the Effect Value is halved.'); }
+  const evNow = read.runaway ? ev * 2 : ev;
+  const ov = read.overflow || 0;
+  const t = req.target;
+  const c = t && t.kind === 'cre' ? s.creatures[t.id] : null;
+  const ally = t && t.kind === 'org' ? s.organisms[t.id] : null;
+  const type = (BURST_DOMAIN[b.d] || {}).type || '';
+  if (ap.dmg && c) {
+    const soak = creSoak(c);
+    let take = soak;
+    if (ap.ignore === 'all' || ap.plusSoak) take = 0;
+    else if (ap.ignore) take = Math.max(0, soak - ap.ignore);
+    if (ap.ownSoak) take = o.soak || 0;
+    const amount = Math.max(1, evNow + ov + (ap.plusSoak ? soak : 0) - take);
+    entry.damage = amount;
+    entry.working = `Effect Value ${evNow}${read.runaway ? ' (Runaway: doubled)' : ''} + Overflow ${ov}${ap.plusSoak ? ` + soak ${soak}` : ''}${take ? ` - ${ap.ownSoak ? 'your own soak' : 'soak'} ${take}` : ''} = ${amount} ${type}`;
+    const out = hurtCreature(s, ctx, c, { overflow: ov, dmg: amount });
+    if (out.segments != null) entry.working = `Swarm: Overflow ${ov} / 3, rounded up, + 1 = ${out.segments} Segments`;
+    entry.targetName = c.name;
+    entry.targetDown = !!c.down;
+    if (ap.erase && c.down && !/catastrophe/i.test(c.cls || '')) { c.harvested = true; c.erased = true; notes.push(`${c.name} is erased: nothing is left to harvest or re-synthesise.`); }
+  }
+  if (ap.soakDown && c) { c.soak = Math.max(0, (c.soak || 0) - ap.soakDown); notes.push(`${c.name} is at -${ap.soakDown} soak until repaired (soak now ${c.soak}).`); }
+  if (ap.soakZero && c) { c.soakLost = { was: c.soak, until: s.fight ? s.fight.cycle + 3 : null }; c.soak = 0; notes.push(`${c.name}'s graft loses all its soak for 3 Cycles.`); }
+  const conds = [...(ap.cond || []), ...(read.runaway && ap.rider && ap.rider.cond ? ap.rider.cond : [])];
+  for (const name of conds) { const body = c || ally; if (body) applyConditionTo(s, ctx, [body], name, true); }
+  if (ap.temp && ally) { ally.mi += ap.temp; notes.push(`${ally.name} gains ${ap.temp} temporary MI: ${ally.mi}.`); }
+  if (ap.heal && ally) {
+    const before = ally.mi;
+    ally.mi = Math.min(ally.miMax, ally.mi + evNow + ov);
+    if (ap.closeBox && ally.countdown > 0) ally.countdown -= 1;
+    entry.working = `Effect Value ${evNow} + Overflow ${ov} = ${evNow + ov} MI`;
+    notes.push(`${ally.name} heals: MI ${before} to ${ally.mi}${ap.closeBox ? `, Countdown ${ally.countdown} of ${ally.countdownMax}` : ''}.`);
+    say(s, ctx, `${ally.name} heals from ${b.n}: MI ${before} to ${ally.mi}.`, 'heal');
+  }
+  if (ap.regen && ally) { ally.regen = { amount: 4 + Math.floor(ov / 3), left: 3 }; notes.push(`${ally.name} will heal ${ally.regen.amount} MI at the start of each of the next 3 Cycles.`); }
+  if (ap.mend && ally) {
+    const cnd = ally.conditions.find((x) => !x.auto) || ally.conditions[0];
+    if (cnd) { applyConditionTo(s, ctx, [ally], cnd.name, false); notes.push(`${b.n} ends ${cnd.name} on ${ally.name}.`); } else notes.push(`${ally.name} has no condition to end.`);
+  }
+  if (ap.revive && ally) {
+    ally.mi = Math.max(1, Math.floor(ally.miMax / 2));
+    ally.dormant = false;
+    ally.stress = 0;
+    ally.countdown = Math.max(0, ally.countdown - 1);
+    ally.conditions = ally.conditions.filter((x) => !(x.name === 'Leaking' && x.auto));
+    notes.push(`${ally.name} returns: MI ${ally.mi}, Stress 0, Countdown ${ally.countdown} of ${ally.countdownMax}.`);
+    say(s, ctx, `${ally.name} is called back by ${b.n}: MI ${ally.mi}.`, 'heal');
+  }
+  if (ap.rally) {
+    const gain = ov + 6;
+    for (const x of Object.values(s.organisms)) {
+      if (x.id === o.id || x.dormant || !actorOf(s, 'org', x.id)) continue;
+      x.atp = Math.min(x.atpMax, x.atp + gain);
+      x.stress = 0;
+      notes.push(`${x.name} recovers ${gain} ATP (now ${x.atp}) and clears Stress.`);
+    }
+  }
+  if (b.note) notes.push(b.note);
+  if (read.runaway && b.r) notes.push(`Rider (Runaway Catalysis): ${b.r}`);
+  else if (b.on === 'zone' || (!ap.dmg && !ap.cond && !ap.heal && !ap.temp && !ap.revive && !ap.mend && !ap.rally && !ap.regen && !ap.soakZero)) notes.push(`${b.n}: ${b.e}`);
+}
+
 function resolveIncoming(s, ctx, req, read, entry, notes) {
   const o = s.organisms[req.target.id];
   if (!o) return;
@@ -1367,6 +1517,14 @@ function turnStartEffects(s, ctx, a) {
     if (hasCond(o, 'Leaking') && o.mi > 0) {
       o.mi = Math.max(0, o.mi - 1);
       say(s, ctx, `${o.name} is Leaking: 1 MI lost, now ${o.mi}.`, 'hit');
+    }
+    if (o.regen && o.regen.left > 0) {
+      // Knock-on Mitosis (CORE §6.4): heals at the start of each of the next 3 Cycles.
+      const before = o.mi;
+      o.mi = Math.min(o.miMax, o.mi + o.regen.amount);
+      o.regen.left -= 1;
+      say(s, ctx, `${o.name} knits (Knock-on Mitosis): MI ${before} to ${o.mi}${o.regen.left ? `, ${o.regen.left} more Cycle${o.regen.left > 1 ? 's' : ''}` : ''}.`, 'heal');
+      if (!o.regen.left) delete o.regen;
     }
     return true;
   }
@@ -1419,6 +1577,11 @@ function endCycle(s, ctx) {
     }
     const body = a.kind === 'org' ? s.organisms[a.id] : s.creatures[a.id];
     body.conditions = body.conditions.filter((c) => !(c.until != null && c.until <= f.cycle));
+    if (body.soakLost && body.soakLost.until != null && body.soakLost.until <= f.cycle) {
+      body.soak = body.soakLost.was;
+      delete body.soakLost;
+      say(s, ctx, `${body.name}'s graft has its soak back (${body.soak}): Digest Armour has worn off.`, 'info');
+    }
     a.pp = 0;
     a.status = 'waiting';
     a.reserve = false;
@@ -2831,6 +2994,7 @@ const HANDLERS = {
         tell(`${o.name} Vents: 1 PP and ${atp} ATP. Stress is ${o.stress}. ${act.pp} PP left.`, `vents, easing its Stress to ${o.stress}`);
         return;
       }
+      if (a.action === 'burst' && a.burst) { beginBurst(s, ctx, o, act, a); return; }
       if (a.action === 'burst') {
         const atp = R.atpCost(cost, { stress: o.stress, conditions: o.conditions.map((c) => c.name) });
         if (o.atp < atp) throw new RuleError(`That Burst costs ${atp} ATP and ${o.name} has ${o.atp}.`);
