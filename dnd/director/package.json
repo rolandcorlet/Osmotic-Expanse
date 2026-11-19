@@ -1,0 +1,9 @@
+{
+  "name": "dnd-ai-director",
+  "version": "1.0.0",
+  "private": true,
+  "description": "D&D 5e AI Director: the rules Engine, the shared Ledger and the table for host and players",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": { "start": "node server.js", "test": "node --test" }
+}

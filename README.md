@@ -6,6 +6,7 @@ A tabletop roleplaying game, its books, and the AI Director that runs it.
 
 | Folder | What is in it |
 |---|---|
+| `dnd/` | **Dungeons & Dragons 5e.** The AI Director for D&D (`dnd/director/`), the DM's and Players' Assistants (`dnd/dm/`, `dnd/players/`) and the SRD 5.1 rules data. Start with `dnd/README.md`. |
 | `v3/` | **The game.** `v3/director/` is the AI Director (run `Start Director.bat`); `v3/books/` holds the v3 table editions. Start with `v3/README.md`. |
 | `books/` | The books in Markdown and Word: Core Rulebook, Player's Atlas, Director's Codex, Lytic Bestiary, QUORUM, Society Rules, and the Vectors (The First Carve, The Long Swallow, The Ninth Shift, What the Water Owed). |
 | `docs/` | Notes about the game and the project: how to deploy, the World Contract, the plain-language explainers, the character sheet, and **`STORY-SEEDS.md`** (writing your own stories for the AI Director). |
@@ -19,4 +20,4 @@ A tabletop roleplaying game, its books, and the AI Director that runs it.
 
 ## Websites
 
-Every push to `main` updates both Vercel sites. See `docs/DEPLOY.md`.
+Every push to `main` updates both Vercel sites. See `docs/DEPLOY.md`. The D&D pages are on the Director's site under `/dnd/`.
