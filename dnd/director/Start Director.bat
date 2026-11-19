@@ -10,6 +10,12 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+where git >nul 2>nul
+if not errorlevel 1 (
+  echo Checking GitHub for a newer version...
+  git pull --ff-only --quiet
+  if errorlevel 1 echo Could not update from GitHub; starting this copy.
+)
 node server.js %*
 echo.
 pause

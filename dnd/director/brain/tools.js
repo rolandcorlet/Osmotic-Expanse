@@ -33,6 +33,18 @@ export function findFoe(s, ref, { all = false } = {}) {
 const party = (s) => Object.values(s.pcs).map((p) => `${p.id} (${p.name})`).join(', ') || 'nobody yet';
 const here = (s) => Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).map((f) => `${f.id} (${f.name})`).join(', ') || 'no monsters';
 
+// The characters a monster targets, however the model wrote them: a list, one name, "c3 (Ila)",
+// "pc:c3", or a singular "target" field (bench 5: the same goblin attack was refused five times running).
+function pcTargets(s, a) {
+  const raw = [...listOf(a.targets), ...listOf(a.target), ...listOf(a.character)];
+  const out = [];
+  for (const r of raw) {
+    const t = String(r);
+    const p = findPc(s, t) || findPc(s, (t.match(/\bc\d+\b/) || [])[0] || '') || Object.values(s.pcs).find((x) => new RegExp(`\\b${x.name.split(/\s+/)[0]}\\b`, 'i').test(t));
+    if (p && !out.includes(p.id)) out.push(p.id);
+  }
+  return out;
+}
 function targetRef(s, ref) {
   const p = findPc(s, ref);
   if (p) return `pc:${p.id}`;
@@ -68,8 +80,12 @@ export const TOOLS = [
       condition_on_fail: S('Optional: a condition a failed save imposes (prone, poisoned, frightened, paralyzed, restrained, blinded, charmed, stunned).'),
     }, ['characters', 'kind', 'dc', 'reason']),
     run(a, T) {
-      const ids = listOf(a.characters).map((x) => findPc(T.state, x)).filter(Boolean).map((p) => p.id);
-      if (!ids.length) return { refused: `Name characters who are in the party: ${party(T.state)}.` };
+      const all = listOf(a.characters).map((x) => findPc(T.state, x)).filter(Boolean);
+      if (!all.length) return { refused: `Name characters who are in the party: ${party(T.state)}.` };
+      // A dying character's only roll is the death save the Engine asks for on their turn (benches 3 and 5).
+      const down = all.filter((p) => p.hp <= 0 && !p.dead);
+      const ids = all.filter((p) => p.hp > 0 && !p.dead).map((p) => p.id);
+      if (!ids.length) return { note: `Nothing asked: ${down.map((p) => p.name).join(' and ')} ${down.length > 1 ? 'are' : 'is'} at 0 hit points. The death save is their only roll, and the Engine asks for it on their turn. To help them, ask someone else for a Medicine check (DC 10), then stabilize_character, or heal them.` };
       const effect = a.damage_on_fail || a.condition_on_fail ? { dmg: a.damage_on_fail || '', type: a.damage_type || '', half: truthy(a.half_on_success), cond: lower(a.condition_on_fail) } : null;
       if (effect && effect.dmg && !/^\s*\d*d\d+(\s*[+-]\s*\d+)?\s*$/i.test(effect.dmg)) return { refused: `"${effect.dmg}" is not a dice amount like 2d6 or 3d8+2.` };
       const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill: lower(a.skill).replace(/\s+/g, '-'), ability: lower(a.ability), dc: a.dc, reason: a.reason, adv: lower(a.advantage), effect });
@@ -146,7 +162,7 @@ export const TOOLS = [
     run(a, T) {
       const foe = findFoe(T.state, a.monster);
       if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
-      const targets = listOf(a.targets).map((x) => (findPc(T.state, x) || {}).id).filter(Boolean);
+      const targets = pcTargets(T.state, a);
       const before = T.state.seq;
       const no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
       // Acting out of turn changes nothing: a note that says who is up, not a rule broken (as in the v3 Director).

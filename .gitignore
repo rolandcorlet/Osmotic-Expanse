@@ -18,3 +18,6 @@ __pycache__/
 
 # rendered lesson videos (large; upload to YouTube instead)
 lessons/video/
+
+# D&D bench logs stay on the computer that ran them
+dnd/director/*.log

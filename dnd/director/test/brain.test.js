@@ -192,3 +192,20 @@ test('bench 4: treasure named for its giver goes to the party, and a downed char
   assert.ok(checkNarration('No tools needed here. Bryn, what now?', T.s).some((f) => f.kind === 'leak'));
   assert.equal(checkNarration('The mill creaks.', T.s, { asked: true }).length, 0);
 });
+
+test('bench 5: a monster target written any way is found, and the dying are not asked for rolls', () => {
+  const T = table(8);
+  const pc = hero(T, 'p1', 'Bryn');
+  const ila = hero(T, 'p2', 'Ila');
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  for (const t of [{ target: 'Bryn' }, { targets: [`${pc.id} (Bryn)`] }, { targets: 'the dwarf Bryn' }]) {
+    const r = B.run('monster_action', { monster: 'Goblin', action: 'Scimitar', ...t });
+    assert.ok(r.happened, JSON.stringify(r));
+  }
+  B.do({ type: 'damage', target: `pc:${ila.id}`, amount: ila.maxHp });
+  assert.equal(B.state.pcs[ila.id].hp, 0);
+  const r = B.run('ask_for_roll', { characters: ['Ila'], kind: 'save', ability: 'con', dc: 10, reason: 'hold on' });
+  assert.match(r.note, /death save is their only roll/);
+  assert.equal(B.refusals, 0);
+});
