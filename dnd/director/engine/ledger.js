@@ -552,6 +552,9 @@ H['fight.end'] = (s, a, ctx) => {
   s.fight = null;
   s.requests = s.requests.filter((q) => q.kind !== 'initiative' && q.kind !== 'death');
   for (const p of Object.values(s.pcs)) { p.raging = false; p.rageTurns = 0; }
+  // A character still dying when the fight ends is not safe: someone has to stabilize or heal them.
+  const dying = Object.values(s.pcs).filter((p) => p.hp <= 0 && !p.dead && !p.stable);
+  if (dying.length) story(s, ctx, 'event', `${dying.map((p) => p.name).join(' and ')} ${dying.length > 1 ? 'are' : 'is'} still dying: stabilize them (a Medicine check, DC 10) or heal them.`, 'Engine');
   if (xp && alive.length && a.award !== false) {
     const each = Math.floor(xp / alive.length);
     for (const p of alive) p.xp = (p.xp || 0) + each;

@@ -42,7 +42,7 @@ const TABS = LOCAL ? {
 } : {
   player: [['play', 'Play'], ['sheet', 'Sheet'], ['spells', 'Spells'], ['build', 'Character'], ['rules', 'Rules'], ['dice', 'Dice'], ['story', 'Story'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['story', 'Story'], ['rules', 'Rules'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['rules', 'Rules'], ['seeds', 'Seeds'], ['memory', 'Chronicle'], ['saves', 'Saves'], ['dice', 'Dice'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['director', 'Director'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['rules', 'Rules'], ['seeds', 'Seeds'], ['memory', 'Chronicle'], ['saves', 'Saves'], ['voice', 'Voice'], ['dice', 'Dice'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -89,7 +89,9 @@ const ui = {
   saves: { slots: null, cloud: null, cloudSlots: null, name: '', url: '', key: '', busy: false },
   mem: { q: '' },
   seenReq: {}, lastRollId: null, freshId: null, keyTry: '',
-  readAloud: store.get('dnd.read') === 'on',
+  readAloud: store.get('dnd.read') == null ? role === 'table' : store.get('dnd.read') === 'on',
+  talk: 'idle', talkAsk: false,
+  voice: { outScreen: 'gb-male', outEngine: 'browser', outUrl: '', outKey: '', outModel: '', outVoice: '', outSpeed: '', inEngine: 'browser', inUrl: '', inKey: '', inModel: '', inLang: '', loaded: false },
 };
 
 // -------------------------------------------------------------------- toast
@@ -195,22 +197,10 @@ function onState(data) {
   const prop = state.director && state.director.proposal;
   if (prop && prop.id !== ui.dir.editId) { ui.dir.edit = prop.narration; ui.dir.editId = prop.id; }
   if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
-  speakNew();
+  voiceFollows();
   render();
 }
 const buzz = () => { try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) { /* fine */ } };
-
-// Narration read aloud by this device's own voice, when switched on (the table screen especially).
-let spokenSeq = null;
-function speakNew() {
-  const narr = (state.story || []).filter((e) => e.kind === 'narration');
-  const last = narr[narr.length - 1];
-  if (spokenSeq === null) { spokenSeq = last ? last.id : ''; return; }
-  if (!last || last.id === spokenSeq) return;
-  spokenSeq = last.id;
-  if (!ui.readAloud || !('speechSynthesis' in window)) return;
-  try { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(last.text); u.rate = 1; speechSynthesis.speak(u); } catch (e) { /* no voice */ }
-}
 
 async function boot() {
   applyColours();
@@ -323,6 +313,7 @@ function mainHtml() {
   if (t === 'seeds') return LOCAL ? notesHtml() : seedsHtml();
   if (t === 'memory') return memoryHtml();
   if (t === 'saves') return savesHtml();
+  if (t === 'voice') return voiceTabHtml();
   return hostRunHtml();
 }
 
@@ -613,7 +604,7 @@ function partyMini() {
     ${state.quests.length ? `<div class="fl dim small">Quests</div>${state.quests.map((q) => `<div class="small${q.done ? ' faint' : ''}">${q.done ? '✓' : '•'} ${esc(q.text)}</div>`).join('')}` : ''}</section>`;
 }
 function sayBox() {
-  return `<div class="row nw"><input type="text" class="grow" data-k="say" data-bind="say" value="${esc(ui.say)}" maxlength="1000" placeholder="Say or do something…"><button class="btn primary" data-act="say">Send</button></div>`;
+  return `<div class="row nw"><input type="text" class="grow" data-k="say" data-bind="say" value="${esc(ui.say)}" maxlength="1000" placeholder="Say or do something…">${talkButtonHtml()}<button class="btn primary" data-act="say">Send</button></div>${ui.talkAsk && !hearOk() && canHear() ? hearConsentHtml() : ''}`;
 }
 function playHtml() {
   const p = myPc();
@@ -990,6 +981,39 @@ function savesHtml() {
 }
 
 
+// ------------------------------------------------------------------ voice
+function voiceCard() {
+  const hv = (adv && adv.voice) || null;
+  if (!hv) return '<section class="card"><div class="empty">Voice settings are on the host computer\'s Director only.</div></section>';
+  const v = ui.voice;
+  if (!v.loaded) {
+    Object.assign(v, { outScreen: hv.out.screenVoice || 'gb-male', outEngine: hv.out.engine, outUrl: hv.out.url, outModel: hv.out.model, outVoice: hv.out.voice, outSpeed: String(hv.out.speed), inEngine: hv.in.engine, inUrl: hv.in.url, inModel: hv.in.model, inLang: hv.in.language, loaded: true });
+  }
+  const seg = (act, cur, opts) => `<div class="seg">${opts.map(([id, name]) => `<button class="${cur === id ? 'on' : ''}" data-act="${act}" data-id="${id}">${name}</button>`).join('')}</div>`;
+  const f = (label, bind, val, ph = '', type = 'text') => `<label class="fld"><span class="fl">${label}</span><input type="${type}" data-k="${bind}" data-bind="${bind}" value="${esc(val)}" placeholder="${esc(ph)}" autocomplete="off" spellcheck="false"></label>`;
+  return `<section class="card"><h3>Voice<span class="right"><span class="chip">${hv.out.engine === 'server' ? 'Speech server' : 'Each screen\'s own voice'}</span></span></h3>
+    <div class="stack-in" style="display:flex;flex-direction:column;gap:10px">
+      <div class="fld"><span class="fl">The Director speaks with</span>${seg('v.out', v.outEngine, [['browser', 'Each screen\'s own voice'], ['server', 'A speech server']])}
+        <span class="small dim">The table screen reads the narration aloud; phones and this screen have a Read aloud switch of their own. A speech server (for example Kokoro on this computer) gives one steady voice everywhere and keeps working on a phone with no voice installed. Only the Director's narration is ever sent to it.</span></div>
+      ${v.outEngine === 'browser' ? `<div class="fld"><span class="fl">Which of the screen's voices</span>${seg('v.screen', v.outScreen, [['gb-male', 'British man'], ['gb-female', 'British woman'], ['us-male', 'American man'], ['us-female', 'American woman'], ['any', 'Screen default']])}
+        <span class="small dim">Each screen picks the closest voice it has installed. Windows has "George" or "Ryan"; Macs and iPhones have "Daniel"; Chrome has "Google UK English Male". If a screen has no British man, it falls back to the nearest English voice.</span></div>` : ''}
+      ${v.outEngine === 'server' ? `${f('Speech server address', 'voice.outUrl', v.outUrl, 'http://localhost:8880/v1')}${f(hv.out.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.outKey', v.outKey, hv.out.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
+      <div class="row">${f('Model', 'voice.outModel', v.outModel)}<label class="fld"><span class="fl">Voice</span><input type="text" list="kokoro-voices" data-k="voice.outVoice" data-bind="voice.outVoice" value="${esc(v.outVoice)}" autocomplete="off" spellcheck="false"><datalist id="kokoro-voices"><option value="bm_fable">British man, warm storyteller</option><option value="bm_george">British man, deeper</option><option value="bm_lewis">British man, brisk</option><option value="bm_daniel">British man, plain</option><option value="bf_emma">British woman</option><option value="am_michael">American man</option><option value="af_heart">American woman</option></datalist></label>${f('Speed', 'voice.outSpeed', v.outSpeed)}</div>` : ''}
+      <div class="fld"><span class="fl">Players' Talk button listens with</span>${seg('v.in', v.inEngine, [['browser', 'The phone\'s own recognition'], ['server', 'A speech server']])}
+        <span class="small dim">Each player agrees to this the first time they tap Talk, and the screen tells them where their voice goes. A phone's own recognition is done by Google or Apple. A speech server (for example Whisper on this computer) keeps it on your own network.</span></div>
+      ${v.inEngine === 'server' ? `${f('Speech-to-text address', 'voice.inUrl', v.inUrl, 'http://localhost:8000/v1')}${f(hv.in.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.inKey', v.inKey, hv.in.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
+      <div class="row">${f('Model', 'voice.inModel', v.inModel)}${f('Language', 'voice.inLang', v.inLang)}</div>` : ''}
+      <div class="row"><button class="btn primary" data-act="v.save">Save voice settings</button></div>
+    </div></section>`;
+}
+
+function voiceTabHtml() {
+  return `<div class="lay-two"><div class="col scroll" data-scroll="vo1">${voiceCard()}</div>
+    <div class="col"><section class="card"><h3>On this screen</h3>
+      <div class="row"><button class="btn${ui.readAloud ? ' primary' : ''}" data-act="readaloud">${ui.readAloud ? 'Reading the narration aloud' : 'Read the narration aloud'}</button><button class="btn" data-act="v.test">Test the voice</button></div>
+      <div class="note">Every screen has its own Read aloud switch (on the story card). The table screen starts with it on. A phone or browser will not make a sound until it has been tapped once.</div></section></div></div>`;
+}
+
 // ------------------------------------------------------------------ the DM's console
 function foeCard(f) {
   const m = ix.monster[f.mid];
@@ -1169,7 +1193,21 @@ function setPath(obj, pathStr, value) {
 function spellsCtx(ctx) { return ctx === 'lvl' ? ui.lvl.spells : (ui.build.spells = ui.build.spells || { cantrips: [], known: [], prepared: [] }); }
 const ACT = {
   tab: (d) => { ui.tab = d.t; if (d.t !== 'build') ui.lvl = { asi: { a: '', b: '' }, subclass: '', spells: null }; },
-  readaloud: () => { ui.readAloud = !ui.readAloud; store.set('dnd.read', ui.readAloud ? 'on' : 'off'); if (!ui.readAloud) try { speechSynthesis.cancel(); } catch (e) { /* fine */ } },
+  readaloud: () => { ui.readAloud = !ui.readAloud; store.set('dnd.read', ui.readAloud ? 'on' : 'off'); if (!ui.readAloud) stopVoice(); else { V.blocked = false; pumpVoice(); } },
+  talk: () => talk(),
+  'hear.yes': () => { store.set('dnd.hear', 'yes'); ui.talkAsk = false; },
+  'hear.no': () => { store.set('dnd.hear', 'no'); ui.talkAsk = false; if (T.rec && ui.talk === 'listening') { try { T.rec.stop(); } catch (e) { /* idle */ } } },
+  'v.save': async () => {
+    const v = ui.voice;
+    const body = { op: 'voice', out: { engine: v.outEngine, screenVoice: v.outScreen, url: v.outUrl, model: v.outModel, voice: v.outVoice, speed: v.outSpeed }, in: { engine: v.inEngine, url: v.inUrl, model: v.inModel, language: v.inLang } };
+    if (v.outKey.trim()) body.out.key = v.outKey.trim();
+    if (v.inKey.trim()) body.in.key = v.inKey.trim();
+    if (await sendDirector(body)) { v.outKey = ''; v.inKey = ''; v.loaded = false; await reloadAdventure(); toast('Voice settings saved.', true); }
+  },
+  'v.out': (d) => { ui.voice.outEngine = d.id; },
+  'v.screen': (d) => { ui.voice.outScreen = d.id; },
+  'v.in': (d) => { ui.voice.inEngine = d.id; },
+  'v.test': () => { V.blocked = false; V.q.push({ text: 'The fog curls along the river, and somewhere in it a lantern swings.', clip: serverVoice() ? fetchClip('The fog curls along the river, and somewhere in it a lantern swings.') : null }); pumpVoice(); },
   'col.reset': () => { store.del('dnd.colours'); applyColours(); },
   'col.theme': (d) => { store.set('dnd.colours', JSON.stringify(THEMES[d.n] || DEFAULTS)); applyColours(); },
   'key.go': () => { const q = new URLSearchParams(location.search); q.set('key', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },
@@ -1382,5 +1420,165 @@ document.addEventListener('keydown', (e) => {
   const k = e.target.getAttribute('data-k');
   if (map[k]) { e.preventDefault(); Promise.resolve(ACT[map[k]]({})).then(render); }
 });
+
+const V = { seen: null, q: [], playing: false, blocked: false, audio: null, face: 'rest' };
+
+const canSpeakLocal = () => 'speechSynthesis' in window;
+const speakOn = () => ui.readAloud && (canSpeakLocal() || serverVoice());
+const serverVoice = () => !!(info && info.voice && info.voice.out === 'server');
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const canHear = () => role === 'player' && !!(info && info.voice && (info.voice.in === 'server' ? (navigator.mediaDevices && window.MediaRecorder) : SR));
+
+// Narration split into sentences small enough that the first sound comes quickly.
+function splitSentences(text) {
+  const parts = String(text || '').replace(/\s+/g, ' ').trim().match(/[^.!?…]+(?:[.!?…]+["')\]]*|$)/g) || [];
+  const out = [];
+  for (const raw of parts) {
+    const t = raw.trim();
+    if (!t) continue;
+    if (out.length && (out[out.length - 1].length < 40 || t.length < 40) && out[out.length - 1].length + t.length < 240) out[out.length - 1] += ` ${t}`;
+    else out.push(t);
+  }
+  return out;
+}
+
+function setFace() { /* the D&D screens have no face */ }
+function faceFollows() { /* nothing to animate */ }
+
+// The screen's own voices differ by device, so pick by language and by the names each system uses.
+const MALE = /\b(male|daniel|arthur|oliver|george|ryan|thomas|alfie|elliot|fred|alex|aaron|david|guy|mark|james|christopher|eric|rocco|reed)\b/i;
+const FEMALE = /\b(female|serena|kate|stephanie|martha|hazel|libby|sonia|susan|samantha|zira|jenny|aria|karen|moira|fiona|tessa|victoria|allison|ava|michelle|emma|amy)\b/i;
+let pickedVoice = { want: null, voice: null };
+function screenVoice() {
+  const want = (info && info.voice && info.voice.screenVoice) || 'gb-male';
+  if (want === 'any') return null;
+  const all = speechSynthesis.getVoices();
+  if (!all.length) return null;
+  if (pickedVoice.want === want && pickedVoice.voice) return pickedVoice.voice;
+  const [place, sex] = want.split('-');
+  const lang = place === 'gb' ? /^en[-_]GB/i : /^en[-_]US/i;
+  const score = (v) => (lang.test(v.lang) ? 4 : /^en/i.test(v.lang) ? 1 : -9)
+    + (sex === 'male' ? (MALE.test(v.name) ? 3 : FEMALE.test(v.name) ? -3 : 0) : (FEMALE.test(v.name) ? 3 : MALE.test(v.name) ? -3 : 0))
+    + (/natural|neural|online|premium|enhanced/i.test(v.name) ? 1 : 0) + (v.localService ? 0.5 : 0);
+  const best = all.slice().sort((a, b) => score(b) - score(a))[0];
+  pickedVoice = { want, voice: best && score(best) > 0 ? best : null };
+  return pickedVoice.voice;
+}
+try { if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { pickedVoice = { want: null, voice: null }; }; } catch (e) { /* no voices */ }
+
+function speakBrowser(text, done) {
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.0;
+    const v = screenVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else if (((info && info.voice && info.voice.screenVoice) || 'gb-male').startsWith('gb')) u.lang = 'en-GB';
+    u.onend = done;
+    u.onerror = (e) => { if (e.error === 'not-allowed') { V.blocked = true; V.playing = false; V.q.unshift({ text }); render(); return; } done(); };
+    speechSynthesis.speak(u);
+  } catch (e) { done(); }
+}
+async function fetchClip(text) {
+  const res = await fetch('/api/voice/say', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role, pid, key, t: tcode, text }) });
+  if (!res.ok || /json/.test(res.headers.get('content-type') || '')) throw new Error('no audio');
+  return URL.createObjectURL(await res.blob());
+}
+function playClip(item, done) {
+  item.clip.then((url) => {
+    const a = new Audio(url);
+    V.audio = a;
+    const fin = () => { URL.revokeObjectURL(url); V.audio = null; done(); };
+    a.onended = fin;
+    a.onerror = fin;
+    a.play().catch((e) => { URL.revokeObjectURL(url); V.audio = null; if (e && e.name === 'NotAllowedError') { V.blocked = true; V.playing = false; item.clip = fetchClip(item.text); V.q.unshift(item); render(); } else done(); });
+  }).catch(() => (canSpeakLocal() ? speakBrowser(item.text, done) : done()));
+}
+function pumpVoice() {
+  if (V.playing || V.blocked) return;
+  const item = V.q.shift();
+  if (!item) { faceFollows(); return; }
+  V.playing = true;
+  setFace('speak');
+  const done = () => { V.playing = false; pumpVoice(); };
+  if (item.clip) playClip(item, done); else speakBrowser(item.text, done);
+}
+function stopVoice() {
+  V.q = [];
+  V.playing = false;
+  try { if (canSpeakLocal()) speechSynthesis.cancel(); } catch (e) { /* nothing to stop */ }
+  if (V.audio) { try { V.audio.pause(); } catch (e) { /* gone */ } V.audio = null; }
+  faceFollows();
+}
+function voiceFollows() {
+  const lines = (state.story || []).filter((e) => e.kind === 'narration');
+  if (!V.seen) { V.seen = new Set(lines.map((e) => e.id)); faceFollows(); return; } // what was said before this screen joined is not read out
+  const fresh = lines.filter((e) => !V.seen.has(e.id));
+  for (const e of fresh) V.seen.add(e.id);
+  if (fresh.length && speakOn()) {
+    for (const e of fresh) for (const text of splitSentences(e.text)) V.q.push({ text, clip: serverVoice() ? fetchClip(text) : null });
+    pumpVoice();
+  }
+  faceFollows();
+}
+// A browser will not make a sound until the person has touched the page once.
+document.addEventListener('pointerdown', () => { if (V.blocked) { V.blocked = false; pumpVoice(); render(); } }, true);
+
+// Talk button: one tap to start, one to stop. The words land in the text box to check before Say.
+const T = { rec: null, chunks: [], busy: false };
+const hearOk = () => store.get('dnd.hear') === 'yes';
+function hearConsentHtml() {
+  const where = info && info.voice ? info.voice.hearWhere : 'your phone\'s own speech service';
+  return `<div class="note"><b>Talk instead of typing?</b> When you use the Talk button, your voice is sent to ${esc(where)} and turned into words that appear in your text box for you to check. It is not kept as a recording. Nobody has to: if you would rather not, you type and tap and nothing else changes.
+    <div class="row" style="margin-top:8px"><button class="btn${store.get('dnd.hear') === 'yes' ? ' primary' : ''}" data-act="hear.yes">Yes, let me talk</button><button class="btn${store.get('dnd.hear') === 'no' ? ' primary' : ''}" data-act="hear.no">No, I will type</button></div></div>`;
+}
+function talkButtonHtml() {
+  if (!canHear() || store.get('dnd.hear') === 'no') return '';
+  return `<button class="btn${ui.talk === 'listening' ? ' primary' : ''}" data-act="talk" ${ui.talk === 'sending' ? 'disabled' : ''}>${ui.talk === 'listening' ? 'Stop' : ui.talk === 'sending' ? '…' : 'Talk'}</button>`;
+}
+function addToSay(text) {
+  const t = String(text || '').trim();
+  if (!t) { toast('Nothing was heard. Try again, or type.'); return; }
+  ui.say = `${ui.say ? `${ui.say} ` : ''}${t}`.slice(0, 1000);
+  render();
+}
+async function talk() {
+  if (!hearOk()) { ui.talkAsk = !ui.talkAsk; return; }
+  if (ui.talk === 'listening') { if (T.rec) T.rec.stop(); return; }
+  stopVoice(); // the Director stops talking while you do
+  if (info.voice.in === 'server') {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      T.rec = rec; T.chunks = [];
+      rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) T.chunks.push(ev.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((tr) => tr.stop());
+        ui.talk = 'sending'; render();
+        const blob = new Blob(T.chunks, { type: rec.mimeType || 'audio/webm' });
+        try {
+          const res = await fetch(`/api/voice/hear?${auth()}`, { method: 'POST', headers: { 'content-type': blob.type }, body: blob });
+          const out = await res.json();
+          if (out.ok) addToSay(out.text); else toast(out.error || 'Could not hear that.');
+        } catch (e) { toast('Cannot reach the Director host. Is it still running?'); }
+        ui.talk = 'idle'; render();
+      };
+      rec.start();
+      ui.talk = 'listening';
+    } catch (e) { toast('This phone would not let the page use its microphone.'); ui.talk = 'idle'; }
+    return;
+  }
+  try {
+    const r = new SR();
+    r.lang = navigator.language || 'en-US';
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+    r.onresult = (ev) => addToSay(Array.from(ev.results).map((x) => x[0].transcript).join(' '));
+    r.onerror = (ev) => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('This phone would not let the page use its microphone.'); else if (ev.error !== 'no-speech' && ev.error !== 'aborted') toast('Could not hear that. Try again, or type.'); };
+    r.onend = () => { ui.talk = 'idle'; T.rec = null; render(); };
+    T.rec = r;
+    r.start();
+    ui.talk = 'listening';
+  } catch (e) { toast('Talking is not available on this phone. Type and tap instead.'); ui.talk = 'idle'; }
+}
+
 
 boot();

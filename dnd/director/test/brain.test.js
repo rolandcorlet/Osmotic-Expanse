@@ -166,3 +166,16 @@ test('monsters can take the actions every creature has', () => {
   T.host({ type: 'foe.act', foeId: f.id, action: 'Disengage' });
   assert.match(T.s.story.at(-1).text, /takes the Disengage action/);
 });
+
+test('nothing-to-do calls are notes, and a dying character can be stabilized by the Director', () => {
+  const T = table(3);
+  const pc = hero(T, 'p1', 'Bryn');
+  T.host({ type: 'damage', target: pc.id, amount: pc.maxHp });
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 1 });
+  assert.ok(B.run('reveal_monsters', {}).note);
+  assert.ok(B.run('begin_combat', {}).note);
+  assert.match(B.run('remove_condition', { target: 'Bryn', condition: 'unconscious' }).note, /stabilize_character/);
+  assert.ok(B.run('stabilize_character', { character: 'Bryn' }).ok);
+  assert.ok(B.state.pcs[pc.id].stable);
+  assert.equal(B.refusals, 0);
+});

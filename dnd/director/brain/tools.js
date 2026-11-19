@@ -107,6 +107,8 @@ export const TOOLS = [
     parameters: obj({ monsters: A('Optional ids or names; leave empty to reveal all hidden monsters here.') }),
     run(a, T) {
       const ids = listOf(a.monsters).map((x) => (findFoe(T.state, x) || {}).id).filter(Boolean);
+      // Nothing hidden is nothing to do, not a broken rule (bench, 20 Nov).
+      if (!Object.values(T.state.foes).some((f) => f.siteId === T.state.scene.siteId && f.hidden && !f.dead)) return { note: `Nothing changed: no monster here is hidden. Here: ${here(T.state)}.` };
       const no = T.do({ type: 'foe.reveal', foeIds: ids.length ? ids : undefined });
       return no ? { refused: no } : { here: here(T.state) };
     },
@@ -126,7 +128,11 @@ export const TOOLS = [
     name: 'begin_combat',
     description: 'Stop waiting for initiative rolls: the Engine rolls for anyone who has not, and turns begin.',
     parameters: obj({}),
-    run(a, T) { const no = T.do({ type: 'fight.begin' }); return no ? { refused: no } : T.fightBrief(); },
+    run(a, T) {
+      if (!T.state.fight || T.state.fight.phase !== 'initiative') return { note: 'Nothing changed: no one is waiting to roll initiative.', ...T.fightBrief() };
+      const no = T.do({ type: 'fight.begin' });
+      return no ? { refused: no } : T.fightBrief();
+    },
   },
   {
     name: 'monster_action',
@@ -247,8 +253,22 @@ export const TOOLS = [
     run(a, T) {
       const ref = targetRef(T.state, a.target);
       if (!ref) return { refused: `Nobody called "${a.target}".` };
+      const p = ref.startsWith('pc:') ? T.state.pcs[ref.slice(3)] : null;
+      if (p && p.hp <= 0 && lower(a.condition) === 'unconscious') return { note: `Nothing changed: ${p.name} is at 0 hit points. Heal them to wake them, or stabilize_character after a successful Medicine check (DC 10).` };
       const no = T.do({ type: 'cond.remove', target: ref, cond: lower(a.condition) });
       return no ? { refused: no } : { ok: true };
+    },
+  },
+  {
+    name: 'stabilize_character',
+    description: 'A dying character (0 hit points) is stabilized: after a successful Medicine check (DC 10), Spare the Dying, or a healer\'s kit. They stay unconscious at 0 hit points but stop making death saves.',
+    parameters: obj({ character: S('Id or name of the dying character.') }, ['character']),
+    run(a, T) {
+      const p = findPc(T.state, a.character);
+      if (!p) return { refused: `No character called "${a.character}". Party: ${party(T.state)}.` };
+      if (p.hp > 0 || p.dead) return { note: `Nothing changed: ${p.name} is not dying.` };
+      const no = T.do({ type: 'stabilize', target: `pc:${p.id}` });
+      return no ? { refused: no } : { ok: true, party: T.partyBrief() };
     },
   },
   {
