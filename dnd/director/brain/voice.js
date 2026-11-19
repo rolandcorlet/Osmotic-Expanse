@@ -24,13 +24,25 @@ const MAX_SAY = 600;       // characters in one sentence request
 const MAX_CLIP = 4 << 20;  // bytes of audio from the talk button
 const CACHE = 80;          // sentences kept, so several screens speaking the same line pay once
 
+// Tidy a typed server address: Windows-style backslashes, a missing "//", and the address of
+// Kokoro's own web page (/web, /docs) instead of its API all become http://host:port/v1.
+export function tidyUrl(u) {
+  let x = String(u || '').trim().replace(/\\/g, '/');
+  if (!x) return '';
+  x = x.replace(/^(https?):\/*/i, (m, p) => `${p.toLowerCase()}://`);
+  if (!/^https?:\/\//i.test(x)) x = `http://${x.replace(/^\/+/, '')}`;
+  x = x.replace(/\/+$/, '').replace(/\/(web|docs|ui)$/i, '');
+  if (!/\/v\d+$/i.test(x) && !/\/v\d+\//i.test(x)) x += '/v1';
+  return x;
+}
+
 export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
   const file = join(saveDir, 'voice.json');
   const cfg = JSON.parse(JSON.stringify(DEFAULTS));
   try {
     if (existsSync(file)) {
       const old = JSON.parse(readFileSync(file, 'utf8'));
-      for (const side of ['out', 'in']) Object.assign(cfg[side], old[side] || {});
+      for (const side of ['out', 'in']) { Object.assign(cfg[side], old[side] || {}); cfg[side].url = tidyUrl(cfg[side].url); }
       if (cfg.out.voice === 'af_heart') cfg.out.voice = 'bm_fable'; // the old default: the Director is a British man now
     }
   } catch (e) { /* defaults */ }
@@ -73,6 +85,7 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
         if (!b || typeof b !== 'object') continue;
         if (['browser', 'server'].includes(b.engine)) cfg[side].engine = b.engine;
         for (const k of ['url', 'model', 'voice', 'language']) if (typeof b[k] === 'string' && k in cfg[side]) cfg[side][k] = b[k].trim().slice(0, 200);
+        cfg[side].url = tidyUrl(cfg[side].url);
         if (typeof b.key === 'string' && b.key.trim()) cfg[side].key = b.key.trim();
         if (b.clearKey) cfg[side].key = '';
         if (side === 'out' && SCREEN_VOICES.includes(b.screenVoice)) cfg.out.screenVoice = b.screenVoice;

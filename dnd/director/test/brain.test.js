@@ -226,3 +226,11 @@ test('ten-run bench: harmless slips are notes, and a roll with no ability named 
   assert.ok(B.run('monster_flees', { monster: g.name }).note);
   assert.equal(B.refusals, 0);
 });
+
+test('voice: a typed speech-server address is tidied to its /v1 API', async () => {
+  const { tidyUrl } = await import('../brain/voice.js');
+  assert.equal(tidyUrl('http:\\\\localhost:8880\\web'), 'http://localhost:8880/v1');
+  assert.equal(tidyUrl('localhost:8880'), 'http://localhost:8880/v1');
+  assert.equal(tidyUrl('https://api.openai.com/v1'), 'https://api.openai.com/v1');
+  assert.equal(tidyUrl(''), '');
+});
