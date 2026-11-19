@@ -40,7 +40,11 @@ export function kitBriefing(state, scenario, site) {
   if (k) {
     if (read.firstVisit) L.push(`OPEN WITH THIS, in your own words, then stop and ask: ${k.start}`);
     L.push(`The question this scene answers: ${k.question} When it is answered, close the scene and move on.`);
-    L.push(`Sense details to draw on (two or three a reply, never all): ${k.senses.join('; ')}.`);
+    // Senses set the scene once (Roly, 19 Nov: the taint was described in every reply). After the
+    // arrival they come back only when something changes them, in a few words.
+    const saidHere = (state.story || []).filter((e) => e.kind === 'narration' && e.site === site.id).length;
+    if (!saidHere) L.push(`Sense details for your arrival (two or three, never all): ${k.senses.join('; ')}.`);
+    else L.push(`The senses here are already set: do NOT describe the water, its taste or the taint again. Only if something changes it (a wound opened, a fight, a Clock moving, an arrival) or a player tests it, give the change in a few words, for example "the taint turns a little coppery". What this place can change into: ${k.senses.join('; ')}.`);
     L.push('People here. Play each as a person who acts on their want:');
     for (const p of k.people) {
       const st = ((state.kit || {}).people || {})[`${site.id}/${p.id}`];

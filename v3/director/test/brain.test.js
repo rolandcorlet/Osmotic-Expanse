@@ -1978,3 +1978,15 @@ test('ad-lib: off, the Director cannot invent an encounter; on, one a site, with
   assert.match(T.run('invent_encounter', { block: t1.id, count: 1, why: 'more' }).refused, /One a site/);
   assert.match(briefing(T.state, scenario, bestiary, {}), /already brought this site's invented encounter/);
 });
+
+test('senses are set once on arrival, then only changes: no taint in every reply (Roly, 19 Nov)', () => {
+  let s = seated();
+  assert.match(briefing(s, scenario, bestiary, {}), /Sense details for your arrival/);
+  s = apply(s, { type: 'narrate', text: 'The water tastes of old fat and copper.' }, ctx('host', null));
+  const b = briefing(s, scenario, bestiary, {});
+  assert.match(b, /senses here are already set: do NOT describe the water/);
+  assert.ok(!/Sense details for your arrival/.test(b));
+  // A new site sets its senses again.
+  s = apply(s, { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
+  assert.match(briefing(s, scenario, bestiary, {}), /Sense details for your arrival/);
+});
