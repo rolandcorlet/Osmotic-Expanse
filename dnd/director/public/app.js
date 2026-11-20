@@ -1486,14 +1486,40 @@ async function fetchClip(text) {
   if (!res.ok || /json/.test(res.headers.get('content-type') || '')) throw new Error('no audio');
   return URL.createObjectURL(await res.blob());
 }
+// Phones (iPhones above all) only let a page make sound from a tap. A new audio player for each sentence
+// is blocked unless it was started by one, so a remote player's phone stayed silent with the voice on
+// (Roly, 20 Nov). One player, unlocked by the first tap anywhere on the page, then plays every sentence.
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+function audioEl() {
+  if (!V.el) { V.el = new Audio(); V.el.preload = 'auto'; V.el.setAttribute('playsinline', ''); }
+  return V.el;
+}
+function unlockAudio() {
+  if (V.unlocked) return;
+  const a = audioEl();
+  try {
+    a.src = SILENT_WAV;
+    const p = a.play();
+    if (p && p.then) p.then(() => { V.unlocked = true; }, () => { /* not this tap: the next one */ });
+    else V.unlocked = true;
+  } catch (e) { /* the next tap tries again */ }
+  // The browser's own voice needs the same first touch on some phones.
+  try { if (canSpeakLocal() && !V.spokeOnce) { speechSynthesis.speak(new SpeechSynthesisUtterance(' ')); V.spokeOnce = true; } } catch (e) { /* no voice here */ }
+}
+for (const ev of ['pointerdown', 'touchend', 'keydown']) document.addEventListener(ev, unlockAudio, true);
 function playClip(item, done) {
   item.clip.then((url) => {
-    const a = new Audio(url);
+    const a = audioEl();
     V.audio = a;
-    const fin = () => { URL.revokeObjectURL(url); V.audio = null; done(); };
+    let over = false;
+    const fin = () => { if (over) return; over = true; a.onended = null; a.onerror = null; URL.revokeObjectURL(url); V.audio = null; done(); };
     a.onended = fin;
     a.onerror = fin;
-    a.play().catch((e) => { URL.revokeObjectURL(url); V.audio = null; if (e && e.name === 'NotAllowedError') { V.blocked = true; V.playing = false; item.clip = fetchClip(item.text); V.q.unshift(item); render(); } else done(); });
+    a.src = url;
+    a.play().catch((e) => {
+      a.onended = null; a.onerror = null; URL.revokeObjectURL(url); V.audio = null;
+      if (e && e.name === 'NotAllowedError') { V.unlocked = false; V.blocked = true; V.playing = false; item.clip = fetchClip(item.text); V.q.unshift(item); render(); } else done();
+    });
   }).catch(() => (canSpeakLocal() ? speakBrowser(item.text, done) : done()));
 }
 function pumpVoice() {
@@ -1509,7 +1535,7 @@ function stopVoice() {
   V.q = [];
   V.playing = false;
   try { if (canSpeakLocal()) speechSynthesis.cancel(); } catch (e) { /* nothing to stop */ }
-  if (V.audio) { try { V.audio.pause(); } catch (e) { /* gone */ } V.audio = null; }
+  if (V.audio) { try { V.audio.onended = null; V.audio.onerror = null; V.audio.pause(); } catch (e) { /* gone */ } V.audio = null; }
   faceFollows();
 }
 function voiceFollows() {
@@ -1524,7 +1550,8 @@ function voiceFollows() {
   faceFollows();
 }
 // A browser will not make a sound until the person has touched the page once.
-document.addEventListener('pointerdown', () => { if (V.blocked) { V.blocked = false; pumpVoice(); render(); } }, true);
+// A tap while the voice was blocked unlocks the player (above) and carries on from the sentence it stopped at.
+document.addEventListener('pointerdown', () => { if (V.blocked) { unlockAudio(); V.blocked = false; pumpVoice(); render(); } }, true);
 
 // Talk button: one tap to start, one to stop. The words land in the text box to check before Say.
 const T = { rec: null, chunks: [], busy: false };
