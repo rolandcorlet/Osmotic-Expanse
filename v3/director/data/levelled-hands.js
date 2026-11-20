@@ -108,7 +108,7 @@ export const HANDS_L7 = [
   growHand(L1.rider, {
     level: 7, adaptMi: 6, flowAdd: -1 + 2, baseAdd: { VSC: 1 }, pathAdd: { 'Fluid Navigation': 1, 'Pulse Discipline': 1 }, substrate: 80,
     adaptations: ['Denser Wall (+6 MI, -1 Flow)', 'Momentum Banker', 'Current Reader (currents never force saves; +2 Drifts in any Flow)', 'Twin Reserve (hold 2 Reserve PP)'],
-    choices: ['Denser Wall', 'Momentum Banker', 'Current Reader', 'Twin Reserve', 'VSC 2', 'Fluid Navigation 3', 'Burst: Vortex Lure (Stage II free choice)', 'Stage II +1 Pathway: Pulse Discipline 2'],
+    choices: ['Denser Wall', 'Momentum Banker', 'Current Reader', 'Twin Reserve', 'VSC 2', 'Fluid Navigation 3', 'Burst: Hypertonic Field (Stage II free choice; Osmotic, Tier II)', 'Stage II +1 Pathway: Pulse Discipline 2'],
     features: 'Stage II Wake Cutter: leaving a Contact band provokes no Flank Breach; Momentum needs only 2 Drifts and grants +1 PP. Flagellan, so Rides It Out.',
     tie: 'The ferry pilots know your name, and the Churn does not slow you.', firstMove: '"Get on."',
     notes: 'Level 7. Flagellan: each Inhibitor marks Stress three times in four. The Churn flows with you: moving deeper is free and grants Momentum.',

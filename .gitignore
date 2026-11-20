@@ -21,3 +21,4 @@ lessons/video/
 
 # D&D bench logs stay on the computer that ran them
 dnd/director/*.log
+v3/director/*.log

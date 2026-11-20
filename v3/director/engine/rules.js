@@ -27,7 +27,7 @@ export const ACTIONS = {
   sense: { cost: 1, name: 'Sense', does: 'OSM + Chemoreception against hidden things.' },
   strike: { cost: 2, name: 'Strike', does: 'One attack. Heavy Apparatus cost 1 more.' },
   synthesise: { cost: 2, name: 'Synthesise', does: 'Apply a Vial, seal a pore, repair, set a trap.' },
-  burst: { cost: 3, name: 'Burst', does: 'Activate an Enzymatic Burst (3 to 5 PP, and that much ATP).' },
+  burst: { cost: 3, name: 'Burst', does: 'Activate an Enzymatic Burst: the ATP and PP its catalogue row prints (CORE 6.4).' },
   reserve: { cost: 1, name: 'Reserve', does: 'Hold one PP for a Reactive Osmosis or an Inhibition.' },
 };
 

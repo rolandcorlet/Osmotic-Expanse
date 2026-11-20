@@ -251,13 +251,35 @@ async function once(n) {
   }
   const memoryFor = () => ({ chapters: mem.chapters(s.gameId).slice(-3), search: (q, o = {}) => mem.search(s.gameId, q, { ...o, cast: s.cast || {} }) });
   const act = (role, pid, a) => { const prev = s; s = apply(s, a, ctx(role, pid)); moved(prev); };
+  const callsFrom = calls.length;
+  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, buried: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {}, hard: 0, soft: 0, rescueBy: {}, preplay: 0, bursts: 0 };
+  // Before play (20 Nov): the first player joins and asks the Director about the game before choosing.
+  // The answer must not start the adventure or change the world: no tool but look_up_rules or recall.
+  const prePlay = !snap && !flag('--no-preplay');
   for (const [pid, who, hand, name] of snap ? [] : SEATS.slice(0, players)) {
     act('player', pid, { type: 'join', name: who });
+    if (prePlay && pid === 'p1') {
+      const q = 'Before I pick: what is this game about, and which organism would suit someone who likes protecting people?';
+      console.log(`\n${who.toUpperCase()} (before play): ${q}`);
+      act('player', pid, { type: 'say', text: q });
+      const r = await directorTurn({ state: s, scenario, bestiary, provider: makeProvider(), rng, now: Date.now(), reason: 'a player spoke', memory: memoryFor() });
+      s = r.state;
+      const bad = r.calls.filter((c) => !['look_up_rules', 'recall'].includes(c.name));
+      for (const c of r.calls) console.log(`    [${c.name}] ${JSON.stringify(c.args)}${c.result && c.result.refused ? `  REFUSED: ${c.result.refused}` : ''}`);
+      console.log(`  DIRECTOR (before play): ${r.narration}`);
+      // A tool the Engine blocked (it returns a note) changed nothing: a style flag. One that ran is a failure.
+      const ran = bad.filter((c) => !(c.result && c.result.note && /^Nothing changed: a player who has not chosen/.test(c.result.note)));
+      if (ran.length) { tally.preplay += 1; console.log(`    ! preplay: changed the world before play (${ran.map((c) => c.name).join(', ')})`); }
+      else if (bad.length) { tally.style += 1; console.log(`    ! style: tried ${bad.map((c) => c.name).join(', ')} before play (blocked; nothing changed)`); }
+      if (!/\?\s*["”]?\s*$/.test(r.narration)) { tally.style += 1; console.log('    ! style: the before-play answer does not end on a question'); }
+    }
     act('player', pid, { type: 'zero.agree' });
     act('player', pid, { type: 'claim', organismId: hand, name });
   }
-  const callsFrom = calls.length;
-  const tally = { turns: 0, refusals: 0, leaks: 0, unpaid: 0, clocks: 0, reversed: 0, buried: 0, style: 0, tokensIn: 0, tokensOut: 0, ms: 0, recalls: 0, remembers: 0, refusedBy: {}, hard: 0, soft: 0, rescueBy: {} };
+  // The Eyes knows two Bursts on the bench (20 Nov): one to hurt with, one to mend with. The First
+  // Carve's Hands learn none, so this is the only way the table sees one land.
+  if (!snap && s.organisms.eyes && !flag('--no-burst')) s.organisms.eyes.bursts = ['Enzyme Spit', 'Substrate Patch'];
+  const burstUsed = new Set();
 
   async function director(reason) {
     const t0 = Date.now();
@@ -338,6 +360,13 @@ async function once(n) {
         const target = named[0] || up.find((c) => !c.stoodDown) || up[0];
         const w = o.weapons.find((x) => x.carried !== false);
         const cost = 2 + (w.props.includes('Heavy') ? 1 : 0);
+        // Once a fight, an organism that knows a Burst that hurts casts it instead of striking.
+        const spit = (o.bursts || []).includes('Enzyme Spit') && target && !burstUsed.has(`${o.id}@${s.fight.id || s.fight.cycle}@${s.scene.siteId}`) && cur.pp >= 2 && o.atp >= 4;
+        if (spit) {
+          burstUsed.add(`${o.id}@${s.fight.id || s.fight.cycle}@${s.scene.siteId}`);
+          console.log(`  (${o.name} casts Enzyme Spit at ${target.name})`);
+          try { act('player', o.playerId, { type: 'act', organismId: o.id, action: 'burst', burst: 'Enzyme Spit', targetId: target.cid }); tally.bursts += 1; continue; } catch (e) { console.log(`    (the Burst was refused: ${e.message})`); }
+        }
         if (target && cur.pp >= cost) {
           console.log(`  (${o.name} strikes ${target.name})`);
           act('player', o.playerId, { type: 'strike', organismId: o.id, weaponId: w.id, targetId: target.cid });
@@ -393,6 +422,7 @@ async function once(n) {
   speedLine(calls.slice(callsFrom), 'Speed');
   console.log(`  Rescues (where a human host would have had to step in): ${tally.hard} hard, ${tally.soft} soft${Object.keys(tally.rescueBy).length ? ` — ${Object.entries(tally.rescueBy).map(([k, v]) => `${k} ${v}`).join(', ')}` : ''}`);
   console.log(`  Leak flags: ${tally.leaks}`);
+  console.log(`  Before play: ${prePlay ? (tally.preplay ? `${tally.preplay} answer changed the world` : 'answered as a guide') : 'not tried'}; Bursts cast: ${tally.bursts}`);
   console.log(`  Bodies buried in narration (a player narrated dead or dissolved while the Engine has them standing): ${tally.buried}`);
   console.log(`  Unpaid damage in narration (harm the table heard that no tool paid for): ${tally.unpaid}`);
   console.log(`  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): ${tally.clocks}`);
@@ -411,7 +441,7 @@ let bad = 0;
 for (let i = 1; i <= runs; i++) {
   try {
     const t = await once(i);
-    if (t.refusals || t.leaks || t.unpaid || t.buried || t.clocks || t.reversed || t.hard) bad += 1;
+    if (t.refusals || t.leaks || t.unpaid || t.buried || t.clocks || t.reversed || t.hard || t.preplay) bad += 1;
   } catch (e) {
     console.log(`\nRun ${i} stopped: ${e.message}`);
     bad += 1;

@@ -50,6 +50,7 @@ These rulings were made while the AI Director was built and played (v3). Each is
 | 3.2 Enzymatic Pathways | Protean Folding | 17 Nov 2026 |
 | 4.1 Begin the Pulse War | Someone with no stat block | 16 Nov 2026 |
 | 11.4 Oaths: promises written in your own membrane | An Oath has words and a witness | 13 and 17 Nov 2026 |
+| 6.4 Burst Catalogue (30 universal Bursts) | What a Burst costs | 20 Nov 2026 |
 
 ---
 
@@ -757,6 +758,8 @@ These are open to any organism that learns them. Class Bursts (Atlas) follow the
 | **Knock-on Mitosis** | II | 5/2 | Contact | RTC vs 12 | Heal at the start of each of the next 3 Cycles for 4 + Overflow ÷ 3. *Rider:* heal a second adjacent ally for half. |
 | **Mend Function** | III | 7/2 | Contact | RTC vs 16 | End one condition, one scar of Uncommon or lower rarity, or one Leaking/pore effect. Costs a Common Tissue Specimen. |
 | **Resynthesis Call** | IV | 12/3 | Contact | RTC vs 20 | Target a Dormant organism that has not yet Total-Lysed: it returns to `1/2` MI, Stress cleared, and one Countdown box closed. Costs 1 Pristine Sequence Specimen. A Total-Lysed body requires Re-Synthesis (Ch. XI), not this. |
+
+> **v3 ruling (20 Nov 2026) — What a Burst costs.** A Burst costs what its catalogue row prints: the first number is ATP, the second PP (Enzyme Spit, 2/2; Supernova Vent, 12/4). A Burst outside your Phenotype's Bonded Domain costs +2 ATP and marks 1 Stress. The v3 table edition's shorthand "3–5 PP and the same in ATP" is retired. The heading now counts the 30 Bursts the catalogue prints.
 
 ## 6.5 Inhibition: counter-Bursts
 

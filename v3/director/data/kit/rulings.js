@@ -218,5 +218,19 @@ export const RULINGS = [
   "date": "18 Nov 2026",
   "name": "Paper pays once",
   "text": "Each kind of paper (a valid claim, a licence, a toll chit, an Ash witness, a Guild tally receipt) rewinds TOLL once in a Vector, and the Gut Stone's serial once more. Shipping a stamped haul earns its own tally receipt: TOLL −1, once a scene."
+ },
+ {
+  "book": "core",
+  "section": "6.4 Burst Catalogue (30 universal Bursts)",
+  "date": "20 Nov 2026",
+  "name": "What a Burst costs",
+  "text": "A Burst costs what its catalogue row prints: the first number is ATP, the second PP (Enzyme Spit, 2/2; Supernova Vent, 12/4). A Burst outside your Phenotype's Bonded Domain costs +2 ATP and marks 1 Stress. The v3 table edition's shorthand \"3–5 PP and the same in ATP\" is retired. The heading now counts the 30 Bursts the catalogue prints."
+ },
+ {
+  "book": "atlas",
+  "section": "5.2 Six builds",
+  "date": "20 Nov 2026",
+  "name": "Bursts follow your Tier",
+  "text": "A Burst can only be learned at the Tier your Level reaches (Tier II at 6, III at 11, IV at 16). Vortex Lure is Tier III, so the build paths that take it at Levels 7 to 10 (§4.4's Kinetic Striker, and the Long Ride's Current Rider) take **Hypertonic Field** (Osmotic, Tier II) there instead, and may swap it for Vortex Lure at Stage III."
  }
 ];

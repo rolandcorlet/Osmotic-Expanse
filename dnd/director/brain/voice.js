@@ -22,6 +22,8 @@ const DEFAULTS = {
 export const SCREEN_VOICES = ['gb-male', 'gb-female', 'us-male', 'us-female', 'any'];
 const MAX_SAY = 600;       // characters in one sentence request
 const MAX_CLIP = 4 << 20;  // bytes of audio from the talk button
+// The Voice tab's Test button speaks this one line, so it is allowed like narration.
+export const TEST_LINE = 'The fog curls along the river, and somewhere in it a lantern swings.';
 const CACHE = 80;          // sentences kept, so several screens speaking the same line pay once
 
 // Tidy a typed server address: Windows-style backslashes, a missing "//", and the address of
@@ -99,7 +101,7 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
     async say(text) {
       if (cfg.out.engine !== 'server') return { ok: false, error: 'The Director speaks with each screen\'s own voice.' };
       const t = String(text || '').trim().slice(0, MAX_SAY);
-      if (!narrated(t)) return { ok: false, error: 'Only the Director\'s narration is spoken.' };
+      if (t !== TEST_LINE && !narrated(t)) return { ok: false, error: 'Only the Director\'s narration is spoken.' };
       const id = createHash('sha1').update(`${cfg.out.model}|${cfg.out.voice}|${cfg.out.speed}|${t}`).digest('hex');
       if (cache.has(id)) return cache.get(id);
       const job = (async () => {

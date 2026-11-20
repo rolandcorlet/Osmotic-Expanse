@@ -1990,3 +1990,18 @@ test('senses are set once on arrival, then only changes: no taint in every reply
   s = apply(s, { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
   assert.match(briefing(s, scenario, bestiary, {}), /Sense details for your arrival/);
 });
+
+test('before play: the Director answers a player who is still choosing, and the world does not move', async () => {
+  let s = newSession(scenario);
+  s = apply(s, { type: 'join', name: 'Roly' }, ctx('player', 'p1'));
+  s = apply(s, { type: 'say', text: 'What is this game about?' }, ctx('player', 'p1'));
+  const before = Object.keys(s.creatures).length;
+  const provider = scripted([
+    { calls: [['bring_creatures', { block: 'gnaw-swarm', count: 2, band: 'near' }]] },
+    { text: 'You play single cells cutting up a dead whale for what it is worth. Which kind of organism appeals to you?' },
+  ])();
+  const out = await directorTurn({ state: s, scenario, bestiary, provider, rng, now: 0, reason: 'a player spoke' });
+  assert.equal(Object.keys(out.state.creatures).length, before);
+  assert.ok(out.calls[0].result.note);
+  assert.equal(out.state.story.at(-1).pre, true);
+});

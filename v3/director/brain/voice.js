@@ -22,6 +22,8 @@ const DEFAULTS = {
 export const SCREEN_VOICES = ['gb-male', 'gb-female', 'us-male', 'us-female', 'any'];
 const MAX_SAY = 600;       // characters in one sentence request
 const MAX_CLIP = 4 << 20;  // bytes of audio from the talk button
+// The Voice tab's Test button speaks this one line, so it is allowed like narration.
+export const TEST_LINE = 'The water goes still, and somewhere in the dark the whale settles.';
 const CACHE = 80;          // sentences kept, so several screens speaking the same line pay once
 
 export function createVoice({ saveDir, fetchImpl = fetch, getState, alsoSpeakable = null }) {
@@ -88,7 +90,7 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState, alsoSpeakabl
       const t = String(text || '').trim().slice(0, MAX_SAY);
       // Besides the Director's narration, the game's own public words may be read out: the
       // adventure's player-facing text, the organisms on offer, and the players' books.
-      if (!narrated(t) && !(alsoSpeakable && alsoSpeakable(t))) return { ok: false, error: 'Only the Director\'s narration and the game\'s public text are spoken.' };
+      if (t !== TEST_LINE && !narrated(t) && !(alsoSpeakable && alsoSpeakable(t))) return { ok: false, error: 'Only the Director\'s narration and the game\'s public text are spoken.' };
       const id = createHash('sha1').update(`${cfg.out.model}|${cfg.out.voice}|${cfg.out.speed}|${t}`).digest('hex');
       if (cache.has(id)) return cache.get(id);
       const job = (async () => {

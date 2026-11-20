@@ -242,3 +242,30 @@ test('builder: the six ready-made characters and random fills are all valid', as
   for (const p of P.PREGENS) assert.deepEqual(R.validateInput(P.pregenBuild(p.id, srd), srd), [], p.id);
   for (let i = 0; i < 200; i++) assert.deepEqual(R.validateInput(P.randomBuild(srd, makeRng(i), 1 + (i % 20)), srd), []);
 });
+
+test('voice: the Test button\'s line reaches the speech server; other text does not', async () => {
+  const { createVoice, TEST_LINE } = await import('../brain/voice.js');
+  const { mkdtempSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  let calls = 0;
+  const fetchImpl = async () => { calls += 1; return { ok: true, headers: { get: () => 'audio/wav' }, arrayBuffer: async () => new ArrayBuffer(8) }; };
+  const v = createVoice({ saveDir: mkdtempSync(join(tmpdir(), 'voice-')), fetchImpl, getState: () => ({ story: [] }) });
+  v.configure({ out: { engine: 'server', url: 'http://localhost:8880/v1' } });
+  assert.equal((await v.say('Say something rude.')).ok, false);
+  assert.equal((await v.say(TEST_LINE)).ok, true);
+  assert.equal(calls, 1);
+});
+
+test('a closing question put to someone the Director plays goes to the players instead', async () => {
+  const T = table();
+  hero(T, 'p1', 'Bryn');
+  T.as('p1', { type: 'say', text: 'I sit down with the Reeve.' });
+  const provider = scripted([{ text: 'Reeve Tobias Wren wipes his spectacles and pats the bench. Reeve, what does he want to say to you?' }]);
+  const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1), reason: 'a player spoke' });
+  assert.match(out.narration, /Bryn, what do you do\?$/);
+  assert.doesNotMatch(out.narration, /Reeve, what/);
+  const ok = scripted([{ text: 'The Reeve waits. Bryn, will you take the job?' }]);
+  const out2 = await directorTurn({ state: out.state, adventure, srd, provider: ok, rng: makeRng(1), reason: 'a player spoke' });
+  assert.match(out2.narration, /Bryn, will you take the job\?$/);
+});

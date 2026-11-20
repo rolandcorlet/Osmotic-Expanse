@@ -237,7 +237,7 @@
 - Vent, 1 PP and 2 ATP: clear 2 Stress.
 - Strike, 2 PP (3 with a heavy weapon): one attack.
 - Synthesise, 2 PP: use a Vial, patch a wound, pull out a lodged weapon, stabilise a friend, harvest, set a trap.
-- Burst, 3–5 PP and the same in ATP: a special ability.
+- Burst, the ATP and PP its catalogue row prints (CORE §6.4; +2 ATP and +1 Stress outside your Bonded Domain): a special ability.
 - Reserve, 1 PP: hold a point back for one reaction this Cycle.
 - Reactions (one per Cycle): Deflect (+4 to be hit), Brace (halve a push or crush), Inhibit (spoil an attacker's roll), Shed (drop a condition), Flank Breach (a free Strike on someone leaving your reach).
 
@@ -413,6 +413,7 @@
 - **Protean Folding** (3.2 Enzymatic Pathways; 17 Nov 2026). Protean Folding, granted by the Protean tradition (Protein Weaver, Turbulence Navigator), is rolled with **RTC**. This Core list printed no Baseline for it; both Phenotypes that hold it key on RTC.
 - **Someone with no stat block** (4.1 Begin the Pulse War; 16 Nov 2026). A person or thing with no printed block (a clerk, a pilgrim, a bystander) never starts a Pulse War. Say the cost first, then make one roll; the consequences come from the world (a witness, a Clock, a faction), and nothing is invented for harvest.
 - **An Oath has words and a witness** (11.4 Oaths; 13 and 17 Nov 2026). An Oath is sworn in the player's own words and is owed to somebody the table can see (a fold, a clerk, a crew): name the witness when it is sworn. Breaking an Oath also advances the campaign's **COLONY** Clock by one (Codex §5.2: a broken Oath disturbs a settlement).
+- **What a Burst costs** (6.4 Burst Catalogue (30 universal Bursts); 20 Nov 2026). A Burst costs what its catalogue row prints: the first number is ATP, the second PP (Enzyme Spit, 2/2; Supernova Vent, 12/4). A Burst outside your Phenotype's Bonded Domain costs +2 ATP and marks 1 Stress. The v3 table edition's shorthand "3–5 PP and the same in ATP" is retired. The heading now counts the 30 Bursts the catalogue prints.
 
 ## Words
 

@@ -1107,7 +1107,7 @@
 - Level 1: Stage I Long Run. DFF 4, Momentum at 2 Drifts, Flow 6.
 - Level 2: Adaptation Momentum Banker. Level 3: Membrane Penetration 3 (attack pool 7d). Level 4: Burst Pressure Slap. Level 5: DFF 5 (PP 7, MT 15).
 - Level 6: Stage II Riposte of Arrival, +6 MI, +1 Slot; Adaptation Twin Reserve.
-- Levels 7 to 10: VSC 4, Membrane Penetration 4, Denser Wall, Burst Vortex Lure.
+- Levels 7 to 10: VSC 4, Membrane Penetration 4, Denser Wall, Burst Hypertonic Field (Vortex Lure at 11).
 - Level 11: Stage III Cascade Collection; Adaptation Overdrive Training.
 - Levels 12 to 15: VSC 5, Harvest Hands, +1 AFF, Graft Mastery.
 - Level 16: Stage IV Unanswered Motion; Adaptation Second Organ (a free death).
@@ -1194,7 +1194,7 @@
 
 - Array → DFF 4+1=5, OSM 4, RTC 3, AFF 3, VSC 2−1=1. Hull 4 → MI = 12 + 4 + 4 = 20 (buy Denser Wall at Level 2 → 26). MT 15, PP 7, Flow 8, Countdown 5.
 - Pathways: Fluid Navigation 2, Pulse Discipline 1, Concealment 1, +Signal Discourse 1.
-- Progression: Momentum Banker → Current Reader → Twin Reserve → Burst: Vortex Lure.
+- Progression: Momentum Banker → Current Reader → Twin Reserve → Burst: Hypertonic Field (Vortex Lure from Level 11).
 - The one thing: your Slip stream is the party's movement; carry people. You are the answer to "can we get out?".
 - Watch: VSC 1. Any push, any Momentum hit, and you are at Dormancy fast. Position is your HP.
 
@@ -1391,3 +1391,4 @@
 - **Starting higher, in full** (Step 8 · Starting higher; 17 Nov 2026). Spend every Synthesis Choice your Level gives (one per Level above 1). Adaptations taken at creation pay their Substrate from your starting Substrate; an Adaptation that also costs a Specimen cannot be taken at creation. Bursts are limited to the Tier your Level reaches.
 - **Growth at the table** (4.1 What a Growth gives you; 17 Nov 2026). At a Stage transition (Levels 6, 11, 16) you choose two Synthesis Choices, but still at most one Baseline grade per Growth. An organism carried into a higher-Level Vector takes its catch-up Growths at once (Codex §5.7). Adaptation Substrate comes from your own purse.
 - **Chemical Literacy and Pressure Nerves** (4.2 Adaptations; 17 Nov 2026). Chemical Literacy's Burst is not free: learning it still costs a Synthesis Choice (the +1 Sequence Reading rank is free). Pressure Nerves' "+2 Pressure Tolerance" is **+2 dice on Pressure Tolerance rolls**, not Pathway ranks.
+- **Bursts follow your Tier** (5.2 Six builds; 20 Nov 2026). A Burst can only be learned at the Tier your Level reaches (Tier II at 6, III at 11, IV at 16). Vortex Lure is Tier III, so the build paths that take it at Levels 7 to 10 (§4.4's Kinetic Striker, and the Long Ride's Current Rider) take **Hypertonic Field** (Osmotic, Tier II) there instead, and may swap it for Vortex Lure at Stage III.

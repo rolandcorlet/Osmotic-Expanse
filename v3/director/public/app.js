@@ -1792,7 +1792,7 @@ function voiceCard() {
         <span class="small dim">Each player agrees to this at session zero, and the screen tells them where their voice goes. A phone's own recognition is done by Google or Apple. A speech server (for example Whisper on this computer) keeps it on your own network.</span></div>
       ${v.inEngine === 'server' ? `${f('Speech-to-text address', 'voice.inUrl', v.inUrl, 'http://localhost:8000/v1')}${f(hv.in.keySet ? 'API key · saved on this computer' : 'API key (only if the server asks for one)', 'voice.inKey', v.inKey, hv.in.keySet ? 'Paste a new key to replace the saved one' : '', 'password')}
       <div class="row">${f('Model', 'voice.inModel', v.inModel)}${f('Language', 'voice.inLang', v.inLang)}</div>` : ''}
-      <div class="row"><button class="btn primary" data-act="v.save">Save voice settings</button></div>
+      <div class="row"><button class="btn primary" data-act="v.save">Save voice settings</button><button class="btn" data-act="v.test" title="Save first, then press this to hear the voice">Test the voice</button></div>
     </div></section>`;
 }
 
@@ -1875,6 +1875,7 @@ const ACT = {
     pumpVoice();
   },
   'book.stop': () => { stopVoice(); },
+  'v.test': () => { const t = 'The water goes still, and somewhere in the dark the whale settles.'; stopVoice(); V.blocked = false; V.q.push({ text: t, clip: serverVoice() ? fetchClip(t) : null }); pumpVoice(); },
   // Choose your character, read aloud: the story first, then each organism (or just the one tapped).
   'hands.read': (d) => {
     const say = (o) => [`${o.hand}.`, `${o.phenotype}.`, (sc.handsPlain || {})[o.id] || '', o.tie || ''].filter(Boolean);

@@ -875,7 +875,7 @@ export const ATLAS_BUILDS = [
   "lines": [
    "Array → DFF 4+1=5, OSM 4, RTC 3, AFF 3, VSC 2−1=1. Hull 4 → MI = 12 + 4 + 4 = 20 (buy Denser Wall at Level 2 → 26). MT 15, PP 7, Flow 8, Countdown 5.",
    "Pathways: Fluid Navigation 2, Pulse Discipline 1, Concealment 1, +Signal Discourse 1.",
-   "Progression: Momentum Banker → Current Reader → Twin Reserve → Burst: Vortex Lure.",
+   "Progression: Momentum Banker → Current Reader → Twin Reserve → Burst: Hypertonic Field (Vortex Lure from Level 11).",
    "The one thing: your Slip stream is the party's movement; carry people. You are the answer to \"can we get out?\".",
    "Watch: VSC 1. Any push, any Momentum hit, and you are at Dormancy fast. Position is your HP."
   ]

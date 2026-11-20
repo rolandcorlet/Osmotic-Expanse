@@ -28,6 +28,7 @@ These rulings were made while the AI Director was built and played (v3). Each is
 | Step 8 · Starting higher | Starting higher, in full | 17 Nov 2026 |
 | 4.1 What a Growth gives you | Growth at the table | 17 Nov 2026 |
 | 4.2 Adaptations | Chemical Literacy and Pressure Nerves | 17 Nov 2026 |
+| 5.2 Six builds | Bursts follow your Tier | 20 Nov 2026 |
 
 ---
 
@@ -898,7 +899,7 @@ At Level 20 you are Stage IV, and the Core's **Apotheosis** track (Ch. XII) beco
 | 4 | Growth | Burst: **Pressure Slap** (Osmotic I) | push without a Brute |
 | 5 | Growth | +1 DFF → 5 | PP 7, MT 15 |
 | **6** | **Stage II** Riposte of Arrival, +6 MI, +1 Slot | Adaptation **Twin Reserve** | you can riposte *and* defend |
-| 7–10 | four Growth | VSC→4, Membrane Penetration 4, **Denser Wall**, Burst **Vortex Lure** | Impact economy now lethal at 4 |
+| 7–10 | four Growth | VSC→4, Membrane Penetration 4, **Denser Wall**, Burst **Hypertonic Field** (Vortex Lure at 11) | Impact economy now lethal at 4 |
 | **11** | **Stage III** Cascade Collection | Adaptation **Overdrive Training** | Overflow snowballs; two Overdrives per Cycle |
 | 12–15 | four Growth | VSC→5, **Harvest Hands**, +1 AFF (command), Graft Mastery | 9-10 dice pools, Impact 6 |
 | **16** | **Stage IV** Unanswered Motion | Adaptation **Second Organ** | capstone + a free death |
@@ -941,7 +942,7 @@ Progression: Harvest Hands → Chemical Literacy → Graft Mastery → Masterwor
 **3 · THE LONG RIDE** — Flagellan **Current Rider**
 Array → DFF 4+1=**5**, OSM 4, RTC 3, AFF 3, VSC 2−1=**1**. Hull 4 → MI = 12 + 4 + 4 = **20** (buy **Denser Wall** at Level 2 → 26). MT 15, PP 7, Flow 8, Countdown 5.
 Pathways: Fluid Navigation 2, Pulse Discipline 1, Concealment 1, +Signal Discourse 1.
-Progression: Momentum Banker → Current Reader → Twin Reserve → Burst: **Vortex Lure**.
+Progression: Momentum Banker → Current Reader → Twin Reserve → Burst: **Hypertonic Field** (Vortex Lure from Level 11).
 *The one thing:* your Slip stream is the party's movement; carry people. You are the answer to "can we get out?".
 *Watch:* VSC 1. Any push, any Momentum hit, and you are at Dormancy fast. Position is your HP.
 
@@ -965,6 +966,8 @@ Pathways: Catalysis 2, Vigour 1, Pressure Tolerance 1, +Chemoreception 1.
 Progression: Pressure Nerves → Burst: **Cold Shock** → Sustained Control → Burst Efficiency (Thermic).
 *The one thing:* you set the Gradient before the fight. A Diver who arrives at −4 has already won the first two Cycles.
 *Watch:* DFF 1 and Frequency −2: you will almost never act first. Bring someone who does.
+
+> **v3 ruling (20 Nov 2026) — Bursts follow your Tier.** A Burst can only be learned at the Tier your Level reaches (Tier II at 6, III at 11, IV at 16). Vortex Lure is Tier III, so the build paths that take it at Levels 7 to 10 (§4.4's Kinetic Striker, and the Long Ride's Current Rider) take **Hypertonic Field** (Osmotic, Tier II) there instead, and may swap it for Vortex Lure at Stage III.
 
 ## 5.3 Cohort composition
 

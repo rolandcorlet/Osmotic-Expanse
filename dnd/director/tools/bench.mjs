@@ -8,11 +8,15 @@
 //   node tools/bench.mjs --provider ollama --model qwen3:14b
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //   node tools/bench.mjs --fake                no model: a stand-in that only narrates (checks the bench itself)
+//   node tools/bench.mjs --part 2              part 2: from the Mill Road to the watchtower, Grisk, Nell and the lantern
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
 //
-// The script: the opening at the Ford Inn, talking to the Reeve, an Insight check, the road north,
+// Part 1: the opening at the Ford Inn, talking to the Reeve, an Insight check, the road north,
 // a Perception check at the mill, the goblin fight to the end, and searching the bodies.
+// Part 2 (level 2 heroes, the mill goblins already dead): the switchback path, the sentries on the
+// Tumbledown Gate, a short rest, the watchtower, talking to Grisk the bugbear chief, the fight,
+// freeing Nell, the lantern, the letter on the throne, and the milestone.
 //
 // THE GATE (a model passes when every run has none of these):
 //   refusal     the Engine refused something the Director tried
@@ -49,6 +53,7 @@ const model = opt('--model', (cfg.models || {})[provider] || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default');
 const runs = Math.max(1, Number(opt('--runs', 1)));
+const part = opt('--part', '1') === '2' ? 2 : 1;
 const logFile = opt('--log', '');
 const verbose = !flag('--quiet');
 
@@ -137,6 +142,22 @@ const SCRIPT = [
   { pid: 'p2', say: 'I search the goblins for anything useful.', expect: [] },
 ];
 
+// Part 2 (20 Nov): the watchtower. What `expect` names is reported, not gated.
+const SCRIPT2 = [
+  { pid: 'p1', say: 'We climb the switchback path up to the old watchtower.', expect: ['move_party'] },
+  { pid: 'p2', say: 'I look up at the wall above the arch. Is anyone up there?', expect: ['ask_for_roll'] },
+  { pid: 'p1', say: 'I raise my shield and charge the gate!', expect: ['start_combat'] },
+  { fight: 'tower-gate' },
+  { pid: 'p2', say: 'We take a short rest in the yard before we go inside, and I bind our wounds.', expect: [] },
+  { pid: 'p1', say: 'We go into the tower.', expect: ['move_party'] },
+  { pid: 'p2', say: 'I call out to the bugbear: why did you take the lantern, and who is the girl?', expect: [] },
+  { pid: 'p1', say: 'Enough talk. I attack Grisk!', expect: ['start_combat'] },
+  { fight: 'watchtower' },
+  { pid: 'p2', say: 'I take the key from Grisk and unchain the girl. Are you hurt?', expect: [] },
+  { pid: 'p1', say: 'I unwrap the brass lantern from the sacking and light it.', expect: [] },
+  { pid: 'p2', say: 'I read the letter on the throne.', expect: ['award_xp'] },
+];
+
 // ---- one run ---------------------------------------------------------------------------------
 async function runOnce(n) {
   const t0 = Date.now();
@@ -145,7 +166,18 @@ async function runOnce(n) {
   const notes = [];
   let s = newSession(adventure);
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
-  for (const [pid, name, input] of HEROES) { act('player', pid, { type: 'join', name }); act('player', pid, { type: 'pc.create', input }); }
+  for (const [pid, name, input] of HEROES) {
+    act('player', pid, { type: 'join', name });
+    if (part === 2) act('host', null, { type: 'pc.create', input: { ...input, level: 2 }, forPid: pid });
+    else act('player', pid, { type: 'pc.create', input });
+  }
+  if (part === 2) {
+    // The mill is behind them: the party is on the Mill Road, the scouts are dead, the story says so.
+    act('host', null, { type: 'site.move', siteId: 'mill-road' });
+    for (const f of Object.values(s.foes)) if (f.siteId === 'mill-road') act('host', null, { type: 'foe.remove', foeId: f.id });
+    act('host', null, { type: 'say', text: 'Earlier: Bryn and Ila took the Reeve\'s job, followed the tracks up the Mill Road and killed the three goblin scouts at the ruined mill. Drag marks and a small black shoe point up the switchback path to the watchtower.', as: 'Recap' });
+    s.started = true;
+  }
   const pcOf = (pid) => s.pcs[s.players[pid].pcId];
   const actingPc = () => { const f = s.fight; const k = f && f.phase === 'turns' ? f.order[f.turn].key : ''; return k.startsWith('pc:') ? s.pcs[k.slice(3)] : null; };
 
@@ -199,12 +231,13 @@ async function runOnce(n) {
       else if (s.fight.order.every((o) => o.init != null)) break;
     }
   }
-  async function fight() {
+  async function fight(where = 'mill-road') {
     if (!s.fight) {
-      notes.push('fight: no fight was started, so the bench starts one');
+      notes.push(`fight at ${where}: no fight was started, so the bench starts one`);
       tally.missing += 1;
-      if (s.scene.siteId !== 'mill-road') { notes.push('fight: the party never reached the Mill Road, so the bench moves it there'); act('host', null, { type: 'site.move', siteId: 'mill-road' }); }
-      if (!Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead)) act('host', null, { type: 'foe.add', monster: 'goblin', count: 3 });
+      if (s.scene.siteId !== where) { notes.push(`fight: the party never reached ${where}, so the bench moves it there`); act('host', null, { type: 'site.move', siteId: where }); }
+      if (!Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead)) act('host', null, { type: 'foe.add', monster: 'goblin', count: 2 });
+      if (Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && f.hidden)) act('host', null, { type: 'foe.reveal' });
       act('host', null, { type: 'fight.start' });
     }
     const turnsBefore = tally.turns;
@@ -239,20 +272,20 @@ async function runOnce(n) {
       const after = `${s.fight.round}:${s.fight.turn}`;
       const noFoes = !Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead);
       if (noFoes) {
-        await turn('the last enemy has fallen', 'after the last goblin');
-        if (s.fight) { tally.stall += 1; notes.push('fight: every goblin is down but the Director did not end the fight'); act('host', null, { type: 'fight.end' }); }
+        await turn('the last enemy has fallen', `after the last foe at ${where}`);
+        if (s.fight) { tally.stall += 1; notes.push(`fight at ${where}: every foe is down but the Director did not end the fight`); act('host', null, { type: 'fight.end' }); }
         break;
       }
       if (after === before && !actingPc()) { tally.stall += 1; notes.push(`fight: the Director did not end the monster's turn (round ${s.fight.round})`); act('host', null, { type: 'fight.next' }); }
     }
     if (s.fight) { tally.stall += 1; notes.push('fight: still going after 40 steps'); act('host', null, { type: 'fight.end' }); }
-    // Characters downed by the goblins are healed so the script can go on.
+    // Characters downed in the fight are healed so the script can go on.
     for (const p of Object.values(s.pcs)) if (p.hp <= 0 && !p.dead) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: 5 });
   }
 
   console.log(`\n=== Run ${n} of ${runs} ===`);
-  for (const [k, step] of SCRIPT.entries()) {
-    if (step.fight) { await fight(); continue; }
+  for (const [k, step] of (part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+    if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); continue; }
     if (step.start) { await turn('the game begins: open the adventure', 'opening', step.expect); continue; }
     act('player', step.pid, { type: 'say', text: step.say });
     if (verbose) console.log(`  ${pcOf(step.pid).name}: ${step.say}`);
@@ -271,7 +304,7 @@ const GATED = ['refusal', 'leak', 'rule', 'roll-words', 'wrong-seat', 'stall', '
 const results = [];
 for (let r = 1; r <= runs; r++) results.push(await runOnce(r));
 console.log('\n=== Summary ===');
-console.log(`Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
+console.log(`Part ${part}. Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
 results.forEach((x, i) => {
   const t = x.tally;
   const bad = GATED.filter((k) => t[k]);

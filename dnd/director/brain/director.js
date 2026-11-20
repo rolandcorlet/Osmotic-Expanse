@@ -238,6 +238,26 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
       }
     }
   }
+  // Outside the fight, a closing question put to someone the Director plays ("Reeve, what does he
+  // want?", bench 20 Nov) goes to the players instead: to whoever spoke last, or the first of the party.
+  if (!actingPlayer(T.state)) {
+    const parts = narration.split(/(?<=[.!?]["”]?)\s+/);
+    const lastQ = (parts[parts.length - 1] || '').trim();
+    const addressed = (lastQ.match(/^([A-Z][\w'’-]*(?:\s[A-Z][\w'’-]*)?),/) || [])[1];
+    if (addressed && /\?["”]?$/.test(lastQ)) {
+      const pcs = Object.values(T.state.pcs || {}).filter((p) => p.playerId && !p.dead);
+      const isPc = pcs.some((p) => p.name.split(/\s+/)[0] === addressed.split(/\s+/)[0]);
+      const npcNames = ((adventure || {}).sites || []).flatMap((x) => (x.npcs || []).map((n) => n.name))
+        .concat(Object.values(T.state.foes || {}).map((f) => f.name));
+      const isNpc = npcNames.some((n) => n.split(/\s+/).some((w) => addressed.split(/\s+/).includes(w))) || /^(Reeve|Innkeeper|Brother|Sister|Captain|Elder|Mother|Father)\b/.test(addressed);
+      if (!isPc && isNpc && pcs.length) {
+        const said = [...(T.state.story || [])].reverse().find((e) => e.kind === 'say' && e.pcId);
+        const to = (said && T.state.pcs[said.pcId]) || pcs[0];
+        narration = `${parts.slice(0, -1).join(' ')} ${to.name}, what do you do?`.trim();
+        flags = flags.concat([{ kind: 'note', text: `The Engine put the closing question to ${to.name}: it was asked of ${addressed}, whom the Director plays.` }]);
+      }
+    }
+  }
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
   T.do({ type: 'narrate', text: narration });
   return { state: T.state, narration, calls, flags, usage, refusals: T.refusals };

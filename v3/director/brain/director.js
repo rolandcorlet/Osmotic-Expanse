@@ -722,6 +722,8 @@ export async function directorTurn(args) {
 // Returns null when the model never narrated, so the caller can try again.
 async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, reason = '', hostNote = '', memory = null }) {
   const T = toolbox({ state, scenario, bestiary, rng, now, memory });
+  const lastSay = [...(state.story || [])].reverse().find((e) => e.kind === 'say');
+  const prePlay = !!(lastSay && lastSay.pre && !((state.players || {})[lastSay.pid] || {}).organismId);
   const chat = provider.start({ system: INSTRUCTIONS, tools: TOOLS });
   const calls = [];
   const usage = { in: 0, out: 0 };
@@ -742,7 +744,11 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     usage.out += reply.usage.out;
     if (reply.calls.length) {
       const results = reply.calls.map((c) => {
-        const result = T.run(c.name, c.args);
+        // Before play (a player still choosing asked a question) the world does not move: only the
+        // rule book and the table's memory may be consulted.
+        const result = prePlay && !['look_up_rules', 'recall'].includes(c.name)
+          ? { note: 'Nothing changed: a player who has not chosen an organism yet asked you something. Answer them as a guide at the table, in plain words, with no scene and no tools; end on one short question.' }
+          : T.run(c.name, c.args);
         calls.push({ name: c.name, args: c.args, result });
         return { call: c, result };
       });
