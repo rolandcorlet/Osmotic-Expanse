@@ -325,7 +325,9 @@ async function runOnce(n) {
         if (s.fight) { tally.stall += 1; notes.push(`fight at ${where}: every foe is down but the Director did not end the fight`); act('host', null, { type: 'fight.end' }); }
         break;
       }
-      if (after === before && !actingPc()) { tally.stall += 1; notes.push(`fight: the Director did not end the monster's turn (round ${s.fight.round})`); act('host', null, { type: 'fight.next' }); }
+      // The server runs the Director again while a monster is still up; the bench gives it that second go too.
+      if (after === before && !actingPc() && s.fight) { await turn('a monster is still to act', `R${s.fight.round} monster (again)`); }
+      if (s.fight && `${s.fight.round}:${s.fight.turn}` === before && !actingPc()) { tally.stall += 1; notes.push(`fight: the Director did not end the monster's turn (round ${s.fight.round})`); act('host', null, { type: 'fight.next' }); }
     }
     if (s.fight) { tally.stall += 1; notes.push('fight: still going after 40 steps'); act('host', null, { type: 'fight.end' }); }
     // Characters downed in the fight are healed so the script can go on. In part 3 (four fights and no

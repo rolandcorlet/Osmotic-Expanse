@@ -269,3 +269,17 @@ test('hold person: the held character saves at the end of each turn, and the hol
   T.host({ type: 'fight.end' });
   assert.equal((T.s.pcs[pc.id].held || []).length, 0);
 });
+
+test('a hold person save asked for by hand is still tied to its caster', () => {
+  const T = table(5);
+  const pc = hero(T, 'p1', 'Bryn');
+  T.host({ type: 'foe.add', monster: 'cult-fanatic', count: 1 });
+  const foe = Object.values(T.s.foes)[0];
+  T.ai({ type: 'roll.ask', pcId: pc.id, kind: 'save', ability: 'wis', dc: 30, reason: "Brother Aldane's Hold Person", effect: { cond: 'paralyzed' } });
+  const q = T.s.requests.find((r) => r.pcId === pc.id);
+  assert.equal(q.effect.repeat.foeId, foe.id);
+  T.as('p1', { type: 'roll.make', id: q.id });
+  assert.ok(T.s.pcs[pc.id].conds.includes('paralyzed'));
+  T.host({ type: 'damage', target: `foe:${foe.id}`, amount: 999, dmgType: 'force' });
+  assert.ok(!T.s.pcs[pc.id].conds.includes('paralyzed'));
+});

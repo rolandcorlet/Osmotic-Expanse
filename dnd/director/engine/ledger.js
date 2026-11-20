@@ -417,6 +417,18 @@ H['roll.ask'] = (s, a, ctx) => {
     const effect = a.effect && typeof a.effect === 'object' ? {
       dmg: R.ABILITIES && a.effect.dmg ? String(a.effect.dmg).slice(0, 20) : '', type: str(a.effect.type, 20), half: !!a.effect.half, cond: str(a.effect.cond, 20).toLowerCase(),
     } : null;
+    // A save against a monster's own spell asked for by hand (bench 21 Nov: the Director re-cast hold person
+    // through ask_for_roll, so the hold was not tracked and outlived Brother Aldane): link it to the caster.
+    if (effect && effect.cond && kind === 'save') {
+      const why = String(a.reason || '').toLowerCase();
+      for (const f of Object.values(s.foes)) {
+        if (f.dead || f.siteId !== s.scene.siteId || effect.repeat) continue;
+        const m = monsterOf(ctx, f);
+        const book = m && monsterSpells(m, ctx.srd);
+        const sp = book && book.spells.find((x) => why.includes(x.name.toLowerCase()));
+        if (sp && /at the end of each of its turns/i.test(String((sp.data || {}).desc || ''))) effect.repeat = { foeId: f.id, spell: sp.name };
+      }
+    }
     s.requests.push({ id: nextId(s, 'q'), pcId: id, kind, ability, skill, dc, adv: a.adv === 'adv' || a.adv === 'dis' ? a.adv : '', reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, group: ids.length > 1 ? true : undefined, effect });
   }
 };
