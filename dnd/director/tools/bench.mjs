@@ -323,8 +323,14 @@ async function runOnce(n) {
       if (after === before && !actingPc()) { tally.stall += 1; notes.push(`fight: the Director did not end the monster's turn (round ${s.fight.round})`); act('host', null, { type: 'fight.next' }); }
     }
     if (s.fight) { tally.stall += 1; notes.push('fight: still going after 40 steps'); act('host', null, { type: 'fight.end' }); }
-    // Characters downed in the fight are healed so the script can go on.
-    for (const p of Object.values(s.pcs)) if (p.hp <= 0 && !p.dead) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: 5 });
+    // Characters downed in the fight are healed so the script can go on. In part 3 (four fights and no
+    // inn) the party catches its breath between rooms and is healed to full, as a short rest and a
+    // cleric's slots would (bench 21 Nov: they reached Brother Aldane half dead every run).
+    for (const p of Object.values(s.pcs)) {
+      if (p.dead) continue;
+      if (part === 3 && p.hp < p.maxHp) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: p.maxHp - p.hp });
+      else if (p.hp <= 0) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: 5 });
+    }
   }
 
   console.log(`\n=== Run ${n} of ${runs} ===`);

@@ -223,3 +223,21 @@ test('unknown actions and bad targets are refused in plain words', () => {
   assert.throws(() => T.host({ type: 'foe.add', monster: 'beholder' }), /no monster called/);
   void srd;
 });
+
+test('a monster casts the spells in its Spellcasting trait, and runs out of slots', () => {
+  const T = table(11);
+  const pc = hero(T, 'p1', 'Ila');
+  T.host({ type: 'foe.add', monster: 'cult-fanatic', count: 1 });
+  const foe = Object.values(T.s.foes)[0];
+  T.host({ type: 'foe.act', foeId: foe.id, action: 'Hold Person', target: `pc:${pc.id}` });
+  const q = T.s.requests.find((r) => r.pcId === pc.id && r.kind === 'save');
+  assert.ok(q, 'a Wisdom save is asked for');
+  assert.equal(q.ability, 'wis');
+  assert.equal(q.dc, 11);
+  assert.equal(q.effect.cond, 'paralyzed');
+  T.host({ type: 'foe.act', foeId: foe.id, action: 'cast spiritual weapon', target: `pc:${pc.id}` });
+  T.host({ type: 'foe.act', foeId: foe.id, action: 'Sacred Flame', target: `pc:${pc.id}` });
+  T.host({ type: 'foe.act', foeId: foe.id, action: 'Hold Person', target: `pc:${pc.id}` });
+  assert.throws(() => T.host({ type: 'foe.act', foeId: foe.id, action: 'Hold Person', target: `pc:${pc.id}` }), /no 2nd-level spell slots left/);
+  assert.throws(() => T.host({ type: 'foe.act', foeId: foe.id, action: 'Fireball', target: `pc:${pc.id}` }), /Spells it can cast: .*Hold Person/);
+});

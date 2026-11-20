@@ -907,7 +907,17 @@ H['foe.act'] = (s, a, ctx) => {
     return;
   }
   const act = pool.find((x) => x.n.toLowerCase() === String(a.action || '').toLowerCase()) || pool.find((x) => x.n.toLowerCase().startsWith(String(a.action || '').toLowerCase().slice(0, 5)) && a.action);
-  if (!act) no(`${foe.name} has no action called "${a.action}". Its actions: ${pool.map((x) => x.n).join(', ')}.`);
+  // A spell from the stat block's Spellcasting trait (bench 21 Nov: Brother Aldane's hold person and
+  // spiritual weapon were refused three runs out of three).
+  if (!act) {
+    const book = monsterSpells(m, ctx.srd);
+    const sp = book && book.spells.find((x) => x.name.toLowerCase() === String(a.action || '').toLowerCase().replace(/^cast(?:s|ing)?\s+/, '').trim());
+    if (sp) { castMonsterSpell(s, ctx, foe, book, sp, a); return; }
+  }
+  if (!act) {
+    const book = monsterSpells(m, ctx.srd);
+    no(`${foe.name} has no action called "${a.action}". Its actions: ${pool.map((x) => x.n).join(', ')}${book ? `. Spells it can cast: ${book.spells.map((x) => x.name).join(', ')}` : ''}.`);
+  }
   if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
   const legendary = (m.legendary || []).includes(act);
   if (ctx.ai && s.fight && s.fight.phase === 'turns' && !legendary && !(m.reactions || []).includes(act)) inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
@@ -969,6 +979,80 @@ H['foe.act'] = (s, a, ctx) => {
   }
   story(s, ctx, 'event', `${foe.name} uses ${act.n}.`, 'Engine');
 };
+// ---- monsters that cast spells (the Spellcasting trait of the SRD stat block) ----
+const CONDS = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'];
+export function monsterSpells(m, srd) {
+  const tr = (m.traits || []).find((t) => /^(Innate )?Spellcasting/i.test(t.n));
+  if (!tr) return null;
+  const dc = Number((/spell save DC (\d+)/i.exec(tr.d) || [])[1]) || 10;
+  const hit = Number((/([+-]\d+) to hit with spell attacks/i.exec(tr.d) || [])[1]) || 0;
+  const lvl = Number((/(\d+)(?:st|nd|rd|th)-level spellcaster/i.exec(tr.d) || [])[1]) || 1;
+  const ix = R.index(srd).spell;
+  const spells = [];
+  const slots = {};
+  for (const line of tr.d.split(/\n/)) {
+    const head = /^-?\s*(Cantrips|(\d)(?:st|nd|rd|th) level)\s*(?:\((\d+) slots?\)|\(at will\))?\s*:\s*(.+)$/i.exec(line.trim());
+    if (!head) continue;
+    const level = /cantrip/i.test(head[1]) ? 0 : Number(head[2]);
+    if (level && head[3]) slots[level] = Number(head[3]);
+    for (const name of head[4].split(',').map((x) => x.replace(/\*/g, '').trim()).filter(Boolean)) {
+      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const sp = ix[id];
+      spells.push({ id, name: sp ? sp.name : name.replace(/\b\w/g, (c) => c.toUpperCase()), level: sp ? sp.level : level, data: sp || null });
+    }
+  }
+  return spells.length ? { dc, hit, casterLevel: lvl, slots, spells, mod: hit - (m.pb || 2) } : null;
+}
+function castMonsterSpell(s, ctx, foe, book, sp, a) {
+  if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
+  if (ctx.ai && s.fight && s.fight.phase === 'turns') inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
+  const d = sp.data || {};
+  if (sp.level > 0) {
+    foe.slotsUsed = foe.slotsUsed || {};
+    const have = book.slots[sp.level] || 0;
+    if ((foe.slotsUsed[sp.level] || 0) >= have) no(`${foe.name} has no ${R.ordinal(sp.level)}-level spell slots left. ${book.spells.filter((x) => x.level === 0).length ? `Its cantrips: ${book.spells.filter((x) => x.level === 0).map((x) => x.name).join(', ')}.` : ''}`);
+    foe.slotsUsed[sp.level] = (foe.slotsUsed[sp.level] || 0) + 1;
+  }
+  const targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x)).filter((t) => t && t.kind === 'pc' && !t.o.dead);
+  const desc = String(d.desc || '');
+  // Damage: the first "XdY type damage" the spell describes; a cantrip grows at caster levels 5, 11, 17.
+  const dm = /(\d+)d(\d+)(?:\s*\+\s*your spellcasting ability modifier)?\s+(\w+) damage/i.exec(desc);
+  let dmgExpr = '';
+  let dtype = '';
+  if (dm) {
+    const n = Number(dm[1]) * (sp.level === 0 ? 1 + [5, 11, 17].filter((x) => book.casterLevel >= x).length : 1);
+    dmgExpr = `${n}d${dm[2]}${/spellcasting ability modifier/i.test(dm[0]) ? `+${Math.max(0, book.mod)}` : ''}`;
+    dtype = dm[3].toLowerCase();
+  }
+  if (d.attack) {
+    const t = targets[0];
+    if (!t) no(`Name the character ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`);
+    const pc = t.o;
+    const r = d20(ctx.rng, { adv: a.adv === 'adv', dis: a.adv === 'dis' });
+    const total = r.kept + book.hit;
+    const hit = r.kept === 20 || (r.kept !== 1 && total >= pc.ac);
+    let text = `${foe.name} casts ${sp.name} at ${pc.name}`;
+    let dmgRow = null;
+    if (hit && dmgExpr) { const roll = rollDice(dmgExpr, ctx.rng, { crit: r.kept === 20 }); const res = damagePc(s, ctx, pc, roll.total, dtype, { crit: r.kept === 20 }); dmgRow = { total: res.taken }; text += `: a hit for ${res.taken} ${dtype} damage.`; }
+    else text += hit ? ': it lands.' : ' and misses.';
+    addRoll(s, ctx, { who: foe.name, foeId: foe.id, kind: 'attack', label: `${sp.name} vs ${pc.name}`, dice: r.rolls, mod: book.hit, total, at: pc.ac, success: hit, crit: r.kept === 20, mode: r.mode, dmg: dmgRow, secret: true });
+    story(s, ctx, 'event', text, 'Engine', { roll: true });
+    return;
+  }
+  if (d.save) {
+    if (!targets.length) no(`Name who ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`);
+    const cond = (CONDS.find((c) => new RegExp(`\\b${c}\\b`, 'i').test(desc)) || '');
+    const amount = dmgExpr ? String(rollDice(dmgExpr, ctx.rng).total) : '';
+    for (const t of targets) {
+      s.requests.push({ id: nextId(s, 'q'), pcId: t.id, kind: 'save', ability: d.save.ability, skill: '', dc: book.dc, adv: '', reason: `${foe.name}'s ${sp.name}`, by: 'engine', t: ctx.now || 0,
+        effect: { dmg: amount, type: dtype, half: d.save.success === 'half', cond } });
+    }
+    story(s, ctx, 'event', `${foe.name} casts ${sp.name}! ${targets.map((t) => t.o.name).join(', ')} must make a ${R.ABILITY_NAMES[d.save.ability]} saving throw.`, 'Engine');
+    return;
+  }
+  story(s, ctx, 'event', `${foe.name} casts ${sp.name}${targets.length ? ` on ${targets.map((t) => t.o.name).join(', ')}` : ''}.`, 'Engine');
+}
+
 H['foe.save'] = (s, a, ctx) => {
   hostOnly(ctx);
   const foe = s.foes[a.foeId];
