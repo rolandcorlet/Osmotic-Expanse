@@ -856,10 +856,10 @@ function sheetCard(o, { own = false, edit = false } = {}) {
       <div class="stat">${w.cls} · ${w.band} · BD ${w.bd[0]} ${w.type} · ${w.props.join(', ')}</div></div>`;
   }).join('');
   return `<section class="card fill">
-    <h3>${esc(o.name)}<span class="right dim small">${esc(o.hand)}${o.playerId ? '' : ' · not played'}</span></h3>
+    <h3>Character sheet<span class="right dim small">${esc(o.hand)}${o.playerId ? '' : ' · not played'}</span></h3>
     <div class="scroll" data-scroll="sheet-${o.id}" style="display:flex;flex-direction:column;gap:10px">
       <div><h2 style="font-size:19px">${esc(o.name)}</h2><div class="dim small">${esc(o.phenotype)} · Level ${o.level}${o.dormant ? ' · <b style="color:var(--no)">Dormant</b>' : ''}</div></div>
-      ${own ? `<div class="row"><input type="text" class="grow" data-k="rename" data-bind="claim.name" value="${esc(ui.claim.name)}" placeholder="Rename your organism" maxlength="40"><button class="btn" data-act="name.random" title="Suggest a name">Random</button><button class="btn" data-act="rename">Rename</button></div>` : ''}
+      ${own ? `<div class="row renamerow"><input type="text" class="grow" data-k="rename" data-bind="claim.name" value="${esc(ui.claim.name)}" placeholder="Rename your organism" maxlength="40"><button class="btn" data-act="name.random" title="Suggest a name">Random</button><button class="btn" data-act="rename">Rename</button></div>` : ''}
       <div class="tiles">${tile('MI', `${o.mi}<small>/${o.miMax}</small>`, o.mi <= o.miMax / 3 ? 'bad' : '', adj('mi', o.mi))}${tile('ATP', `${o.atp}<small>/${o.atpMax}</small>`, '', adj('atp', o.atp))}${tile('Stress', `${o.stress}<small>/8</small>`, o.stress >= 5 ? 'bad' : o.stress >= 3 ? 'warn' : '', adj('stress', o.stress))}${tile('Lysis', `${o.countdown}<small>/${o.countdownMax}</small>`, o.countdown ? 'bad' : '', adj('countdown', o.countdown))}</div>
       <div class="small dim">Stress ${o.stress}: ${R.stressNote(o.stress)}.</div>
       <div class="tiles">${tile('PP / Cycle', o.ppMax)}${tile('MT', o.mt)}${tile('Flow', o.flow)}${tile('Soak', o.soak)}</div>

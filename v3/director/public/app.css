@@ -502,3 +502,18 @@ svg.sitemap .sm-foe.down text{fill:var(--ink);font-size:10px;font-weight:800}
 svg.sitemap .sm-foe.gone{opacity:.55}
 svg.sitemap .sm-foe.gone circle{fill:color-mix(in srgb,var(--dim) 20%,var(--bg));stroke:var(--dim);animation:none!important}
 .tok.gone{opacity:.6;font-style:italic}
+
+/* Narrow phones (360 wide): tile labels may wrap rather than cut ("PP / CYC..."), and the rename box
+   takes its own line above its buttons (Roly, 20 Nov: phones at the table) */
+@media (max-width:420px){
+  .tile .tl{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.15}
+  .renamerow{flex-wrap:wrap}
+  .renamerow input{flex:1 1 100%}
+  .renamerow .btn{flex:1 1 0}
+}
+@media (max-width:420px){
+  .showbar .btn{padding-left:8px;padding-right:8px;gap:6px;min-width:0;white-space:normal}
+  .showbar svg.sitemap.mini{width:24px;height:24px;flex:0 0 auto}
+}
+.showbar .btn{min-width:0;white-space:normal;line-height:1.2}
+.showbar svg.sitemap.mini{flex:0 0 auto}
