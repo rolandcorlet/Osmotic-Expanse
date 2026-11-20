@@ -1407,7 +1407,7 @@ test('a hazard note that prints no "Effect:" clause is still held to its page nu
   const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
   T.state = apply(T.state, { type: 'scene.set', siteId: 'soft-field' }, ctx('host', null));
   assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 4, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' }).refused, /does 1 Lytic, not 4/);
-  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 1, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' }).refused, /fires this hazard at CARCASS 3, and CARCASS is at 0/);
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 1, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' }).note, /fires this hazard at CARCASS 3, and CARCASS is at 0/);
   T.state = apply(T.state, { type: 'clock', id: 'CARCASS', delta: 3 }, ctx('host', null));
   const paid = T.run('hazard_damage', { organism: 'eyes', amount: 1, type: 'Lytic', trigger: 'standing in the slough', why: 'the patch' });
   assert.equal(paid.refused, undefined, 'once the Clock reaches what the page prints, it hurts');
@@ -1420,7 +1420,7 @@ test('the Render Charge at the Gut Stone is the printed 20 Kinetic and waits for
   const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
   T.state = apply(T.state, { type: 'scene.set', siteId: 'gut-stone' }, ctx('host', null));
   assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 6, type: 'Kinetic', trigger: 'the charge fires', why: 'the schedule' }).refused, /does 20 Kinetic, not 6/);
-  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 20, type: 'Kinetic', trigger: 'the charge fires', why: 'the schedule' }).refused, /fires this hazard at TOLL 5, and TOLL is at 0/);
+  assert.match(T.run('hazard_damage', { organism: 'eyes', amount: 20, type: 'Kinetic', trigger: 'the charge fires', why: 'the schedule' }).note, /fires this hazard at TOLL 5, and TOLL is at 0/);
   T.state = apply(T.state, { type: 'clock', id: 'TOLL', delta: 5 }, ctx('host', null));
   const r = T.run('hazard_damage', { organism: 'eyes', amount: 20, type: 'Kinetic', trigger: 'the charge fires', why: 'the Render Charge' });
   assert.equal(r.refused, undefined, 'at TOLL 5 the page lets it go off');

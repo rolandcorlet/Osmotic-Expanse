@@ -456,12 +456,15 @@ export const TOOLS = [
       const spec = hazardSpec(T.site());
       if (spec.none) return { refused: `No hazard is printed for ${T.site().name}. Nothing here hurts an organism on its own.` };
       if (spec.amount == null) return { refused: `The Hazard note for ${T.site().name} prints no damage number, so nothing here costs an organism MI. It reads: "${spec.text}"` };
+      // The Churn's fill is the Engine's own (it pays the surge when the CHURN Clock fills): a call for it
+      // is nothing to do, not a broken rule (Long Swallow bench, 21 Nov).
+      if (/\bchurn\b[^.]{0,20}\bfill|\bfill\b[^.]{0,20}\bchurn\b|\bsurge\b/i.test(`${a.trigger} ${a.why}`) && T.state.clocks.CHURN) return { note: `Nothing paid: the Churn's fill is paid by the Engine itself when the CHURN Clock fills (it stands at ${T.state.clocks.CHURN.filled} of ${T.state.clocks.CHURN.segments}). Describe the water building, nothing more.` };
       if (amount !== spec.amount) return { refused: `The hazard printed for ${T.site().name} does ${spec.amount}${spec.type ? ` ${spec.type}` : ''}, not ${amount}. It reads: "${spec.text}"` };
       // A hazard the page hangs on a Clock cannot go off early: "fires at TOLL 5" is a rule, not
       // a suggestion, and the Render Charge is the whole carcass ending.
       if (spec.clockGate) {
         const c = T.state.clocks[spec.clockGate.clock];
-        if (c && c.filled < spec.clockGate.at) return { refused: `${T.site().name}: the page fires this hazard at ${spec.clockGate.clock} ${spec.clockGate.at}, and ${c.name} is at ${c.filled}. It has not triggered yet.` };
+        if (c && c.filled < spec.clockGate.at) return { note: `Nothing paid: at ${T.site().name} the page fires this hazard at ${spec.clockGate.clock} ${spec.clockGate.at}, and ${c.name} is at ${c.filled}. It has not triggered yet: the danger is there to see, not to feel.` };
       }
       // "The carcass ends" is a one-time detonation, then a chase: once it has fired there is no second
       // blast, only the race out (bench 15 Nov: it went off in four Cycles running and killed the table).
