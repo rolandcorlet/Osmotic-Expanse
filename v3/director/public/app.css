@@ -495,3 +495,10 @@ textarea.seed-text{flex:1 1 auto;min-height:180px;font-family:var(--mono);font-s
 .phone .stack>.stack{height:auto;overflow:visible;flex:0 0 auto;max-width:none}
 .prechat{flex:0 0 auto}
 .prechat .story.short{max-height:260px}
+
+/* A creature that is down is grey wreckage; one that stood down is grey and still (Roly, 20 Nov) */
+svg.sitemap .sm-foe.down circle{fill:color-mix(in srgb,var(--faint) 25%,var(--bg));stroke:var(--faint)}
+svg.sitemap .sm-foe.down text{fill:var(--ink);font-size:10px;font-weight:800}
+svg.sitemap .sm-foe.gone{opacity:.55}
+svg.sitemap .sm-foe.gone circle{fill:color-mix(in srgb,var(--dim) 20%,var(--bg));stroke:var(--dim);animation:none!important}
+.tok.gone{opacity:.6;font-style:italic}

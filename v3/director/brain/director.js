@@ -614,6 +614,23 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
     return sentences.some((sn) => new RegExp(`\\b${fn}\\b(?!['\u2019]s)[^.]{0,50}\\b${BURIAL}\\b|\\b${BURIAL}\\b[^.]{0,20}\\bwhere ${fn} stood|\\b(?:stops|ceases) (?:being|to be) ${fn}\\b|\\b${fn}['\u2019]s (?:shape|body|bulk|membrane|frame)\\b[^.]{0,40}\\b(?:goes clear|thins to nothing|comes apart for good|(?:is )?gone)|\\bwhere ${fn} was\\b|\\b(?:the )?(?:whole )?${hw}\\b[^.]{0,40}\\bstops being\\b`, 'i').test(sn));
   });
   if (buried.length) flags.push({ kind: 'rule', text: `Says ${buried.map((o) => o.name).join(' and ')} is dead or dissolved, but the Engine has them standing.` });
+  // A creature narrated dead while the Engine has it fighting (Roly's table, 20 Nov: Glaze Medusa B had
+  // taken 15 of its MI, the table heard it shatter and dissolve, and the host had to remove it by hand).
+  // The creature's name or its kind ("the last medusa") within a sentence of a killing word, or the fight
+  // called over while something is still up.
+  {
+    const up = Object.values(state.creatures || {}).filter((c) => c.siteId === (state.scene || {}).siteId && !c.down && !c.hidden && !c.stoodDown);
+    const KILL = '(?:dies|died|is dead|lies dead|falls dead|falls still|goes still|lifeless|destroyed|is no more|torn apart|comes apart|dissolv(?:es|ed|ing) (?:into|away)|scatter(?:s|ed|ing)? (?:into|across)|drives clean through|(?:what is|what was) left of|the last of|finished off|finishes it|kills? it|killed)';
+    const OVER = /\b(?:pulse war|fight|battle)\b[^.]{0,30}\b(?:dies away|is over|ends|has ended|is done|falls quiet)\b/i;
+    const named = up.filter((c) => {
+      const base = String(c.name).replace(/\s+[A-Z]$/, '');
+      const kind = (base.split(/\s+/).pop() || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const full = String(c.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return sentences.some((sn) => new RegExp(`(?:\\b${full}\\b|\\b(?:last|remaining|second|final) ${kind}s?\\b|\\b${kind}['\u2019]s\\b)[^.]{0,80}\\b${KILL}|\\b${KILL}\\b[^.]{0,40}\\b(?:${full}|(?:last|remaining) ${kind})\\b`, 'i').test(sn));
+    });
+    if (named.length) flags.push({ kind: 'rule', text: `Says ${named.map((c) => c.name).join(' and ')} is destroyed, but the Engine has it still fighting.`, creatures: named.map((c) => c.name) });
+    else if (up.length && sentences.some((sn) => OVER.test(sn)) && (state.fight || null)) flags.push({ kind: 'rule', text: `Says the fight is over, but ${up.map((c) => c.name).join(' and ')} ${up.length > 1 ? 'are' : 'is'} still fighting.`, creatures: up.map((c) => c.name) });
+  }
   // An Oath the Engine settled as kept this turn, narrated as broken (bench 15 Nov: the roll met the
   // Threshold, settle_oath said kept, and the table heard "the fold judged the promise thin").
   if ((state.log || []).some((e) => e.seq > since && /keeps the Oath/.test(String(e.text)))
@@ -806,13 +823,15 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const isLeak = (f) => f.kind === 'leak';
   const unpaid = (f) => f.kind === 'rule' && /^Says someone took damage/.test(f.text);
   const buriedF = (f) => f.kind === 'rule' && /is dead or dissolved, but the Engine/.test(f.text);
+  const creDead = (f) => f.kind === 'rule' && /(?:is destroyed, but the Engine has it still fighting|^Says the fight is over, but)/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names .+ moving when nothing moved it/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || buriedF(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives )/.test(f.text));
+  const fixable = (f) => unpaid(f) || buriedF(f) || creDead(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives )/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
     if (flags.some(unpaid)) asks.push('It describes harm that nothing paid for this turn: nobody was hurt. Say only what your calls actually did, and put no damage number in the scene.');
+    if (flags.some(creDead)) { const names = [...new Set(flags.filter(creDead).flatMap((f) => f.creatures || []))]; asks.push(`It says ${names.join(' and ')} is destroyed or that the fight is over, but the Engine has ${names.length > 1 ? 'them' : 'it'} still up and fighting: the strike hurt ${names.length > 1 ? 'them' : 'it'}, nothing more. Describe ${names.join(' and ')} as badly hurt (torn, leaking, faltering) and still there, and keep the fight going.`); }
     if (flags.some(buriedF)) asks.push('It says a player\'s body is dead or dissolved, but the Engine has them standing: only a tool can end a body. Keep them alive and hurting, and say no one is gone.');
     if (flags.some(unpaidClock)) asks.push('It names a Clock moving when nothing moved it: no Clock changed. Name only a Clock the page actually moved, with the segments it stands at, or say nothing about Clocks at all.');
     if (flags.some(reversed)) asks.push('It describes the opposite of a throw the page has already passed: that throw succeeded and the player saw the total on their own screen. Say what the success did - and what it cost, if the page priced a cost - and do not undo it.');

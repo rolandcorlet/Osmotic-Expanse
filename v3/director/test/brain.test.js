@@ -2005,3 +2005,16 @@ test('before play: the Director answers a player who is still choosing, and the 
   assert.ok(out.calls[0].result.note);
   assert.equal(out.state.story.at(-1).pre, true);
 });
+
+test('a creature still fighting may not be narrated dead, and the fight may not be called over (Roly, 20 Nov)', () => {
+  let s = seated();
+  s = apply(s, { type: 'fight.start', creatures: [{ blockId: 'gnaw-swarm', count: 1, band: 'near' }] }, ctx('host', null));
+  const c = Object.values(s.creatures)[0];
+  const kind = String(c.name).replace(/\s+[A-Z]$/, '').split(/\s+/).pop().toLowerCase();
+  const dead = checkNarration(`Bresk's flail drives clean through the last ${kind}, shattering what is left of it into drifting flakes. Brost, what do you do?`, s, {});
+  assert.ok(dead.some((f) => /is destroyed, but the Engine has it still fighting/.test(f.text)), JSON.stringify(dead));
+  const over = checkNarration('The Pulse War dies away and the water goes quiet. Brost, what do you do?', s, {});
+  assert.ok(over.some((f) => /^Says the fight is over, but/.test(f.text)));
+  const hurt = checkNarration(`Bresk's flail tears a wide rift in the ${kind}; it reels, leaking, still in the water. Brost, what do you do?`, s, {});
+  assert.ok(!hurt.some((f) => /still fighting|fight is over/.test(f.text)));
+});

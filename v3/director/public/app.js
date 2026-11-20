@@ -281,7 +281,7 @@ function waterFollows() {
     if (g.siteId && g.siteId !== state.scene.siteId) continue;
     cells.push({ id: g.id, kind: o && g.id === o.id ? 'me' : 'ally' });
   }
-  for (const c of creaturesHere()) if (!c.hidden && !c.down) cells.push({ id: c.cid, kind: 'foe' });
+  for (const c of creaturesHere()) if (!c.hidden && !c.down && !c.stoodDown) cells.push({ id: c.cid, kind: 'foe' });
   water.scene({ fight: !!f, thinking: !!(state.director && state.director.thinking), myTurn: !!(f && o && f.turn === `org:${o.id}`), cells });
   const r = lastRoll();
   const now = { roll: r ? r.id : '', story: (state.story || []).length, fight: !!f };
@@ -491,7 +491,7 @@ function bandMap() {
   const here = creaturesHere();
   const rows = BAND_IDS.slice().reverse().map((id) => {
     const b = R.BANDS.find((x) => x.id === id);
-    const toks = here.filter((c) => (c.band || 'near') === id).map((c) => `<span class="tok${c.down ? ' down' : ''}">${esc(c.name)}${c.looks || c.segments != null ? ` <small>${esc(c.looks || `${c.segments}/${c.segMax}`)}</small>` : ''}</span>`).join(' ');
+    const toks = here.filter((c) => (c.band || 'near') === id).map((c) => `<span class="tok${c.down ? ' down' : c.stoodDown ? ' gone' : ''}" title="${c.down ? 'down (dead)' : c.stoodDown ? 'out of the fight' : 'fighting'}">${esc(c.name)}${c.down ? ' ✕' : ''}${c.looks || c.segments != null ? ` <small>${esc(c.looks || `${c.segments}/${c.segMax}`)}</small>` : ''}</span>`).join(' ');
     const range = b.max === Infinity ? `${b.min}+` : b.min === b.max ? `${b.min}` : `${b.min}–${b.max}`;
     return `<div class="band"><span class="bn">${b.name}<small>${range} Drifts</small></span><span class="row">${toks}</span></div>`;
   }).join('');
@@ -566,7 +566,8 @@ function siteMapSvg({ mini = false } = {}) {
     out.push(`<circle r="${r.toFixed(1)}" class="sm-ring sm-${id}"/>`);
     if (!mini) out.push(`<text class="sm-band" x="${(-r * 0.5).toFixed(1)}" y="${(r * 0.866 + 2).toFixed(1)}" text-anchor="middle">${esc(R_BANDS[id])}</text>`);
   }
-  const foes = creaturesHere().filter((x) => !x.hidden);
+  // A harvested body is gone from the water: it leaves the map.
+  const foes = creaturesHere().filter((x) => !x.hidden && !(x.down && x.harvested));
   const byRing = {};
   for (const c of foes) (byRing[ringOf(c.band)] = byRing[ringOf(c.band)] || []).push(c);
   const foeAngle = (c) => {
@@ -613,7 +614,10 @@ function siteMapSvg({ mini = false } = {}) {
     const turn = turnKey === `cre:${c.cid}`;
     const letter = (String(c.name).match(/\s([A-Z])$/) || [, String(c.name)[0]])[1];
     const r = mini ? 9 : 7;
-    out.push(`<g class="sm-tok sm-foe${c.down ? ' down' : ''}${turn ? ' turn' : ''}" transform="translate(${x} ${y})">${turn ? `<circle r="${r + 4}" class="sm-glow"/>` : ''}<circle r="${r}"/>${mini ? '' : `<text y="2.6">${esc(c.down ? '✕' : letter)}</text>`}<title>${esc(`${c.name}: ${bandLabel(c.band)}${c.down ? ', down' : ''}`)}</title></g>`);
+    // A creature that is down is wreckage (a grey husk with a cross, on every map); one that stood down
+    // has left the fight (grey, still). Only a creature still fighting is red and pulsing (Roly, 20 Nov).
+    const st = c.down ? ' down' : c.stoodDown ? ' gone' : '';
+    out.push(`<g class="sm-tok sm-foe${st}${turn ? ' turn' : ''}" transform="translate(${x} ${y})">${turn ? `<circle r="${r + 4}" class="sm-glow"/>` : ''}<circle r="${r}"/><text y="${mini ? 3.4 : 2.6}">${esc(c.down ? '✕' : c.stoodDown ? '–' : mini ? '' : letter)}</text><title>${esc(`${c.name}: ${bandLabel(c.band)}${c.down ? ', down (dead)' : c.stoodDown ? ', out of the fight' : ''}`)}</title></g>`);
   }
   // the Cohort, in the middle
   const cohort = mini ? (me ? [me] : []) : Object.values(state.organisms || {}).filter((o) => o.playerId || (f && f.actors[`org:${o.id}`]));
@@ -852,7 +856,7 @@ function sheetCard(o, { own = false, edit = false } = {}) {
       <div class="stat">${w.cls} · ${w.band} · BD ${w.bd[0]} ${w.type} · ${w.props.join(', ')}</div></div>`;
   }).join('');
   return `<section class="card fill">
-    <h3>${esc(o.hand)}<span class="right dim small">${esc(playerName(o) || 'not played')}</span></h3>
+    <h3>${esc(o.name)}<span class="right dim small">${esc(o.hand)}${o.playerId ? '' : ' · not played'}</span></h3>
     <div class="scroll" data-scroll="sheet-${o.id}" style="display:flex;flex-direction:column;gap:10px">
       <div><h2 style="font-size:19px">${esc(o.name)}</h2><div class="dim small">${esc(o.phenotype)} · Level ${o.level}${o.dormant ? ' · <b style="color:var(--no)">Dormant</b>' : ''}</div></div>
       ${own ? `<div class="row"><input type="text" class="grow" data-k="rename" data-bind="claim.name" value="${esc(ui.claim.name)}" placeholder="Rename your organism" maxlength="40"><button class="btn" data-act="name.random" title="Suggest a name">Random</button><button class="btn" data-act="rename">Rename</button></div>` : ''}
@@ -924,7 +928,7 @@ function standInListHtml() {
     <div class="hands">${open.map((o) => {
       const owner = (o.borrow && o.borrow.ownerName) || playerName(o) || '';
       return `<div class="hand si"><b>${esc(o.name)}</b><span class="dim small">${esc(o.phenotype)} · ${esc(theHand(o))} · Level ${o.level}</span>
-        ${owner ? `<span class="small">${esc(owner)}'s organism</span>` : ''}<span class="small dim">${esc(o.tie)}</span>
+        ${owner ? '<span class="small">its player is away tonight</span>' : ''}<span class="small dim">${esc(o.tie)}</span>
         <button class="btn primary" data-act="si.take" data-id="${o.id}">Stand in as ${esc(o.name.replace(/ of .*$/, ''))}</button></div>`;
     }).join('')}</div></section>`;
 }
@@ -1233,7 +1237,7 @@ function chooseHandHtml() {
       <b>${esc(o.hand)}</b><span class="dim small">${esc(o.phenotype)}</span>
       <span class="small">${esc((sc.handsPlain || {})[o.id] || '')}</span>
       <span class="small dim">${esc(o.tie)}</span>
-      <span class="small faint">${taken ? `played by ${esc(playerName(o))}` : `MI ${o.miMax} · PP ${o.ppMax} · MT ${o.mt}`}</span></button>`;
+      <span class="small faint">${taken ? `taken: ${esc(o.name)}` : `MI ${o.miMax} · PP ${o.ppMax} · MT ${o.mt}`}</span></button>`;
   }).join('');
   const canRead = canSpeakLocal() || serverVoice();
   const reading = V.q.length || V.playing;

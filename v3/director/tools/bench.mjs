@@ -317,7 +317,7 @@ async function once(n) {
         // shapes, tallied apart so a gate read says which one the table heard.
         if (/^Names (.+ moving when nothing moved it|the count)/.test(f.text)) tally.clocks += 1;
         else if (/^Reverses /.test(f.text)) tally.reversed += 1;
-        else if (/is dead or dissolved, but the Engine/.test(f.text)) tally.buried += 1;
+        else if (/is dead or dissolved, but the Engine|is destroyed, but the Engine has it still fighting|^Says the fight is over, but/.test(f.text)) tally.buried += 1;
         else tally.unpaid += 1;
       }
       console.log(`    ! ${f.kind}: ${f.text}`);
