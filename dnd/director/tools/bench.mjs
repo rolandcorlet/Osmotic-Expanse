@@ -299,12 +299,16 @@ async function runOnce(n) {
             act('player', pid, { type: 'spell.cast', pcId: pc.id, spell: heal, target: `pc:${down.id}` });
             if (verbose) console.log(`    ${pc.name} casts ${heal} on ${down.name}: ${s.pcs[down.id].hp} hp`);
           } catch (e) { if (verbose) console.log(`    (${pc.name} could not heal: ${e.message})`); }
+        } else if (pc.hp > 0 && pc.conds.some((c) => ['paralyzed', 'stunned', 'incapacitated', 'unconscious', 'petrified'].includes(c))) {
+          if (verbose) console.log(`    ${pc.name} is ${pc.conds.join(', ')} and cannot act`);
         } else if (foe && pc.hp > 0) {
           act('player', pid, { type: 'say', text: `I attack ${foe.name}!` });
           const atk = pc.cls === 'cleric' ? 'w:mace' : pc.attacks[0].id;
-          act('player', pid, { type: 'attack', pcId: pc.id, attack: pc.attacks.some((a) => a.id === atk) ? atk : pc.attacks[0].id, target: `foe:${foe.id}` });
-          const r = s.rolls[s.rolls.length - 1];
-          if (verbose) console.log(`    ${pc.name} attacks ${foe.name}: ${r.success ? `hit, ${r.dmg ? r.dmg.total : 0} damage` : 'miss'}${s.foes[foe.id].dead ? ` (${foe.name} falls)` : ''}`);
+          try {
+            act('player', pid, { type: 'attack', pcId: pc.id, attack: pc.attacks.some((a) => a.id === atk) ? atk : pc.attacks[0].id, target: `foe:${foe.id}` });
+            const r = s.rolls[s.rolls.length - 1];
+            if (verbose) console.log(`    ${pc.name} attacks ${foe.name}: ${r.success ? `hit, ${r.dmg ? r.dmg.total : 0} damage` : 'miss'}${s.foes[foe.id].dead ? ` (${foe.name} falls)` : ''}`);
+          } catch (e) { if (verbose) console.log(`    (${pc.name} could not attack: ${e.message})`); }
         }
         act('player', pid, { type: 'fight.next' });
         await turn('a player ended their turn', `R${s.fight ? s.fight.round : '-'} after ${pc.name}`);

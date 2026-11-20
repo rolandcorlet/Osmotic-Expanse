@@ -241,3 +241,31 @@ test('a monster casts the spells in its Spellcasting trait, and runs out of slot
   assert.throws(() => T.host({ type: 'foe.act', foeId: foe.id, action: 'Hold Person', target: `pc:${pc.id}` }), /no 2nd-level spell slots left/);
   assert.throws(() => T.host({ type: 'foe.act', foeId: foe.id, action: 'Fireball', target: `pc:${pc.id}` }), /Spells it can cast: .*Hold Person/);
 });
+
+test('hold person: the held character saves at the end of each turn, and the hold ends when the caster falls', () => {
+  let T; let pc; let foe;
+  for (let seed = 1; seed < 200; seed++) {
+    T = table(seed);
+    pc = hero(T, 'p1', 'Bryn');
+    T.host({ type: 'foe.add', monster: 'cult-fanatic', count: 1 });
+    foe = Object.values(T.s.foes)[0];
+    T.host({ type: 'foe.act', foeId: foe.id, action: 'Hold Person', target: `pc:${pc.id}` });
+    const q = T.s.requests.find((r) => r.pcId === pc.id);
+    T.as('p1', { type: 'roll.make', id: q.id });
+    if (T.s.pcs[pc.id].conds.includes('paralyzed')) break;
+  }
+  assert.ok(T.s.pcs[pc.id].conds.includes('paralyzed'));
+  assert.equal(T.s.pcs[pc.id].held.length, 1);
+  // The caster falls: the hold ends at once.
+  const snap = structuredClone(T.s);
+  T.host({ type: 'damage', target: `foe:${foe.id}`, amount: 999, dmgType: 'force' });
+  assert.ok(!T.s.pcs[pc.id].conds.includes('paralyzed'), 'the hold ends when the caster falls');
+  T.s = snap;
+  T.host({ type: 'fight.start', autoRoll: true });
+  // End turns until Bryn's turn has ended once: a repeat save is rolled for him.
+  const before = T.s.rolls.length;
+  for (let i = 0; i < 3 && !T.s.rolls.slice(before).some((r) => /end of turn/.test(r.reason || '')); i++) T.host({ type: 'fight.next' });
+  assert.ok(T.s.rolls.slice(before).some((r) => /end of turn: Hold Person/.test(r.reason || '')), 'a repeat save was rolled');
+  T.host({ type: 'fight.end' });
+  assert.equal((T.s.pcs[pc.id].held || []).length, 0);
+});

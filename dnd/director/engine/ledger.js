@@ -240,6 +240,7 @@ function damageFoe(s, ctx, foe, amount, type, { magical = false, crit = false } 
     foe.dead = true;
     foe.conds = [];
     notes.push('falls');
+    releaseHolds(s, ctx);
     if (s.fight) s.fight.xp = (s.fight.xp || 0) + (foe.xp || 0);
     else s.unspentXp = (s.unspentXp || 0) + (foe.xp || 0);
   }
@@ -464,7 +465,11 @@ H['roll.make'] = (s, a, ctx) => {
       const amount = success ? (q.effect.half ? Math.floor(full.total / 2) : 0) : full.total;
       if (amount > 0) { const d = damagePc(s, ctx, pc, amount, q.effect.type); text += ` ${pc.name} takes ${d.taken} ${q.effect.type} damage${d.notes.length ? ` (${d.notes.join(', ')})` : ''}.`; }
     }
-    if (q.effect.cond && !success && !pc.conds.includes(q.effect.cond)) { pc.conds.push(q.effect.cond); text += ` ${pc.name} is ${q.effect.cond}.`; }
+    if (q.effect.cond && !success && !pc.conds.includes(q.effect.cond)) {
+      pc.conds.push(q.effect.cond); text += ` ${pc.name} is ${q.effect.cond}.`;
+      // A spell like hold person: the target saves again at the end of each of its turns (see releaseHolds).
+      if (q.effect.repeat) pc.held = [...(pc.held || []).filter((h) => h.cond !== q.effect.cond), { cond: q.effect.cond, ability: q.ability, dc: q.dc, foeId: q.effect.repeat.foeId, spell: q.effect.repeat.spell }];
+    }
   }
   story(s, ctx, 'event', text, 'Engine', { roll: true });
 };
@@ -531,6 +536,32 @@ H['fight.add'] = (s, a, ctx) => {
   if (t.kind === 'foe') t.o.hidden = false;
   joinFight(s, ctx, t.kind, t.id, { roll: true });
 };
+// Holds a monster's spell keeps on a character (hold person): they end when the caster falls or
+// flees, and the held character saves again at the end of each of their turns (bench 21 Nov: Bryn
+// was paralyzed by Brother Aldane for the rest of the fight, and the bench crashed on his turn).
+function releaseHolds(s, ctx, { all = false } = {}) {
+  for (const pc of Object.values(s.pcs)) {
+    for (const h of [...(pc.held || [])]) {
+      const caster = s.foes[h.foeId];
+      if (!all && caster && !caster.dead) continue;
+      pc.held = pc.held.filter((x) => x !== h);
+      if (pc.conds.includes(h.cond)) { pc.conds = pc.conds.filter((c) => c !== h.cond); story(s, ctx, 'event', `${h.spell} ends: ${pc.name} is no longer ${h.cond}.`, 'Engine'); }
+    }
+  }
+}
+function endOfTurnSaves(s, ctx, key) {
+  const [kind, id] = String(key || '').split(':');
+  const pc = kind === 'pc' ? s.pcs[id] : null;
+  if (!pc || pc.dead || !(pc.held || []).length) return;
+  for (const h of [...pc.held]) {
+    const r = pcD20(s, ctx, pc, { kind: 'save', ability: h.ability, skill: '', adv: '' });
+    const ok = !r.fx.fail && r.total >= h.dc;
+    addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'save', label: `${R.ABILITY_NAMES[h.ability]} saving throw`, dice: r.rolls, mod: r.bonus, total: r.total, at: h.dc, success: ok, mode: r.mode, reason: `end of turn: ${h.spell}` });
+    if (ok) { pc.held = pc.held.filter((x) => x !== h); pc.conds = pc.conds.filter((c) => c !== h.cond); }
+    story(s, ctx, 'event', ok ? `${pc.name} breaks free of ${h.spell} and is no longer ${h.cond}.` : `${pc.name} strains against ${h.spell} and stays ${h.cond}.`, 'Engine', { roll: true });
+  }
+}
+
 H['fight.next'] = (s, a, ctx) => {
   if (!s.fight || s.fight.phase !== 'turns') no('No turns are being taken.');
   const cur = currentKey(s);
@@ -539,6 +570,8 @@ H['fight.next'] = (s, a, ctx) => {
     if (!p || keyOf('pc', p.pcId) !== cur) no('Only the one whose turn it is can end it.');
   }
   if (ctx.ai && a.expect && a.expect !== cur) no(`It is ${nameOf(s, cur)}'s turn, not ${nameOf(s, a.expect) || a.expect}'s.`);
+  releaseHolds(s, ctx);
+  endOfTurnSaves(s, ctx, cur);
   advance(s, ctx);
   const now = currentKey(s);
   log(s, ctx, `${nameOf(s, cur)} ends their turn. ${nameOf(s, now)} is up (round ${s.fight.round}).`);
@@ -550,6 +583,7 @@ H['fight.end'] = (s, a, ctx) => {
   s.unspentXp = 0;
   const alive = Object.values(s.pcs).filter((p) => !p.dead);
   s.fight = null;
+  releaseHolds(s, ctx, { all: true });
   s.requests = s.requests.filter((q) => q.kind !== 'initiative' && q.kind !== 'death');
   for (const p of Object.values(s.pcs)) { p.raging = false; p.rageTurns = 0; }
   // A character still dying when the fight ends is not safe: someone has to stabilize or heal them.
@@ -1044,8 +1078,9 @@ function castMonsterSpell(s, ctx, foe, book, sp, a) {
     const cond = (CONDS.find((c) => new RegExp(`\\b${c}\\b`, 'i').test(desc)) || '');
     const amount = dmgExpr ? String(rollDice(dmgExpr, ctx.rng).total) : '';
     for (const t of targets) {
+      const repeat = cond && /at the end of each of its turns/i.test(desc) ? { foeId: foe.id, spell: sp.name } : undefined;
       s.requests.push({ id: nextId(s, 'q'), pcId: t.id, kind: 'save', ability: d.save.ability, skill: '', dc: book.dc, adv: '', reason: `${foe.name}'s ${sp.name}`, by: 'engine', t: ctx.now || 0,
-        effect: { dmg: amount, type: dtype, half: d.save.success === 'half', cond } });
+        effect: { dmg: amount, type: dtype, half: d.save.success === 'half', cond, repeat } });
     }
     story(s, ctx, 'event', `${foe.name} casts ${sp.name}! ${targets.map((t) => t.o.name).join(', ')} must make a ${R.ABILITY_NAMES[d.save.ability]} saving throw.`, 'Engine');
     return;
