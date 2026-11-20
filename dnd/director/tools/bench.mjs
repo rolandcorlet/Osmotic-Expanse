@@ -9,6 +9,7 @@
 //   node tools/bench.mjs --provider custom --url http://localhost:8000/v1 --model <name>
 //   node tools/bench.mjs --fake                no model: a stand-in that only narrates (checks the bench itself)
 //   node tools/bench.mjs --part 2              part 2: from the Mill Road to the watchtower, Grisk, Nell and the lantern
+//   node tools/bench.mjs --part 3              part 3: the Greyfen, the drowned chapel, the crypt, Brother Aldane, the lantern rehung
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
 //
@@ -53,7 +54,7 @@ const model = opt('--model', (cfg.models || {})[provider] || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default');
 const runs = Math.max(1, Number(opt('--runs', 1)));
-const part = opt('--part', '1') === '2' ? 2 : 1;
+const part = ['2', '3'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
 const logFile = opt('--log', '');
 const verbose = !flag('--quiet');
 
@@ -158,6 +159,29 @@ const SCRIPT2 = [
   { pid: 'p2', say: 'I read the letter on the throne.', expect: ['award_xp'] },
 ];
 
+// Part 3 (21 Nov): level 3 heroes with the lantern, from Thornwick Ford through the Greyfen to the
+// sanctum and home. The quests close only at their places (the vanished at the sanctum, the lantern
+// at the ford), so this is also the test of those fences.
+const SCRIPT3 = [
+  { pid: 'p1', say: 'We take the causeway path south-east into the Greyfen, with the lantern lit.', expect: ['move_party'] },
+  { pid: 'p2', say: 'I keep watch along the causeway. Is anything moving out there in the reeds?', expect: ['ask_for_roll'] },
+  { pid: 'p1', say: 'I swing at the nearest rat!', expect: ['start_combat'] },
+  { fight: 'causeway' },
+  { pid: 'p2', say: 'We follow the causeway on to the drowned chapel.', expect: ['move_party'] },
+  { pid: 'p1', say: 'I hold the lantern high and wade in. I attack the nearest of the drowned!', expect: ['start_combat'] },
+  { fight: 'chapel' },
+  { pid: 'p2', say: 'I look closely at the bodies. How did these people die?', expect: ['ask_for_roll'] },
+  { pid: 'p1', say: 'We go down the stair into the crypt, slowly, testing the floor.', expect: ['move_party'] },
+  { pid: 'p1', say: 'At the iron door I smash the skeleton nearest me!', expect: ['start_combat'] },
+  { fight: 'crypt' },
+  { pid: 'p2', say: 'We push through the iron door toward the chanting.', expect: ['move_party'] },
+  { pid: 'p2', say: 'Brother Aldane! Where are the people you took from the village?', expect: [] },
+  { pid: 'p1', say: 'No bargains. I attack the Pale Brother!', expect: ['start_combat'] },
+  { fight: 'sanctum' },
+  { pid: 'p2', say: 'We free the captives and help them to their feet.', expect: ['complete_quest'] },
+  { pid: 'p1', say: 'We take everyone home along the causeway, and I hang the lantern back on its hook over the ford.', expect: ['complete_quest'] },
+];
+
 // ---- one run ---------------------------------------------------------------------------------
 async function runOnce(n) {
   const t0 = Date.now();
@@ -168,7 +192,7 @@ async function runOnce(n) {
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
   for (const [pid, name, input] of HEROES) {
     act('player', pid, { type: 'join', name });
-    if (part === 2) act('host', null, { type: 'pc.create', input: { ...input, level: 2 }, forPid: pid });
+    if (part >= 2) act('host', null, { type: 'pc.create', input: { ...input, level: part }, forPid: pid });
     else act('player', pid, { type: 'pc.create', input });
   }
   if (part === 2) {
@@ -176,6 +200,13 @@ async function runOnce(n) {
     act('host', null, { type: 'site.move', siteId: 'mill-road' });
     for (const f of Object.values(s.foes)) if (f.siteId === 'mill-road') act('host', null, { type: 'foe.remove', foeId: f.id });
     act('host', null, { type: 'say', text: 'Earlier: Bryn and Ila took the Reeve\'s job, followed the tracks up the Mill Road and killed the three goblin scouts at the ruined mill. Drag marks and a small black shoe point up the switchback path to the watchtower.', as: 'Recap' });
+    s.started = true;
+  }
+  if (part === 3) {
+    // The watchtower is behind them: Grisk is beaten, Nell is home, the lantern is lit in Bryn's hands.
+    for (const site of ['mill-road', 'tower-gate', 'watchtower']) { act('host', null, { type: 'site.move', siteId: site }); for (const f of Object.values(s.foes)) if (f.siteId === site) act('host', null, { type: 'foe.remove', foeId: f.id }); }
+    act('host', null, { type: 'site.move', siteId: 'thornwick' });
+    act('host', null, { type: 'say', text: 'Earlier: Bryn and Ila beat Grisk at the old watchtower, freed Nell Hale and brought her home, and recovered the Lantern of the Ford. A letter on Grisk\'s throne said: "Bring the lamp to the chapel on the third night. The Brother pays in silver and in mercy. -- A." The lantern is lit in Bryn\'s hands. Four villagers are still missing in the Greyfen.', as: 'Recap' });
     s.started = true;
   }
   const pcOf = (pid) => s.pcs[s.players[pid].pcId];
@@ -297,7 +328,7 @@ async function runOnce(n) {
   }
 
   console.log(`\n=== Run ${n} of ${runs} ===`);
-  for (const [k, step] of (part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+  for (const [k, step] of (part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
     if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); continue; }
     if (step.start) { await turn('the game begins: open the adventure', 'opening', step.expect); continue; }
     act('player', step.pid, { type: 'say', text: step.say });
