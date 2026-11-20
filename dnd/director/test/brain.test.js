@@ -301,3 +301,20 @@ test('part 2 bench: a milestone pays once, and the lantern quest closes only at 
   assert.ok(B.run('complete_quest', { quest: lantern.id }).ok);
   assert.equal(B.refusals, 0);
 });
+
+test('part 3 bench: quest named as "q2 <text>", end_combat with no fight, a monster that talks, roles swapped', () => {
+  const T = table(12);
+  const pc = hero(T, 'p1', 'Bryn');
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(4), now: 1 });
+  B.do({ type: 'site.move', siteId: 'thornwick' });
+  const lantern = B.state.quests.find((q) => /lantern/i.test(q.text));
+  assert.ok(B.run('complete_quest', { quest: `${lantern.id} ${lantern.text}` }).ok);
+  assert.equal(B.state.quests.find((q) => q.id === lantern.id).done, true);
+  assert.match(B.run('end_combat', { award_xp: false }).note, /no fight/);
+  B.do({ type: 'foe.add', monster: 'cult-fanatic', count: 1 });
+  const foe = Object.values(B.state.foes).find((f) => !f.dead);
+  assert.ok(B.run('monster_action', { monster: foe.id, action: 'Talk', targets: ['Bryn'] }).note);
+  const r = B.run('monster_action', { monster: pc.id, action: 'Dagger', targets: [foe.id] });
+  assert.ok(!r.refused, JSON.stringify(r));
+  assert.equal(B.refusals, 0);
+});

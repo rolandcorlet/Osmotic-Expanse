@@ -188,6 +188,9 @@ export const TOOLS = [
       if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
       // A monster that has already fallen does nothing: a note, not a broken rule (bench 21 Nov, the chapel).
       if (foe.dead || foe.hp <= 0) return { note: `Nothing changed: ${foe.name} has already fallen and cannot act. Still standing: ${here(T.state)}.`, ...T.fightBrief() };
+      // Talking, taunting or waiting is not an action in the stat block: just say it (bench 21 Nov: Aldane "Talk").
+      if (/^(talk|speak|say|says|taunt|threaten|parley|laugh|wait|watch|pray|chant|gloat)\b/i.test(String(a.action || '').trim()))
+        return { note: `Nothing changed: ${foe.name} speaking or waiting needs no tool. Say it in the narration, then use monster_action for what it actually does (${here(T.state)}), or end_turn.`, ...T.fightBrief() };
       const targets = pcTargets(T.state, a);
       const before = T.state.seq;
       const no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
@@ -235,6 +238,8 @@ export const TOOLS = [
     parameters: obj({ award_xp: B('False if no XP should be given (the party fled). Default true.') }),
     run(a, T) {
       const before = T.state.seq;
+      // Ending a fight that is already over changes nothing: a note (bench 21 Nov).
+      if (!T.state.fight) return { note: 'Nothing changed: no fight is on. Carry on with the story.' };
       const no = T.do({ type: 'fight.end', award: a.award_xp === undefined ? true : truthy(a.award_xp) });
       return no ? { refused: no } : since(T, before);
     },
@@ -348,11 +353,17 @@ export const TOOLS = [
     description: 'Mark one of the party\'s quests as done: only when everything it asks is finished (the lantern back on its hook, not just a lead on who took it).',
     parameters: obj({ quest: S('The quest id or a few words of it.') }, ['quest']),
     run(a, T) {
-      const q = T.state.quests.find((x) => x.id === a.quest) || T.state.quests.find((x) => a.quest && x.text.toLowerCase().includes(String(a.quest).toLowerCase()));
+      // The id, a few words of it, or both ("q2 Find the people who vanished", bench 21 Nov).
+      const ref = String(a.quest || '').trim();
+      const lead = (/^(q\d+)\b/i.exec(ref) || [])[1];
+      const words = ref.replace(/^q\d+\s*[:(\-–]?\s*/i, '').replace(/[.)]+$/, '').toLowerCase();
+      const q = T.state.quests.find((x) => x.id === ref) || (lead && T.state.quests.find((x) => x.id === lead.toLowerCase()))
+        || T.state.quests.find((x) => words && x.text.toLowerCase().includes(words));
+      if (!q) return { refused: `There is no such quest. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.` };
       const rule = q && ((T.adventure || {}).questDone || []).find((r) => q.text.toLowerCase().includes(r.match));
       if (q && q.done) return { note: `Nothing changed: "${q.text}" is already complete.` };
       if (rule && !rule.at.includes(T.state.scene.siteId)) return { note: `Not yet: "${q.text}" is complete only when ${rule.when}. Keep it open.` };
-      const no = T.do({ type: 'quest.done', id: a.quest });
+      const no = T.do({ type: 'quest.done', id: q.id });
       return no ? { refused: no } : { ok: true };
     },
   },
