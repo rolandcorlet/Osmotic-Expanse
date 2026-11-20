@@ -175,7 +175,16 @@ export const TOOLS = [
       advantage: S('"adv", "dis" or empty, from the situation (the Engine already counts conditions).'),
     }, ['monster', 'action', 'targets']),
     run(a, T) {
-      const foe = findFoe(T.state, a.monster);
+      let foe = findFoe(T.state, a.monster);
+      // Monster and target the wrong way round (bench 21 Nov: monster "c1", targets ["f19"]): a character
+      // named as the monster and a monster named as the target is the same order, swapped.
+      if (!foe) {
+        const tl = [].concat(a.targets || []).map(String);
+        const pcRef = lower(a.monster).replace(/^pc:/, '');
+        const isPc = Object.values(T.state.pcs).some((p) => p.id === pcRef || lower(p.name) === pcRef);
+        const swapped = isPc && tl.length === 1 ? findFoe(T.state, tl[0]) : null;
+        if (swapped && !swapped.dead) { foe = swapped; a = { ...a, monster: swapped.id, targets: [a.monster] }; }
+      }
       if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
       // A monster that has already fallen does nothing: a note, not a broken rule (bench 21 Nov, the chapel).
       if (foe.dead || foe.hp <= 0) return { note: `Nothing changed: ${foe.name} has already fallen and cannot act. Still standing: ${here(T.state)}.`, ...T.fightBrief() };
