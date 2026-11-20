@@ -25,7 +25,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, mkdtempSync, create
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { newSession, apply } from '../engine/ledger.js';
+import { newSession, apply, burstCost, burstTierMax } from '../engine/ledger.js';
+import { burstByName } from '../engine/bursts.js';
 import { systemRng } from '../engine/dice.js';
 import { vectorById } from '../data/vectors.js';
 import { NINTH } from './bench-scripts-ninth.mjs';
@@ -360,12 +361,15 @@ async function once(n) {
         const target = named[0] || up.find((c) => !c.stoodDown) || up[0];
         const w = o.weapons.find((x) => x.carried !== false);
         const cost = 2 + (w.props.includes('Heavy') ? 1 : 0);
-        // Once a fight, an organism that knows a Burst that hurts casts it instead of striking.
-        const spit = (o.bursts || []).includes('Enzyme Spit') && target && !burstUsed.has(`${o.id}@${s.fight.id || s.fight.cycle}@${s.scene.siteId}`) && cur.pp >= 2 && o.atp >= 4;
-        if (spit) {
-          burstUsed.add(`${o.id}@${s.fight.id || s.fight.cycle}@${s.scene.siteId}`);
-          console.log(`  (${o.name} casts Enzyme Spit at ${target.name})`);
-          try { act('player', o.playerId, { type: 'act', organismId: o.id, action: 'burst', burst: 'Enzyme Spit', targetId: target.cid }); tally.bursts += 1; continue; } catch (e) { console.log(`    (the Burst was refused: ${e.message})`); }
+        // Once a fight, an organism that knows a Burst it can pay for casts it instead of striking
+        // (the Eyes' Enzyme Spit on the First Carve; the Long Swallow Rider's Hypertonic Field).
+        const bkey = `${o.id}@${s.scene.siteId}`;
+        const known = (o.bursts || []).map((n) => burstByName(n)).filter((b) => b && b.on !== 'ally' && b.on !== 'allies' && b.t <= burstTierMax(o.level));
+        const pick = !burstUsed.has(bkey) && known.find((b) => cur.pp >= b.pp && o.atp >= burstCost(o, b).atp && (b.on !== 'creature' || target));
+        if (pick) {
+          burstUsed.add(bkey);
+          console.log(`  (${o.name} casts ${pick.n}${pick.on === 'creature' || pick.vs === 'MT' ? ` at ${target.name}` : ''})`);
+          try { act('player', o.playerId, { type: 'act', organismId: o.id, action: 'burst', burst: pick.n, targetId: pick.on === 'creature' || pick.vs === 'MT' ? target.cid : undefined }); tally.bursts += 1; continue; } catch (e) { console.log(`    (the Burst was refused: ${e.message})`); }
         }
         if (target && cur.pp >= cost) {
           console.log(`  (${o.name} strikes ${target.name})`);
