@@ -80,7 +80,7 @@ test('tools refuse in plain words and name what exists', () => {
   const T = table();
   hero(T, 'p1', 'Bryn');
   const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 1 });
-  assert.match(B.run('ask_for_roll', { characters: ['Zed'], kind: 'check', skill: 'stealth', dc: 10, reason: 'x' }).refused, /Bryn/);
+  assert.match(B.run('ask_for_roll', { characters: ['Zed'], kind: 'check', skill: 'stealth', dc: 10, reason: 'x' }).note, /Bryn/); // a note since the part 2 bench
   assert.match(B.run('move_party', { place: 'sanctum' }).refused, /cannot be reached/);
   assert.match(B.run('monster_action', { monster: 'orc', action: 'Greataxe', targets: ['Bryn'] }).refused, /No monster/);
   const moved = B.run('move_party', { place: 'mill-road' });
@@ -268,4 +268,19 @@ test('a closing question put to someone the Director plays goes to the players i
   const ok = scripted([{ text: 'The Reeve waits. Bryn, will you take the job?' }]);
   const out2 = await directorTurn({ state: out.state, adventure, srd, provider: ok, rng: makeRng(1), reason: 'a player spoke' });
   assert.match(out2.narration, /Bryn, will you take the job\?$/);
+});
+
+test('part 2 bench: a fight already on, a roll for someone outside the party, and XP for nobody are notes', () => {
+  const T = table(9);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  B.do({ type: 'fight.start', autoRoll: true });
+  assert.ok(B.run('start_combat', {}).note);
+  assert.ok(B.run('ask_for_roll', { characters: ['Nell'], kind: 'save', ability: 'dex', dc: 12, reason: 'dodge' }).note);
+  const g = Object.values(B.state.foes)[0];
+  assert.ok(B.run('reveal_monsters', { monsters: [g.name] }).note);
+  for (const p of Object.values(B.state.pcs)) p.dead = true;
+  assert.ok(B.run('award_xp', { amount: 300, why: 'Nell freed' }).note);
+  assert.equal(B.refusals, 0);
 });

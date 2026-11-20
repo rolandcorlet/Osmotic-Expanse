@@ -81,7 +81,8 @@ export const TOOLS = [
     }, ['characters', 'kind', 'dc', 'reason']),
     run(a, T) {
       const all = listOf(a.characters).map((x) => findPc(T.state, x)).filter(Boolean);
-      if (!all.length) return { refused: `Name characters who are in the party: ${party(T.state)}.` };
+      // Naming someone outside the party (Nell, Grisk) asks nothing of anyone (part 2 bench, 20 Nov).
+      if (!all.length) return { note: `Nothing asked: only the party's characters roll on their screens (${party(T.state)}). For a monster use monster_save, or monster_action for its attack; for anyone else you play, decide it or use roll_dice.` };
       // A dying character's only roll is the death save the Engine asks for on their turn (benches 3 and 5).
       const down = all.filter((p) => p.hp <= 0 && !p.dead);
       const ids = all.filter((p) => p.hp > 0 && !p.dead).map((p) => p.id);
@@ -135,8 +136,10 @@ export const TOOLS = [
       const ids = listOf(a.monsters).map((x) => (findFoe(T.state, x) || {}).id).filter(Boolean);
       // Nothing hidden is nothing to do, not a broken rule (bench, 20 Nov).
       if (!Object.values(T.state.foes).some((f) => f.siteId === T.state.scene.siteId && f.hidden && !f.dead)) return { note: `Nothing changed: no monster here is hidden. Here: ${here(T.state)}.` };
-      const no = T.do({ type: 'foe.reveal', foeIds: ids.length ? ids : undefined });
-      return no ? { refused: no } : { here: here(T.state) };
+      const hiddenIds = ids.filter((id) => T.state.foes[id] && T.state.foes[id].hidden);
+      if (ids.length && !hiddenIds.length) return { note: `Nothing changed: those monsters are already in plain sight. Here: ${here(T.state)}.` };
+      const no = T.do({ type: 'foe.reveal', foeIds: hiddenIds.length ? hiddenIds : undefined });
+      return no ? { note: `Nothing changed: ${no}` } : { here: here(T.state) };
     },
   },
   {
@@ -145,6 +148,8 @@ export const TOOLS = [
     parameters: obj({ surprised: A('Optional: names of anyone surprised (they lose their first turn).') }),
     run(a, T) {
       const before = T.state.seq;
+      // Already fighting (part 2 bench, 20 Nov): nothing to start. Say where the fight stands instead.
+      if (T.state.fight) return { note: 'Nothing changed: the fight is already on. Carry on with it.', ...T.fightBrief() };
       const no = T.do({ type: 'fight.start', surprised: listOf(a.surprised) });
       if (no) return { refused: no };
       return { ...T.fightBrief(), ...since(T, before) };
@@ -318,6 +323,7 @@ export const TOOLS = [
     description: 'Award experience points at a milestone the place\'s notes name, or for overcoming a real challenge without a fight. Not for ordinary rolls or conversation (fights award their own XP when they end). The amount is shared between the characters unless each=true.',
     parameters: obj({ amount: I('The XP.'), each: B('True to give every character the full amount.'), why: S('What it is for.') }, ['amount', 'why']),
     run(a, T) {
+      if (!Object.values(T.state.pcs).some((p) => !p.dead)) return { note: 'Nothing changed: no living character is left to earn it.' };
       const no = T.do({ type: 'xp.award', amount: a.amount, each: truthy(a.each), why: a.why });
       return no ? { refused: no } : { ok: true, party: T.partyBrief() };
     },

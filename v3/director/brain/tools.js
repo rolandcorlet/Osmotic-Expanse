@@ -693,6 +693,9 @@ export const TOOLS = [
       const o = findOrg(T.state, a.organism);
       if (!o) return noOrg(a.organism, T.state);
       const no = T.do({ type: 'oath.swear', organismId: o.id, promise: a.promise, witness: a.witness || '' });
+      // Bench 20 Nov (Gemini, 4 times in 3 runs): the player offered "a promise" without saying it,
+      // and the Director wrote one for them. Nothing was sworn: a note sends it to ask for the words.
+      if (no && /^No player said that/.test(no)) return { note: `Nothing sworn yet: ${o.name}'s player has not said the promise in their own words. Ask them, in one question, what exactly ${o.name} swears and to whom; call swear_oath with their words when they answer.` };
       if (no) return { refused: no };
       const t = T.state.organisms[o.id];
       return { sworn: true, oath_boxes_left: `${t.oath}/${t.oathMax}` };

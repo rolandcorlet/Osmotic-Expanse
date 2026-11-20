@@ -723,7 +723,7 @@ test('the Director may not swear an Oath the table never said', () => {
   const scaffold = T.run('swear_oath', { organism: 'wall', promise: 'Bresk\'s own words: "We have no stamp. We offer a promise, witnessed and filed." \u2014 to be asked what is promised.', witness: 'the Order II fold' });
   assert.match(scaffold.refused, /Director asking itself/);
   const invented = T.run('swear_oath', { organism: 'wall', promise: 'We will pay the toll in Specimens at the gate', witness: 'the Order II fold' });
-  assert.match(invented.refused, /No player said that/);
+  assert.match(invented.note, /Nothing sworn yet/); // a note: nothing changed, ask for the words (bench 20 Nov)
   const clean = T.run('swear_oath', { organism: 'wall', promise: 'We have no stamp. We offer a promise, witnessed and filed.', witness: 'the Order II fold' });
   assert.equal(clean.sworn, true, 'their words, exactly, go in');
   assert.equal(T.state.organisms.wall.oath, 4, 'and only the clean one spent a box');

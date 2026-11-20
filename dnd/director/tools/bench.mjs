@@ -204,8 +204,10 @@ async function runOnce(n) {
     // On a player's turn in a fight, the closing question goes to that player.
     const who = actingPc();
     const otherRoll = (s.requests || []).some((q) => !who || q.pcId !== who.id);
+    const ownRoll = (s.requests || []).some((q) => who && q.pcId === who.id);
     // A dying character has nothing to choose, and a roll in the air belongs to whoever must make it.
-    if (who && who.playerId && who.hp > 0 && !otherRoll) {
+    // A roll asked of the acting player is their prompt: no closing question is needed (bench part 2, run 10).
+    if (who && who.playerId && who.hp > 0 && !otherRoll && !ownRoll) {
       const last = out.narration.split(/(?<=[.!?])\s+/).filter((x) => x.includes('?')).pop() || '';
       if (!new RegExp(`\\b${who.name}\\b`).test(last)) { tally['wrong-seat'] += 1; notes.push(`${label}: closing question not to ${who.name}: "${last.slice(0, 120)}"`); }
     }
@@ -254,7 +256,18 @@ async function runOnce(n) {
         const pid = pc.playerId;
         const foe = Object.values(s.foes).find((f) => f.siteId === s.scene.siteId && !f.dead && !f.hidden);
         if (s.requests.some((q) => q.pcId === pc.id)) { await answerRolls(`${pc.name} save`); continue; }
-        if (foe && pc.hp > 0) {
+        // A friend dying on the floor comes first: a cleric with a slot heals them (Cure Wounds, or
+        // Healing Word as a bonus action), as a real player would (bench 20 Nov: Grisk took three runs).
+        const down = Object.values(s.pcs).find((x) => x.id !== pc.id && x.hp <= 0 && !x.dead && !x.stable);
+        const heal = pc.hp > 0 && pc.cast && ['healing-word', 'cure-wounds'].find((id) => [...(pc.cast.prepared || []), ...(pc.cast.known || [])].includes(id));
+        const slotLeft = pc.cast && pc.cast.slots.some(([m, u]) => m && u < m);
+        if (down && heal && slotLeft) {
+          act('player', pid, { type: 'say', text: `Hold on, ${down.name}! I heal you.` });
+          try {
+            act('player', pid, { type: 'spell.cast', pcId: pc.id, spell: heal, target: `pc:${down.id}` });
+            if (verbose) console.log(`    ${pc.name} casts ${heal} on ${down.name}: ${s.pcs[down.id].hp} hp`);
+          } catch (e) { if (verbose) console.log(`    (${pc.name} could not heal: ${e.message})`); }
+        } else if (foe && pc.hp > 0) {
           act('player', pid, { type: 'say', text: `I attack ${foe.name}!` });
           const atk = pc.cls === 'cleric' ? 'w:mace' : pc.attacks[0].id;
           act('player', pid, { type: 'attack', pcId: pc.id, attack: pc.attacks.some((a) => a.id === atk) ? atk : pc.attacks[0].id, target: `foe:${foe.id}` });
