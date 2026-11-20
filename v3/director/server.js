@@ -39,7 +39,28 @@ const SAVE = join(SAVE_DIR, 'session.json');
 const bestiary = loadBestiary();
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
-const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state });
+const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state, alsoSpeakable: (t) => publicSpeech(t) });
+
+// The words a screen may have read aloud besides the Director's narration: everything the
+// adventure shows its players, the organisms on offer, and the books every player may open.
+// Compared without punctuation or case, so a sentence split on a screen still matches.
+const speechNorm = (t) => String(t || '').toLowerCase().replace(/[\u2018\u2019]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim();
+let speechBooks = null;
+function publicSpeech(text) {
+  const t = speechNorm(text);
+  if (t.length < 2) return false;
+  if (speechBooks == null) {
+    speechBooks = Object.values(BOOK_FILES).filter(([, hostOnly]) => !hostOnly).map(([f]) => {
+      try { return speechNorm(readFileSync(join(here, '..', 'books', f), 'utf8')); } catch (e) { return ''; }
+    }).join(' | ');
+  }
+  const strings = [];
+  const walk = (v) => { if (typeof v === 'string') strings.push(v); else if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === 'object') Object.values(v).forEach(walk); };
+  try { walk(vector.publicScenario(scenario)); } catch (e) { /* no scenario yet */ }
+  for (const o of Object.values((state && state.organisms) || {})) strings.push(o.name, o.hand, o.phenotype, o.tie, o.firstMove || '', ...(o.kit || []));
+  strings.push('You play one of these. In this world a character is called an organism.');
+  return speechNorm(strings.join(' | ')).includes(t) || speechBooks.includes(t);
+}
 // Saved games: named slots, an autosave, and the Supabase backup copy (slots.js).
 const slots = createSlots({
   dir: SAVE_DIR,

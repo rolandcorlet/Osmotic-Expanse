@@ -24,7 +24,7 @@ const MAX_SAY = 600;       // characters in one sentence request
 const MAX_CLIP = 4 << 20;  // bytes of audio from the talk button
 const CACHE = 80;          // sentences kept, so several screens speaking the same line pay once
 
-export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
+export function createVoice({ saveDir, fetchImpl = fetch, getState, alsoSpeakable = null }) {
   const file = join(saveDir, 'voice.json');
   const cfg = JSON.parse(JSON.stringify(DEFAULTS));
   try {
@@ -86,7 +86,9 @@ export function createVoice({ saveDir, fetchImpl = fetch, getState }) {
     async say(text) {
       if (cfg.out.engine !== 'server') return { ok: false, error: 'The Director speaks with each screen\'s own voice.' };
       const t = String(text || '').trim().slice(0, MAX_SAY);
-      if (!narrated(t)) return { ok: false, error: 'Only the Director\'s narration is spoken.' };
+      // Besides the Director's narration, the game's own public words may be read out: the
+      // adventure's player-facing text, the organisms on offer, and the players' books.
+      if (!narrated(t) && !(alsoSpeakable && alsoSpeakable(t))) return { ok: false, error: 'Only the Director\'s narration and the game\'s public text are spoken.' };
       const id = createHash('sha1').update(`${cfg.out.model}|${cfg.out.voice}|${cfg.out.speed}|${t}`).digest('hex');
       if (cache.has(id)) return cache.get(id);
       const job = (async () => {

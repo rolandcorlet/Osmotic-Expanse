@@ -1235,13 +1235,15 @@ function chooseHandHtml() {
       <span class="small dim">${esc(o.tie)}</span>
       <span class="small faint">${taken ? `played by ${esc(playerName(o))}` : `MI ${o.miMax} · PP ${o.ppMax} · MT ${o.mt}`}</span></button>`;
   }).join('');
-  return `<div class="stack">${standInListHtml()}<section class="card"><h3>Choose your character</h3>
+  const canRead = canSpeakLocal() || serverVoice();
+  const reading = V.q.length || V.playing;
+  return `<div class="stack">${standInListHtml()}<section class="card"><h3>Choose your character${canRead ? `<span class="right">${reading ? '<button class="btn sm" data-act="hands.stop">Stop</button>' : '<button class="btn sm primary" data-act="hands.read" title="Read this page aloud: the story, then each organism">&#128266; Read aloud</button>'}</span>` : ''}</h3>
     ${sc.pitch ? `<p class="tale" style="margin-bottom:10px">${esc(sc.pitch)}</p>` : ''}
     <p class="dim small" style="margin-bottom:8px">You play one of these. In this world a character is called an organism. Tap one to read it.</p>
     <div class="hands">${hands}${(state.zero || {}).custom === false ? '' : `<button class="hand build" data-act="gen.open"><b>Build your own</b><span class="dim small">Choose your own lineage, class, talents and kit.</span><span class="small">A short guided builder, one step per screen. About five minutes.</span></button>`}</div>
     ${ui.claim.hand ? `<div class="fld"><span class="fl">Name your organism</span><div class="row"><input type="text" class="grow" data-k="claim.name" data-bind="claim.name" value="${esc(ui.claim.name)}" maxlength="40" placeholder="For example: Bresk of the Sixth Choir" autocomplete="off"><button class="btn" data-act="name.random">Random name</button></div>
       <span class="small faint">Tap Random name as often as you like, or type your own.</span></div>
-    <button class="btn primary big" data-act="claim.go">Play this organism</button>` : '<p class="dim small">Tap a Hand to read it, then give it a name.</p>'}
+    <div class="row"><button class="btn primary big grow" data-act="claim.go">Play this organism</button>${canRead ? `<button class="btn big" data-act="hands.read" data-id="${ui.claim.hand}" title="Read this organism aloud">&#128266; Hear it</button>` : ''}</div>` : '<p class="dim small">Tap a Hand to read it, then give it a name.</p>'}
   </section></div>`;
 }
 
@@ -1873,6 +1875,18 @@ const ACT = {
     pumpVoice();
   },
   'book.stop': () => { stopVoice(); },
+  // Choose your character, read aloud: the story first, then each organism (or just the one tapped).
+  'hands.read': (d) => {
+    const say = (o) => [`${o.hand}.`, `${o.phenotype}.`, (sc.handsPlain || {})[o.id] || '', o.tie || ''].filter(Boolean);
+    const list = Object.values(state.organisms).filter((o) => !d.id || o.id === d.id);
+    const lines = d.id ? list.flatMap(say) : [sc.pitch || '', 'You play one of these. In this world a character is called an organism.', ...list.flatMap(say)];
+    stopVoice();
+    V.blocked = false;
+    try { if (canSpeakLocal()) speechSynthesis.resume(); } catch (e) { /* fine */ }
+    V.q = lines.filter(Boolean).flatMap(splitSentences).map((text) => ({ text, clip: serverVoice() ? fetchClip(text) : null }));
+    pumpVoice();
+  },
+  'hands.stop': () => { stopVoice(); render(); },
   // The host covers an organism whose player is away: the Director plays it. If it is that body's turn
   // now, the Director is asked to take it straight away.
   'org.cover': async (d) => {
