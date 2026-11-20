@@ -250,3 +250,25 @@ details>summary:hover{color:var(--ink)}
 .pregen.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--panel2))}
 .pregen b{font-size:15px;color:var(--accent)}
 .pregen .chip{font-size:11px}
+
+/* ---- phones and tablets: every tab in reach, readable tiles, a story you can read ---- */
+@media (max-width:1050px){
+  /* the story is the game: it gets real height and keeps its own scroll, pinned to the newest line */
+  .story.scroll{overflow-y:auto;min-height:34vh;max-height:58vh;overscroll-behavior:contain}
+  #nav{gap:4px;padding:5px 6px calc(5px + env(safe-area-inset-bottom))}
+  #nav .tab{min-height:42px}
+}
+@media (max-width:640px){
+  /* all the tabs on screen at once: two rows of four, no sideways scrolling to find Story or Colours */
+  #nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
+  #nav .tab{padding:8px 2px;font-size:13px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  /* six numbers in one row do not fit a phone: three a row, labels whole */
+  .tiles{grid-auto-flow:row;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tile .tl{white-space:normal;overflow:visible;text-overflow:clip}
+  .fields.four,.fields.six,.fields.three,.fields{grid-template-columns:minmax(0,1fr)}
+  #main{padding:8px}
+  .card{padding:10px 11px}
+  .btn{min-height:40px}
+  .chip{min-height:30px}
+  .toast{bottom:110px}
+}
