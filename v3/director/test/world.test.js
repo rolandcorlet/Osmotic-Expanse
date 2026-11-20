@@ -24,8 +24,14 @@ function seated(sc) {
 test('a Tolerance contest is held to its printed Threshold, which follows the Host\'s mood', () => {
   const { s, rng } = seated(swallow);
   const T = toolbox({ state: s, scenario: swallow, bestiary, rng });
-  assert.match(T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Answer the Sentinel\'s challenge' }).refused, /AT 14/);
-  assert.match(T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 14, what_for: 'Answer the Sentinel\'s challenge', sponsored: true }).refused, /AT 10/);
+  // The Engine knows the printed Threshold and uses it, saying so (bench 20 Nov), rather than refusing.
+  const r1 = T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 12, what_for: 'Answer the Sentinel\'s challenge' });
+  assert.equal(r1.threshold, 14);
+  assert.match(r1.note, /AT 14/);
+  T.state.requests = [];
+  const r2 = T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 14, what_for: 'Answer the Sentinel\'s challenge', sponsored: true });
+  assert.equal(r2.threshold, 10);
+  T.state.requests = [];
   assert.ok(T.run('ask_for_roll', { organism: 'eyes', baseline: 'OSM', pathway: 'Chemoreception', threshold: 10, what_for: 'Answer the Sentinel\'s challenge', sponsored: true }).waiting_for);
   T.run('move_clock', { clock: 'GOODWILL', change: -1, why: 'struck the wall' });
   assert.match(briefing(T.state, swallow, bestiary), /GOODWILL is Wary/);

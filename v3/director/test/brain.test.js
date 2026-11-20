@@ -86,14 +86,16 @@ test('the Engine refuses what is off the page', () => {
   assert.match(T.run('end_pulse_war', {}).note, /no Pulse War running/);
   assert.match(T.run('ask_for_roll', { organism: 'wall', baseline: 'VSC', threshold: 5, what_for: 'x' }).refused, /between 8 and 28/);
   assert.match(T.run('ask_for_roll', { organism: 'rider', baseline: 'DFF', threshold: 12, what_for: 'x' }).refused, /No organism/);
+  // No organism named: it is whoever spoke last (bench 20 Nov), or a note when nobody has.
+  assert.ok(T.run('ask_for_roll', { baseline: 'VSC', threshold: 12, what_for: 'y' }).note);
   assert.match(T.run('change_site', { site: 'gut-stone' }).refused, /cannot be reached/);
-  assert.match(T.run('award', { codon: 500, why: 'x' }).refused, /not printed for this site/);
+  assert.match(T.run('award', { codon: 500, why: 'x' }).note, /not printed for this site/); // a note since 20 Nov
   assert.match(T.run('creature_strike', { creature: 'ghost', target: 'wall' }).refused, /No creature/);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'a loud fight' }).now, '1/5');
   assert.match(T.run('move_clock', { clock: 'TOLL', change: 1, why: 'again' }).note, /already taken your one advance/);
   assert.equal(T.run('move_clock', { clock: 'TOLL', change: -1, why: 'a toll chit' }).now, '0/5');
   assert.match(T.run('rest', {}).rested ? 'ok' : 'no', /ok/);
-  assert.equal(T.refusals, 6, 'repeats of what is already true are notes, not refusals');
+  assert.equal(T.refusals, 5, 'repeats of what is already true are notes, not refusals (an unprinted Codon amount too, since 20 Nov)');
   assert.equal(Object.keys(T.state.creatures).length, 2, 'only the printed two swarms came in');
 });
 
@@ -380,7 +382,7 @@ test('the Engine pays a printed reward once per organism per site, for the Direc
   // The per-swarm Codon is the Engine's to pay at harvest, never an award. The refusal is worded in
   // table language, not "paid by the Engine": the Director repeats what it is told (13 Nov leak).
   assert.match(T.run('award', { why: 'A swarm given water and gone', codon: 1.5, organisms: ['wall'] }).refused, /is paid when a gnaw swarm is harvested: harvest a destroyed one/);
-  assert.match(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }).refused, /5 Codon is not printed for this site/);
+  assert.match(T.run('award', { why: 'Finding the stamp', codon: 5, organisms: ['wall'] }).note, /5 Codon is not printed for this site/);
   let h = apply(s, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
   h = apply(h, { type: 'award', codon: 15, why: 'Entering legally under an Order II oath', organismIds: ['wall'] }, ctx('host', null));
   assert.equal(h.organisms.wall.codon, 30);

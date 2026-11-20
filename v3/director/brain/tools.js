@@ -167,21 +167,29 @@ export const TOOLS = [
       sponsored: B('A Tolerance contest where the Cohort is sponsored or carries a valid token (The Long Swallow: AT 10).'),
     }, ['organism', 'baseline', 'threshold', 'what_for']),
     run(a, T) {
-      const o = findOrg(T.state, a.organism);
-      if (!o) return noOrg(a.organism, T.state);
-      const at = Math.trunc(Number(a.threshold));
+      // No organism named (bench 20 Nov, 6 times in 6 runs): the roll belongs to whoever just spoke.
+      let who = a.organism;
+      if (!who) {
+        const said = [...(T.state.story || [])].reverse().find((e) => e.kind === 'say' && e.orgId);
+        if (said) who = said.orgId;
+        else return { note: `Nothing asked: say which organism rolls (organism: ${Object.values(T.state.organisms).filter((x) => x.playerId).map((x) => `${x.id} (${x.name})`).join(', ')}).` };
+      }
+      const o = findOrg(T.state, who);
+      if (!o) return noOrg(who, T.state);
+      let at = Math.trunc(Number(a.threshold));
       if (!(at >= 8 && at <= 28)) return { refused: 'A Threshold is between 8 and 28: use the ladder (8, 12, 16, 20) or a number the page prints here.' };
       // In a Pulse War a Strike is rolled by the table on the player's own turn; asking for it as a check
       // gives a free extra throw (bench 15 Nov: "Flail the Protease Warden" asked of a player whose turn it was not).
       if (T.state.fight && /\b(?:flail|strike|swing|stab|slash|attack|lunge|thrust|hack|cleave|claw at|drive the (?:dagger|blade))\b/i.test(String(a.what_for))) {
         return { note: `A Strike in a Pulse War is not a check you ask for: the player Strikes on their own turn, and the table rolls it. Nothing changed. Acting now: ${T.fightBrief().acting_now}. Put the question to them.`, ...T.fightBrief() };
       }
-      if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { refused: `${o.name} already has a roll waiting. Wait for it.` };
+      if (T.state.requests.some((q) => q.actor.kind === 'org' && q.actor.id === o.id)) return { note: `Nothing asked: ${o.name} already has a roll waiting. Wait for it.` };
       // The Long Swallow 6.4: a Tolerance contest's Threshold is printed and the Engine knows the mood.
       const tol = ((T.scenario.rules || {}).tolerance);
       if (tol && /\b(tolerance|sentinel|challenge|antigen|chemically correct|read as (?:own|self))\b/i.test(String(a.what_for))) {
         const want = toleranceAT(T.state, T.scenario, truthy(a.sponsored));
-        if (at !== want) return { refused: `A Tolerance contest here is AT ${want} (${truthy(a.sponsored) ? 'sponsored' : `GOODWILL ${goodwillName(T.state, T.scenario)}`}; 14 printed, 10 sponsored, 18 if the Host is Wary or worse). Ask again at ${want}.` };
+        // The Engine knows the printed Threshold, so it uses it (bench 20 Nov: asked at 12, the page said 14).
+        if (at !== want) { a.__tolNote = `The Threshold is the printed one, AT ${want} (${truthy(a.sponsored) ? 'sponsored' : `GOODWILL ${goodwillName(T.state, T.scenario)}`}), not ${at}.`; at = want; }
       }
       const mods = listOf(a.modifiers);
       const bd = (T.scenario.rules || {}).badgeDice;
@@ -204,7 +212,7 @@ export const TOOLS = [
         if (no2) return { refused: no2 };
         return { ...lastRoll(T.state), note: `${o.name} is away, so the Director played this roll. Narrate the result, then go on.` };
       }
-      return { waiting_for: o.name, dice: q.pool.dice, threshold: at, chance_percent: Math.round((q.chance || 0) * 100), note: 'Tell the player what the roll is for, then end your turn.' };
+      return { waiting_for: o.name, dice: q.pool.dice, threshold: at, chance_percent: Math.round((q.chance || 0) * 100), note: `${a.__tolNote ? `${a.__tolNote} ` : ''}${a.organism ? '' : `It is ${o.name}'s roll (they spoke last). `}Tell the player what the roll is for, then end your turn.` };
     },
   },
   {
@@ -618,7 +626,7 @@ export const TOOLS = [
       const printed = printedPays(T.site());
       const auto = Object.entries(T.site().harvestPays || {}).find(([, x]) => Number(x.codon) === codon);
       if (codon && auto) return { refused: `${codon} Codon is paid when a ${auto[0].replace(/-/g, ' ')} is harvested: harvest a destroyed one and it comes with the cut. It is not paid for one that left, was given water, or was not cut.` };
-      if (codon && !printed.codon.includes(codon) && !printed.codonRanges.some(([lo, hi]) => codon >= lo && codon <= hi)) return { refused: `${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay a printed amount, or nothing.` };
+      if (codon && !printed.codon.includes(codon) && !printed.codonRanges.some(([lo, hi]) => codon >= lo && codon <= hi)) return { note: `Nothing paid: ${codon} Codon is not printed for this site. Printed here: ${printed.codon.length ? printed.codon.map((n) => `${n} Codon`).join(', ') : 'no Codon'}. Pay one printed amount for what the page names, or nothing.` };
       if (sub && !printed.substrate.some(([lo, hi]) => sub >= lo && sub <= hi)) return { refused: `${sub} S is not printed for this site. Printed here: ${printed.substrate.length ? printed.substrate.map(([lo, hi]) => (lo === hi ? `${lo} S` : `${lo} to ${hi} S`)).join(', ') : 'no Substrate'}. Pay a printed amount, or nothing.` };
       const ids = (a.organisms || []).map((r) => findOrg(T.state, r)).filter(Boolean).map((o) => o.id);
       const no = T.do({ type: 'award', codon, substrate: sub, why: a.why, organismIds: ids });
