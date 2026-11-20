@@ -247,6 +247,7 @@ async function runOnce(n) {
       console.log(`    DM: ${out.narration.replace(/\s+/g, ' ')}`);
       const bad = out.flags.filter((f) => f.kind !== 'note');
       if (bad.length) console.log(`    flags: ${bad.map((f) => `${f.kind}: ${f.text}`).join(' | ')}`);
+      for (const c of out.calls) if (c.result && c.result.refused) console.log(`    refused ${c.name}(${JSON.stringify(c.args || {}).slice(0, 160)}): ${c.result.refused}`);
     }
     void asked;
     return true;

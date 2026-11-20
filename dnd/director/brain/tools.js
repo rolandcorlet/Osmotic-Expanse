@@ -177,6 +177,8 @@ export const TOOLS = [
     run(a, T) {
       const foe = findFoe(T.state, a.monster);
       if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
+      // A monster that has already fallen does nothing: a note, not a broken rule (bench 21 Nov, the chapel).
+      if (foe.dead || foe.hp <= 0) return { note: `Nothing changed: ${foe.name} has already fallen and cannot act. Still standing: ${here(T.state)}.`, ...T.fightBrief() };
       const targets = pcTargets(T.state, a);
       const before = T.state.seq;
       const no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
