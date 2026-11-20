@@ -284,3 +284,20 @@ test('part 2 bench: a fight already on, a roll for someone outside the party, an
   assert.ok(B.run('award_xp', { amount: 300, why: 'Nell freed' }).note);
   assert.equal(B.refusals, 0);
 });
+
+test('part 2 bench: a milestone pays once, and the lantern quest closes only at the ford', () => {
+  const T = table(10);
+  hero(T, 'p1', 'Bryn');
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  B.do({ type: 'site.move', siteId: 'mill-road' });
+  const xp0 = Object.values(B.state.pcs)[0].xp;
+  assert.ok(B.run('award_xp', { amount: 300, why: 'Nell freed' }).ok);
+  assert.ok(B.run('award_xp', { amount: 300, why: 'the lantern recovered' }).note);
+  assert.equal(Object.values(B.state.pcs)[0].xp, xp0 + 300);
+  const lantern = B.state.quests.find((q) => /lantern/i.test(q.text));
+  assert.match(B.run('complete_quest', { quest: lantern.id }).note, /Not yet/);
+  assert.equal(B.state.quests.find((q) => q.id === lantern.id).done, false);
+  B.do({ type: 'site.move', siteId: 'thornwick' });
+  assert.ok(B.run('complete_quest', { quest: lantern.id }).ok);
+  assert.equal(B.refusals, 0);
+});

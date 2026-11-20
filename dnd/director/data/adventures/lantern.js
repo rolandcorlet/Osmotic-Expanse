@@ -9,6 +9,12 @@ export default {
   blurb: 'Fog has crept up from the Greyfen and people are vanishing into it. The old lantern that kept the marsh at bay has been stolen, and someone in the drowned chapel wants it lit for a darker purpose.',
   intro: 'Rain drums on the roof of the Ford Inn at Thornwick Ford, a village of forty roofs where the north road crosses the river Wend. Tonight the common room is crowded and quiet. For three nights a grey fog has rolled up from the Greyfen marsh, and on each of those nights someone has walked into it and not come back. The great brass lantern that has hung above the ford for a hundred years, the one the old folk swear keeps the marsh-lights away, is gone from its hook.',
   quests: ['Find out who stole the Lantern of the Ford and bring it home.', 'Find the people who vanished into the fog.'],
+  // Where each quest can be finished (bench part 2, 20 Nov: the lantern quest was closed at the
+  // watchtower, with the lantern still in Bryn's hands). The AI Director is held to these; the DM is not.
+  questDone: [
+    { match: 'lantern', at: ['thornwick'], when: 'the lantern is back on its hook over the ford, at Thornwick Ford' },
+    { match: 'vanished', at: ['sanctum', 'thornwick'], when: 'the vanished people are found, in the Pale Brother\'s sanctum or brought home' },
+  ],
   sites: [
     {
       id: 'thornwick', name: 'The Ford Inn, Thornwick Ford', region: 'Thornwick Ford',

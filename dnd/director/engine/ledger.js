@@ -1140,6 +1140,7 @@ H['xp.award'] = (s, a, ctx) => {
   if (!who.length) no('Nobody to award.');
   const each = a.each ? n : Math.floor(n / who.length);
   for (const p of who) p.xp = (p.xp || 0) + each;
+  if (a.site) (s.xpPaid = s.xpPaid || []).push(`${s.scene.siteId}:${n}`); // the AI Director pays a milestone once
   story(s, ctx, 'event', `${who.length > 1 ? 'Each of you earns' : `${who[0].name} earns`} ${each} XP${a.why ? ` for ${str(a.why, 80)}` : ''}.`, 'Engine');
   levelReady(s, ctx);
 };

@@ -324,7 +324,11 @@ export const TOOLS = [
     parameters: obj({ amount: I('The XP.'), each: B('True to give every character the full amount.'), why: S('What it is for.') }, ['amount', 'why']),
     run(a, T) {
       if (!Object.values(T.state.pcs).some((p) => !p.dead)) return { note: 'Nothing changed: no living character is left to earn it.' };
-      const no = T.do({ type: 'xp.award', amount: a.amount, each: truthy(a.each), why: a.why });
+      // A milestone pays once (bench part 2, 20 Nov: Nell's 300 XP was given at the fight's end and again
+      // when she was freed). The same amount awarded at the same place again is refused as a note.
+      const key = `${T.state.scene.siteId}:${Math.trunc(Number(a.amount) || 0)}`;
+      if ((T.state.xpPaid || []).includes(key)) return { note: `Nothing changed: ${a.amount} XP was already awarded here. A milestone is paid once.` };
+      const no = T.do({ type: 'xp.award', amount: a.amount, each: truthy(a.each), why: a.why, site: true });
       return no ? { refused: no } : { ok: true, party: T.partyBrief() };
     },
   },
@@ -332,7 +336,14 @@ export const TOOLS = [
     name: 'complete_quest',
     description: 'Mark one of the party\'s quests as done: only when everything it asks is finished (the lantern back on its hook, not just a lead on who took it).',
     parameters: obj({ quest: S('The quest id or a few words of it.') }, ['quest']),
-    run(a, T) { const no = T.do({ type: 'quest.done', id: a.quest }); return no ? { refused: no } : { ok: true }; },
+    run(a, T) {
+      const q = T.state.quests.find((x) => x.id === a.quest) || T.state.quests.find((x) => a.quest && x.text.toLowerCase().includes(String(a.quest).toLowerCase()));
+      const rule = q && ((T.adventure || {}).questDone || []).find((r) => q.text.toLowerCase().includes(r.match));
+      if (q && q.done) return { note: `Nothing changed: "${q.text}" is already complete.` };
+      if (rule && !rule.at.includes(T.state.scene.siteId)) return { note: `Not yet: "${q.text}" is complete only when ${rule.when}. Keep it open.` };
+      const no = T.do({ type: 'quest.done', id: a.quest });
+      return no ? { refused: no } : { ok: true };
+    },
   },
   {
     name: 'add_quest',
