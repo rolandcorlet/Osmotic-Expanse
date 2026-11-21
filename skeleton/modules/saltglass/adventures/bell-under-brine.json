@@ -1,0 +1,47 @@
+{
+  "id": "bell-under-brine",
+  "name": "The Bell Under Brine",
+  "pitch": "Auntie Pell will pay a fortune for the glass bell of the drowned cathedral. Nobody who went for it has come back.",
+  "level": 1,
+  "party": "2 to 4 divers",
+  "intro": "Lamp Dock at dusk. The tide is turning, and somewhere under your feet a bell you have never heard is ringing very softly. Auntie Pell taps a map on the table: the drowned cathedral, and a glass bell the size of a boat. 'Bring it up,' she says, 'and you'll never owe anyone again.'",
+  "secrets": "The bell keeps the drowned choir asleep. Whoever rings it calms the choir and stops the Tidewarden; whoever simply takes it wakes the whole cathedral. Auntie Pell sold the same map to a rival crew, the Saltmarks, who drowned in the nave: their lamp and their notes are there. The tide fills the cathedral in six ticks.",
+  "start": "dock",
+  "sites": [
+    { "id": "dock", "name": "Lamp Dock",
+      "read": "Tarred planks, swinging lamps, gulls arguing. Auntie Pell sits at a barrel with a map and a kettle. Below the dock, the water glows faintly green.",
+      "notes": "Pell offers 50 crowns each, or a share of the bell. A Standard Talk roll gets her to admit she sold the map before; a Gleam gets her to throw in a second lantern. A Standard Lore roll on the map shows the cathedral's bell chamber is reached through the nave.",
+      "exits": ["causeway"],
+      "clues": ["Pell's map has a second pin-hole, as if it was copied."] },
+    { "id": "causeway", "name": "The Sunken Causeway",
+      "read": "A road of glass slabs runs down into the dark, lit by your lanterns. Fish scatter. A cold current pulls at your legs.",
+      "notes": "The current: each diver makes a Standard Brawn + Swim roll or loses 3 Breath. Two glass eels hunt here, hidden until someone strays or fails the current roll.",
+      "exits": ["dock", "nave"],
+      "creatures": [ { "id": "glass-eel", "count": 2, "hidden": true } ],
+      "hazards": [ { "name": "Cold current", "stat": "brawn", "skill": "swim", "at": 12, "fail": "Lose 3 Breath." } ],
+      "clues": ["A torn rope with a Saltmark knot."] },
+    { "id": "nave", "name": "The Drowned Nave",
+      "read": "Pillars of green glass rise into the dark. Rows of pews float a hand above the floor. Somewhere ahead, very quietly, voices are singing.",
+      "notes": "The drowned choir sleeps in the pews. Loud work or a failed Sneak wakes it. The Saltmarks' lamp and notes are by the altar: the notes say 'Don't take it. Ring it.' A Deep Lore roll reads the hymn carved on the altar, which says the same.",
+      "exits": ["causeway", "bell"],
+      "creatures": [ { "id": "drowned-choir", "count": 1, "hidden": true } ],
+      "clues": ["The Saltmarks' notes: 'Don't take it. Ring it.'"] },
+    { "id": "bell", "name": "The Bell Chamber",
+      "read": "A round room of glass with the sea pressing on every wall. In the centre hangs a bell of clear glass, big as a boat, ringing faintly by itself. Before it stands a knight of green glass with a blade of moving water.",
+      "notes": "The Tidewarden attacks anyone who goes for the bell without ringing it. Ringing it properly takes a Deep Nerve + Lore roll (or Standard if they read the hymn). Ringing it stops the Tidewarden and quiets the choir for good; then the bell can be floated up with lines (Standard Brawn + Swim, two divers).",
+      "exits": ["nave"],
+      "creatures": [ { "id": "tidewarden", "count": 1, "hidden": false } ] }
+  ],
+  "quests": [
+    { "id": "bell", "text": "Bring the glass bell up to Lamp Dock.", "doneAt": ["dock"] },
+    { "id": "saltmarks", "text": "Find out what happened to the Saltmark crew." }
+  ],
+  "clocks": [
+    { "id": "tide", "name": "The Tide", "size": 6, "ticks": "When the divers rest, fight loudly, or fail a roll with a Blackout.", "fills": "The cathedral floods: every diver must make an Abyssal Brawn + Swim roll to reach the surface." }
+  ],
+  "npcs": [
+    { "name": "Auntie Pell", "role": "Dock boss", "want": "The bell, and her cut.", "voice": "Dry, slow, never quite smiling.", "secret": "She sold the map twice." }
+  ],
+  "ending": "If the divers ring the bell, the choir sleeps for good and the bell can be brought up: Pell pays, and the lamp guilds want to meet them. If they take it without ringing it, the cathedral wakes and they must flee with whatever they can carry.",
+  "reward": { "xp": 10, "other": "50 crowns each, and the lamp guilds' favour if the bell was rung." }
+}

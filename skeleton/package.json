@@ -1,0 +1,14 @@
+{
+  "name": "game-skeleton",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A skeleton for tabletop role-playing games with an AI Director, built from the Osmotic Expanse Director: a d6 dice Engine, a shared Ledger, host/table/player screens, and a converter that turns rule books or ideas into game modules.",
+  "type": "module",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "convert": "node tools/convert.mjs",
+    "prompts": "node tools/make-prompts.mjs"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format": "skeleton-module/1",
+  "id": "saltglass",
+  "name": "Saltglass",
+  "tagline": "Salvage divers in a drowned city of glass.",
+  "tone": "Cold water, lamplight and wonder. Danger is real, but the drowned city is beautiful, and the divers are poor, brave and funny.",
+  "audience": "Teens and adults",
+  "credits": "A sample module for the skeleton, written to show the format. Replace it with your own game.",
+  "terms": {
+    "difficulty": "Depth",
+    "snag": "Crack",
+    "surge": "Gleam",
+    "health": "Breath",
+    "strain": "Strain",
+    "character": "Diver",
+    "creature": "Thing below",
+    "xp": "Salvage",
+    "level": "Dive rank"
+  }
+}
