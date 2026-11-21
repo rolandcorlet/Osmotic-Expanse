@@ -2,6 +2,7 @@
 //   node server.js [--port 8790] [--module saltglass] [--adventure id] [--new] [--key secret]
 // No packages to install: Node 18 or later only.
 
+import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
@@ -16,7 +17,7 @@ import { createSettings } from './brain/settings.js';
 import { publicProviders, testConnection, pickDefaultModel } from './brain/providers.js';
 import { createVoice } from './brain/voice.js';
 
-const ROOT = new URL('.', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const MOD_DIR = join(ROOT, 'modules');
 const SAVE_DIR = join(ROOT, 'saves');
 const PUB = join(ROOT, 'public');

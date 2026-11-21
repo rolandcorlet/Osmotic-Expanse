@@ -3,11 +3,12 @@
 // truth (engine/schema.js and brain/convert-guide.md), so the documents never drift from the code.
 //   node tools/make-prompts.mjs
 
+import { fileURLToPath } from 'node:url';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { DICE, TEMPLATES, FORMAT } from '../engine/schema.js';
 import { GUIDE } from '../brain/converter.js';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const fence = (t, lang = 'jsonc') => `\`\`\`${lang}\n${t}\n\`\`\``;
 const files = { module: 'module.json', rules: 'rules.json', handbook: 'handbook.json', bestiary: 'bestiary.json', lore: 'lore.json', adventure: 'adventures/<adventure-id>.json' };
 const templates = Object.entries(TEMPLATES).map(([k, t]) => `### ${files[k]}\n\n${fence(t)}`).join('\n\n');

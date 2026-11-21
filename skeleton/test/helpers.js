@@ -1,8 +1,9 @@
+import { fileURLToPath } from 'node:url';
 import { makeRng } from '../engine/dice.js';
 import { loadModule } from '../engine/module.js';
 import { newSession, apply } from '../engine/ledger.js';
 
-export const mod = loadModule(new URL('../modules', import.meta.url).pathname, 'saltglass');
+export const mod = loadModule(fileURLToPath(new URL('../modules', import.meta.url)), 'saltglass');
 export function table(seed = 7) {
   const rng = makeRng(seed);
   let now = 1000;

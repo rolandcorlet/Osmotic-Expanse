@@ -9,6 +9,7 @@
 // It uses the AI chosen on the host console (saves/director.json), or --provider, --model and --key.
 // Source files are plain text or Markdown (save a PDF or Word file as text first).
 
+import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { convert } from '../brain/converter.js';
@@ -16,7 +17,7 @@ import { createSettings } from '../brain/settings.js';
 import { build } from '../brain/providers.js';
 import { loadModule, saveModule, listModules, check } from '../engine/module.js';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const MOD_DIR = join(ROOT, 'modules');
 const argv = process.argv.slice(2);
 const flag = (k) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : ''; };
