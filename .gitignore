@@ -19,6 +19,10 @@ __pycache__/
 # rendered lesson videos (large; upload to YouTube instead)
 lessons/video/
 
+# Generated exports: .docx books are built from the .md source via
+# tools/md2docx.py; regenerate locally instead of committing the binary.
+*.docx
+
 # D&D bench logs stay on the computer that ran them
 dnd/director/*.log
 v3/director/*.log
