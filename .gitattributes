@@ -1,0 +1,33 @@
+# Line endings. Text is stored with LF inside git and checked out as CRLF, so the
+# Windows .bat launchers keep working and `git status` stops reporting whole files
+# as changed when only the end-of-line marker flipped.
+* text=auto eol=crlf
+
+# Launchers must stay CRLF in the repository too, whatever reads them.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Never run end-of-line conversion over these.
+*.docx binary
+*.dotx binary
+*.xlsx binary
+*.pptx binary
+*.pdf  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.mp3  binary
+*.mp4  binary
+*.wav  binary
+*.m4a  binary
+*.ttf  binary
+*.woff binary
+*.woff2 binary
+*.apk  binary
+*.jar  binary
+*.zip  binary
+*.sav  binary
