@@ -88,7 +88,7 @@ WRITING THE FILES
 
 HOW THIS CHAT WORKS
 1. First, tell me in a few lines what you understood: the game's premise, its tone, and how its main mechanics will map
-   onto the d6 core (what becomes the stats, the strain track, the callings, the abilities). Ask me at most three
+   onto the Skeleton (which dice system, and what becomes the stats, the strain track, the callings, the abilities). Ask me at most three
    questions if something important is unclear; otherwise carry on.
 2. Then write the files in this order, one per reply, each in its own ```json block headed with its file name:
    module.json, rules.json, handbook.json, bestiary.json, lore.json, then one adventures/<id>.json for each adventure.
