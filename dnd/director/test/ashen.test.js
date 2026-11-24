@@ -244,3 +244,16 @@ test('a monster action named for a character is a note, not a refusal (bench par
   assert.ok(!out.refused, 'no refusal');
   assert.match(out.note, /one of the party/);
 });
+
+test('a weapon the monster does not have swings its listed weapon, not a refusal (bench part 3, 24 Nov)', () => {
+  const T = table(11);
+  T.as('p1', { type: 'join', name: 'Roly' });
+  T.as('p1', { type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  T.host({ type: 'foe.reveal' });
+  const cap = Object.values(T.s.foes).find((f) => f.mid === 'ac-iron-brand-captain');
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(2), now: 2 });
+  const out = tb.run('monster_action', { monster: cap.name, action: 'Moonblade', targets: [`pc:${pc.id}`] });
+  assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
+  assert.match(out.happened.join(' '), /attacks .* with Scimitar/);
+});

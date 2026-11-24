@@ -211,7 +211,21 @@ export const TOOLS = [
         return { note: `Nothing changed: ${foe.name} speaking or waiting needs no tool. Say it in the narration, then use monster_action for what it actually does (${here(T.state)}), or end_turn.`, ...T.fightBrief() };
       const targets = pcTargets(T.state, a);
       const before = T.state.seq;
-      const no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
+      let no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
+      // A weapon the stat block does not have (bench part 3, 24 Nov: "Scimitar" on a skeleton with a Shortsword):
+      // the monster swings its first listed weapon instead. With no weapon listed, a note names what it has.
+      const listed = no && /has no action called .*Its actions: ([^.]*)\./.exec(no);
+      if (listed) {
+        const names = listed[1].split(',').map((x) => x.trim()).filter(Boolean);
+        const WEAPON = /sword|scimitar|axe|bow|dagger|spear|mace|club|hammer|bite|claw|slam|fist|hook|talon|tail|whip|flail|pick|rapier|glaive|halberd|javelin|sling|crossbow|blade|strike|smash|stab/i;
+        const pick = names.find((n) => WEAPON.test(n) && new RegExp(`\\b${String(a.action || '').split(/\s+/)[0].replace(/[^a-z]/gi, '')}`, 'i').test(n)) || names.find((n) => WEAPON.test(n));
+        if (pick) {
+          const again = T.do({ type: 'foe.act', foeId: foe.id, action: pick, targets, adv: lower(a.advantage) });
+          if (!again) return { ...since(T, before), party: T.partyBrief() };
+          no = again;
+        }
+        if (no) return { note: `Nothing changed: ${foe.name} has no action called "${a.action}". Its actions: ${names.join(', ')}. Use one of those.`, ...T.fightBrief() };
+      }
       // Acting out of turn changes nothing: a note that says who is up, not a rule broken (as in the v3 Director).
       if (no && /\bnot .*\bturn\b/i.test(no)) return { note: `Nothing changed: ${no}`, ...T.fightBrief() };
       if (no) return { refused: no };
