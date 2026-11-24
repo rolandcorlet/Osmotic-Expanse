@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { DICE, TEMPLATES, checkModule, checkRules, checkHandbook, checkBestiary, checkLore, checkAdventure, FORMAT } from '../engine/schema.js';
 import { prepare, check } from '../engine/module.js';
+import { SYSTEMS, getSystem } from '../engine/dicesystems.js';
 
 export const GUIDE = readFileSync(new URL('./convert-guide.md', import.meta.url), 'utf8').replace('{{DICE}}', DICE);
 export const MODES = {
@@ -37,7 +38,7 @@ function checker(section, made) {
   if (section === 'module') return (x) => checkModule({ ...x, format: FORMAT });
   if (section === 'rules') return (x) => checkRules(x);
   if (section === 'handbook') return (x) => checkHandbook(x, made.rules);
-  if (section === 'bestiary') return (x) => checkBestiary(x);
+  if (section === 'bestiary') return (x) => checkBestiary(x, made.rules);
   if (section === 'lore') return (x) => checkLore(x);
   return (x) => checkAdventure(x, { bestiary: made.bestiary, rules: made.rules });
 }
@@ -47,6 +48,9 @@ function madeSoFar(made) {
   const L = [];
   if (made.module) L.push(`module: ${made.module.name} (${made.module.id}). Terms: ${JSON.stringify(made.module.terms || {})}`);
   if (made.rules) {
+    const S = getSystem(made.rules);
+    const R = S.ranges;
+    L.push(`dice system: ${S.id} (${S.name}). In it: stats ${R.stat[0]}-${R.stat[1]}, skills 0-${R.skill[1]}, difficulties ${R.at[0]}-${R.at[1]} (ladder: ${(made.rules.ladder || []).map((x) => `${x.name} ${x.at}`).join(', ')}), creature attack ratings ${R.rating[0]}-${R.rating[1]}, creature defences ${R.defence[0]}-${R.defence[1]}, modifiers ${R.mod[0]} to ${R.mod[1]}.`);
     L.push(`stats: ${(made.rules.stats || []).map((s) => s.id).join(', ')}`);
     L.push(`skills: ${(made.rules.skills || []).map((s) => `${s.id} (${s.stat})`).join(', ')}`);
     L.push(`conditions: ${(made.rules.conditions || []).map((s) => s.id).join(', ')}`);
@@ -72,7 +76,7 @@ const ASK = {
 };
 
 // sections: which to write, in this order. existing: a module to extend (its sections are kept).
-export async function convert({ provider, mode = 'invent', source = '', ideas = '', name = '', notes = '', sections, existing = null, onProgress = () => {} }) {
+export async function convert({ provider, mode = 'invent', source = '', ideas = '', name = '', notes = '', sections, existing = null, dice = '', onProgress = () => {} }) {
   if (!MODES[mode]) throw new Error(`Mode must be one of: ${Object.keys(MODES).join(', ')}.`);
   if (!String(source).trim() && !String(ideas).trim()) throw new Error('Give the converter some material: source text, ideas, or both.');
   const order = sections && sections.length ? sections : mode === 'extend' ? ['bestiary', 'adventure'] : ['module', 'rules', 'handbook', 'bestiary', 'lore', 'adventure'];
@@ -86,6 +90,7 @@ export async function convert({ provider, mode = 'invent', source = '', ideas = 
   const material = [
     mode === 'convert' ? 'TASK: convert the SOURCE into a Skeleton module.' : mode === 'extend' ? 'TASK: extend the existing module with new material.' : 'TASK: invent a new game from the IDEAS.',
     name ? `NAME: ${name}` : '',
+    dice && SYSTEMS[dice] ? `DICE SYSTEM: use "${dice}" (${SYSTEMS[dice].name}) in rules.json "dice", with numbers in its ranges.` : mode !== 'extend' ? 'DICE SYSTEM: keep the source\'s own dice if a system in THE SYSTEMS matches it; otherwise choose the best fit (the d6 pool when unsure), and say which in module.json "credits".' : '',
     ideas ? `IDEAS:\n${ideas}` : '',
     notes ? `NOTES FROM THE DESIGNER:\n${notes}` : '',
     src ? `SOURCE${String(source).length > MAX_SOURCE ? ` (the first ${MAX_SOURCE} characters)` : ''}:\n${src}` : '',

@@ -2,7 +2,7 @@
 // One template per section. The validator (module.js), the converter and the two prompts
 // all read these, so the format is written down in exactly one place.
 //
-// A module is a folder under modules/ with one JSON file per section:
+// A module is a folder under modules/ with one JSON file per section (rules.json also chooses the dice system):
 //   module.json      who the game is: name, tone, what the table calls things
 //   rules.json       the core rules: stats, skills, the difficulty ladder, tracks, combat, conditions
 //   handbook.json    the players' book: origins, callings, abilities, gear, pregenerated characters
@@ -10,25 +10,34 @@
 //   lore.json        the world, and a glossary
 //   adventures/*.json  one file per adventure or campaign chapter
 //
-// The dice are NOT in the module. Every game on the skeleton rolls the same way (see DICE below);
-// a module only names the parts and says what a snag costs and what a surge earns.
+// The dice: a module chooses a system from engine/dicesystems.js (see DICE below); without one it uses
+// the d6 pool. A module also names the parts and says what a snag costs and what a surge earns.
+
+import { getSystem, SYSTEMS, catalogue, validWeapon } from './dicesystems.js';
 
 export const FORMAT = 'skeleton-module/1';
 
-// The dice core, fixed for every module. Kept as words here so prompts can quote it.
-export const DICE = `THE DICE (fixed by the skeleton; a module cannot change them)
+// The dice. A module chooses a system in rules.json "dice" (no "dice" block: the d6 pool). Whatever
+// it rolls, every system has the same parts: a difficulty to beat, a SNAG (its penalty: 1 strain
+// each) and a SURGE (its bonus: an attack's weapon counts twice), so the Engine and the Director
+// run every game the same way.
+export const DICE = `THE DICE
+A module chooses its dice system in rules.json ("dice": { "system": "..." }). Without one it uses the d6 pool.
+Whatever the system, a roll is a stat plus a skill plus modifiers against a DIFFICULTY from the module's ladder;
+every system has a SNAG (its penalty: each marks 1 strain) and a SURGE (its bonus: on an attack the weapon counts
+twice), and damage is the weapon (a number, or dice such as "1d8+2"), plus how well the roll went if the system
+says so, minus the target's soak, at least 1.
+
+THE SYSTEMS
+${catalogue()}
+
+THE d6 POOL IN FULL (the default)
 - Every roll is a pool of six-sided dice: a stat (1 to 5 dice) plus a skill (0 to 3 dice) plus or minus
   modifiers (conditions, strain, help, gear). Modifiers together never go past +5 or -5, and a pool is
   never smaller than 1 die.
-- Add up the dice. A 1 scores nothing.
-- Each 1 is a SNAG: a penalty. Every snag marks 1 point on the strain track, whether the roll succeeds or
-  fails. A failed roll with snags may also cost something more (the module's snag table).
-- Two or more 6s and no 1s is a SURGE: a bonus. On an attack, the weapon's value counts twice; on any
-  other roll the module's surge effect applies (an extra benefit, chosen from its surge list).
-- Compare the total to a DIFFICULTY from the module's ladder (8 is easy, 12 standard, 16 hard,
-  20 extreme, 24 legendary). Meet or beat it to succeed. What is left over is OVERFLOW: how well it went.
-- Damage = overflow + the weapon's value - the target's soak, at least 1. A surge counts the weapon twice.
-- When nobody opposes the roll and there is no hurry, the Director may take the pool x 3 as the total.`;
+- Add up the dice. A 1 scores nothing. Each 1 is a SNAG; two or more 6s and no 1s is a SURGE.
+- Meet or beat the difficulty (8 easy, 12 standard, 16 hard, 20 extreme, 24 legendary). What is left over is
+  OVERFLOW. Damage = overflow + weapon - soak, at least 1.`;
 
 // Each section: a template (an example of every field, with notes) and the checks it must pass.
 // In templates, "?" after a key means optional. Text after // is a note, not part of the JSON.
@@ -48,15 +57,16 @@ export const TEMPLATES = {
   }
 }`,
   rules: `{
-  "stats": [                                // 3 to 6 stats; a character rates each from 1 to 5 dice
+  "dice?": { "system": "d6-pool" },           // the dice system and its options (see THE SYSTEMS); leave out for the d6 pool
+  "stats": [                                // 3 to 6 stats, rated in the dice system's range (d6 pool: 1 to 5 dice)
     { "id": "brawn", "name": "Brawn", "about": "Strength, endurance, holding your breath." }
   ],
-  "statPoints": { "start": 1, "spend": 8, "max": 4 },   // every stat starts at 'start'; spend 'spend' more; none above 'max' at creation
+  "statPoints": { "start": 1, "spend": 8, "max": 4, "step?": 1 },   // every stat starts at 'start'; spend 'spend' more in steps of 'step'; none above 'max' at creation
   "skills": [                               // 6 to 16 skills; ranks 0 to 3 add dice to the stat they use
     { "id": "swim", "name": "Swim", "stat": "brawn", "about": "Moving fast or far in water." }
   ],
-  "skillPoints": { "spend": 6, "max": 2 },   // ranks to spend at creation, and the most in one skill then
-  "ladder": [                               // difficulties, lowest first; keep the 8/12/16/20/24 spacing
+  "skillPoints": { "spend": 6, "max": 2, "step?": 1 },   // ranks (or points, or percent) to spend at creation, and the most in one skill then
+  "ladder": [                               // difficulties, easiest first, in the dice system's units (its default ladder is a good start)
     { "at": 8, "name": "Easy" }, { "at": 12, "name": "Standard" }, { "at": 16, "name": "Hard" },
     { "at": 20, "name": "Extreme" }, { "at": 24, "name": "Legendary" }
   ],
@@ -75,7 +85,7 @@ export const TEMPLATES = {
   "health": { "name": "Breath", "base": 10, "stat": "brawn", "perStat": 2, "perLevel": 2 },  // max = base + stat x perStat + perLevel x (level - 1)
   "strain": {
     "name": "Strain", "max": 6,
-    "penalties": [ { "at": 3, "dice": -1 }, { "at": 5, "dice": -2 } ],   // dice lost from every pool at that much strain
+    "penalties": [ { "at": 3, "dice": -1 }, { "at": 5, "dice": -2 } ],   // a modifier on every roll at that much strain (in the system's units: dice, +/-, percent)
     "atMax": "Breakdown: you are Shaken until you rest, and Strain drops to 3."
   },
   "defence": { "base": 8, "stat": "wits", "note?": "Difficulty to hit a character = base + stat + armour's defence bonus" },
@@ -85,7 +95,7 @@ export const TEMPLATES = {
     "actions": [ { "id": "strike", "name": "Strike", "cost": 1, "does": "Attack once with a weapon." } ]
   },
   "conditions": [                            // the states the Engine can put on anyone
-    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or an ally steadies you (Standard Nerve)." }
+    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or an ally steadies you (Standard Nerve)." }   // "dice" (or "mod"): the modifier, in the system's units
   ],
   "rest": { "short": "Recover half your Breath; clear 2 Strain.", "long": "Recover all Breath; clear all Strain and conditions." },
   "advancement": { "xpPerLevel": 10, "maxLevel": 10, "perLevel": "+1 skill rank; every 3rd level +1 stat (max 5)." },
@@ -104,7 +114,7 @@ export const TEMPLATES = {
       "roll?": { "stat": "brawn", "skill": "swim" }, "effect": "Anchor an ally: they ignore the next current or push." }
   ],
   "gear": [                                  // weapons need "weapon"; armour needs "soak" (and may add "defence")
-    { "id": "gaff-hook", "name": "Gaff hook", "kind": "weapon", "weapon": 3, "stat": "brawn", "skill": "fight", "about": "Hook and blade." },
+    { "id": "gaff-hook", "name": "Gaff hook", "kind": "weapon", "weapon": 3, "stat": "brawn", "skill": "fight", "about": "Hook and blade." },   // "weapon": a number, or dice like "1d8+2"
     { "id": "diving-leathers", "name": "Diving leathers", "kind": "armour", "soak": 1, "about": "" }
   ],
   "chargen": ["Choose an origin.", "Choose a calling.", "Spend stat points.", "Spend skill ranks.", "Name your character and say one thing they want."],
@@ -117,8 +127,8 @@ export const TEMPLATES = {
   "creatures": [
     { "id": "glass-eel", "name": "Glass eel", "tier": 1,          // tier 1 (a nuisance) to 5 (a legend)
       "about": "What it is and how it lives.", "look": "What the players see.",
-      "health": 8, "soak": 0, "defence": 10,                       // defence = difficulty to hit it
-      "attacks": [ { "name": "Bite", "dice": 4, "weapon": 2, "kind": "melee", "effect?": "On a surge: Bleeding." } ],
+      "health": 8, "soak": 0, "defence": 10,                       // defence = the difficulty to hit it, in the dice system's units (d20: its armour class)
+      "attacks": [ { "name": "Bite", "rating": 4, "weapon": 2, "kind": "melee", "effect?": "On a surge: Bleeding." } ],   // rating: what it rolls, in the dice system (d6 pool: dice; d20: attack bonus; percentile: percent); weapon: a number or dice
       "abilities?": [ { "name": "Clear as water", "effect": "Hard to see: Sense rolls against it are Hard." } ],
       "tactics": "How it fights and when it runs.",
       "xp": 2 }
@@ -142,7 +152,7 @@ export const TEMPLATES = {
       "notes": "Director only: what is here, who wants what, what a roll can find.",
       "exits": ["nave"],
       "creatures?": [ { "id": "glass-eel", "count": 2, "hidden": true } ],
-      "hazards?": [ { "name": "Cold current", "stat": "brawn", "skill": "swim", "at": 12, "fail": "Lose 3 Breath." } ],
+      "hazards?": [ { "name": "Cold current", "stat": "brawn", "skill": "swim", "at": 12, "fail": "Lose 3 Breath." } ],   // at: a difficulty in the system's units
       "clues?": ["A broken lamp with a guild mark."] }
   ],
   "quests": [ { "id": "bell", "text": "Raise the glass bell.", "doneAt?": ["dock"] } ],
@@ -188,17 +198,20 @@ export function checkModule(m) {
 export function checkRules(r) {
   const errs = [];
   if (!r || typeof r !== 'object') return ['rules.json is missing.'];
+  if (r.dice != null && (typeof r.dice !== 'object' || !SYSTEMS[r.dice.system])) errs.push(`rules.dice.system must be one of: ${Object.keys(SYSTEMS).join(', ')}.`);
+  const D = getSystem(r);
+  const R = D.ranges;
   const stats = list(errs, 'rules.stats', r.stats, { min: 3, max: 6 });
   const statIds = new Set(stats.map((s) => s.id));
   const sp = r.statPoints || {};
-  if (!num(sp.start, 1, 3) || !num(sp.spend, 0, 20) || !num(sp.max, 2, 5)) errs.push('rules.statPoints needs "start" (1-3), "spend" (0-20) and "max" (2-5).');
+  if (!num(sp.start, R.stat[0], R.stat[1]) || !num(sp.spend, 0, 1000) || !num(sp.max, R.stat[0], R.stat[1]) || sp.max < sp.start) errs.push(`rules.statPoints needs "start" and "max" from ${R.stat[0]} to ${R.stat[1]} (the ${D.id} range) and "spend".`);
   const skills = list(errs, 'rules.skills', r.skills, { min: 4, max: 24 });
   for (const s of skills) if (!statIds.has(s.stat)) errs.push(`rules.skills "${s.id}" uses the stat "${s.stat}", which is not in rules.stats.`);
   const kp = r.skillPoints || {};
-  if (!num(kp.spend, 0, 30) || !num(kp.max, 1, 3)) errs.push('rules.skillPoints needs "spend" (0-30) and "max" (1-3).');
+  if (!num(kp.spend, 0, 1000) || !num(kp.max, 1, R.skill[1])) errs.push(`rules.skillPoints needs "spend" and "max" (1 to ${R.skill[1]} in ${D.id}).`);
   if (!Array.isArray(r.ladder) || r.ladder.length < 3) errs.push('rules.ladder needs at least 3 difficulties.');
   else {
-    r.ladder.forEach((x, i) => { if (!x || !num(x.at, 2, 40) || !text(x.name)) errs.push(`rules.ladder[${i}] needs "at" (a number) and "name".`); });
+    r.ladder.forEach((x, i) => { if (!x || !num(x.at, R.at[0], R.at[1]) || !text(x.name)) errs.push(`rules.ladder[${i}] needs "at" (${R.at[0]} to ${R.at[1]} in ${D.id}) and "name".`); });
     for (let i = 1; i < r.ladder.length; i++) if (r.ladder[i] && r.ladder[i - 1] && r.ladder[i].at <= r.ladder[i - 1].at) errs.push('rules.ladder must go from lowest to highest.');
   }
   if (!r.snag || !text(r.snag.effect)) errs.push('rules.snag needs an "effect" (what a 1 costs).');
@@ -208,9 +221,9 @@ export function checkRules(r) {
   if (!text(h.name) || !num(h.base, 1, 100) || !statIds.has(h.stat) || !num(h.perStat ?? 0, 0, 20) || !num(h.perLevel ?? 0, 0, 20)) errs.push('rules.health needs "name", "base", a "stat" from rules.stats, "perStat" and "perLevel".');
   const st = r.strain || {};
   if (!text(st.name) || !num(st.max, 2, 20)) errs.push('rules.strain needs "name" and "max" (2-20).');
-  if (st.penalties != null && (!Array.isArray(st.penalties) || st.penalties.some((p) => !p || !num(p.at, 1, 20) || !num(p.dice, -5, 0)))) errs.push('rules.strain.penalties is a list of { "at": number, "dice": 0 to -5 }.');
+  if (st.penalties != null && (!Array.isArray(st.penalties) || st.penalties.some((p) => !p || !num(p.at, 1, 20) || !num(p.dice ?? p.mod, R.mod[0], 0)))) errs.push(`rules.strain.penalties is a list of { "at": number, "dice": ${R.mod[0]} to 0 }.`);
   const d = r.defence || {};
-  if (!num(d.base, 2, 30) || !statIds.has(d.stat)) errs.push('rules.defence needs "base" and a "stat" from rules.stats.');
+  if (!num(d.base, -50, 50) || (d.stat != null && !statIds.has(d.stat))) errs.push('rules.defence needs "base" and (optionally) a "stat" from rules.stats.');
   if (!r.initiative || !statIds.has(r.initiative.stat)) errs.push('rules.initiative needs a "stat" from rules.stats.');
   const c = r.combat || {};
   if (!num(c.actionsPerTurn, 1, 5)) errs.push('rules.combat.actionsPerTurn must be 1 to 5.');
@@ -218,7 +231,8 @@ export function checkRules(r) {
   const conds = list(errs, 'rules.conditions', r.conditions, { min: 1 });
   for (const x of conds) {
     if (!text(x.effect)) errs.push(`rules.conditions "${x.id}" needs an "effect".`);
-    if (x.dice != null && !num(x.dice, -5, 5)) errs.push(`rules.conditions "${x.id}" "dice" must be -5 to 5.`);
+    const m = x.dice ?? x.mod;
+    if (m != null && !num(m, R.mod[0], R.mod[1])) errs.push(`rules.conditions "${x.id}" modifier must be ${R.mod[0]} to ${R.mod[1]} in ${D.id}.`);
   }
   if (!r.rest || !text(r.rest.short) || !text(r.rest.long)) errs.push('rules.rest needs "short" and "long".');
   const a = r.advancement || {};
@@ -242,7 +256,7 @@ export function checkHandbook(hb, rules) {
   const gear = list(errs, 'handbook.gear', hb.gear || [], {});
   const gearIds = new Set(gear.map((g) => g.id));
   for (const g of gear) {
-    if (g.kind === 'weapon' && (!num(g.weapon, 0, 20) || !statIds.has(g.stat))) errs.push(`handbook.gear "${g.id}" is a weapon: it needs "weapon" (a number) and a "stat".`);
+    if (g.kind === 'weapon' && (!validWeapon(g.weapon) || !statIds.has(g.stat))) errs.push(`handbook.gear "${g.id}" is a weapon: it needs "weapon" (a number, or dice like "1d8+2") and a "stat".`);
     if (g.skill && !skillIds.has(g.skill)) errs.push(`handbook.gear "${g.id}" uses the skill "${g.skill}", which does not exist.`);
     if (g.kind === 'armour' && !num(g.soak, 0, 10)) errs.push(`handbook.gear "${g.id}" is armour: it needs "soak".`);
   }
@@ -258,23 +272,26 @@ export function checkHandbook(hb, rules) {
     if (!p || !text(p.name)) { errs.push(`handbook.pregens[${i}] needs a "name".`); return; }
     if (!oIds.has(p.origin)) errs.push(`handbook.pregens "${p.name}" has an origin that is not in handbook.origins.`);
     if (!cIds.has(p.calling)) errs.push(`handbook.pregens "${p.name}" has a calling that is not in handbook.callings.`);
-    for (const k of Object.keys(p.stats || {})) if (!statIds.has(k)) errs.push(`handbook.pregens "${p.name}" rates "${k}", which is not a stat.`);
+    const RR = getSystem(rules).ranges;
+    for (const [k, v] of Object.entries(p.stats || {})) { if (!statIds.has(k)) errs.push(`handbook.pregens "${p.name}" rates "${k}", which is not a stat.`); else if (!num(v, RR.stat[0], RR.stat[1] + 5)) errs.push(`handbook.pregens "${p.name}" has ${k} ${v}, outside the dice system's range.`); }
     for (const k of Object.keys(p.skills || {})) if (!skillIds.has(k)) errs.push(`handbook.pregens "${p.name}" has the skill "${k}", which does not exist.`);
   });
   return errs;
 }
 
-export function checkBestiary(b) {
+export function checkBestiary(b, rules) {
   const errs = [];
   if (!b || typeof b !== 'object') return ['bestiary.json is missing.'];
+  const D = getSystem(rules);
+  const R = D.ranges;
   const cs = list(errs, 'bestiary.creatures', b.creatures, { min: 1 });
   for (const c of cs) {
     if (!num(c.tier, 1, 5)) errs.push(`bestiary "${c.id}" needs a "tier" from 1 to 5.`);
     if (!num(c.health, 1, 500)) errs.push(`bestiary "${c.id}" needs "health".`);
-    if (!num(c.defence, 2, 40)) errs.push(`bestiary "${c.id}" needs "defence" (the difficulty to hit it).`);
+    if (!num(c.defence, R.defence[0], R.defence[1])) errs.push(`bestiary "${c.id}" needs "defence" (the difficulty to hit it, ${R.defence[0]} to ${R.defence[1]} in ${D.id}).`);
     if (c.soak != null && !num(c.soak, 0, 20)) errs.push(`bestiary "${c.id}" "soak" must be 0 to 20.`);
     if (!Array.isArray(c.attacks) || !c.attacks.length) errs.push(`bestiary "${c.id}" needs at least one attack.`);
-    else c.attacks.forEach((a, i) => { if (!a || !text(a.name) || !num(a.dice, 1, 15) || !num(a.weapon ?? 0, 0, 20)) errs.push(`bestiary "${c.id}" attack ${i + 1} needs "name", "dice" (1-15) and "weapon".`); });
+    else c.attacks.forEach((a, i) => { if (!a || !text(a.name) || !num(a.rating ?? a.dice, R.rating[0], R.rating[1]) || !validWeapon(a.weapon ?? 0)) errs.push(`bestiary "${c.id}" attack ${i + 1} needs "name", "rating" (${R.rating[0]} to ${R.rating[1]} in ${D.id}) and "weapon" (a number or dice).`); });
   }
   return errs;
 }
@@ -303,7 +320,8 @@ export function checkAdventure(a, { bestiary, rules } = {}) {
     if (!text(s.read)) errs.push(`${tag} site "${s.id}" needs "read" (what the players see).`);
     for (const e of s.exits || []) if (!siteIds.has(e)) errs.push(`${tag} site "${s.id}" has an exit to "${e}", which is not a site.`);
     for (const c of s.creatures || []) if (!c || !beasts.has(c.id)) errs.push(`${tag} site "${s.id}" places "${c && c.id}", which is not in the bestiary.`);
-    for (const h of s.hazards || []) if (!h || !text(h.name) || !statIds.has(h.stat) || !num(h.at, 2, 40)) errs.push(`${tag} site "${s.id}" hazard needs "name", a "stat" and "at".`);
+    const RA = getSystem(rules).ranges;
+    for (const h of s.hazards || []) if (!h || !text(h.name) || !statIds.has(h.stat) || !num(h.at, RA.at[0], RA.at[1])) errs.push(`${tag} site "${s.id}" hazard needs "name", a "stat" and "at" (${RA.at[0]} to ${RA.at[1]}).`);
   }
   list(errs, `${tag} quests`, a.quests, { min: 1, label: 'text' });
   for (const q of a.quests || []) for (const s of (q && q.doneAt) || []) if (!siteIds.has(s)) errs.push(`${tag} quest "${q.id}" is done at "${s}", which is not a site.`);
@@ -317,7 +335,7 @@ export function checkAll(mod) {
     ...checkModule(mod.module),
     ...checkRules(mod.rules),
     ...checkHandbook(mod.handbook, mod.rules),
-    ...checkBestiary(mod.bestiary),
+    ...checkBestiary(mod.bestiary, mod.rules),
     ...checkLore(mod.lore),
   ];
   if (!Array.isArray(mod.adventures) || !mod.adventures.length) errors.push('The module needs at least one adventure.');

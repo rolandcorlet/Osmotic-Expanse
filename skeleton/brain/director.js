@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { toolbox, TOOLS, charLine } from './tools.js';
 import { term, ladderName } from '../engine/module.js';
+import { getSystem } from '../engine/dicesystems.js';
 import { currentKey } from '../engine/ledger.js';
 
 const TEMPLATE = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
@@ -19,6 +20,9 @@ export function instructions(mod) {
     actions: String(mod.rules.combat.actionsPerTurn),
     terms: Object.entries(mod.module.rawTerms || {}).map(([k, v]) => `${v} (${k})`).join(', ') || 'the plain words',
   };
+  const S = getSystem(mod.rules);
+  fill.dice = S.sys.describe(S.o, T);
+  fill.diceName = S.name;
   return TEMPLATE.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
 }
 

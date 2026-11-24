@@ -1,46 +1,29 @@
-// The skeleton's dice core: the same for every game module (the words are in schema.js, DICE).
-//   A pool of d6. A 1 scores nothing and is a snag (a penalty: 1 strain each).
-//   Two or more 6s and no 1s is a surge (a bonus: the weapon counts twice on an attack).
-//   Total against a difficulty; what is left over is overflow.
+// The skeleton's rule core. The dice themselves live in dicesystems.js (one module per game chooses
+// its system); this file holds what every system shares: damage, strain penalties, the snag table,
+// health. The d6 pool's own helpers are re-exported for older code and tests.
 
-export const MOD_CAP = 5;
+import { getSystem, weaponDamage, makeSource, buildPool, readRoll, MOD_CAP } from './dicesystems.js';
 
-// stat + skill dice, plus modifiers ({ label, dice }), capped at +/-5 together, never under 1 die.
-export function buildPool({ stat = 0, skill = 0, mods = [] } = {}) {
-  const list = mods.filter((m) => m && Number(m.dice)).map((m) => ({ label: m.label || 'Modifier', dice: Number(m.dice) }));
-  const raw = list.reduce((a, m) => a + m.dice, 0);
-  const applied = Math.max(-MOD_CAP, Math.min(MOD_CAP, raw));
-  const base = Math.max(0, Number(stat) || 0) + Math.max(0, Number(skill) || 0);
-  return { dice: Math.max(1, base + applied), base, mods: list, modsRaw: raw, modsApplied: applied, capped: raw !== applied };
-}
+export { buildPool, readRoll, MOD_CAP, getSystem, makeSource };
 
-export function readRoll(dice, at = null) {
-  const snags = dice.filter((d) => d === 1).length;
-  const sixes = dice.filter((d) => d === 6).length;
-  const total = dice.reduce((a, d) => a + (d === 1 ? 0 : d), 0);
-  const surge = snags === 0 && sixes >= 2;
-  const out = { dice: dice.slice(), snags, sixes, total, surge };
-  if (at != null) {
-    out.at = at;
-    out.success = total >= at;
-    out.overflow = out.success ? total - at : 0;
-    out.shortBy = out.success ? 0 : at - total;
-  }
-  return out;
-}
-
-// Unopposed and unhurried: take pool x 3.
+// Unopposed and unhurried, in the d6 pool: take pool x 3.
 export const steady = (dice) => dice * 3;
 
-// Damage = overflow + weapon - soak, at least 1. A surge counts the weapon twice.
-export function damage({ overflow = 0, weapon = 0, soak = 0, surge = false }) {
-  return Math.max(1, overflow + (surge ? weapon * 2 : weapon) - soak);
+// Damage = the weapon (a number, or dice; a surge counts it twice) + what the system adds for how well
+// the roll went (the d6 pool: overflow; success pools: extra successes) - soak, at least 1.
+export function damage({ overflow = 0, weapon = 0, soak = 0, surge = false, rng = Math.random }) {
+  return Math.max(1, weaponDamage(weapon, surge, rng) + overflow - soak);
+}
+export function damageFromRoll(rules, r, weapon, soak, rng) {
+  const { o } = getSystem(rules);
+  const add = o.damageAdd === 'margin' ? Math.max(0, r.margin) : o.damageAdd === 'degrees' ? Math.max(0, r.degrees) : 0;
+  return damage({ overflow: add, weapon, soak, surge: r.surge, rng });
 }
 
-// The strain penalty in dice at a given strain, from the module's strain.penalties.
+// The strain penalty (in the system's units) at a given strain, from the module's strain.penalties.
 export function strainPenalty(rules, strain) {
   let d = 0;
-  for (const p of (rules.strain && rules.strain.penalties) || []) if (strain >= p.at) d = Math.min(d, p.dice);
+  for (const p of (rules.strain && rules.strain.penalties) || []) if (strain >= p.at) d = Math.min(d, p.dice ?? p.mod ?? 0);
   return d;
 }
 
@@ -53,7 +36,10 @@ export function snagRow(rules, n) {
   return pick;
 }
 
+// A stat as a flat number, by the dice system (d6 pool: the dice; d20: the score's bonus).
+export const statBonus = (rules, v) => { const S = getSystem(rules); return S.sys.bonus(S.o, v); };
+
 export function maxHealth(rules, stats, level = 1) {
   const h = rules.health || {};
-  return Math.max(1, (h.base || 0) + (Number(stats[h.stat]) || 0) * (h.perStat || 0) + (h.perLevel || 0) * Math.max(0, level - 1));
+  return Math.max(1, (h.base || 0) + statBonus(rules, stats[h.stat]) * (h.perStat || 0) + (h.perLevel || 0) * Math.max(0, level - 1));
 }

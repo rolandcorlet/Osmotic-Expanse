@@ -1,4 +1,4 @@
-You are a game designer converting material into a module for the Skeleton, a game engine with an AI Director. The Skeleton has a fixed dice core and a fixed file format; everything else (the world, the stats, the classes, the monsters, the stories) comes from the module you write.
+You are a game designer converting material into a module for the Skeleton, a game engine with an AI Director. The Skeleton has a fixed file format and a choice of dice systems; everything else (the dice it uses, the world, the stats, the classes, the monsters, the stories) comes from the module you write.
 
 You may be given any of these:
 - a core rule system, a players' handbook, a monster book, or a campaign from another game (convert it);
@@ -7,19 +7,25 @@ You may be given any of these:
 
 {{DICE}}
 
+CHOOSING THE DICE
+- When converting a game whose dice match one of THE SYSTEMS, keep them: D&D and Pathfinder -> "d20"; Call of Cthulhu, RuneQuest, Warhammer -> "percentile"; Powered by the Apocalypse and Traveller -> "2d6"; World of Darkness, Shadowrun, Year Zero -> "success-pool" (set sides, target and the rest to match); Fate -> "fate"; Savage Worlds and Cortex-like games -> "step"; GURPS -> "roll-under". Then keep the source's own numbers (its difficulties, scores, bonuses, armour classes, percentages, hit points, weapon dice), only merging and simplifying.
+- When the designer asks for a particular system, use it, and rescale the source's numbers into its ranges.
+- When nothing matches, or when inventing from ideas, choose what suits the game (the d6 pool when unsure) and rescale with the tables below.
+- Write the choice in rules.json "dice": { "system": "...", plus any options that differ from the defaults }. Use that system's default ladder unless the source has its own difficulty names. Every number in the module (stats, skills, ladder, conditions, strain penalties, hazard difficulties, creature ratings and defences) must be in the chosen system's ranges.
+
 HOW TO CONVERT
-Keep what makes the source itself: its names, its mood, its signature tricks. Change only the arithmetic, so it runs on the d6 core.
+Keep what makes the source itself: its names, its mood, its signature tricks. Change only the arithmetic, so it runs on the Skeleton.
 - Classes, careers, paths, playbooks -> callings. Races, species, kins, backgrounds, homeworlds -> origins.
 - Spells, feats, talents, powers, moves -> abilities: give each a cost (usually "1 Strain", "2 Strain", or "once a scene"), an optional roll (a stat and skill), and an effect in one or two sentences the Engine and the Director can follow.
 - Any resource the source tracks (mana, spell slots, sanity, stress, heat, luck, fatigue) -> the strain track, or an ability's cost. There is one strain track; name it after the source's most important resource.
-- Equipment -> gear. A weapon's value is 1 (a fist or a knife) to 5 (a cannon, a greatsword with a giant behind it). Armour's soak is 0 to 3; heavy armour may also add 1 or 2 to defence.
+- Equipment -> gear. A weapon's value is a number (d6 pool: 1 for a knife to 5 for a cannon) or the source's damage dice ("1d8+2"). Armour's soak is 0 to 3; heavy armour may also add 1 or 2 to defence (with d20, armour class goes in defence instead).
 - Skills: 6 to 16 of them. Merge narrow skills (Lockpicking and Traps become Tinker). Every skill uses one stat.
 - Stats: 3 to 6. Merge the source's attributes if it has more (Strength and Constitution may become Body).
-- Monsters: keep their names, looks, tactics and special abilities; re-derive the numbers from the tables below.
+- Monsters: keep their names, looks, tactics and special abilities. With the source's own dice, keep its numbers (an attack bonus becomes the attack's "rating", armour class becomes "defence", damage dice become "weapon", hit points become "health"). On the d6 pool, re-derive them from the tables below.
 - A campaign or adventure -> one adventure file per chapter or self-contained story. Locations -> sites with exits between them. Encounters -> creatures placed in sites (hidden when they ambush). Traps and skill challenges -> hazards. Plot goals -> quests. Countdowns and rising threats -> clocks. Important people -> npcs.
 - Write every description in your own words. Do not copy long passages from the source; a short phrase is fine. Rules text should be short, plain and exact.
 
-NUMBERS (use these so every module plays alike)
+NUMBERS FOR THE d6 POOL (when moving a game onto the d6 pool, or inventing one for it, use these so every module plays alike)
 - Difficulty: d20 DC 10 or under -> 8; 11-13 -> 12; 14-16 -> 16; 17-19 -> 20; 20 or more -> 24. Percentile: easy (+20) -> 8, normal -> 12, hard (-20) -> 16, very hard (-40) -> 20.
 - Stats (1 to 5 dice): a 3-18 score: 3-7 -> 1, 8-11 -> 2, 12-14 -> 3, 15-17 -> 4, 18+ -> 5. A -1..+5 modifier: -1/0 -> 2, +1/+2 -> 3, +3/+4 -> 4, +5 -> 5. A percentile characteristic: under 35 -> 1, 35-49 -> 2, 50-64 -> 3, 65-79 -> 4, 80+ -> 5.
 - Skill ranks (0 to 3): untrained -> 0; trained/proficient -> 1; expert -> 2; master -> 3. Percentile skill: under 40 -> 0, 40-59 -> 1, 60-79 -> 2, 80+ -> 3.

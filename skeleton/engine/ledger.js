@@ -4,8 +4,7 @@
 //
 // ctx: { role: 'host' | 'player', pid, ai, rng, now, mod }   (mod: the prepared module, engine/module.js)
 
-import { rollDice, checkOwnDice } from './dice.js';
-import { buildPool, readRoll, damage as dmgOf, strainPenalty, snagRow, maxHealth } from './core.js';
+import { damageFromRoll, strainPenalty, snagRow, maxHealth, statBonus, getSystem, makeSource } from './core.js';
 import { difficulty, ladderName, term } from './module.js';
 
 export class RuleError extends Error {}
@@ -75,25 +74,41 @@ const ownChar = (s, ctx, id) => {
   return c;
 };
 const nameOf = (s, key) => { if (!key) return ''; const [k, id] = key.split(':'); return k === 'char' ? (s.chars[id] || {}).name : (s.creatures[id] || {}).name; };
-const condMods = (mod, conds) => conds.map((c) => mod.ix.cond[c]).filter((c) => c && c.dice).map((c) => ({ label: c.name, dice: c.dice }));
+const condMods = (mod, conds) => conds.map((c) => mod.ix.cond[c]).filter((c) => c && (c.dice ?? c.mod)).map((c) => ({ label: c.name, dice: c.dice ?? c.mod }));
 const armourOf = (mod, ch) => ch.gear.map((g) => mod.ix.gear[g]).filter((g) => g && g.kind === 'armour');
 export function charDefence(mod, ch) {
   const d = mod.rules.defence;
-  return d.base + (ch.stats[d.stat] || 0) + armourOf(mod, ch).reduce((a, g) => a + (g.defence || 0), 0) + (ch.braced ? 2 : 0);
+  return d.base + (d.stat ? statBonus(mod.rules, ch.stats[d.stat]) : 0) + armourOf(mod, ch).reduce((a, g) => a + (g.defence || 0), 0) + (ch.braced ? 2 : 0);
 }
 export const charSoak = (mod, ch) => armourOf(mod, ch).reduce((a, g) => a + (g.soak || 0), 0);
 
-// The dice pool a character rolls for stat + skill, with conditions and strain.
+// What a character rolls for stat + skill, with conditions and strain, in the module's dice system.
 export function poolFor(mod, ch, stat, skill, extra = []) {
   if (!mod.ix.stat[stat]) no(`There is no stat "${stat}". Stats: ${mod.rules.stats.map((x) => x.id).join(', ')}.`);
   if (skill && !mod.ix.skill[skill]) no(`There is no skill "${skill}". Skills: ${mod.rules.skills.map((x) => x.id).join(', ')}.`);
   const mods = [...condMods(mod, ch.conds), ...extra];
   const sp = strainPenalty(mod.rules, ch.strain);
   if (sp) mods.push({ label: `${term(mod, 'strain')} ${ch.strain}`, dice: sp });
-  return buildPool({ stat: ch.stats[stat] || 0, skill: skill ? (ch.skills[skill] || 0) : 0, mods });
+  const S = getSystem(mod.rules);
+  return S.sys.spec(S.o, { stat: ch.stats[stat] ?? 0, skill: skill ? (ch.skills[skill] || 0) : 0, mods });
 }
-
-function throwDice(ctx, n, own) { return own ? checkOwnDice(own, n) : rollDice(n, ctx.rng); }
+// A creature's attack (or anything rated by a single number), in the module's dice system.
+export function poolForRating(mod, rating, conds = []) {
+  const S = getSystem(mod.rules);
+  return S.sys.spec(S.o, { rating, mods: condMods(mod, conds) });
+}
+// Roll a spec against a difficulty. own: the player's own dice, typed in.
+export function rollSpec(mod, ctx, spec, at, own) {
+  const S = getSystem(mod.rules);
+  try { return { ...S.sys.roll(S.o, spec, at, makeSource(ctx.rng, own)), at, pool: spec.label, system: S.id }; } catch (e) { no(e.message); }
+}
+// The ladder's standard rung (its second, or the one named Standard): the default difficulty.
+export function standardAt(mod) {
+  const L = mod.rules.ladder || [];
+  const named = L.find((x) => /^(standard|medium|regular|average|routine)$/i.test(x.name));
+  return (named || L[1] || L[0] || { at: 12 }).at;
+}
+const verdict = (r) => (r.success ? (r.partial ? 'a partial success' : 'success') : 'failure');
 
 // Each snag marks 1 strain; at the maximum, the module's breakdown.
 function markStrain(s, ctx, ch, n) {
@@ -218,7 +233,9 @@ function makeChar(s, ctx, pid, input, { pregen = false } = {}) {
     const spent = Object.values(stats).reduce((x, v) => x + v - R.statPoints.start, 0);
     for (const st of R.stats) if (stats[st.id] < R.statPoints.start || stats[st.id] > R.statPoints.max) no(`${st.name} must be from ${R.statPoints.start} to ${R.statPoints.max} before your origin's bonus.`);
     if (spent !== R.statPoints.spend) no(`Spend exactly ${R.statPoints.spend} stat points (you have spent ${spent}).`);
-    for (const k of c.skills || []) if (!skills[k]) skills[k] = 1; // a calling's skills start at rank 1
+    // A calling's skills start at the first rank: 1 (or the step: 5% in percentile; a d4 in step dice).
+    const first = R.skillPoints.first ?? (getSystem(R).id === 'step' ? 4 : (R.skillPoints.step || 1));
+    for (const k of c.skills || []) if (!skills[k]) skills[k] = first;
     const ranks = Object.values(skills).reduce((x, v) => x + v, 0);
     for (const [k, v] of Object.entries(skills)) if (v < 0 || v > R.skillPoints.max) no(`${mod.ix.skill[k].name} can be at most ${R.skillPoints.max} at the start.`);
     if (ranks > R.skillPoints.spend) no(`Spend at most ${R.skillPoints.spend} skill ranks, counting your calling's (you have ${ranks}).`);
@@ -286,7 +303,8 @@ H['roll.ask'] = (s, a, ctx) => {
   if (!mod.ix.stat[stat]) no(`Say which stat: ${mod.rules.stats.map((x) => x.id).join(', ')}.`);
   if (skill && !mod.ix.skill[skill]) no(`There is no skill "${skill}". Skills: ${mod.rules.skills.map((x) => x.id).join(', ')}.`);
   const at = difficulty(mod, a.at);
-  if (!at || at < 2 || at > 40) no(`Give a ${term(mod, 'difficulty').toLowerCase()}: ${mod.rules.ladder.map((r) => `${r.name} ${r.at}`).join(', ')}.`);
+  const RA = getSystem(mod.rules).ranges.at;
+  if (at == null || at < RA[0] || at > RA[1]) no(`Give a ${term(mod, 'difficulty').toLowerCase()}: ${mod.rules.ladder.map((r) => `${r.name} ${r.at}`).join(', ')}.`);
   const fail = a.fail && typeof a.fail === 'object' ? { damage: Math.max(0, Math.trunc(Number(a.fail.damage)) || 0), cond: mod.ix.cond[str(a.fail.cond, 30).toLowerCase()] ? str(a.fail.cond, 30).toLowerCase() : '' } : null;
   for (const id of ids) {
     if (s.chars[id].down) continue;
@@ -302,10 +320,11 @@ H['roll.make'] = (s, a, ctx) => {
   if (!q) no('That roll is no longer asked for.');
   const ch = ownChar(s, ctx, q.charId);
   const pool = poolFor(mod, ch, q.stat, q.skill, a.help ? [{ label: 'Help', dice: Math.min(2, Math.max(0, Number(a.help) || 0)) }] : []);
-  const r = readRoll(throwDice(ctx, pool.dice, a.dice), q.at);
+  const r = rollSpec(mod, ctx, pool, q.at, a.dice);
   s.requests = s.requests.filter((x) => x.id !== q.id);
   const label = `${mod.ix.stat[q.stat].name}${q.skill ? ` + ${mod.ix.skill[q.skill].name}` : ''}`;
-  let text = `${ch.name} rolls ${label} against ${ladderName(mod, q.at)}: ${r.total}, ${r.success ? `success (${term(mod, 'overflow').toLowerCase()} ${r.overflow})` : `failure (short by ${r.shortBy})`}.`;
+  let text = `${ch.name} rolls ${label} (${pool.label}) against ${ladderName(mod, q.at)}: ${r.shown}, ${verdict(r)}.`;
+  if (r.partial) text += ' They do it, at a cost.';
   if (r.surge) text += ` ${term(mod, 'surge')}! ${mod.rules.surge.effect}`;
   if (r.snags) text += ` ${r.snags} ${term(mod, 'snag')}${r.snags > 1 ? 's' : ''}: +${r.snags} ${term(mod, 'strain')}.`;
   const row = !r.success && snagRow(mod.rules, r.snags);
@@ -314,7 +333,7 @@ H['roll.make'] = (s, a, ctx) => {
     if (q.fail.damage) { const d = hurtChar(s, ctx, ch, q.fail.damage); text += ` ${ch.name} loses ${d.taken} ${term(mod, 'health')}${d.notes.length ? `; ${d.notes.join(', ')}` : ''}.`; }
     if (q.fail.cond && !ch.conds.includes(q.fail.cond)) { ch.conds.push(q.fail.cond); text += ` ${ch.name} is ${mod.ix.cond[q.fail.cond].name}.`; }
   }
-  addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'check', label, reason: q.reason, pool: pool.dice, ...r, snagRow: row ? row.name : '' });
+  addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'check', label, reason: q.reason, ...r, snagRow: row ? row.name : '' });
   if (r.snags) markStrain(s, ctx, ch, r.snags);
   story(s, ctx, 'event', text, 'Engine', { roll: true });
 };
@@ -324,8 +343,8 @@ H['roll.free'] = (s, a, ctx) => {
   const { mod } = ctx;
   const ch = ownChar(s, ctx, a.charId);
   const pool = poolFor(mod, ch, str(a.stat).toLowerCase(), str(a.skill).toLowerCase());
-  const r = readRoll(throwDice(ctx, pool.dice, a.dice));
-  addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'free', label: `${mod.ix.stat[str(a.stat).toLowerCase()].name}${a.skill ? ` + ${mod.ix.skill[str(a.skill).toLowerCase()].name}` : ''}`, pool: pool.dice, ...r });
+  const r = rollSpec(mod, ctx, pool, standardAt(mod), a.dice);
+  addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'free', label: `${mod.ix.stat[str(a.stat).toLowerCase()].name}${a.skill ? ` + ${mod.ix.skill[str(a.skill).toLowerCase()].name}` : ''}`, ...r, success: null });
 };
 
 // ---- a character attacks
@@ -342,11 +361,11 @@ H.attack = (s, a, ctx) => {
   if (t.o.hidden) no(`${ch.name} cannot see that.`);
   spendAction(s, ctx, keyOf('char', ch.id));
   const pool = poolFor(mod, ch, g.stat, g.skill || '', a.bonus ? [{ label: 'Bonus', dice: Math.max(-5, Math.min(5, Number(a.bonus) || 0)) }] : []);
-  const r = readRoll(throwDice(ctx, pool.dice, a.dice), t.o.defence);
-  let text = `${ch.name} attacks ${t.o.name} with the ${g.name}: ${r.total} against ${t.o.defence}, ${r.success ? 'a hit' : 'a miss'}.`;
+  const r = rollSpec(mod, ctx, pool, t.o.defence, a.dice);
+  let text = `${ch.name} attacks ${t.o.name} with the ${g.name}: ${r.shown}, ${r.success ? (r.partial ? 'a hit, at a cost' : 'a hit') : 'a miss'}.`;
   let dmg = null;
   if (r.success) {
-    const n = dmgOf({ overflow: r.overflow, weapon: g.weapon, soak: t.o.soak, surge: r.surge });
+    const n = damageFromRoll(mod.rules, r, g.weapon, t.o.soak, ctx.rng);
     const d = hurtCreature(s, ctx, t.o, n);
     dmg = d.taken;
     text += ` ${d.taken} damage${r.surge ? ` (${term(mod, 'surge')}: the weapon counts twice)` : ''}${d.notes.length ? `; ${d.notes.join(', ')}` : ''}.`;
@@ -354,7 +373,7 @@ H.attack = (s, a, ctx) => {
   if (r.snags) text += ` ${r.snags} ${term(mod, 'snag')}${r.snags > 1 ? 's' : ''}: +${r.snags} ${term(mod, 'strain')}.`;
   const row = !r.success && snagRow(mod.rules, r.snags);
   if (row) text += ` ${row.name}: ${row.effect}`;
-  addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'attack', label: `${g.name} vs ${t.o.name}`, pool: pool.dice, ...r, dmg });
+  addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'attack', label: `${g.name} vs ${t.o.name}`, ...r, dmg });
   if (r.snags) markStrain(s, ctx, ch, r.snags);
   story(s, ctx, 'event', text, 'Engine', { roll: true });
 };
@@ -372,11 +391,11 @@ H['ability.use'] = (s, a, ctx) => {
   if (cost && new RegExp(term(mod, 'strain'), 'i').test(cost[2])) markStrain(s, ctx, ch, Number(cost[1]));
   let text = `${ch.name} uses ${ab.name}${ab.cost ? ` (${ab.cost})` : ''}. ${ab.effect}`;
   if (ab.roll) {
-    const at = difficulty(mod, a.at) || 12;
+    const at = difficulty(mod, a.at) ?? standardAt(mod);
     const pool = poolFor(mod, ch, ab.roll.stat, ab.roll.skill || '');
-    const r = readRoll(throwDice(ctx, pool.dice, a.dice), at);
-    text += ` Roll: ${r.total} against ${ladderName(mod, at)}, ${r.success ? 'success' : 'failure'}${r.surge ? `, ${term(mod, 'surge')}!` : ''}.`;
-    addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'ability', label: ab.name, pool: pool.dice, ...r });
+    const r = rollSpec(mod, ctx, pool, at, a.dice);
+    text += ` Roll (${pool.label}): ${r.shown} against ${ladderName(mod, at)}, ${verdict(r)}${r.surge ? `, ${term(mod, 'surge')}!` : ''}.`;
+    addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'ability', label: ab.name, ...r });
     if (r.snags) { text += ` +${r.snags} ${term(mod, 'strain')}.`; markStrain(s, ctx, ch, r.snags); }
   }
   story(s, ctx, 'event', text, 'Engine', { roll: !!ab.roll });
@@ -408,18 +427,18 @@ H['creature.act'] = (s, a, ctx) => {
   const t = target(s, a.target);
   if (!t || t.kind !== 'char' || t.o.down) no(`Name a character that is still standing: ${Object.values(s.chars).filter((c) => !c.down).map((c) => `${c.id} (${c.name})`).join(', ')}.`);
   spendAction(s, ctx, keyOf('creature', k.id));
-  const pool = buildPool({ stat: atk.dice, mods: condMods(mod, k.conds) });
+  const pool = poolForRating(mod, atk.rating ?? atk.dice, k.conds);
   const at = charDefence(mod, t.o);
-  const r = readRoll(rollDice(pool.dice, ctx.rng), at);
-  let text = `${k.name} uses ${atk.name} on ${t.o.name}: ${r.success ? 'a hit' : 'a miss'}.`;
+  const r = rollSpec(mod, ctx, pool, at);
+  let text = `${k.name} uses ${atk.name} on ${t.o.name}: ${r.success ? (r.partial ? 'a glancing hit' : 'a hit') : 'a miss'}.`;
   let dmg = null;
   if (r.success) {
-    const d = hurtChar(s, ctx, t.o, dmgOf({ overflow: r.overflow, weapon: atk.weapon || 0, soak: charSoak(mod, t.o), surge: r.surge }));
+    const d = hurtChar(s, ctx, t.o, damageFromRoll(mod.rules, r, atk.weapon || 0, charSoak(mod, t.o), ctx.rng));
     dmg = d.taken;
     text += ` ${t.o.name} loses ${d.taken} ${term(mod, 'health')}${d.notes.length ? `; ${d.notes.join(', ')}` : ''}.`;
     if (r.surge && atk.effect) text += ` ${term(mod, 'surge')}: ${atk.effect}`;
   }
-  addRoll(s, ctx, { who: k.name, creatureId: k.id, kind: 'attack', label: `${atk.name} vs ${t.o.name}`, pool: pool.dice, ...r, dmg, secret: true });
+  addRoll(s, ctx, { who: k.name, creatureId: k.id, kind: 'attack', label: `${atk.name} vs ${t.o.name}`, ...r, dmg, secret: true });
   story(s, ctx, 'event', text, 'Engine', { roll: true });
 };
 H['creature.flee'] = (s, a, ctx) => {
@@ -556,14 +575,16 @@ H['fight.start'] = (s, a, ctx) => {
   const order = [];
   for (const ch of Object.values(s.chars)) {
     if (ch.down) continue;
-    const r = readRoll(rollDice(poolFor(mod, ch, ini.stat, ini.skill || '').dice, ctx.rng));
-    order.push({ key: keyOf('char', ch.id), init: r.total, side: 0 });
+    const r = rollSpec(mod, ctx, poolFor(mod, ch, ini.stat, ini.skill || ''), 0);
+    order.push({ key: keyOf('char', ch.id), init: r.margin, side: 0 });
   }
   for (const k of Object.values(s.creatures)) {
     if (k.down || k.siteId !== s.scene.siteId) continue;
     const b = mod.ix.creature[k.base];
-    const r = readRoll(rollDice((b.tier || 1) + 2, ctx.rng));
-    order.push({ key: keyOf('creature', k.id), init: r.total, side: 1 });
+    // The d6 pool rolls tier + 2 dice; other systems roll the creature's first attack's rating.
+    const rating = getSystem(mod.rules).id === 'd6-pool' ? (b.tier || 1) + 2 : ((b.attacks || [])[0] || {}).rating ?? ((b.attacks || [])[0] || {}).dice ?? 0;
+    const r = rollSpec(mod, ctx, poolForRating(mod, rating), 0);
+    order.push({ key: keyOf('creature', k.id), init: r.margin, side: 1 });
   }
   if (!order.some((o) => o.side === 1)) no('There is nothing here to fight. Add or reveal a creature first.');
   order.sort((x, y) => (y.init - x.init) || (x.side - y.side));

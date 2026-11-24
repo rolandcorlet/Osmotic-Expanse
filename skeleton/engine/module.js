@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkAll, FORMAT } from './schema.js';
+import { getSystem } from './dicesystems.js';
 
 // What the skeleton calls its parts when a module does not rename them.
 export const DEFAULT_TERMS = {
@@ -77,8 +78,9 @@ export function ladderName(mod, at) {
 
 // A difficulty given as a number or as a ladder name ("hard", "Standard").
 export function difficulty(mod, x) {
+  if (x == null || String(x).trim() === '') return null;
   const n = Number(x);
-  if (Number.isFinite(n) && n > 0) return Math.round(n);
+  if (Number.isFinite(n)) return Math.round(n);
   const rung = ((mod.rules && mod.rules.ladder) || []).find((r) => r.name.toLowerCase() === String(x || '').trim().toLowerCase());
   return rung ? rung.at : null;
 }
@@ -92,6 +94,7 @@ export function books(mod) {
   const T = mod.module.terms;
   add('Rules', 'Stats', (r.stats || []).map((s) => `${s.name}: ${s.about || ''}`).join('\n'));
   add('Rules', 'Skills', (r.skills || []).map((s) => `${s.name} (${(mod.ix.stat[s.stat] || {}).name || s.stat}): ${s.about || ''}`).join('\n'));
+  { const S = getSystem(r); add('Rules', `The dice: ${S.name}`, S.sys.describe(S.o, T)); }
   add('Rules', `${T.difficulty} ladder`, (r.ladder || []).map((x) => `${x.at} ${x.name}${x.about ? `: ${x.about}` : ''}`).join('\n'));
   add('Rules', `${T.snag}s (1s)`, [r.snag && r.snag.effect, ...((r.snag && r.snag.table) || []).map((t) => `${t.snags}${t.snags >= 3 ? '+' : ''} on a failed roll, ${t.name}: ${t.effect}`)].filter(Boolean).join('\n'));
   add('Rules', `${T.surge} (two 6s, no 1s)`, [r.surge && r.surge.effect, ...((r.surge && r.surge.options) || []).map((o) => `- ${o}`)].filter(Boolean).join('\n'));
@@ -110,7 +113,7 @@ export function books(mod) {
   for (const c of hb.callings || []) add('Handbook', `Calling: ${c.name}`, `${c.about || ''} Skills: ${(c.skills || []).map((k) => (mod.ix.skill[k] || {}).name || k).join(', ')}. Gear: ${(c.gear || []).map((k) => (mod.ix.gear[k] || {}).name || k).join(', ')}. Abilities: ${(c.abilities || []).map((k) => (mod.ix.ability[k] || {}).name || k).join(', ')}.`);
   for (const a of hb.abilities || []) add('Handbook', `Ability: ${a.name}`, `${T.level} ${a.level || 1}. Cost: ${a.cost || 'none'}. ${a.roll ? `Roll ${(mod.ix.stat[a.roll.stat] || {}).name || a.roll.stat}${a.roll.skill ? ` + ${(mod.ix.skill[a.roll.skill] || {}).name || a.roll.skill}` : ''}. ` : ''}${a.effect}`);
   for (const g of hb.gear || []) add('Handbook', `Gear: ${g.name}`, `${g.kind || ''}${g.weapon != null ? `, weapon ${g.weapon}` : ''}${g.soak != null ? `, soak ${g.soak}` : ''}${g.defence ? `, defence +${g.defence}` : ''}. ${g.about || ''}`);
-  for (const c of mod.bestiary.creatures || []) add('Bestiary', c.name, `Tier ${c.tier}. ${c.about || ''} ${c.look || ''}\n${T.health} ${c.health}, soak ${c.soak || 0}, defence ${c.defence}.\nAttacks: ${(c.attacks || []).map((a) => `${a.name} ${a.dice} dice, weapon ${a.weapon || 0}${a.effect ? ` (${a.effect})` : ''}`).join('; ')}.\n${(c.abilities || []).map((a) => `${a.name}: ${a.effect}`).join('\n')}\nTactics: ${c.tactics || ''}`);
+  for (const c of mod.bestiary.creatures || []) add('Bestiary', c.name, `Tier ${c.tier}. ${c.about || ''} ${c.look || ''}\n${T.health} ${c.health}, soak ${c.soak || 0}, defence ${c.defence}.\nAttacks: ${(c.attacks || []).map((a) => `${a.name} rating ${a.rating ?? a.dice}, weapon ${a.weapon || 0}${a.effect ? ` (${a.effect})` : ''}`).join('; ')}.\n${(c.abilities || []).map((a) => `${a.name}: ${a.effect}`).join('\n')}\nTactics: ${c.tactics || ''}`);
   add('Lore', 'The world', mod.lore.world);
   for (const s of mod.lore.sections || []) add('Lore', s.title, s.text);
   if ((mod.lore.glossary || []).length) add('Lore', 'Glossary', mod.lore.glossary.map((g) => `${g.term}: ${g.means}`).join('\n'));

@@ -99,3 +99,12 @@ test('extend: new creatures are added to the bestiary and a new adventure uses t
   assert.equal(out.mod.bestiary.creatures.length, beasts.creatures.length + 1);
   assert.deepEqual(out.mod.adventures.map((a) => a.id).sort(), ['bell-under-brine', 'crab-cove']);
 });
+test('the converter passes a chosen dice system to the AI, and checks numbers against it', async () => {
+  const seen = [];
+  const provider = scripted((msg) => { seen.push(msg); return { text: '{}' }; });
+  await convert({ provider, mode: 'invent', ideas: 'x', dice: 'd20', sections: ['module'] });
+  assert.match(seen[0], /DICE SYSTEM: use "d20"/);
+  const seen2 = [];
+  await convert({ provider: scripted((msg) => { seen2.push(msg); return { text: '{}' }; }), mode: 'convert', source: 'rules', sections: ['module'] });
+  assert.match(seen2[0], /keep the source's own dice/);
+});

@@ -81,7 +81,7 @@ export const TOOLS = [
       characters: A('Ids or names of the characters who roll.'),
       stat: S('A stat id from the rules.'),
       skill: S('A skill id, or empty.'),
-      difficulty: S('A number or a ladder name (e.g. "Standard" or 12).'),
+      difficulty: S('A ladder name (e.g. "Standard") or a number in the game\'s own difficulty units.'),
       reason: S('What the roll is for, in a few words the player sees.'),
       on_fail_damage: N('Health lost on a failure (0 for none).'),
       on_fail_condition: S('A condition id put on a failure, or empty.'),

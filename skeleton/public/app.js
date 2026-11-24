@@ -1,6 +1,8 @@
 // The Skeleton screens: the host console (/host?key=...), the table screen (/table) and each
 // player's phone (/play). One file; the server sends each screen only what it may see.
 
+import { getSystem, chance, ownDiceHint, SYSTEMS } from '/engine/dicesystems.js';
+
 const ROLE = location.pathname.startsWith('/host') ? 'host' : location.pathname.startsWith('/table') ? 'table' : 'player';
 const KEY = new URLSearchParams(location.search).get('key') || '';
 const PID = (() => { try { let p = localStorage.getItem('sk-pid'); if (!p) { p = `p${Math.random().toString(36).slice(2, 10)}`; localStorage.setItem('sk-pid', p); } return p; } catch (e) { return `p${Math.random().toString(36).slice(2, 10)}`; } })();
@@ -36,6 +38,16 @@ const skillName = (id) => ((M.rules.skills || []).find((x) => x.id === id) || {}
 const condName = (id) => ((M.rules.conditions || []).find((x) => x.id === id) || {}).name || id;
 const gearOf = (id) => (M.handbook.gear || []).find((x) => x.id === id);
 const abilityOf = (id) => (M.handbook.abilities || []).find((x) => x.id === id);
+// The module's dice system, and what a character rolls (the same sums as the Engine's poolFor).
+const SYS = () => getSystem(M.rules);
+function specFor(c, stat, skill) {
+  const S = SYS();
+  const mods = c.conds.map((id) => (M.rules.conditions || []).find((x) => x.id === id)).filter((x) => x && (x.dice ?? x.mod)).map((x) => ({ dice: x.dice ?? x.mod }));
+  let pen = 0; for (const p of (M.rules.strain && M.rules.strain.penalties) || []) if (c.strain >= p.at) pen = Math.min(pen, p.dice ?? p.mod ?? 0);
+  if (pen) mods.push({ dice: pen });
+  return S.sys.spec(S.o, { stat: c.stats[stat] ?? 0, skill: skill ? (c.skills[skill] || 0) : 0, mods });
+}
+const pct = (p) => `${Math.round(p * 100)}%`;
 const me = () => { const p = S && S.players[PID]; return p && p.charId ? S.chars[p.charId] : null; };
 const curKey = () => (S.fight && S.fight.order.length ? S.fight.order[S.fight.turn].key : null);
 const nameOfKey = (key) => { if (!key) return ''; const [k, id] = key.split(':'); return ((k === 'char' ? S.chars : S.creatures)[id] || {}).name || '?'; };
@@ -98,7 +110,11 @@ function speakNew() {
 const readBtn = (text) => h('button', { title: 'Read aloud', onclick: () => { unlockAudio(); speak(text); } }, '🔊');
 
 // ---------------------------------------------------------------- shared pieces
-function diceRow(r, fresh) { return h('div', { class: 'dice' }, (r.dice || []).map((d) => h('span', { class: `die${d === 1 ? ' one' : d === 6 ? ' six' : ''}${fresh ? ' fresh' : ''}` }, d))); }
+function diceRow(r, fresh) {
+  const faces = r.faces || (r.dice || []).map((v) => ({ v, sides: 6, mark: v === 1 ? 'snag' : v === 6 ? 'six' : '' }));
+  return h('div', { class: 'dice' }, faces.map((f) => h('span', { class: `die${f.mark === 'snag' ? ' one' : f.mark === 'six' || f.mark === 'surge' ? ' six' : f.mark === 'hit' ? ' hit' : f.mark === 'wild' ? ' wild' : ''}${f.sides !== 6 ? ' wide' : ''}${fresh ? ' fresh' : ''}`, title: f.sides === 'F' ? 'Fate die' : `d${f.sides}` },
+    f.sides === 'F' ? (f.v > 0 ? '+' : f.v < 0 ? '−' : ' ') : f.v, f.sides !== 6 && f.sides !== 'F' ? h('sub', {}, `d${f.sides}`) : null)));
+}
 function rollCard(r) {
   if (!r) return null;
   const fresh = r.id !== ui.lastRollId;
@@ -106,7 +122,11 @@ function rollCard(r) {
   return h('div', { class: 'card' },
     h('div', { class: 'row' }, h('b', { class: 'grow' }, `${r.who}: ${r.label}`), r.surge ? h('span', { class: 'pill acc' }, T('surge')) : null, r.snags ? h('span', { class: 'pill no' }, `${r.snags} ${T('snag')}${r.snags > 1 ? 's' : ''}`) : null),
     diceRow(r, fresh),
-    h('div', { class: 'row' }, h('span', { class: `result ${r.success === true ? 'ok' : r.success === false ? 'no' : ''}` }, r.total), r.at != null ? h('span', { class: 'dim' }, `against ${r.at}: ${r.success ? `success, ${T('overflow').toLowerCase()} ${r.overflow}` : `short by ${r.shortBy}`}${r.dmg ? `, ${r.dmg} damage` : ''}`) : h('span', { class: 'dim' }, `${r.dice.length} dice, unasked`)),
+    h('div', { class: 'row' }, h('span', { class: `result ${r.success === true ? 'ok' : r.success === false ? 'no' : ''}` }, r.total),
+      r.shown && r.success != null ? h('span', { class: 'dim' }, `${r.shown}: ${r.success ? (r.partial ? 'partial success' : 'success') : 'failure'}${r.dmg ? `, ${r.dmg} damage` : ''}`)
+        : r.at != null && r.shown == null ? h('span', { class: 'dim' }, `against ${r.at}: ${r.success ? `success, ${T('overflow').toLowerCase()} ${r.overflow}` : `short by ${r.shortBy}`}${r.dmg ? `, ${r.dmg} damage` : ''}`)
+          : h('span', { class: 'dim' }, `${r.pool || ''} unasked`)),
+    r.pool ? h('small', { class: 'faint' }, `Rolled ${r.pool}`) : null,
     r.reason ? h('small', {}, r.reason) : null);
 }
 function bar(v, max, cls = '') { return h('div', { class: `bar ${cls}`, title: `${v} / ${max}` }, h('i', { style: `width:${Math.max(0, Math.min(100, (100 * v) / Math.max(1, max)))}%` })); }
@@ -154,7 +174,7 @@ function bookSections(hidden) {
   const out = [];
   const add = (book, title, text) => { if (text) out.push({ book, title, text: String(text) }); };
   const R = M.rules;
-  add('Rules', 'The dice', `Roll a pool of d6: a stat plus a skill, plus or minus modifiers (at most +5 or -5 together, never under 1 die). Add them up; a 1 scores nothing. Each 1 is a ${T('snag')}: mark 1 ${T('strain')}. Two or more 6s and no 1s is a ${T('surge')}. Meet the ${T('difficulty')} to succeed; what is left over is ${T('overflow').toLowerCase()}. Damage = ${T('overflow').toLowerCase()} + weapon - soak (a ${T('surge')} counts the weapon twice).`);
+  { const S = SYS(); add('Rules', `The dice: ${S.name}`, S.sys.describe(S.o, M.module.terms)); }
   add('Rules', `${T('difficulty')} ladder`, R.ladder.map((x) => `${x.at} ${x.name}${x.about ? `: ${x.about}` : ''}`).join('\n'));
   add('Rules', `${T('snag')}s`, [R.snag.effect, ...(R.snag.table || []).map((t) => `${t.snags}${t.snags >= 3 ? '+' : ''} on a failure, ${t.name}: ${t.effect}`)].join('\n'));
   add('Rules', T('surge'), [R.surge.effect, ...(R.surge.options || []).map((o) => `- ${o}`)].join('\n'));
@@ -173,7 +193,7 @@ function bookSections(hidden) {
   add('Lore', 'The world', M.lore.world);
   for (const s of M.lore.sections || []) add('Lore', s.title, s.text);
   if ((M.lore.glossary || []).length) add('Lore', 'Glossary', M.lore.glossary.map((g) => `${g.term}: ${g.means}`).join('\n'));
-  for (const c of M.bestiary.creatures) add('Bestiary', c.name, hidden ? `Tier ${c.tier}. ${c.about || ''} ${T('health')} ${c.health}, soak ${c.soak || 0}, defence ${c.defence}. Attacks: ${c.attacks.map((a) => `${a.name} ${a.dice} dice, weapon ${a.weapon}`).join('; ')}. ${c.tactics || ''}` : `${c.look || ''}`);
+  for (const c of M.bestiary.creatures) add('Bestiary', c.name, hidden ? `Tier ${c.tier}. ${c.about || ''} ${T('health')} ${c.health}, soak ${c.soak || 0}, defence ${c.defence}. Attacks: ${c.attacks.map((a) => `${a.name} rating ${a.rating ?? a.dice}, weapon ${a.weapon}`).join('; ')}. ${c.tactics || ''}` : `${c.look || ''}`);
   if (hidden) for (const a of M.adventures) { add('Adventure', `${a.name}: secrets`, a.secrets); for (const s of a.sites) add('Adventure', `${a.name}: ${s.name}`, s.notes); }
   return out;
 }
@@ -206,9 +226,10 @@ function chooseView() {
   for (const s of R.stats) if (b.stats[s.id] == null) b.stats[s.id] = R.statPoints.start;
   const calling = M.handbook.callings.find((c) => c.id === b.calling);
   const spentStats = Object.values(b.stats).reduce((a, v) => a + v - R.statPoints.start, 0);
-  const skills = { ...b.skills }; for (const k of (calling && calling.skills) || []) skills[k] = Math.max(1, skills[k] || 0);
+  const skills = { ...b.skills }; for (const k of (calling && calling.skills) || []) skills[k] = Math.max(R.skillPoints.first ?? (getSystem(R).id === 'step' ? 4 : (R.skillPoints.step || 1)), skills[k] || 0);
   const spentSkills = Object.values(skills).reduce((a, v) => a + v, 0);
-  const stepper = (val, set, lo, hi) => h('div', { class: 'stepper' }, h('button', { disabled: val <= lo, onclick: () => { set(val - 1); render(); } }, '−'), h('b', {}, val), h('button', { disabled: val >= hi, onclick: () => { set(val + 1); render(); } }, '+'));
+  const stepper = (val, set, lo, hi, st = 1) => h('div', { class: 'stepper' }, h('button', { disabled: val <= lo, onclick: () => { set(Math.max(lo, val - st)); render(); } }, '−'), h('b', {}, SYS().id === 'step' && val ? `d${val}` : val), h('button', { disabled: val >= hi, onclick: () => { set(Math.min(hi, val === 0 && SYS().id === 'step' ? 4 : val + st)); render(); } }, '+'));
+  const first = R.skillPoints.first ?? (SYS().id === 'step' ? 4 : (R.skillPoints.step || 1));
   return h('div', { class: 'view v-two' },
     h('div', { class: 'card scroll', 'data-key': 'pregens' }, h('h2', {}, 'Choose a ready-made character'), h('small', {}, M.handbook.intro, ' ', readBtn(M.handbook.intro)),
       h('div', { class: 'pregens' }, (M.handbook.pregens || []).map((pg, i) => {
@@ -222,10 +243,11 @@ function chooseView() {
       (M.handbook.chargen || []).length ? h('small', { class: 'dim' }, M.handbook.chargen.join(' ')) : null,
       h('h3', {}, 'Origin'), h('div', { class: 'grid3' }, M.handbook.origins.map((o) => h('button', { class: `choice${b.origin === o.id ? ' on' : ''}`, onclick: () => { b.origin = o.id; render(); } }, h('b', {}, o.name), h('small', {}, o.about || '')))),
       h('h3', {}, 'Calling'), h('div', { class: 'grid3' }, M.handbook.callings.map((c) => h('button', { class: `choice${b.calling === c.id ? ' on' : ''}`, onclick: () => { b.calling = c.id; render(); } }, h('b', {}, c.name), h('small', {}, c.about || '')))),
+      h('small', { class: 'faint' }, `Dice: ${SYS().name}.`),
       h('h3', {}, `Stats (${R.statPoints.spend - spentStats} points left)`),
-      h('div', { class: 'grid2' }, R.stats.map((s) => h('div', { class: 'row' }, h('span', { class: 'grow', title: s.about }, s.name), stepper(b.stats[s.id], (v) => { b.stats[s.id] = v; }, R.statPoints.start, R.statPoints.max)))),
+      h('div', { class: 'grid2' }, R.stats.map((s) => h('div', { class: 'row' }, h('span', { class: 'grow', title: s.about }, s.name), stepper(b.stats[s.id], (v) => { b.stats[s.id] = v; }, R.statPoints.start, R.statPoints.max, R.statPoints.step || 1)))),
       h('h3', {}, `Skills (${R.skillPoints.spend - spentSkills} ranks left)`),
-      h('div', { class: 'grid2' }, R.skills.map((s) => h('div', { class: 'row' }, h('span', { class: 'grow', title: s.about }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), stepper(skills[s.id] || 0, (v) => { b.skills[s.id] = v; }, calling && calling.skills.includes(s.id) ? 1 : 0, R.skillPoints.max)))),
+      h('div', { class: 'grid2' }, R.skills.map((s) => h('div', { class: 'row' }, h('span', { class: 'grow', title: s.about }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), stepper(skills[s.id] || 0, (v) => { b.skills[s.id] = v; }, calling && calling.skills.includes(s.id) ? first : 0, R.skillPoints.max, R.skillPoints.step || 1)))),
       h('label', { class: 'fld' }, h('span', {}, 'Name'), h('input', { id: 'b-name', value: b.name, oninput: (e) => { b.name = e.target.value; } })),
       h('label', { class: 'fld' }, h('span', {}, 'Look (one line)'), h('input', { id: 'b-look', value: b.look, oninput: (e) => { b.look = e.target.value; } })),
       h('label', { class: 'fld' }, h('span', {}, 'What they want'), h('input', { id: 'b-want', value: b.want, oninput: (e) => { b.want = e.target.value; } })),
@@ -244,10 +266,11 @@ function playerStory() {
     h('div', { class: 'card' }, storyView(),
       h('div', { class: 'say-box' }, h('input', { id: 'say', placeholder: `What does ${c.name} do or say?`, value: ui.say, oninput: (e) => { ui.say = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter') sendSay(); } }), h('button', { class: 'go', onclick: sendSay }, 'Say'))),
     h('div', { class: 'side' },
-      mine.map((q) => h('div', { class: 'card roll-card' }, h('h2', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('small', {}, q.reason),
+      mine.map((q) => { const sp = specFor(c, q.stat, q.skill); return h('div', { class: 'card roll-card' }, h('h2', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('small', {}, q.reason),
+        h('div', { class: 'row' }, h('span', { class: 'pill acc' }, sp.label), h('small', {}, `about ${pct(chance(SYS(), sp, q.at))} to succeed`)),
         h('div', { class: 'row' }, h('button', { class: 'go', onclick: () => act({ type: 'roll.make', id: q.id }) }, 'Roll the dice'),
-          h('input', { id: `own-${q.id}`, placeholder: 'or type your dice: 6 3 1 4', style: 'flex:1;min-width:140px', value: ui.form[`own-${q.id}`] || '', oninput: (e) => { ui.form[`own-${q.id}`] = e.target.value; } }),
-          h('button', { onclick: () => act({ type: 'roll.make', id: q.id, dice: String(ui.form[`own-${q.id}`] || '').split(/[^0-9]+/).filter(Boolean).map(Number) }) }, 'Use mine')))),
+          h('input', { id: `own-${q.id}`, placeholder: `or type your dice: ${ownDiceHint(sp)}`, style: 'flex:1;min-width:160px', value: ui.form[`own-${q.id}`] || '', oninput: (e) => { ui.form[`own-${q.id}`] = e.target.value; } }),
+          h('button', { onclick: () => act({ type: 'roll.make', id: q.id, dice: String(ui.form[`own-${q.id}`] || '').match(/[+-]|\d+/g) || [] }) }, 'Use mine'))); }),
       rollCard(lastRoll),
       fightStrip(),
       myTurn ? h('div', { class: 'card turn-now' }, h('h2', {}, 'Your turn'), h('small', {}, `${M.rules.combat.actionsPerTurn} actions. Used: ${S.fight.used || 0}.`),
@@ -265,11 +288,11 @@ function sheetView(c) {
   return h('div', { class: 'view v-two' },
     h('div', { class: 'card scroll' }, h('h2', {}, c.name), h('small', {}, `${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name} ${(M.handbook.callings.find((x) => x.id === c.calling) || {}).name} · ${T('level')} ${c.level} · ${c.xp} ${T('xp')}`),
       c.look ? h('small', { class: 'dim' }, c.look) : null, c.want ? h('small', {}, `Wants: ${c.want}`) : null,
-      h('div', { class: 'stat-tiles' }, R.stats.map((s) => h('div', { class: 'tile', title: s.about }, h('div', { class: 'k' }, s.name), h('div', { class: 'v' }, c.stats[s.id] || 0)))),
+      h('div', { class: 'stat-tiles' }, R.stats.map((s) => h('div', { class: 'tile', title: s.about }, h('div', { class: 'k' }, s.name), h('div', { class: 'v' }, SYS().id === 'step' ? `d${c.stats[s.id]}` : SYS().id === 'percentile' ? `${c.stats[s.id]}%` : (c.stats[s.id] ?? 0))))),
       h('div', {}, h('small', {}, `${T('health')} ${c.health} / ${c.healthMax}`), bar(c.health, c.healthMax)),
       h('div', {}, h('small', {}, `${T('strain')} ${c.strain} / ${R.strain.max}`), bar(c.strain, R.strain.max, 'strain')),
       c.conds.length ? h('div', { class: 'row' }, c.conds.map((x) => h('span', { class: 'pill no', title: ((R.conditions.find((y) => y.id === x) || {}).effect) }, condName(x)))) : null,
-      h('h3', {}, 'Skills'), R.skills.filter((s) => c.skills[s.id]).map((s) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), h('b', {}, c.skills[s.id]),
+      h('h3', {}, `Skills (${SYS().name})`), R.skills.filter((s) => c.skills[s.id]).map((s) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), h('b', {}, SYS().id === 'step' ? `d${c.skills[s.id]}` : c.skills[s.id]), h('span', { class: 'pill' }, specFor(c, s.stat, s.id).label),
         h('button', { title: 'Roll it for yourself (not asked for)', onclick: () => act({ type: 'roll.free', charId: c.id, stat: s.stat, skill: s.id }) }, '🎲')))),
     h('div', { class: 'card scroll' }, h('h3', {}, 'Gear'), c.gear.map(gearOf).filter(Boolean).map((g) => h('div', { class: 'list-line' }, h('b', {}, g.name), h('small', { class: 'grow dim' }, `${g.weapon != null ? `weapon ${g.weapon} · ` : ''}${g.soak != null ? `soak ${g.soak} · ` : ''}${g.about || ''}`))),
       h('h3', {}, 'Abilities'), c.abilities.map(abilityOf).filter(Boolean).map((a) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, a.name), h('div', { class: 'dim' }, `${a.cost ? `${a.cost}. ` : ''}${a.effect}`)), readBtn(`${a.name}. ${a.effect}`))),
@@ -312,7 +335,7 @@ function hostPlay() {
       h('div', { class: 'card' }, h('h3', {}, 'Creatures here'), here.length ? here.map((k) => {
         const b = M.bestiary.creatures.find((x) => x.id === k.base) || { attacks: [] };
         return h('div', { class: `list-line${k.down ? ' down' : ''}${curKey() === `creature:${k.id}` ? ' turn-now' : ''}` }, h('div', { class: 'grow' }, h('b', {}, k.name), h('small', {}, ` ${k.health}/${k.healthMax}${k.hidden ? ' · hidden' : ''}${k.conds.length ? ` · ${k.conds.join(', ')}` : ''}`), bar(k.health, k.healthMax)),
-          !k.down && alive.length ? b.attacks.map((a) => h('button', { title: `${a.dice} dice, weapon ${a.weapon}`, onclick: () => act({ type: 'creature.act', creature: k.id, attack: a.name, target: (alive[Math.floor(Math.random() * alive.length)] || {}).id }) }, a.name)) : null,
+          !k.down && alive.length ? b.attacks.map((a) => h('button', { title: `rating ${a.rating ?? a.dice}, weapon ${a.weapon}`, onclick: () => act({ type: 'creature.act', creature: k.id, attack: a.name, target: (alive[Math.floor(Math.random() * alive.length)] || {}).id }) }, a.name)) : null,
           k.hidden ? h('button', { onclick: () => act({ type: 'creature.reveal', ids: [k.id] }) }, 'Reveal') : null,
           !k.down ? h('button', { onclick: () => act({ type: 'creature.flee', creature: k.id }) }, 'Flees') : null);
       }) : h('small', {}, 'None.')),
@@ -323,7 +346,8 @@ function hostWorld() {
   const site = adv.sites.find((x) => x.id === S.scene.siteId) || {};
   const f = ui.form;
   const everyone = [...Object.values(S.chars), ...Object.values(S.creatures).filter((k) => k.siteId === S.scene.siteId && !k.down)];
-  f.ask = f.ask || { chars: [], stat: M.rules.stats[0].id, skill: '', at: 12, reason: '', dmg: 0, cond: '' };
+  const std = (M.rules.ladder.find((x) => /^(standard|medium|regular|average|routine)$/i.test(x.name)) || M.rules.ladder[1] || M.rules.ladder[0]).at;
+  f.ask = f.ask || { chars: [], stat: M.rules.stats[0].id, skill: '', at: std, reason: '', dmg: 0, cond: '' };
   return h('div', { class: 'view v-two' },
     h('div', { class: 'side' },
       h('div', { class: 'card' }, h('h3', {}, 'The place'), h('h2', {}, site.name), h('small', {}, site.read), site.notes ? h('small', { class: 'dim' }, `Notes: ${site.notes}`) : null,
@@ -365,6 +389,9 @@ function hostConverter() {
       h('small', {}, 'Turn a rule book, a players\' handbook, a monster book, a campaign, or a few ideas into a module for this skeleton. It uses the AI chosen on the AI tab, writes one section at a time, checks each one and sends problems back to be fixed.'),
       h('div', { class: 'grid3' }, Object.entries(HELLO.modes).map(([k, v]) => h('button', { class: `choice${f.mode === k ? ' on' : ''}`, onclick: () => { f.mode = k; render(); } }, h('b', {}, k === 'convert' ? 'Convert' : k === 'invent' ? 'Invent' : 'Extend'), h('small', {}, v)))),
       f.mode === 'extend' ? h('label', { class: 'fld' }, h('span', {}, 'Module to extend'), h('select', { onchange: (e) => { f.base = e.target.value; } }, HELLO.modules.map((m) => opt(m.id, m.name, m.id === f.base)))) : h('label', { class: 'fld' }, h('span', {}, 'Name of the new game (optional)'), h('input', { id: 'cv-name', value: f.name, oninput: (e) => { f.name = e.target.value; } })),
+      h('label', { class: 'fld' }, h('span', {}, 'Dice system'), h('select', { onchange: (e) => { f.dice = e.target.value; } },
+        opt('', f.mode === 'convert' ? 'Keep the source\'s own dice (or the closest system)' : 'Let the converter choose (the d6 pool when unsure)', !f.dice),
+        Object.entries(SYSTEMS).map(([id, x]) => opt(id, `${x.name}: ${x.for}`, f.dice === id)))),
       h('label', { class: 'fld' }, h('span', {}, 'Ideas: a few lines are enough ("sky whales, kite cities, smugglers, a storm that eats memories")'), h('textarea', { id: 'cv-ideas', rows: 4, value: f.ideas, oninput: (e) => { f.ideas = e.target.value; } })),
       h('label', { class: 'fld' }, h('span', {}, `Source material: paste text, or add .txt / .md / .json files (${f.source.length.toLocaleString()} characters; the first 90,000 are used)`), h('textarea', { id: 'cv-source', rows: 7, value: f.source, oninput: (e) => { f.source = e.target.value; } })),
       h('input', { type: 'file', multiple: true, accept: '.txt,.md,.json,.markdown,.csv', onchange: async (e) => { for (const file of e.target.files) f.source += `\n\n=== ${file.name} ===\n${await file.text()}`; render(); } }),
@@ -372,7 +399,7 @@ function hostConverter() {
       h('div', { class: 'row' }, h('small', {}, 'Sections:'), SECTIONS.map((s) => h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: f.sections.includes(s), onchange: (e) => { f.sections = e.target.checked ? [...f.sections, s] : f.sections.filter((x) => x !== s); } }), s)), h('small', { class: 'faint' }, '(none ticked: all, or creatures and an adventure when extending)')),
       h('div', { class: 'row' }, h('button', { class: 'go', disabled: C.running, onclick: async () => {
         C.running = true; C.log = []; C.result = null; render();
-        const r = await post('/api/convert', { mode: f.mode, base: f.base, name: f.name, ideas: f.ideas, source: f.source, notes: f.notes, sections: f.sections.length ? SECTIONS.filter((s) => f.sections.includes(s)) : undefined });
+        const r = await post('/api/convert', { mode: f.mode, base: f.base, name: f.name, ideas: f.ideas, source: f.source, notes: f.notes, dice: f.dice || '', sections: f.sections.length ? SECTIONS.filter((s) => f.sections.includes(s)) : undefined });
         C.running = false; C.result = r; if (r.savedAs) HELLO = await (await fetch(`/api/hello?key=${encodeURIComponent(KEY)}`)).json(); render();
       } }, C.running ? 'Converting… (a minute or two a section)' : 'Convert'),
       h('a', { href: '/docs/CONVERTER-PROMPT.md', target: '_blank' }, 'The copy-paste prompt'), h('a', { href: '/docs/DESIGNER-PROMPT.md', target: '_blank' }, 'The designer prompt'), h('a', { href: '/docs/MODULE-FORMAT.md', target: '_blank' }, 'The format'))),
