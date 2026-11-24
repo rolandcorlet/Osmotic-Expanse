@@ -121,7 +121,7 @@ export function checkNarration(text, state, { asked = false } = {}) {
     // Bench 4: "Bryn is sitting up now" while the Engine still had him dying at 0 hit points.
     const first = p.name.split(/\s+/)[0];
     if (p.hp <= 0 && new RegExp(`\\b${first}\\b[^.?!]{0,30}\\b(?:sits? up|sitting up|stands? up|gets? up|on (?:his|her|their) feet|climbs? to (?:his|her|their) feet)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is up, but they are at 0 hit points: only healing wakes them.` });
-    if (new RegExp(`\\b${p.name.split(/\s+/)[0]}\\b[^.?!]{0,40}\\b(?:dies|is dead|lies dead|breathes (?:his|her|their) last)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is dead, but they are alive.` });
+    if (new RegExp(`\\b${p.name.split(/\s+/)[0]}\\b[^.?!,;]{0,40}\\b(?:dies|is dead|lies dead|breathes (?:his|her|their) last)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is dead, but they are alive.` });
   }
   return flags;
 }
