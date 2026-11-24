@@ -181,6 +181,16 @@ test('the bridge fight: custom monsters attack, breathe and fall through the Eng
   assert.equal(T.s.requests.at(-1).effect.cond, 'prone');
 });
 
+test('bench part 4: harming or healing someone the Engine does not track, or nobody, is a note', () => {
+  const T = table();
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(2), now: 1 });
+  for (const [tool, args] of [['deal_damage', { target: 'Halia Vance', dice: '1d4', damage_type: 'piercing' }], ['heal', { target: 'none', dice: '0' }], ['heal', { target: 'Halia', dice: '1d8' }]]) {
+    const out = tb.run(tool, args);
+    assert.ok(out.note && !out.refused, `${tool} ${JSON.stringify(args)}`);
+  }
+  assert.equal(tb.refusals, 0);
+});
+
 test('look-ups find the adventure\'s monsters, and rules topics say where they come from', () => {
   const k = lookUp(srd, 'Taskmaster Kragg');
   assert.match(k.monster, /Taskmaster Kragg .*AC 17, 65 hp/);

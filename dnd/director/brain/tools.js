@@ -261,7 +261,10 @@ export const TOOLS = [
     parameters: obj({ target: S('Id or name.'), dice: S('Damage dice such as "1d6" or "2d8+3", or a plain number.'), damage_type: S('fire, cold, bludgeoning, piercing, slashing, poison, acid, necrotic, radiant, force, psychic, thunder, lightning.'), why: S('What caused it, in a few words.') }, ['target', 'dice', 'damage_type', 'why']),
     run(a, T) {
       const ref = targetRef(T.state, a.target);
-      if (!ref) return { refused: `Nobody called "${a.target}". Party: ${party(T.state)}. Monsters: ${here(T.state)}.` };
+      // Someone the Engine does not track (Halia Vance, a townsperson) or nobody at all: the story
+      // carries it, and nothing in the Ledger changes. A note, not a refusal (bench part 4, 24 Nov).
+      if (!ref) return { note: `Nothing changed: the Engine tracks only the party (${party(T.state)}) and the monsters here (${here(T.state)}). For anyone else, just narrate what happens to them.` };
+      if (/^\s*0*\s*$/.test(String(a.dice ?? ''))) return { note: 'Nothing changed: no damage was given.' };
       const before = T.state.seq;
       const amt = /^\s*\d+\s*$/.test(String(a.dice)) ? Number(a.dice) : undefined;
       if (amt === undefined && !/\d*d\d+/i.test(String(a.dice))) return { refused: 'Give damage as dice like 1d6 or a number.' };
@@ -275,7 +278,9 @@ export const TOOLS = [
     parameters: obj({ target: S('Id or name.'), dice: S('Healing dice such as "2d4+2", or a number.'), why: S('What healed them.') }, ['target', 'dice']),
     run(a, T) {
       const ref = targetRef(T.state, a.target);
-      if (!ref) return { refused: `Nobody called "${a.target}".` };
+      // As with damage: healing someone the Engine does not track, or healing nothing, is a note.
+      if (!ref) return { note: `Nothing changed: the Engine tracks only the party (${party(T.state)}) and the monsters here (${here(T.state)}). For anyone else, just narrate it.` };
+      if (/^\s*0*\s*$/.test(String(a.dice ?? ''))) return { note: 'Nothing changed: no healing was given.' };
       const amt = /^\s*\d+\s*$/.test(String(a.dice)) ? Number(a.dice) : undefined;
       const before = T.state.seq;
       const no = T.do({ type: 'heal', target: ref, amount: amt, dice: amt === undefined ? String(a.dice) : undefined, why: a.why });
