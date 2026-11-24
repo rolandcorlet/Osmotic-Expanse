@@ -408,12 +408,21 @@ export const TOOLS = [
     run(a, T) {
       const what = String(a.action || 'tick').toLowerCase();
       const type = /^(start|add|new|begin)/.test(what) ? 'clock.add' : /^(clear|remove|stop|end|delete)/.test(what) ? 'clock.remove' : 'clock.tick';
+      const k = String(a.name || '').toLowerCase();
+      const running = () => (T.state.clocks || []).filter((x) => !x.siteId || x.siteId === T.state.scene.siteId);
+      const find = () => running().find((x) => x.id === a.name || x.name.toLowerCase() === k) || running().find((x) => x.name.toLowerCase().includes(k));
+      const c = find();
+      // A clock the adventure has already placed, or one that is already gone, is not an error: the Director
+      // is told what is running and the turn goes on (bench part 4, 24 Nov: "start" of a running clock and
+      // "clear" of a cleared one were refused). Nothing in the Ledger changes.
+      if (type === 'clock.add' && c && !c.done) return { ok: true, note: `Already running: ${c.name}, ${c.filled} of ${c.size}. Tick it instead of starting it again.` };
+      if (type === 'clock.remove' && !c) return { note: `Nothing to clear: no clock called "${a.name}" is running. Running: ${running().map((x) => x.name).join(', ') || 'none'}.` };
+      if (type === 'clock.tick' && !c) return { note: `No clock called "${a.name}" is running here. Running: ${running().map((x) => x.name).join(', ') || 'none'}.` };
       const no = T.do({ type, name: a.name, id: a.name, size: a.size, by: a.by, note: a.note, siteId: T.state.scene.siteId });
       if (no) return { refused: no };
-      const k = String(a.name || '').toLowerCase();
-      const c = (T.state.clocks || []).find((x) => x.id === a.name || x.name.toLowerCase() === k) || (T.state.clocks || []).find((x) => x.name.toLowerCase().includes(k));
-      if (type === 'clock.remove' || !c) return { ok: true };
-      return { ok: true, clock: `${c.name}: ${c.filled} of ${c.size}${c.done ? `. FULL: ${c.note || 'it happens now'}` : ''}` };
+      if (type === 'clock.remove') return { ok: true };
+      const after = find();
+      return { ok: true, clock: after ? `${after.name}: ${after.filled} of ${after.size}${after.done ? `. FULL: ${after.note || 'it happens now'}` : ''}` : undefined };
     },
   },
   {

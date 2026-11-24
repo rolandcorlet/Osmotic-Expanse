@@ -111,7 +111,17 @@ test('clocks fill, show on every screen and are fenced by the Engine', () => {
   const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(1), now: 1 });
   const out = tb.run('clock', { action: 'tick', name: 'portcullis winch', by: 3 });
   assert.match(out.clock, /3 of 3\. FULL/);
-  assert.ok(tb.run('clock', { action: 'tick', name: 'no such clock' }).refused);
+  // Clocks the Director names but the Ledger does not hold are notes, not refusals (bench part 4, 24 Nov).
+  assert.ok(!tb.run('clock', { action: 'tick', name: 'no such clock' }).refused);
+  assert.match(tb.run('clock', { action: 'tick', name: 'no such clock' }).note, /No clock called/);
+  // Starting a clock that is still running is a note; the duplicate guard in the Ledger is for live clocks only.
+  assert.match(tb.run('clock', { action: 'start', name: 'Secret plan', size: 4 }).note, /Already running/);
+  // Clearing a clock twice: the first removes it, the second is a note, and the Ledger ends up without it.
+  const before = tb.state.clocks.length;
+  assert.ok(!tb.run('clock', { action: 'clear', name: 'Burning Bridge' }).refused);
+  assert.equal(tb.state.clocks.length, before - 1);
+  assert.ok(!tb.state.clocks.some((x) => x.name === 'The burning bridge'));
+  assert.match(tb.run('clock', { action: 'clear', name: 'Burning Bridge' }).note, /Nothing to clear/);
   // Moving to a place with its own clock starts it, once. A place's clocks stay with it: in Oakhurst
   // the bridge's clocks are out of the briefing and off the players' screens; Brindol's runs everywhere.
   T.host({ type: 'site.move', siteId: 'oakhurst' });

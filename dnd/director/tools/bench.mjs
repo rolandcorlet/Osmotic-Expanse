@@ -270,7 +270,9 @@ async function runOnce(n) {
     // A roll asked of the acting player is their prompt: no closing question is needed (bench part 2, run 10).
     if (who && who.playerId && who.hp > 0 && !otherRoll && !ownRoll) {
       const last = out.narration.split(/(?<=[.!?])\s+/).filter((x) => x.includes('?')).pop() || '';
-      if (!new RegExp(`\\b${who.name}\\b`).test(last)) { tally['wrong-seat'] += 1; notes.push(`${label}: closing question not to ${who.name}: "${last.slice(0, 120)}"`); }
+      // The Director calls a player by first name ("Pell, what do you do?"), so either name counts.
+      const first = who.name.split(/\s+/)[0];
+      if (!new RegExp(`\\b(${[who.name, first].map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`).test(last)) { tally['wrong-seat'] += 1; notes.push(`${label}: closing question not to ${who.name}: "${last.slice(0, 120)}"`); }
     }
     if (verbose) {
       console.log(`  [${label}] ${out.calls.map((c) => `${c.name}${c.result && c.result.refused ? '(refused)' : ''}`).join(', ') || 'narration only'}`);
