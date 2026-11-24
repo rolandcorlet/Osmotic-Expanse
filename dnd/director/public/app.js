@@ -667,10 +667,14 @@ function clockSvg(c) {
   return `<svg viewBox="0 0 44 44" class="clock-face${c.done ? ' full' : ''}" aria-hidden="true">${Array.from({ length: n }, (_, k) => seg(k)).join('')}</svg>`;
 }
 function clocksCard() {
-  const list = (state && state.clocks) || [];
-  if (!list.length) return '';
   const host = role === 'host';
-  return `<section class="card"><h3>Clocks</h3><div class="clocks">${list.map((c) => `<div class="clock${c.done ? ' full' : ''}">${clockSvg(c)}<div class="grow"><b>${esc(c.name)}</b><div class="small dim">${c.filled} of ${c.size}${c.hidden ? ' · hidden from players' : ''}</div>${c.done && c.note ? `<div class="small">${esc(c.note)}</div>` : host && c.note ? `<div class="small faint">${esc(c.note)}</div>` : ''}</div>
+  const here = state && state.scene ? state.scene.siteId : '';
+  // This place's clocks and the ones that run everywhere (the DM also sees those left elsewhere, below).
+  const all = (state && state.clocks) || [];
+  const list = all.filter((c) => !c.siteId || c.siteId === here || (host && !c.done));
+  if (!list.length) return '';
+  const placeName = (id) => ((adv.sites || []).find((x) => x.id === id) || {}).name || id;
+  return `<section class="card"><h3>Clocks</h3><div class="clocks">${list.map((c) => `<div class="clock${c.done ? ' full' : ''}">${clockSvg(c)}<div class="grow"><b>${esc(c.name)}</b><div class="small dim">${c.filled} of ${c.size}${c.hidden ? ' · hidden from players' : ''}${c.siteId && c.siteId !== here ? ` · at ${esc(placeName(c.siteId))}` : ''}</div>${c.done && c.note ? `<div class="small">${esc(c.note)}</div>` : host && c.note ? `<div class="small faint">${esc(c.note)}</div>` : ''}</div>
     ${host ? `<span class="row nw"><button class="btn sm" data-act="clock.back" data-id="${c.id}" title="Take a segment off">−</button><button class="btn sm" data-act="clock.tick" data-id="${c.id}" title="Fill a segment">+</button><button class="btn sm ghost" data-act="clock.remove" data-id="${c.id}" title="Remove the clock">✕</button></span>` : ''}</div>`).join('')}</div></section>`;
 }
 

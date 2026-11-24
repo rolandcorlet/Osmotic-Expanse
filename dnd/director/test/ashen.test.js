@@ -112,10 +112,16 @@ test('clocks fill, show on every screen and are fenced by the Engine', () => {
   const out = tb.run('clock', { action: 'tick', name: 'portcullis winch', by: 3 });
   assert.match(out.clock, /3 of 3\. FULL/);
   assert.ok(tb.run('clock', { action: 'tick', name: 'no such clock' }).refused);
-  // Moving to a place with its own clock starts it, once.
+  // Moving to a place with its own clock starts it, once. A place's clocks stay with it: in Oakhurst
+  // the bridge's clocks are out of the briefing and off the players' screens; Brindol's runs everywhere.
   T.host({ type: 'site.move', siteId: 'oakhurst' });
+  assert.ok(!/CLOCKS[^\n]*burning bridge/.test(briefing(T.s, adv, srd, { reason: 'x' })));
+  assert.equal(viewFor(T.s, 'player', 'p1').clocks.length, 0);
   T.host({ type: 'site.move', siteId: 'brindol' });
-  assert.ok(T.s.clocks.some((x) => x.name === 'The invasion of Brindol'));
+  const inv = T.s.clocks.find((x) => x.name === 'The invasion of Brindol');
+  assert.ok(inv && !inv.siteId, 'the invasion clock runs everywhere');
+  T.host({ type: 'site.move', siteId: 'karak-tor' });
+  assert.match(briefing(T.s, adv, srd, { reason: 'x' }), /The invasion of Brindol/);
 });
 
 test('taking over a character: a ready-made hero with no player, an offered one, and handing it back', () => {

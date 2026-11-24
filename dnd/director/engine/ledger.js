@@ -34,7 +34,7 @@ export function openAdventure(state, adventure, ctx) {
   let out = state;
   const host = { ...ctx, role: 'host', pid: null, ai: false, adventure };
   for (const enc of (first && first.foes) || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note }, host);
-  for (const c of (first && first.clocks) || []) out = apply(out, { type: 'clock.add', ...c, quiet: true }, host);
+  for (const c of (first && first.clocks) || []) out = apply(out, { type: 'clock.add', ...c, siteId: first.id, quiet: true }, host);
   return out;
 }
 
@@ -454,7 +454,7 @@ H['clock.add'] = (s, a, ctx) => {
   s.clocks = s.clocks || [];
   if (s.clocks.some((c) => c.name.toLowerCase() === name.toLowerCase() && !c.done)) no(`There is already a clock called "${name}".`);
   const size = Math.max(2, Math.min(12, Math.trunc(Number(a.size) || 4)));
-  const c = { id: nextId(s, 'k'), name, size, filled: Math.max(0, Math.min(size, Math.trunc(Number(a.filled) || 0))), note: str(a.note, 300), hidden: !!a.hidden, done: false };
+  const c = { id: nextId(s, 'k'), name, size, filled: Math.max(0, Math.min(size, Math.trunc(Number(a.filled) || 0))), note: str(a.note, 300), hidden: !!a.hidden, done: false, siteId: a.global ? '' : str(a.siteId, 40) };
   s.clocks.push(c);
   if (!a.quiet) story(s, ctx, 'event', `A clock starts: ${name} (${c.filled} of ${size}).`, 'Engine');
   return c;
@@ -1346,7 +1346,7 @@ H['site.move'] = (s, a, ctx) => {
   s.scene.siteId = to.id;
   const first = !s.scene.visited.includes(to.id);
   if (first) for (const enc of to.foes || []) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id }, { ...ctx, ai: false });
-  if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, quiet: true }, { ...ctx, ai: false });
+  if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, siteId: to.id, quiet: true }, { ...ctx, ai: false });
   if (to.travelHours) H['time.pass'](s, { hours: to.travelHours }, ctx);
   story(s, ctx, 'event', `The party arrives at ${to.name}.`, 'Engine', { move: true });
 };
@@ -1451,7 +1451,7 @@ export function viewFor(state, role, pid) {
   const s = clone(state);
   delete s.notes;
   delete s.seeds;
-  s.clocks = (s.clocks || []).filter((c) => !c.hidden).map((c) => ({ ...c, note: c.done ? c.note : '' }));
+  s.clocks = (s.clocks || []).filter((c) => !c.hidden && (!c.siteId || c.siteId === s.scene.siteId)).map((c) => ({ ...c, note: c.done ? c.note : '' }));
   s.log = s.log.filter((l) => l.kind !== 'note-host');
   s.foes = Object.fromEntries(Object.values(s.foes).filter((f) => !f.hidden && f.siteId === s.scene.siteId).map((f) => [f.id, {
     id: f.id, name: f.name, mid: f.mid, conds: f.conds, dead: f.dead, fled: f.fled, health: R.healthWord(f.hp, f.maxHp), siteId: f.siteId,

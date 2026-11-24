@@ -403,7 +403,7 @@ export const TOOLS = [
     run(a, T) {
       const what = String(a.action || 'tick').toLowerCase();
       const type = /^(start|add|new|begin)/.test(what) ? 'clock.add' : /^(clear|remove|stop|end|delete)/.test(what) ? 'clock.remove' : 'clock.tick';
-      const no = T.do({ type, name: a.name, id: a.name, size: a.size, by: a.by, note: a.note });
+      const no = T.do({ type, name: a.name, id: a.name, size: a.size, by: a.by, note: a.note, siteId: T.state.scene.siteId });
       if (no) return { refused: no };
       const k = String(a.name || '').toLowerCase();
       const c = (T.state.clocks || []).find((x) => x.id === a.name || x.name.toLowerCase() === k) || (T.state.clocks || []).find((x) => x.name.toLowerCase().includes(k));

@@ -77,7 +77,9 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   const fresh = s.rolls.filter((r) => r.seq > lastSeq);
   if (fresh.length) out.push(`\nROLLS SINCE YOUR LAST NARRATION:\n${fresh.slice(-16).map((r) => `- ${r.who}: ${r.label}${r.reason ? ` (${r.reason})` : ''}: ${r.total}${r.at != null ? ` against ${r.at}` : ''}${r.success === true ? ', SUCCESS' : r.success === false ? ', FAILURE' : ''}${r.crit ? ', critical' : ''}${r.dmg && r.dmg.total != null ? `, ${r.dmg.total} damage` : ''}`).join('\n')}`);
 
-  const clocks = s.clocks || [];
+  // Only this place's clocks and those that run everywhere: a clock left behind at the bridge must not
+  // keep the bridge burning in Oakhurst (bench part 4, 24 Nov).
+  const clocks = (s.clocks || []).filter((c) => !c.siteId || c.siteId === site.id);
   if (clocks.length) out.push(`\nCLOCKS (tick them with the clock tool when the notes say): ${clocks.map((c) => `${c.name} (id ${c.id}): ${c.filled} of ${c.size}${c.done ? ', FULL' : ''}${c.hidden ? ', hidden from the players' : ''}. When full: ${c.note || 'it happens'}`).join('; ')}`);
   const open = s.quests.filter((q) => !q.done);
   if (s.quests.length) out.push(`\nQUESTS: ${s.quests.map((q) => `${q.id} ${q.done ? '(done) ' : ''}${q.text}`).join('; ')}`);

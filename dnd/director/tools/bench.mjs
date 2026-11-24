@@ -203,13 +203,13 @@ const SCRIPT4 = [
   { fight: 'highbridge' },
   { pid: 'p2', say: 'I search the wreckage and the strongbox. What did the raiders leave behind?', expect: ['ask_for_roll'] },
   { pid: 'p1', say: 'We help Halia get the wagons off the bridge and on to Oakhurst.', expect: ['move_party'] },
-  { pid: 'p3', say: 'I find Father Lucan at the shrine and show him the plaque rubbing. What does it mean?', expect: [] },
-  { pid: 'p2', say: 'I watch the bailiff while he thanks us for saving the caravan. Is he hiding something?', expect: ['ask_for_roll'] },
+  { pid: 'p3', say: 'I find Father Lucan at the shrine and show him the plaque rubbing. What does it mean?', expect: [], at: 'oakhurst' },
+  { pid: 'p2', say: 'I watch the bailiff while he thanks us for saving the caravan. Is he hiding something?', expect: ['ask_for_roll'], at: 'oakhurst' },
   { pid: 'p1', say: 'We follow the ledger downriver to Blackreed Mill.', expect: ['move_party'] },
-  { pid: 'p3', say: 'I creep across the roof shingles to the loft hatch, as quietly as I can.', expect: ['ask_for_roll'] },
-  { pid: 'p1', say: 'I kick in the bunkhouse door and attack the nearest smuggler!', expect: ['start_combat'] },
+  { pid: 'p3', say: 'I creep across the roof shingles to the loft hatch, as quietly as I can.', expect: ['ask_for_roll'], at: 'blackreed' },
+  { pid: 'p1', say: 'I kick in the bunkhouse door and attack the nearest smuggler!', expect: ['start_combat'], at: 'blackreed' },
   { fight: 'blackreed' },
-  { pid: 'p2', say: 'I search the mill\'s strongroom for papers and the shipments.', expect: ['ask_for_roll'] },
+  { pid: 'p2', say: 'I search the mill\'s strongroom for papers and the shipments.', expect: ['ask_for_roll'], at: 'blackreed' },
 ];
 
 // ---- one run ---------------------------------------------------------------------------------
@@ -380,6 +380,13 @@ async function runOnce(n) {
     }
     if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); continue; }
     if (step.start) { await turn('the game begins: open the adventure', 'opening', step.expect); continue; }
+    // A line written for a place the Director never took the party to: the bench takes them there, as a
+    // player would walk on, and notes it (reported, not gated), so one missed move does not spoil the rest.
+    if (step.at && s.scene.siteId !== step.at && !s.fight) {
+      tally.missing += 1;
+      notes.push(`step ${k}: the party was at ${s.scene.siteId}, not ${step.at}, so the bench moved it`);
+      act('host', null, { type: 'site.move', siteId: step.at });
+    }
     act('player', step.pid, { type: 'say', text: step.say });
     if (verbose) console.log(`  ${pcOf(step.pid).name}: ${step.say}`);
     const before = s.requests.length;
