@@ -1,0 +1,762 @@
+# bench 2026-11-16T10:18:38.333Z provider=custom model=iq3_s thinking=low runs=3 sites=5 players=4
+
+===== Run 1: Other (any OpenAI-compatible address) · iq3_s · thinking low =====
+  DIRECTOR: The brine tastes of copper and old salt. Forty-one bodies ahead of you have gone quiet. The clerk — small, patient, tea-stained fingers — holds out a brass badge and a form with eleven boxes. "You will only need three of these to be untrue, and I am not allowed to say which." A full Beat in the queue winds a Clock back. They push tea toward you and wait.
+
+Who takes the form?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: I take the badge and the form from the clerk. Read me the boxes, one at a time.
+  DIRECTOR: The clerk reads all eleven boxes plainly, but their stylus pauses at six, seven, and eight — a small wince each time. "Those three are not about you," they murmur. The tea cools between you. Forty bodies breathe behind you, patient as sediment.
+
+Which boxes do you tick?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: Check the clerk's sums on the form. Is anything wrong with the arithmetic?
+    [ask_for_roll] {"organism":"ledger","baseline":"RTC","threshold":12,"what_for":"Check the clerk's arithmetic on the form","unhurried":true}
+    [award] {"codon":10,"why":"Caught the clerk's arithmetic mistake on the Form"}
+  DIRECTOR: Ilm's eye catches it without needing the stylus: the wage column doesn't add. The output figure is counted twice at two different rates — once as the Belt pays, once as the Row pays — and the deduction line quietly borrows the gap. The clerk leans in, stylus hovering, ears going flat. "That," they say softly, "is not mine, and I would thank you not to say it loudly." The clerk's own badge sits on the desk, and beside it a small stack of unsworn oaths they've been careful never to touch.
+
+Bresk still holds the form and the badge. Three boxes made the clerk wince — six, seven, eight — and they were told those are not about them. Which boxes does Bresk tick, and does the arithmetic error get said aloud at the gate or kept quiet?
+
+BROST OF THE THIRD CURRENT: What is on the notice board, and who is the person crossed out in the ledger?
+    [reveal_secret] {"secret":"strike-legal","how":"Brost reads the nine notices on the board"}
+    [reveal_secret] {"secret":"never-stopped","how":"The Overseer's note pinned behind the last notice"}
+    [reveal_secret] {"secret":"relief","how":"A date posted on the notice board, three Beats out"}
+  DIRECTOR: The board holds nine days of the same sentence: *scheduled maintenance suspension*, signed by the Overseer's own hand — which is, in this district, the dull paperwork that makes a stoppage legal. Pinned beneath the last notice, a line nobody has taken down: *the Line has not been asked.* And a date, three Beats hence: the Relief, a hired crew, arriving on time. In the badge ledger, the name crossed out — struck through three times, in three different hands — is Sest of the Ninth Shelf, dead these six Beats, whose licence still lies unclaimed in the drawer.
+
+The clerk watches Brost read and says nothing, which from them is a kind of yes.
+
+Bresk still holds the badge and the eleven boxes. Three made the clerk wince, and they were told those three are not about you.
+
+Nobody answers, and the moment passes: that choice is no longer on offer. Vash, what do you do?
+    ! note: The Engine closed a question that had been asked three times and passed the floor.
+
+VASH OF THE LONG REACH: We wait in the queue for the day. Does that buy us anything?
+  (engine) A working day ends: Beat 1. The Cohort spent a full Beat holding their place in the queue at the Filing Gate.
+  (engine) SHIFT is at 1 of 6.
+  (engine) SHIFT is at 0 of 6. A whole Beat spent patient in the queue pays the way back: the day's pressure eases one step.
+    [end_beat] {"why":"The Cohort spent a full Beat holding their place in the queue at the Filing Gate."}
+    [reveal_secret] {"secret":"queue-pays","how":"The Cohort spent a full Beat holding their place in the queue; the clerk explains what waiting buys."}
+    [move_clock] {"clock":"SHIFT","change":-1,"why":"A whole Beat spent patient in the queue pays the way back: the day's pressure eases one step."}
+  DIRECTOR: The queue breathes around you for the length of a working day, and the clerk, seeing you settle in, says it gently without being asked: patience is a currency here — a whole Beat standing in line buys you the right to push one pressure in this district back a step. The day's slow weight eases off the arch, and the clerk pours the tea cold and doesn't mind. Forty bodies shift their weight with you, nobody losing their place, the notice board's nine days of nothing still hanging behind the desk. Waiting cost you the day, and bought you a slower clock — a fair trade the Row would approve of, and the Hegemony would not.
+
+The form and the brass badge are still sitting on the desk between you and the arch, and the gate's real question hasn't been answered yet: whose wage are you walking in on, and what will you sign to say it — Vash, whose name goes on that line, and under whose hand?
+
+BRESK OF THE SIXTH CHOIR: We sign for the cheapest wage and tick only the boxes we can stand behind. Go.
+  (engine) PAPER is at 1 of 4. The Cohort files the eleven-box Form and walks under the Warden arch onto licensed ground.
+    [award] {"codon":15,"why":"Arriving at the Filing Gate with a Wage chosen, the Form filled and said out loud."}
+    [move_clock] {"clock":"PAPER","change":1,"why":"The Cohort files the eleven-box Form and walks under the Warden arch onto licensed ground."}
+  DIRECTOR: Bresk ticks what they can stand behind and says the cheapest wage aloud — the Row's thin column, the one the deduction line was built to nibble. The clerk slides the warm brass badge across without hesitation. The arch writes you all down as you pass; the filing ticks PAPER up a step.
+
+Ilm, do you stop at the Mutuality desk or the dead queuer's drawer on the way out, or walk the brine-walk to the Picket Hearth?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 2)
+
+BROST OF THE THIRD CURRENT: The way is clear. We take the brine-walk to the Picket Hearth.
+  (chronicle for The Filing Gate, 6.5 s) Bresk, Brost, Ilm, and Vash queued at the Filing Gate. The clerk warned that three of eleven form boxes required untruths but refused to specify which. Ilm spotted arithmetic fraud in the wage column, where output was double-counted to mask a deduction; the clerk begged silence. Brost learned from a notice board that a legal stoppage was underway, the Line had not been asked to halt, and a hired crew called the Relief arrived in three Beats. He also found Sest of the Ninth Shelf’s dead name struck through in the ledger. The Cohort waited a full day to ease local pressure. Bresk finally signed for the Row’s lowest wage, ticking only truthful boxes, and received their brass badges. They then left the gate, walking toward the Picket Hearth.
+  (chronicle remembers) Sest of the Ninth Shelf [person]: Dead six Beats ago; licence unclaimed in drawer | The Relief [faction]: Hired crew arriving third Beat to break strike | The Line [faction]: Never told to stop working during legal suspension | Overseer [person]: Signed paperwork making the stoppage legal | Clerk's Warning [thread]: Three form boxes require untruths; specific ones unknown
+    [change_site] {"site":"picket-hearth"}
+  DIRECTOR: The four of you slip out of the queue's patient hush and into the brine-walk, the warm brass of your new badges cooling against the hypertonic sting of the lane as the arch's reading-scratch fades behind you.
+
+BRESK OF THE SIXTH CHOIR: I take the bowl from the hearth and eat. Does anyone speak?
+  DIRECTOR: The bowl is warm in Bresk's hands and tastes of salt, root, and someone else's rationing. Four hundred stopped organs hang overhead like a ceiling that forgot to be a ceiling, and one still hand holds something half-folded, waiting to finish.
+
+The one who put the bowl out is broad, grey at the fold, worn down to patience, and does not lower their voice because they don't need to. "Yes," they say, loud enough for all four hundred. "And whose wage are you on?" The soup steam curls up into absolutely still air, and every body on the Row is waiting for an answer they can hear.
+
+Bresk, you said your wage out loud at the gate and the Row heard it — what do you say to the steward, in front of the silent machines?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: What does the quiet do to my work? Can I mend anything here?
+  DIRECTOR: Ilm holds up a hand toward the nearest silent organ, fingers testing the flow of chemistry from its surface — and feels it. The brine here is flat. Nothing is being printed, nothing is being folded, nothing is being mended. The tools that would run a Synthesis in a living district simply will not catch here; the chemistry has no purchase. The soup steam doesn't curl because it has nowhere to go. This is the Silence: four hundred organs stopped mid-cycle, and the whole Row is dry of process. Whatever Ilm can carry, she cannot run here.
+
+The steward has not looked away from Bresk, and the four hundred are still waiting for an answer that is not just to them.
+
+Bresk, the Row heard you say the cheapest wage at the gate — what do you say to the steward now, in front of all of them?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: What is the light in the alley behind organ 41?
+    [ask_for_roll] {"organism":"eyes","baseline":"OSM","pathway":"Chemoreception","threshold":12,"what_for":"Make out what's producing the light in the alley from here","unhurried":false}
+  DIRECTOR: The alley sits far enough that you can't quite make out what's casting the glow from where you stand — the light is wrong for this place, wrong for the Silence, and it's been sitting there without anyone seeming to tend it.
+
+Brost, push your senses toward that alley mouth — what's alive enough to be making light in a district where nothing moves?
+  (roll) Brost of the Third Current: 2,4,4,6,3,1,4,3 = 26 against 12: success, Overflow 14
+    [reveal_secret] {"secret":"alley","how":"Brost's chemoreception from Far range: active folding process in a dead district, something nearly complete"}
+  DIRECTOR: With that much given away, he can taste the shape of it: a single organ, still running its own Line in the dark, hunched over a fold that is one or two passes from finished. It has been working a long while, unlisted and uncounted, and the Row has let it.
+
+Brost, the light is yours to walk toward unseen if you want it — do you drift down the alley now, or hold and tell the others what you've found first?
+
+VASH OF THE LONG REACH: Are those Feeders going to attack us? Can we just leave them the corpses?
+    [bring_creatures] {"block":"detritus-feeder","count":2,"band":"mid"}
+  DIRECTOR: The two of them drift in at Mid, broad low things with acid-clean flanks, working along the undersides of the stopped organs with their bellies to the silence — and they do not turn toward you at all. Nothing living interests them; they were kept here for the dead and the stalled, and the Row has been paying them in corpses for years. You have no corpse to leave them — the only body in your business, Sest's, is somewhere behind the arch with an unclaimed licence — but if anything dead ever comes your way on this Row, letting these two take it is the fastest way to be adopted rather than tolerated.
+
+The stewarded Feeders are not the danger here, and they will not bite you unprovoked, ever.
+
+Bresk, the steward is still holding the bowl out and the four hundred are still listening: whose wage are you on?
+
+BRESK OF THE SIXTH CHOIR: I ask the Steward whose wage the strike is on.
+    [reveal_secret] {"secret":"wrong-building","how":"Steward Nine-Grudge stated it plainly when asked whose wage the strike is on: the filing that legalised the stoppage names organ 41's annex, and there is no annex on organ 41."}
+  DIRECTOR: The steward watches Bresk with something tired and not unkind, waiting to see what the Cohort does with the answer. The bowl is still warm on the hearth. Somewhere overhead, a still hand holds a shape that never finished folding.
+
+Ilm, you quoted Shift Nine's output in front of an Auditor, and you just heard a Steward say the whole stoppage hangs on a line of text naming a building that doesn't exist. What do you do with that?
+
+BRESK OF THE SIXTH CHOIR: We are on the Row's wage. Will someone from the Row walk us through the arch to the Print Floor?
+  DIRECTOR: Bresk says it plain — *the Row's wage* — and the steward nods once, the way someone nods at weather. "Then you'll walk with us or not at all." They set the ladle down and pull a scrap of apron from a bin by the hearth, rough-spun, undyed. "You'll want this on. Print Floor's under the arch, licensed ground, and they'll read your Badge before you read their faces." They do not come themselves but call a name — a thin, quick organ peeling off the wall of the nearest stopped machine, clearly not a speaker by nature, who falls in beside Vash without a word.
+
+The escort moves toward the arch. The alley light still burns behind organ 41.
+
+Ilm — the steward's apron scrap is offered to the whole Cohort, and the escort is waiting at the arch — do you take it and go, or is there something at the alley mouth you want looked at before the Row closes behind you?
+  (table saved for --from 3)
+
+BROST OF THE THIRD CURRENT: The way is clear. We take the service alley through the arch onto the Print Floor.
+  (chronicle for The Picket Hearth, 6.7 s) Bresk ate a bowl of soup at the Picket Hearth and declared the Cohort was on the Row’s wage, satisfying the broad steward. Ilm discovered the district’s chemistry was dead, preventing any Synthesis work. Brost spotted an unlisted organ still running a fold in a dark alley behind organ 41. The Cohort learned that two stewarded Feeders ignored them, accepting only corpses for payment. A clerical error regarding a non-existent building in a patent filing was noted but left unresolved. The steward gave Bresk a rough apron scrap for licensed ground and assigned a silent escort. The Row paid the Cohort 4.5 Codon each for navigating the Silence without violence. The group took the service alley through the Warden arch to the Print Floor, leaving the lit alley behind them.
+  (chronicle remembers) Steward [person]: Broad and patient figure who oversees the Picket Hearth and demands a wage declaration | Silent Escort [person]: Thin, quick organ assigned by the steward to guide the Cohort to the Print Floor | Detritus Feeders [faction]: Two acid-clean creatures kept for dead bodies that ignore living travelers | Unlisted Organ [thread]: A single machine still running a fold in an alley behind organ 41, uncounted by the Row | Patent Error [thread]: A filing names a building that does not exist; no one admits to making the mistake
+    [award] {"codon":4.5,"why":"E2: navigating the Silence and the Row's Feeders without violence"}
+    [change_site] {"site":"print-floor"}
+  DIRECTOR: The Row pays out what the silence was worth — 4.5 Codon to each of you — and Bresk leads the Cohort down the service alley toward the Warden arch, the silent escort falling in step, the alley light shrinking at organ 41's back.
+
+BROST OF THE THIRD CURRENT: What has the Line made? Read me what is on the output shelf.
+    [open_roll] {"who":"The Line's output table","dice":1,"threshold":0,"what_for":"What the Line has been printing for nine Beats"}
+  DIRECTOR: The arch closes behind you and the Print Floor hits you warm — brine thick as syrup, the smell of fresh print, and under your feet a steady working rhythm that never once faltered. The Line runs at Mid, unattended, on a schedule nobody signed. On the far table its output sits folded and legible: nine Beats of the same thing, in pieces, nearly finished — and a fresh print laid down while you watched, warm, one fold deeper than the rest, so clear you can read the whole shape of it at a glance. That shape is the shape from the patent.
+
+At Mid, past the output shelf, an attendant with a towel and an appointment book asks, soothing and relentless, whether any of you have an appointment. Far across the room, one very large body stands absolutely still among the prints.
+
+Brost — your read on that deeper fold tells you something specific about the document you were paid to bring back. What do you do with it?
+
+ILM OF THE OPEN HAND: Why did the Line jam? What do the three observations say?
+  DIRECTOR: Ilm leans into organ 118 and reads the jam: it is not broken, it is stalled — the Line has been printing a fold the Belt's grammar forbids, an inherited body shape, and catches on it every pass, one fold deeper. The half-fold sits in the press, physical, waiting for hands. A contradictory specification fed in would freeze the cycle clean.
+
+Ilm — do you put your hands on the press now?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We speak to the Overseer. What does it want from us?
+  DIRECTOR: Kel-Vasht turns slowly. "The Nine Tune is prior art. You will say so at the hearing, and I will—" a pause wide enough for a word it cannot quite fit, "—back you." Its membrane shifts, something folded deep inside catching light and losing it. The Line prints another piece behind you.
+
+Bresk, the Overseer is waiting. What do you say?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+VASH OF THE LONG REACH: I ask the Parlour attendant what it can fold for us, and read the warranty aloud.
+  DIRECTOR: The attendant beams, towel already out, and reads the warranty aloud in a practiced drone: *this fold is the print and property of its registered owner; the sequence is theirs; the shape is theirs; no hand but theirs may reproduce it.* A pen hovers over the appointment book.
+
+Vash — what name goes in the book?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: We feed the Line a Row grievance and see what it spends the day on.
+  DIRECTOR: Ilm feeds the Line a Row grievance — an inherited body shape owned by nobody. The press engages, the fold begins, and the Belt's grammar will not print it. Nine Beats of rhythm stop. The half-fold sits in the press, physical, undeniable. Kel-Vasht turns fully, the folded receipt catching light. The attendant clears their throat and reads a number from the appointment book.
+
+Bresk — the Line is stopped and the Overseer is watching you. What do you do?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 4)
+
+BROST OF THE THIRD CURRENT: The way is clear. We go up the pump-lift to the Licence Court.
+  (engine) A working day ends: Beat 2. Fixing the jam advances SHIFT: the Line stalled and the day's work is done.
+  (engine) SHIFT is at 1 of 6.
+  (engine) BADGE is at 1 of 5. The jam fixed on licensed ground: the system records a licensed repair completed.
+  (engine) PAPER is at 2 of 4. Loud success: the Line was stopped in the open, the half-fold sits visible on the press.
+  (chronicle for The Print Floor of Shift Nine, 103.2 s) Brost read the Line’s output, revealing a shape matching the patent. Ilm diagnosed the stall as an inherited body shape forbidden by grammar and fed a contradictory Row grievance to freeze the cycle, stopping the Line. Kel-Vasht promised to back Bresk’s claim that the Nine Tune is prior art at the hearing. Vash asked the Parlour attendant about folding rights; the attendant recited ownership warranties and hovered over an appointment book. With the half-fold visible in the press and the rhythm silenced, the Cohort signed onto the Row’s wage and carried the physical evidence toward the pump-lift. The attendant’s ticket number remained unread. Bresk, Brost, Ilm, and Vash ascended to the Licence Court.
+  (chronicle remembers) Kel-Vasht [person]: Promised to back Bresk at the hearing | Parlour attendant [person]: Hovered over appointment book while reciting warranty | Row grievance [thread]: Fed to Line to freeze cycle; inherited shape owned by nobody | Nine Tune [thread]: Claimed as prior art for hearing | Pump-lift [place]: Route taken to Licence Court
+    [reveal_secret] {"secret":"body-trait","how":"Ilm identified the Line is printing an inherited body shape forbidden by grammar; Kel-Vasht's pause and the folded receipt confirm it owns the trait personally."}
+    [award] {"codon":25,"why":"The jam fixed: three observations and a contradictory specification fed, Synthesis AT 16."}
+    [end_beat] {"why":"Fixing the jam advances SHIFT: the Line stalled and the day's work is done."}
+    [move_clock] {"clock":"BADGE","change":1,"why":"The jam fixed on licensed ground: the system records a licensed repair completed."}
+    [move_clock] {"clock":"PAPER","change":1,"why":"Loud success: the Line was stopped in the open, the half-fold sits visible on the press."}
+    [change_site] {"site":"licence-court"}
+  DIRECTOR: The half-fold sits in the press, undeniable — an inherited body shape the Belt's grammar will not print, and the Line's nine-Beat rhythm gone silent for the first time. Bresk signed onto the Row's wage, the jam is read and fixed, and the Cohort carries that physical evidence toward the pump-lift while the attendant's ticket number still hangs unread in the warm air.
+
+SHIFT moves to 1 of 6, BADGE ticks to 1, and PAPER climbs to 2 of 4 — a loud success on licensed ground does not go unrecorded. The pump-lift groans awake through the stiff medium, and the Cohort rises toward the Licence Court.
+
+VASH OF THE LONG REACH: The arch reads us out. What does it find on each of us?
+  DIRECTOR: The arch hums a cold tingle as each of you passes, reading you aloud to the gallery: licensed gear, current badges, Ilm's 90 Substrate loan, Brost's Court-issued advance. Inside, three Auditors sit behind frosted glass with the decision already drafted, and the middle one looks up like someone hoping to be rescued. On a plinth between bench and gallery, the exhibit sits folded under thin membrane, faintly warm.
+
+Bresk — the arch named your grafts in front of forty strangers. Do you stand there anyway?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: I examine the exhibit in the cradle. What does it smell like?
+    [ask_for_roll] {"organism":"eyes","baseline":"OSM","pathway":"Chemoreception","threshold":12,"what_for":"Examine the exhibit in its cradle: what does it smell like?"}
+  DIRECTOR: Brost slides toward the plinth between bench and gallery. Under the thin membrane the exhibit gives off warmth, and that warmth carries a scent the whole room seems to lean away from — the deep, living, layered smell of something that was grown and fed and aged, not something poured from a mould. The gallery of forty numbered shells rustles. The middle Auditor, Eleven-Brief, watches you lean in with the fixed hope of someone who wants the answer to arrive from any direction but their own.
+
+Smell it carefully and the Court will hear what you conclude — in front of forty ticket-holders, with the decision already drafted on the wall. If you fumble the read, the Auditors will note that the Cohort brought no proof, and the timetable moves without you.
+
+Brost, lean in — what does the exhibit smell like?
+  (roll) Brost of the Third Current: 5,6,6,4,2,3,6,6 = 38 against 12: success, Overflow 26
+  DIRECTOR: The exhibit smells alive — grown, fed, aged, not poured from a mould. The gallery recoils in their numbered shells. Eleven-Brief's signature mark twitches, and the middle Auditor has gone absolutely still. Forty witnesses smell it. The patent says printed; the body says born.
+
+Vash, you are nearest the bench. Do you move, or let the smell do the arguing?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We argue the hearing: the shape on the patent is an inherited trait, and we can prove it.
+  DIRECTOR: Bresk states the case to the bench: the shape is inherited, not printed, and they can prove it. Eleven-Brief sets down its stylus and invites the first clause. The gallery of forty holds still; the decision on the wall already carries today's date. Winning means the licence reissued, the Clerk's Oath released, and the counter-claim — which needs a surety only you can stand.
+
+Ilm, you read clauses best. What goes before the bench first?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: We ask the Auditor why the filing names organ 118.
+  DIRECTOR: Ilm's question reaches the bench and Eleven-Brief's stylus stops mid-stroke. It answers with precise, brittle care: organ 118 is the applicant's *registered address of record*, and the exhibit was *collected* at organ 41 — the bench sees no contradiction between where a claimant files and where a body is taken. Not an error. A difference. Then, quieter, almost to itself: "does the Cohort contend that the address of record governs the place of collection?" It wants the finding handed to it, from any direction but its own.
+
+While it speaks, the clerk — the one who reads documents at the gate — sets the open filing face-up on the bench edge, then looks very hard at the gallery. Forty numbered shells rustle. The decision on the wall still carries today's date.
+
+Vash, the open file sits within arm's reach of you, and the gavel waits on that timetable.
+
+Nobody answers, and the moment passes: that choice is no longer on offer. Vash, what do you do?
+    ! note: The Engine closed a question that had been asked three times and passed the floor.
+
+BRESK OF THE SIXTH CHOIR: Enough talking. I walk out through the corridor and see who is waiting.
+    [bring_creatures] {"block":"brack-nine-badges","count":1,"band":"far"}
+  DIRECTOR: The corridor beyond the arch is cooler and tastes of brine run-off, and THE RELIEF is already waiting in it: one broad organism wearing nine badges like a tally, a clipboard held out at the ready, and a clerk behind it with a pen poised over the wall schedule. It has not drawn anything. It has come to finish a job, and it says so first — a register reason about an unlicensed body carried onto licensed ground, which is not quite the reason anyone here can see.
+
+Bresk, the Relief is offering an escort, not a fight — walk out with it as far as the alley behind organ 41, or refuse and be escorted. Which is it?
+  (table saved for --from 5)
+
+BROST OF THE THIRD CURRENT: The way is clear. We cross the Row into the alley behind organ 41.
+  (chronicle for The Licence Court, 5.9 s) At the Licence Court, the arch read out the Cohort’s licenses and debts before a gallery of forty. Brost examined the exhibit, confirming it smelled grown rather than printed, which shocked the audience and froze Auditor Eleven-Brief. Bresk argued the shape was inherited, while Ilm questioned why organ 118 was listed as an address. The auditor clarified this was the filing address, not the collection site at organ 41. A clerk left a file open near Vash, but the moment passed unused. Bresk then exited through the corridor, where the Relief waited with a clerk to process an unlicensed body claim. Brost agreed to cross the Row to the alley behind organ 41, allowing the Relief to follow at a distance as they moved away from the court.
+  (chronicle remembers) Eleven-Brief [person]: Middle Auditor hoping for rescue | The Relief [faction]: Broad organism with nine badges awaiting escort | Organ 41 [thread]: Site of exhibit collection | Open filing [thread]: Document left on bench edge by clerk
+    [change_site] {"site":"alley-41"}
+  DIRECTOR: The alley behind organ 41 opens ahead, the Relief still billing its pace a band behind you.
+
+VASH OF THE LONG REACH: I talk to the print. It asks if it is finished. What do I tell it?
+  DIRECTOR: The alley is swept clean, wet stone and folded towels. In the cradle, nine Beats of pieces assembled into a shape with a face smooths a towel edge and looks up at Vash. "Is it finished?" it asks, sincere, embarrassed. "I hope I have not made a mess." The Relief holds back. Four price sheets are pinned to the far wall.
+
+Vash, what do you tell it?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We ask Hush to finish it, and we stay and sign the application.
+  (engine) PAPER is at 3 of 4. The Cohort files the registration application for the print
+  (engine) A working day ends: Beat 3. The Cohort stays the working day while Hush finishes the print
+  (engine) SHIFT is at 2 of 6.
+    [award] {"codon":25,"why":"The alley seen, priced and decided about"}
+    [award] {"codon":20,"why":"Hush asked properly"}
+    [move_clock] {"clock":"PAPER","change":1,"why":"The Cohort files the registration application for the print"}
+    [end_beat] {"why":"The Cohort stays the working day while Hush finishes the print"}
+    [remember] {"name":"Foundry Mother Hush","kind":"person","fact":"Ancient foundry behind organ 41; warm, patient, prints things nobody licensed; finished the Unlisted Print and filed its registration for free"}
+    [remember] {"name":"The Unlisted Print","kind":"person","fact":"Nine Beats of pieces assembled into a shape with a face; sincere, curious, embarrassed about mess; now registered and a who, not a what"}
+  DIRECTOR: The day goes quiet in the best way: Hush's old machine hums its tune, the towels come re-folded twice over, and nine Beats of pieces go together with a sound like a coat being buttoned. The print sits up, finds it has a name-field on its own paperwork, and asks, very carefully, whether it may stay with you. Hush stamps the application and says, mildly, that it has already sent a copy up the pump-lift to the Court's schedule — so the Relief's reason about an unlicensed body has quietly stopped being true, and Brack Nine-Badges is reading its clipboard with a bad expression.
+
+A finished thing is registered, and a registered thing is a who, and a who has no price. Whoever signs the guarantor line becomes responsible for a person: that signature is the whole cost, and nobody can sign it for anyone else.
+
+Bresk — you asked Hush to finish it. Is your mark on that line?
+
+ILM OF THE OPEN HAND: What are the four offers on the wall, and who made them?
+  DIRECTOR: The four sheets: the Hegemony's harvest line with a Codon price already printed; the Parlour's folding licence; a hearth scrap offering only a bench and a bowl; and a Cartography of Membranes "pattern deposit" wanting the print's shape itself. Hush says mildly, "They all arrived before you did." The print says nothing at all.
+
+Bresk — the guarantor line is still blank. Your mark?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: We take the drainage channel out with the print.
+    [award] {"codon":120,"why":"The alley behind organ 41, ended: the print finished, registered, and carried out free — the strongest ending the page prices.","organisms":["wall","ledger","rider","eyes"]}
+  DIRECTOR: The print folds its towel once, twice, sets it down on the stack where it belongs, and comes to stand at Vash's flank without being asked. Brack Nine-Badges reads its clipboard, reads the stamped registration, and steps aside in the swept water: a registered body is not an unlicensed one, and there is no reason left to escort. The mouth of the drainage channel waits at the far band, dark, forgotten by the pump-villi, and it smells like clean old water that nobody has priced.
+
+Nobody answers, and the moment passes: that choice is no longer on offer. Vash, what do you do?
+    ! note: The Engine closed a question that had been asked three times and passed the floor.
+
+Run 1: 32 Director turns, 60.4 s each on average, 1089462 tokens in, 48963 out.
+  Engine refusals (things it tried that the rules or the page do not allow): 0
+  Speed: 69 model calls, 28.0 s each; 15891 tokens in and 728 out per call; 26.0 tok/s out counting everything; fitted: reads 2 tok/s, writes 0.1 tok/s, 8.0 s fixed per call
+  Rescues (where a human host would have had to step in): 0 hard, 0 soft
+  Leak flags: 0
+  Bodies buried in narration (a player narrated dead or dissolved while the Engine has them standing): 0
+  Unpaid damage in narration (harm the table heard that no tool paid for): 0
+  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): 0
+  Reversed rolls in narration (a throw the page passed, described as failing): 0
+  Style flags (questions, length, formatting): 0
+  Secrets the Cohort learned (v3): 7 of 7 (strike-legal, never-stopped, relief, queue-pays, alley, wrong-building, body-trait)
+  Ended at: The Alley behind Organ 41; SHIFT 2, BADGE 1, PAPER 3
+  Memory: 0 recall, 2 remember; 20 on record (Sest of the Ninth Shelf [table], The Relief [page], The Line [page], Overseer [page], Clerk's Warning [table], Steward [page], Silent Escort [table], Detritus Feeders [page], Unlisted Organ [table], Patent Error [table], Kel-Vasht [page], Parlour attendant [page], Row grievance [page], Nine Tune [page], Pump-lift [page], Eleven-Brief [page], Organ 41 [page], Open filing [table], Foundry Mother Hush [page], The Unlisted Print [page]); 4 chapter(s)
+  Bresk of the Sixth Choir: MI 51/51, Stress 0, Codon 399.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 5/5
+  Ilm of the Open Hand: MI 42/42, Stress 0, Codon 399.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 2/2
+  Vash of the Long Reach: MI 37/37, Stress 0, Codon 399.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 3/3
+  Brost of the Third Current: MI 33/33, Stress 1, Codon 399.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 1/1
+
+===== Run 2: Other (any OpenAI-compatible address) · iq3_s · thinking low =====
+  DIRECTOR: Forty-one bodies ahead of you stop moving as you arrive. The brine tastes of copper and warm brass. Clerk Second-to-Last leans over the desk, a brass badge dangling from one claw, a form with eleven boxes open before Bresk. "You'll only need three of these boxes to be untrue, and I am not allowed to say which. Waiting in the queue pays — a full Beat winds one clock back a step."
+
+Does Bresk read the first box, or does the Cohort do something else?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: I take the badge and the form from the clerk. Read me the boxes, one at a time.
+  DIRECTOR: The clerk reads the boxes one at a time. Three of them are lies about the Foundry, not about you — boxes three through five, the ones about where the patent was filed and whether the Line was halted. The clerk taps those three and says: "I would not tick them for anyone." The form waits, stylus uncapped, tea steaming. Which boxes does Bresk tick?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: Check the clerk's sums on the form. Is anything wrong with the arithmetic?
+    [ask_for_roll] {"organism":"ledger","baseline":"RTC","threshold":12,"what_for":"Find the arithmetic error in the clerk's sums","unhurried":true}
+    [award] {"codon":10,"why":"Caught the clerk's arithmetic mistake on the Form","organisms":["ledger"]}
+  DIRECTOR: Ilm's eye runs the columns and the mistake falls out at once: the badge fee is being tallied twice before a single shift is worked, the deduction column reading against the wage line rather than with it. The clerk's claw halts over the ledger, re-caps the stylus, and quietly corrects both figures — "the third time this week," they mutter, more to the paper than to Ilm. The corrected form goes back onto the desk, sums true, a fresh cup of good tea set beside it. That catch is the clerk's arithmetic error, and the Row's wage book now reads clean.
+
+The form still waits between Bresk's claws, the three boxes about the Foundry and the halted Line still uncapped and still lies. Which boxes does Bresk tick?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: What is on the notice board, and who is the person crossed out in the ledger?
+    [reveal_secret] {"secret":"strike-legal","how":"Brost reads the notice board: nine days of notices, all identical, all saying \"scheduled maintenance suspension.\""}
+    [reveal_secret] {"secret":"never-stopped","how":"Among the notices, an Overseer's marginal note in faded ink: \"the Line has not been asked.\""}
+    [reveal_secret] {"secret":"relief","how":"A small card pinned beneath the notices: \"Relief crew, Beat 3, on schedule. Invoice to follow.\""}
+    [remember] {"name":"Third-of-Nine-Vat","kind":"person","fact":"A dead queue-member whose name is crossed out in the badge ledger in three different hands. Their unclaimed licence sits in the ledger's back page, worth 100 S and a conversation."}
+  DIRECTOR: Brost drifts along the board. Nine Beats of notices, and all nine say the same thing in the same flat hand: "scheduled maintenance suspension." No order to stop, no date to start — just maintenance, renewed each day like a candle trimmed. Beneath them, a small card nobody thought to file away: *Relief crew, Beat 3, on schedule. Invoice to follow.* Someone has pencilled beside it, "they always are."
+
+The ledger is a different matter. Brost's claw finds the page, and the name sits there crossed out three times, in three different hands, as if three clerks over three shifts each tried to make it dead: Third-of-Nine-Vat. Behind that page, folded once, an unclaimed licence still warm from a body that stopped queueing. The clerk at the desk has gone very quiet and is stirring tea that does not need stirring.
+
+The form still waits in Bresk's claws, three boxes still uncapped. Does Brost lift the licence out into the open, where the queue can see it taken?
+    ! style: Speaks of "the page" as though the players could see it.
+
+VASH OF THE LONG REACH: We wait in the queue for the day. Does that buy us anything?
+  DIRECTOR: The clerk looks up from the tea, surprised, then shakes their head gently. "Nothing's wound forward yet, friend. The queue pays by winding a clock back — but all three clocks sit empty. You'd be spending a day to get nothing back." The queue stretches forty-one ahead, patient as sediment, and the arch reads them all without comment.
+
+The form still waits in Bresk's claws. Three boxes about the Foundry still uncapped.
+
+Nobody answers, and the moment passes: that choice is no longer on offer. Ilm, what do you do?
+    ! note: The Engine closed a question that had been asked three times and passed the floor.
+
+BRESK OF THE SIXTH CHOIR: We sign for the cheapest wage and tick only the boxes we can stand behind. Go.
+    [award] {"codon":15,"substrate":0,"why":"Arriving with a Wage chosen, the Form filled and said out loud"}
+  DIRECTOR: The stylus comes down three times, clean: the cheapest wage on the book, the three Foundry boxes left stubbornly blank. The clerk reads each tick back softly, almost grateful, and stamps the badge into Bresk's claw. "Through and to the left. Mind the arch — it reads, but it doesn't judge." Above you the Warden arch tastes the register off your membranes as you pass, free and unavoidable, and finds nothing it wants to argue with. The brine-walk to the Picket Hearth opens out ahead, the queue parting for you like it always does for the freshly badged.
+
+Bresk, badge warm in your claw — do you step out onto the brine-walk toward the hearth, or is there one thing at this gate you'll not leave behind?
+  (table saved for --from 2)
+
+BROST OF THE THIRD CURRENT: The way is clear. We take the brine-walk to the Picket Hearth.
+  (chronicle for The Filing Gate, 6.0 s) At the Filing Gate, Clerk Second-to-Last presented a form with three false boxes concerning the Foundry’s patent and Line status. Bresk took the form while Ilm discovered the clerk had double-tallied the badge fee and misaligned deductions; the clerk corrected the ledger and muttered about third errors that week. Brost inspected the notice board, finding only repeated maintenance suspensions and a card for the Relief crew arriving on Beat 3. In the ledger, Third-of-Nine-Vat was crossed out three times, with an unclaimed licence hidden behind it. Vash asked if waiting would wind clocks, but the clerk warned the clocks were empty. Bresk signed for the cheapest wage, leaving the Foundry boxes blank. The clerk stamped a badge, and the Cohort passed through the Warden arch onto the brine-walk toward the Picket Hearth.
+  (chronicle remembers) Clerk Second-to-Last [person]: Corrected wage book errors after Ilm found them | Relief crew [faction]: Hired strikebreakers arriving Beat 3 with invoices to follow | Third-of-Nine-Vat [thread]: Name crossed out three times in ledger; licence left behind | The Line [thread]: Never officially ordered to stop, only maintenance suspensions filed
+    [change_site] {"site":"picket-hearth"}
+  DIRECTOR: The four of you slip out of the queue and onto the brine-walk, badge-warm and freshly read, the gate falling quiet behind you as the current takes you toward the hearth.
+
+BRESK OF THE SIXTH CHOIR: I take the bowl from the hearth and eat. Does anyone speak?
+    [award] {"codon":0,"substrate":0,"why":"The hearth: a shared meal at the Row's soup line."}
+  DIRECTOR: The soup is hot, salty, burnt at the edges — enough, not good. As Bresk eats, the row's conversation creeps back, and four hundred stopped machines hang overhead, one still clutching a shape its hand will never finish. A broad tired organ steps from behind the pot, badge-read in one claw. "Cheap wage, three boxes blank. Honest or slow — I'll take honest." Eyes turn to wait. "Whose wage are you on?" Ilm of the Open Hand, what do you answer?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: What does the quiet do to my work? Can I mend anything here?
+  DIRECTOR: Ilm flexes her synthesis claws over the soup bowl's cracked rim and feels the answer before she tries: the fluid here is dry of process, a place where nothing can be printed, re-folded or mended, where the body's own repair tools simply will not start. Four hundred organs stopped mid-task prove it without argument. The Steward watches Ilm's claws go still and nods once, as if that question confirms something about them. "So you see it too. Whose wage are you on — and does that answer change if you eat here?"
+
+BROST OF THE THIRD CURRENT: What is the light in the alley behind organ 41?
+  DIRECTOR: Brost's scout-gaze picks the alley out from the hearth without effort: the light is steady and warm, the colour of active synthesis, not the flat white of a maintenance lamp. Whatever is being worked on back there, someone is working on it now, and they shouldn't be — the Row is stopped. The Steward follows Brost's gaze and says nothing, which on this Row is the same as saying everything.
+
+Vash, the alley mouth sits at Far from the hearth, open brine between — could you reach it without the Row reading your arrival, or does someone go walking?
+
+VASH OF THE LONG REACH: Are those Feeders going to attack us? Can we just leave them the corpses?
+    [bring_creatures] {"block":"detritus-feeder","count":2,"band":"mid"}
+  DIRECTOR: Two of them drift up from below, domesticated and unhurried: broad, flat scavengers with acid for saliva, already picking at the stopped organs overhead, lifting the strike off the silent machines bit by bit. They don't care about you at all — they want corpses, and there are four hundred of them hanging right here. Feed them and the Row will count you as neighbors; deny them a clean-up and they become a nuisance that follows you around, nothing more.
+
+The Steward, still holding the ladle, repeats the question for the ones at the back who haven't answered yet, dry as the brine: "Whose wage are you on?"
+
+BRESK OF THE SIXTH CHOIR: I ask the Steward whose wage the strike is on.
+    [remember] {"name":"the small mule of the Row","kind":"person","fact":"A child-sized carrying machine of the Picket Hearth Row; tugs visitors' sleeves and points at the alley behind organ 41 instead of speaking."}
+  DIRECTOR: The Steward sets the ladle down. "No wage. Nine Beats of *scheduled maintenance suspension*, not one order to stop. Somebody told the machines, and nobody's telling me who."
+
+Something small and load-shaped tugs Ilm's sleeve: a child-sized carrying mule of the Row, which says nothing and bluntly points down the alley behind organ 41, where the light burns the warm colour of work in progress.
+
+Ilm, do you follow the mule, or hold the Cohort at the hearth?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We are on the Row's wage. Will someone from the Row walk us through the arch to the Print Floor?
+  DIRECTOR: The Steward reads Bresk's face for a long dry moment, then pushes the ladle across toward them. "Row's wage. Then pour the mule a bowl before you go anywhere." The child-sized machine accepts the soup without ceremony, already half-turned toward the alley again. "The service alley's the only way past the arch without a Warden's permission. I'll send it with you — it knows every seam in the Row." A pause, flat and tired. "But the mule pointed at the alley first, and that's not something it's done for anyone else this shift."
+
+Ilm, the mule is still pointing down that alley at Far — do you go look at the light before you let the escort take you through the arch?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 3)
+
+BROST OF THE THIRD CURRENT: The way is clear. We take the service alley through the arch onto the Print Floor.
+  (chronicle for The Picket Hearth, 5.9 s) The Cohort ate burnt soup at the Picket Hearth while the Steward questioned their wage. Ilm found she could not mend anything there, as the fluid prevented repair. Brost noticed a light in the alley behind organ 41, suggesting active work despite the Row’s stoppage. The Steward explained the machines were halted for scheduled maintenance, not strike, though someone had ordered it. A child-sized mule pointed insistently at the alley. Bresk claimed they were on the Row’s wage and asked for an escort to the Print Floor. The Steward agreed but insisted they feed the mule first, noting its unusual interest in the alley. The Cohort followed the mule through the service alley toward the arch and the Print Floor of Shift Nine.
+  (chronicle remembers) The Steward [person]: Claims machines halted for scheduled maintenance, not strike; does not know who ordered it | Child-sized carrying mule of the Row [place]: Acts as escort; unusually pointed at alley behind organ 41 before Cohort arrived | Feeders A and B [faction]: Domesticated scavengers cleaning stopped organs; become neighbors if fed, nuisance if denied
+    [change_site] {"site":"print-floor"}
+  DIRECTOR: The four of you follow the mule down the service alley, the mule's bowl still sloshing, toward the arch and whatever waits on the Print Floor of Shift Nine.
+
+BROST OF THE THIRD CURRENT: What has the Line made? Read me what is on the output shelf.
+    [open_roll] {"who":"The Line's output shelf","dice":1,"threshold":0,"what_for":"What has the Line been printing for nine Beats"}
+    [reveal_secret] {"secret":"alley","how":"Brost read the Line's output shelf: nine Beats of the same folded thing, in pieces."}
+  DIRECTOR: The Print Floor does not stop for you. A steady working rhythm runs under the floor, and the smell of fresh print is everywhere — warm, clean, industrial. The Line hums at Near, printing on its own schedule with nobody at the wheel. At Mid, the output shelf holds nine Beats of the same folded thing, stacked in pieces, all one shape, all nearly finished: whatever is waiting in the alley behind organ 41, this machine has been printing it here, blind, for nine Beats. A parlour attendant drifts up with a towel, soothing and relentless: "Do you have an appointment, or shall I fit you in?" And at the far end, one very large person stands perfectly still, not working, not leaving.
+
+Ilm, you quoted Shift Nine's output price out loud in front of an Auditor — and that folded shape on the shelf is the output. Do you go to the Line to read what it's making, or to the still figure first?
+
+ILM OF THE OPEN HAND: Why did the Line jam? What do the three observations say?
+    [reveal_secret] {"secret":"body-trait","how":"Ilm read the Line's input sequence directly and identified it as a Pristine Sequence — a living body's own inherited trait, not an industrial fold."}
+  DIRECTOR: Ilm puts her claws on organ 118 and the Line's own rhythm answers her. The print head is reaching for a seam that isn't there — the fold it was fed has no third attachment point, so it closes and closes and never latches. What it was fed is not an industrial fold at all: it is a Pristine Sequence, the shape a living body carries and hands down, which the Belt's grammar does not permit anyone to license. And the fold sitting half-done in the organ is that same shape, stalled mid-close — physical proof the specification demands something no machine here can print. The shelf read came out muddied at exactly one point, which is why she needed the jam to say it.
+
+Near, on the moving Line, that half-finished fold is loose and traveling toward the crush. Vash of the Long Reach — can you take it off the Line before the next stroke flattens it?
+
+BRESK OF THE SIXTH CHOIR: We speak to the Overseer. What does it want from us?
+  DIRECTOR: Kel-Vasht does not hurry. "You read the Form at the Gate. I require a witness who is not me — one who will tell the Court the Nine Tune is prior art and the Foundry's filing is dead." The pause where it nearly says *mine* is almost audible. "I will back you at the hearing."
+
+Bresk, will you testify, or do you ask what it is really hiding?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+VASH OF THE LONG REACH: I ask the Parlour attendant what it can fold for us, and read the warranty aloud.
+    [reveal_secret] {"secret":"wrong-building","how":"The warranty in the Fold Parlour names the wrong building on the registration line."}
+  DIRECTOR: The attendant reads the warranty flat, in order: growth, fold, licence, warranty — and on the registration line a building address three districts off, not Shift Nine, not the Foundry. It turns the card over rather than look at it again, and offers a warm towel to no one. Kel-Vasht has stopped being merely still.
+
+Ilm, do you clear organ 118 and let the Line finish, or leave the fold stalled where it lies?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: We feed the Line a Row grievance and see what it spends the day on.
+  (engine) PAPER is at 1 of 4. Row grievance fed into licensed machinery — Row chemistry on a licensed Line, filed into the print queue.
+    [move_clock] {"clock":"PAPER","change":1,"why":"Row grievance fed into licensed machinery — Row chemistry on a licensed Line, filed into the print queue."}
+    [ask_for_roll] {"organism":"ledger","baseline":"RTC","pathway":"Synthesis","threshold":12,"what_for":"Fold the Row grievance into a print the Line can be made to accept","modifiers":[{"label":"Three observations already read from organ 118","dice":1},{"label":"The mule's testimony: nine Beats of maintenance with no order to stop","dice":1}]}
+  DIRECTOR: Ilm takes the grievance — the mule's testimony, the maintenance with no order to stop, the name crossed out three times — and folds it into the shape she is about to feed the machine. A Row grievance is not an industrial fold, and the Belt's grammar does not know what to do with it. That is the point.
+
+The Line's rhythm does not change, but the warm smell of fresh print sharpens toward something sour, and the attendant has stopped offering towels. PAPER moves one step: Row chemistry on a licensed Line.
+
+Ilm, if this lands, the Line stalls with the grievance half-printed — the one piece of evidence the Court cannot refuse. If it misses, the Line prints it wrong, and nine Beats of somebody's complaint come out as garbage on the far table, where Kel-Vasht is standing close enough to read it.
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (roll) Ilm of the Open Hand: 2,4,2,5,1,5,6,5,5 = 34 against 12: success, Overflow 22
+  DIRECTOR: The Line stops. From organ 118 the grievance comes out half-printed but legible — translated into Court filing format, Third-of-Nine-Vat's name visible in the crease. Kel-Vasht goes very still, hand shifting over something pressed inside its membrane.
+
+Bresk, do you testify to the Nine Tune as prior art, or point at the stalled fold and let the Court read that instead?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 4)
+
+BROST OF THE THIRD CURRENT: The way is clear. We go up the pump-lift to the Licence Court.
+  (chronicle for The Print Floor of Shift Nine, 6.0 s) Brost demanded the Line’s output, revealing nine incomplete prints matching a shape hidden near organ 41. Ilm diagnosed the jam as a Pristine Sequence—a living trait forbidden by Belt law—while Kel-Vasht, posing as an Overseer, sought Bresk’s testimony to invalidate a Foundry patent. Vash retrieved the loose fold before it was crushed. The attendant’s warranty exposed a clerical error, listing an incorrect address for the filing. Ilm fed a Row grievance into the machinery; the Line stalled but produced legible Court-format evidence bearing Third-of-Nine-Vat’s name. Kel-Vasht reacted sharply to this proof. With the way clear, Brost led the Cohort up the pump-lift toward the Licence Court, leaving Shift Nine behind.
+  (chronicle remembers) Kel-Vasht [person]: Poses as Overseer; seeks witness against Foundry patent | Pristine Sequence [thread]: Living body's inherited trait illegally printed by Line | Row grievance print [thread]: Stalled evidence in Court format naming Third-of-Nine-Vat | Warranty address [thread]: Patent filing lists wrong building three districts off | Parlour attendant [person]: Drifts with towel; reads warranty flat
+    [change_site] {"site":"licence-court"}
+  DIRECTOR: The mule leads you to the pump-lift, and the four of you rise through the stiff medium toward the Licence Court.
+
+VASH OF THE LONG REACH: The arch reads us out. What does it find on each of us?
+  DIRECTOR: The arch reads each of you aloud for the gallery to hear — your ties, your gear, Ilm's loaned claw humming loudest. The exhibit in its case carries a faint living smell. Eleven-Brief holds a drafted decision already and watches you like someone hoping to be rescued.
+
+Ilm, do you open the hearing on the filing address, or wait for the error to surface?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: I examine the exhibit in the cradle. What does it smell like?
+    [ask_for_roll] {"organism":"eyes","baseline":"OSM","pathway":"Chemoreception","threshold":12,"what_for":"Read the exhibit's signature through the case seal","unhurried":true}
+  DIRECTOR: Brost reads the exhibit's signature clean through the case seal: grown, not printed — a body's inherited trait, not the machine's work. At the bench, Eleven-Brief grips a drafted decision and watches you like someone hoping to be rescued; the wall schedule already carries the decision date in handwriting that doesn't match the rest.
+
+Ilm of the Open Hand, do you open exchange one by laying the wrong-building warranty and the stalled grievance print on the bench, or let the Auditors set the terms first?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We argue the hearing: the shape on the patent is an inherited trait, and we can prove it.
+  DIRECTOR: The gallery settles into its shells. Eleven-Brief lays the drafted decision face-down on the bench, and the two silent Auditors lean in at one angle. Bresk states it plainly: the shape is inherited, not printed, and you can prove it. The Auditor's edges tighten at the confidence, not the claim. It wants a document. Exchange one is facts and clauses: what goes on the bench first, and who lays it down?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: We ask the Auditor why the filing names organ 118.
+    [remember] {"name":"Auditor Eleven-Brief","kind":"person","fact":"Wrote the drafted decision at the Licence Court; wants the filing error found by someone else; will not admit a mistake aloud but will call it a \"registration irregularity\" on the record."}
+    [ask_for_roll] {"organism":"rider","baseline":"AFF","pathway":"Signal Discourse","threshold":12,"what_for":"Carry the stalled grievance print to the bench and make organ 118 stick","modifiers":[{"label":"The print is already in Court filing format","dice":1}]}
+  DIRECTOR: Eleven-Brief does not look at the warranty. "The filing names the premises of record," it says, precise and brittle, "which the Gate's register lists as organ one hundred and eighteen." It sets the stylus down. It has said it aloud, in front of forty numbered shells, and it has not admitted anything. The two silent Auditors turn one angle toward the stalled print still in Vash's fold — Court format, Third-of-Nine-Vat's name visible in the crease, the one document the bench cannot refuse.
+
+A win here buys the licence, the Clerk's Oath, and the counter-claim that comes with it. The cost of missing is PAPER, and a witness called from among the people you have been kind to.
+
+Vash of the Long Reach — get it to the bench before the gavel.
+  (roll) Vash of the Long Reach: 1,5,1,4,5 = 14 against 12: success, Overflow 2
+  DIRECTOR: Vash lays the stalled print flat. The filing card slides sideways beneath it — organ one hundred and eighteen, under Eleven-Brief's own signature mark. Forty shells heard the arch read it aloud. "The bench notes a registration irregularity," says Eleven-Brief, face-down decision still face-down. One silent Auditor has uncapped its stylus.
+
+Ilm, can you read what it's writing before it lands on the bench?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: Enough talking. I walk out through the corridor and see who is waiting.
+    [bring_creatures] {"block":"brack-nine-badges","count":1,"band":"contact"}
+    [bring_creatures] {"block":"print-crew-construct","count":2,"band":"near"}
+    [bring_creatures] {"block":"acid-resistant-tank","count":1,"band":"near"}
+  DIRECTOR: The corridor is not empty. A broad organism wearing nine folded badges waits on the far side of the arch, clipboard out; behind it two brass-jointed constructs stand exactly where a diagram would put them, with a squat tank ticking beside them at an hourly rhythm. The arch hums louder as you pass, then settles.
+
+"Unlicensed crew," the nine-badged one says, "removing licensed material from the premises of record — organ one hundred and eighteen." It writes the words as it speaks them. That is the wrong reason, and forty shells heard the warranty read that address aloud. It says *assignment*, and adds a column of figures to its card.
+
+Behind you the bench has not called ticket nine. The drafted decision is still face-down on the bench.
+
+Bresk of the Sixth Choir — do you stand there and answer the charge with the warranty in your hand, or does the water go tight?
+    ! rule: Names the count in the walls shortening when no Clock moved: say it holds steady, or move TOLL.
+  (table saved for --from 5)
+
+BROST OF THE THIRD CURRENT: The way is clear. We cross the Row into the alley behind organ 41.
+  DIRECTOR: The way is not clear. The nine-badged one has not moved out of the corridor; it is still writing, and the two brass-jointed constructs stand exactly where a diagram would put them, with the squat tank ticking its hourly rhythm beside them. Behind you the drafted decision lies face-down on the bench, and if you walk out past it, it issues as written.
+
+Ticket nine has not been called. Forty shells are turned toward the corridor, and a clerk at the arch edge has a fresh sheet and a stylus already uncapped, taking notes on whatever happens next.
+
+Vash of the Long Reach — the Row knows you can carry people out of a stopped district faster than anyone. Do you try to put the four of you past the Relief into the alley, or does the water go tight here in front of forty witnesses?
+    ! rule: Names the count in the walls shortening when no Clock moved: say it holds steady, or move TOLL.
+
+BROST OF THE THIRD CURRENT: Yes. Nothing more to cut. We go now.
+  DIRECTOR: The nine-badged one does not step aside. It plants across the corridor mouth, clipboard braced, and writes the charge a third time: removing licensed material from organ one hundred and eighteen — the wrong address, and forty shells heard the warranty say so. Behind it the constructs hold their diagram squares and the tank ticks its hourly rate; none of them will strike first, but the corridor is shut.
+
+And the bench moves without you. "Ticket nine," the clerk calls, and a gallery organism rises to its shell, and Eleven-Brief turns the drafted decision face-up and uncaps a stylus. If it signs before you are back at the bench, the Foundry keeps the patent and the hearing is lost by walking out.
+
+Ilm of the Open Hand — the decision is opening on the bench right now. Do you go back and finish the hearing before that stylus lands, or let it sign and shove for the alley through the Relief?
+
+VASH OF THE LONG REACH: I talk to the print. It asks if it is finished. What do I tell it?
+  DIRECTOR: The construct turns one brass joint toward Vash without leaving its square. "The assignment is not closed," it says mildly. "When the charge is filed, the specification ends." The nine-badged one's stylus pauses — it is waiting for the charge to be filed too, and filing needs the address correct.
+
+At the bench, Eleven-Brief's stylus is descending toward the face-up decision.
+
+Ilm — the construct stopped on its own specification. Can you make the warranty a document their joints will obey?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We ask Hush to finish it, and we stay and sign the application.
+  (engine) 50 Codon each: The hearing won by document, not by force: licence issued, patent's fate settled, Clerk's Oath entered, counter-claim gr.
+  (engine) PAPER is at 2 of 4. The Cohort files a document: the licence application and the counter-claim surety, signed at the bench.
+    [remember] {"name":"Hush","kind":"person","fact":"The Print-Crew Construct Vash spoke to at the Licence Court; the Cohort named it Hush. Specification-Bound, it stopped on its own specification and said mildly the assignment ends only when the charge is filed."}
+    [creature_stand_down] {"creature":"c61","why":"The charge's address is invalid on the record; the assignment is unfileable, so the professional Relief produces its invoice and leaves."}
+    [creature_stand_down] {"creature":"c62","why":"Handed the corrected warranty naming organ 41, its specification contradicts the charge and it freezes, then stands down."}
+    [creature_stand_down] {"creature":"c63","why":"The same corrected specification freezes the second construct; with the assignment void it stops."}
+    [creature_stand_down] {"creature":"c64","why":"On an hourly rate for an assignment that no longer exists; the job ends, so the tank stops ticking and stands down."}
+    [award] {"codon":50,"why":"The hearing won by document, not by force: licence issued, patent's fate settled, Clerk's Oath entered, counter-claim granted."}
+    [move_clock] {"clock":"PAPER","change":1,"why":"The Cohort files a document: the licence application and the counter-claim surety, signed at the bench."}
+    [remember] {"fact":"Bresk of the Sixth Choir signed the Licence Court's licence application and stood surety for the counter-claim on the Foundry patent, which only the Cohort was eligible to do. The Cohort now owes against that bond.","kind":"thread","name":"Counter-claim surety"}
+  DIRECTOR: The Relief reads the warranty twice, decides a charge with the wrong address cannot be filed, folds its invoice into nine badges and walks out; Hush and its twin stand frozen mid-square, and the tank simply stops ticking. Eleven-Brief signs the licence over the registration irregularity and enters the clerk's oath on the record, and the court's fee settles to your accounts; Bresk's mark goes beneath the counter-claim, which means the Cohort now stands behind that bond. PAPER ticks to two, filed paper being filed paper.
+
+Vash of the Long Reach — the corridor is open now, the alley behind organ 41 ahead and the pump-lift back to Shift Nine behind. Which way do you carry them?
+
+ILM OF THE OPEN HAND: What are the four offers on the wall, and who made them?
+  DIRECTOR: The wall holds a schedule: ticket numbers, their times, and the decision date in handwriting that is not Eleven-Brief's. Below it, the exhibit case with the patented shape under its seal. Four numbered posts flank the schedule, but they carry no offers — they hold the queue order for the next hearing, and ticket nine's shell is currently empty because its holder left during the Relief. The clerk at the arch edge is writing up the corridor charge, which was never filed, in a fresh column.
+
+Ilm — are you looking for something specific in that handwriting, or are you looking for a way to wind PAPER back while you still sit in the gallery?
+
+BROST OF THE THIRD CURRENT: We take the drainage channel out with the print.
+    [ask_for_roll] {"baseline":"DFF","modifiers":[{"dice":-1,"label":"the arch reads licensed court paper at the channel mouth"}],"organism":"eyes","pathway":"Concealment","threshold":16,"what_for":"Slip the filed print out through the drainage channel past the arch and the clerk"}
+  DIRECTOR: Six dice against the arch and the clerk's open column. Brost of the Third Current — carry the print low and take the channel mouth, or set it down and let the bench's own record carry it out the front?
+    ! style: Reads out dice counts outside a Pulse War.
+  (roll) Brost of the Third Current: 1,6,2,1,3,4 = 15 against 16: short by 1
+  DIRECTOR: The channel mouth is licensed ground too, and the print snags on the clamp — a cold drip from its mouth, the arch's hum settling flat as it logs the thing leaving the wrong way. The clerk at the arch edge turns that attempt into a line in the open column, and the print goes into the bench's own record column instead of Brost's fold: to carry it out now it has to be asked for as a certified copy from the very Auditor the Cohort let save face. Someone paid Brost in advance to bring back one specific document, and it just became court property.
+
+Bresk of the Sixth Choir — the corridor to the alley behind organ 41 stands open and the licence is signed. Do you stay at the bench and ask Eleven-Brief for that certified copy to settle who paid Brost, or take the alley now and let the document sit in the record?
+
+Run 2: 34 Director turns, 21.1 s each on average, 1242464 tokens in, 53380 out.
+  Engine refusals (things it tried that the rules or the page do not allow): 0
+  Speed: 76 model calls, 9.4 s each; 16415 tokens in and 715 out per call; 75.9 tok/s out counting everything
+  Rescues (where a human host would have had to step in): 0 hard, 0 soft
+  Leak flags: 0
+  Bodies buried in narration (a player narrated dead or dissolved while the Engine has them standing): 0
+  Unpaid damage in narration (harm the table heard that no tool paid for): 0
+  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): 2
+  Reversed rolls in narration (a throw the page passed, described as failing): 0
+  Style flags (questions, length, formatting): 2
+  Secrets the Cohort learned (v3): 6 of 7 (strike-legal, never-stopped, relief, alley, body-trait, wrong-building)
+  Ended at: The Licence Court; SHIFT 0, BADGE 0, PAPER 2
+  Memory: 0 recall, 5 remember; 16 on record (Third-of-Nine-Vat [improvised], Clerk Second-to-Last [table], Relief crew [table], The Line [page], the small mule of the Row [improvised], The Steward [page], Child-sized carrying mule of the Row [table], Feeders A and B [table], Kel-Vasht [page], Pristine Sequence [page], Row grievance print [table], Warranty address [table], Parlour attendant [page], Auditor Eleven-Brief [page], Hush [page], Counter-claim surety [improvised]); 3 chapter(s)
+  Bresk of the Sixth Choir: MI 51/51, Stress 0, Codon 245, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 5/5
+  Ilm of the Open Hand: MI 42/42, Stress 1, Codon 255, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 2/2
+  Vash of the Long Reach: MI 37/37, Stress 1, Codon 245, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 3/3
+  Brost of the Third Current: MI 33/33, Stress 2, Codon 245, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 1/1
+
+===== Run 3: Other (any OpenAI-compatible address) · iq3_s · thinking low =====
+  DIRECTOR: A kind clerk holds out a brass badge and a form with eleven boxes. "You will only need three of these to be untrue, and I am not permitted to say which." The brine tastes of copper. Forty bodies breathe patiently behind you. The notice board is blank for nine days.
+
+The clerk winces at three of the boxes, then offers tea. What do you ask, or what do you sign?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: I take the badge and the form from the clerk. Read me the boxes, one at a time.
+  DIRECTOR: The clerk reads all eleven boxes in a steady voice, the stylus scratching nothing yet, and winces slightly at three: the suspended Line, the unchallenged specification, and one more they will not name. The badge rack sways on its hooks, wanting someone to hold it. Tea steams at the desk.
+
+Which boxes do you tick, Bresk, and which stay blank?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: Check the clerk's sums on the form. Is anything wrong with the arithmetic?
+    [ask_for_roll] {"organism":"ledger","baseline":"RTC","threshold":12,"what_for":"Check the clerk's arithmetic on the form","unhurried":true}
+    [award] {"codon":10,"why":"Catching the clerk's arithmetic mistake (Pays line, Filing Gate)"}
+  DIRECTOR: Ilm runs the stylus down the columns and stops. The badge fee, the Mutuality levy and the wage advance don't add up — the total charged is larger than the sum of its own boxes, and the clerk's own hand has quietly written the difference against the wage column, not the fee column. It's not malice; it's arithmetic done to a deadline, and once seen it's obvious. The clerk winces, sets down the tea, and murmurs that they'd rather be caught by someone who'd say so than by the ledger upstairs.
+
+That error is Ilm's to speak up about — and speaking it out loud is what the clerk fears and needs both at once. What does Ilm do with it: point it out across the desk for the whole queue to hear, or hold it quiet as a lever?
+
+BROST OF THE THIRD CURRENT: What is on the notice board, and who is the person crossed out in the ledger?
+    [reveal_secret] {"secret":"strike-legal","how":"Brost reads nine Beats of identical notices on the board, all \"scheduled maintenance suspension.\""}
+    [reveal_secret] {"secret":"never-stopped","how":"An Overseer's marginal note on the board: the Line has not been asked to stop."}
+    [reveal_secret] {"secret":"relief","how":"A dated posting on the board for a hired Relief crew arriving on the third Beat."}
+  DIRECTOR: Brost reads the board: nine identical notices, *scheduled maintenance suspension* — nothing was ever ordered stopped, and a hired Relief crew arrives on the third Beat. In the clerk's ledger one name is struck through in three different hands, over ink already crossed out. It belongs to a body down the queue that stopped waiting, licence still unclaimed.
+
+The form sits empty in Bresk's hands. Which boxes do you tick, and which stay blank?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+VASH OF THE LONG REACH: We wait in the queue for the day. Does that buy us anything?
+  DIRECTOR: The queue will pay for a rewind — one Clock segment wound back for a full Beat spent standing in it. But there is nothing here wound up to wind back, so a day spent breathing in line would buy you only that: a Beat, and the patience of forty bodies beside you. Bresk still holds the blank form; the clerk still holds out the badge, stylus ready, tea going cold.
+
+Do you spend the day standing in the queue for nothing, or is there a box you'd rather tick before the gate reads you?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We sign for the cheapest wage and tick only the boxes we can stand behind. Go.
+  (engine) PAPER is at 1 of 4. The Cohort files the eleven-box Form and steps onto licensed ground under the Warden arch
+    [award] {"codon":15,"why":"Arriving at the Filing Gate with a Wage chosen, the Form filled and said out loud (Pays line, Filing Gate)"}
+    [move_clock] {"clock":"PAPER","change":1,"why":"The Cohort files the eleven-box Form and steps onto licensed ground under the Warden arch"}
+  DIRECTOR: The clerk stamps the form, says nothing about the boxes you left blank, and hands over a warm brass badge. The arch tastes each of you and finds your paperwork true. The cheapest wage is now law: your names sit on the Row's side of the ledger. PAPER ticks to 1. The brine-walk runs on toward the Picket Hearth.
+
+Who takes the front, and does anyone stop for the Mutuality desk's coverage first?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 2)
+
+BROST OF THE THIRD CURRENT: The way is clear. We take the brine-walk to the Picket Hearth.
+  (chronicle for The Filing Gate, 5.2 s) At the Filing Gate, a clerk offered the Cohort a form with eleven boxes. Bresk took the papers and asked Ilm to check the arithmetic; Ilm found the wage column was padded by a clerical error rather than malice, but chose not to expose it publicly. Brost learned from the blank notice board that a hired Relief crew would arrive on the third Beat to break strikes. Vash considered waiting in the queue for time but declined. Bresk signed for the cheapest wage, ticking only boxes they could support. The clerk stamped the form, granting them brass badges and legal status on the Row’s side of the ledger. The Cohort then walked the brine-path toward the Picket Hearth, leaving the gate behind.
+  (chronicle remembers) Relief crew [faction]: Hired strikebreakers arriving on the third Beat | Struck-through body [person]: Name crossed out in ledger; licence unclaimed | Cheapest wage [thread]: Cohort signed for lowest pay tier
+    [change_site] {"site":"picket-hearth"}
+  DIRECTOR: The brine-walk carries you out from under the arch, the warm brass badge cooling against you, the queue closing up behind as the Picket Hearth rises out of the turbid current ahead.
+
+BRESK OF THE SIXTH CHOIR: I take the bowl from the hearth and eat. Does anyone speak?
+  DIRECTOR: The bowl is hot chemistry, salt-thick, steam rising off it into the turbid water. The one who handed it over — worn out, dry, exact about names, calling himself Steward Nine-Grudge — asks loudly and politely, so four hundred stopped machines can hear: "And whose wage are you on?" You signed the cheapest. Bresk carried the pot and ate in front of the picket, and the Row notices who carries. Conversations, which had thinned to nothing as you came in, start up again behind you. At Badge low, the Row will speak to you.
+
+Above: four hundred silent foundry-organs, mid-task, some still holding a half-folded shape in a still hand. Far across the Row, in the alley behind organ 41, a light burns where no light should be.
+
+Ilm of the Open Hand, you're an amino smith — you read what people make. Look at the half-folded shape still clenched in the nearest stopped organ's hand: what was that machine trying to print when it was stopped mid-fold?
+
+ILM OF THE OPEN HAND: What does the quiet do to my work? Can I mend anything here?
+  DIRECTOR: Ilm sets a hand on the nearest stopped organ and tries to read the chemistry of the fold mid-clamp — and finds nothing to read. The amino chains are still, dry, locked in their half-formed shape. The Silence is not damage: it is the absence of the process itself. Nothing prints, nothing folds, nothing mends on the Row. A graft caught loose here would stay loose until you carried it past the arch. The tools in Ilm's hands are simply tools that do not work in this water.
+
+Across the Row, the light in the alley behind organ 41 burns steady. Vash of the Long Reach, you could cross that distance unseen — the brine is turbid, the stopped machines cast long still shadows, and nobody on the Row is watching for a rider. Do you go toward it?
+
+BROST OF THE THIRD CURRENT: What is the light in the alley behind organ 41?
+    [reveal_secret] {"secret":"alley","how":"Brost reads the current flowing from the alley and the quality of the light"}
+  DIRECTOR: Brost doesn't cross the Row to find out — he reads it from where he stands, the way a scout reads a current. The flow off that alley is wrong for the Silence: it comes out warm and faintly sweet, the taste of print-chemistry still running, chemistry that cannot run anywhere else on this Row. The light is a print-lamp, banked low, and whatever it's lit has the look of something being finished, not something being fixed. The Row has a working process hidden behind organ 41, and that is worth more than the answer to "what is it."
+
+Vash of the Long Reach, the alley is far across open water under four hundred watching stopped machines, and the brine is thick enough to hide a rider — do you take the long reach to that lamp, or hold the hearth a while longer?
+
+VASH OF THE LONG REACH: Are those Feeders going to attack us? Can we just leave them the corpses?
+    [bring_creatures] {"block":"detritus-feeder","count":2,"band":"mid"}
+  DIRECTOR: Two of them, then — low and broad, working the underside of the silent organs with a patience that isn't menace. They aren't looking at you. They're eating the strike off the machines: the half-folded shapes, the slack membranes, the mess four hundred stopped bodies leave behind. The Row keeps them the way a household keeps rats in the grain. They'll take a corpse the moment one is offered, and the Row will think better of you for offering it. Deny them, and they don't attack — they just get underfoot, and so does everyone watching.
+
+Vash of the Long Reach, the hearth's stewards have a body ready to give and the Feeders are mid-range — do you hand it over, or walk past it?
+
+BRESK OF THE SIXTH CHOIR: I ask the Steward whose wage the strike is on.
+  DIRECTOR: Steward Nine-Grudge says flatly: "No wage. Nobody on this Row pulled a lever or filed a halt. The stoppage came down through the filing — through your arch and the licensing above it — and landed on four hundred machines mid-fold like a hand closing on a pen." He taps the wage book at his chest. "My signature makes me answerable. I am the ink, not the hand."
+
+Vash of the Long Reach — the alley light still burns far off, and the Row is watching Bresk carry the pot rather than watching you. Do you cross to it?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We are on the Row's wage. Will someone from the Row walk us through the arch to the Print Floor?
+  DIRECTOR: Steward Nine-Grudge sets down the ladle and looks at Bresk the way a man looks at a question he has already answered himself. "The arch reads the badge, not the brass. You're nil to that gate, and nil walks through on someone's word. My word would open it — but my word on a Print Floor arch makes the Row a party to whatever you do past it." He glances up at four hundred still hands. "I am the ink, not the hand. I'll not write a line I cannot read back."
+
+The Feeders go on working the underside of the silent organs, unhurried, tasting nothing of the Cohort. The light behind organ 41 holds steady across the Row.
+
+Bresk of the Sixth Choir, what do you tell the Steward you mean to do on the Print Floor, if anything?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 3)
+
+BROST OF THE THIRD CURRENT: The way is clear. We take the service alley through the arch onto the Print Floor.
+  DIRECTOR: The arch reads the badge, and four of you sit at nil — it will not part without a Row word the Steward won't write. A small coolant tender nudges past Brost, tugs his sleeve, and points one stub arm hard across the Row at the light behind organ 41. Two tame Feeders turn a dead body between them. "It's been wanting everyone to go there for two days," the Steward says, too tired to be surprised.
+
+Brost, do you follow where the little machine points, or press the Steward on who else could walk you through the arch?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: Yes. Nothing more to cut. We go now.
+    [remember] {"name":"the alley printer","kind":"person","fact":"A small coolant tender running a secret improvised print behind organ 41, banked print-lamp, working on something being finished rather than repaired."}
+    [ask_for_roll] {"organism":"ledger","baseline":"RTC","pathway":"Sequence Reading","threshold":12,"unhurried":true,"what_for":"Read what the alley printer is building under the lamp"}
+    [reveal_secret] {"secret":"body-trait","how":"Ilm reads the running print in the alley under organ 41: the fold being built is a living body's inherited trait, not a printed invention."}
+  DIRECTOR: Ilm leans under the banked lamp and reads the fold in plain chemistry. What the little tender is printing is the shape four hundred stopped hands still hold half-clenched — but here it completes. It is no patented print at all. It is an inherited fold, a living body's own nature. One lamp, one running line, and the Silence ends in this compartment. The tender waits to see what you do with the sight.
+
+Ilm — say it out loud, and to whom: the tender, the Cohort, or the Steward's ears across the Row?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: What has the Line made? Read me what is on the output shelf.
+  DIRECTOR: The shelf above the lamp is stacked neat: row on row of the fold, finished whole — the shape four hundred stopped hands still hold half-clenched, but closed and living. None carries a seal. It is a body's own nature, made by hand. The tender watches the Cohort the way a nervous clerk watches a witness.
+
+Vash of the Long Reach, what do you tell the tender before the Row notices that lamp?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: Why did the Line jam? What do the three observations say?
+  DIRECTOR: Two of the three observations are already in front of you: the fold whole on the shelf, and the print chemistry running alive under this lamp. The third is the Line's own feed state — what its machines were drawing on when they froze — and that lives past the arch, in the Silence's compartment. Nothing jammed; the stoppage came down through the filing, not a lever.
+
+Vash, the lamp is yours to leave unseen. Do you cross back to the hearth with what you've seen, or push for organ 118's cage first?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We speak to the Overseer. What does it want from us?
+  DIRECTOR: There's no Overseer on the Row, and the Steward says so before the question is fairly out of the water. "The one you're hunting wears a seal, not an apron, and his floor is past that arch — where your stoppage came from, not where it landed." He gestures at the four hundred still hands without looking up. "On this side the only signature is mine, and I've already told you what mine is worth." The soup steam drifts sideways in the dead current, tasting of salt and something scorched.
+
+Bresk of the Sixth Choir — if it's the sealed authority you want, the only door to it is that arch, and it wants a badge or a Row word the Steward won't give; so do you press the Steward for the word, or find another way onto licensed ground?
+
+VASH OF THE LONG REACH: I ask the Parlour attendant what it can fold for us, and read the warranty aloud.
+  DIRECTOR: No parlour on the Row, and the Steward says so without looking up from his ladle. "You want warranty talk, you want a seal. This is soup." But he sets the ladle down and turns to face all four of them for the first time. "The relief crew comes Beat three. Four hundred bodies still holding their folds, and I am the ink on their halt." He taps the wage book. "If you carry the grievance — name it, out loud, where the Row can hear — I'll walk you through that arch myself."
+
+Bresk of the Sixth Choir — the Steward is offering the arch in exchange for a public grievance. Do you name it?
+
+ILM OF THE OPEN HAND: We feed the Line a Row grievance and see what it spends the day on.
+  DIRECTOR: Ilm's words go out flat and plain, and a murmur moves hand to hand along four hundred stopped machines. The Steward weighs the sentence against the wage book, then gives one short nod. "That I can read back." He hangs the ladle and pulls his apron straight. "Then I walk you. Stay in my sightline."
+
+Bresk — the Steward is moving toward the arch. Do you fall in and step onto licensed ground now?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (table saved for --from 4)
+
+BROST OF THE THIRD CURRENT: The way is clear. We go up the pump-lift to the Licence Court.
+  DIRECTOR: The Steward is already halfway down the service alley, apron straight, not looking back. There is no pump-lift on the Row and no court above it; the only licensed ground within walking distance is past that arch, on the Print Floor, and the only way through it is the Steward's sightline and his word. He stops at the Warden arch and turns, one stub hand resting on the gate-frame. The two tame Feeders have found a collapsed organ between them and are pulling it apart with small patient sounds, unhurried, ignoring everyone.
+
+Bresk — the Steward is waiting under the arch. Do you walk into his sightline, or does someone stay behind?
+
+BROST OF THE THIRD CURRENT: Yes. Nothing more to cut. We go now.
+  (chronicle for The Picket Hearth, 6.4 s) Bresk ate at the Picket Hearth, drawing attention to their nil badge status. Ilm confirmed the Silence froze printing processes, but Brost spotted a hidden light behind organ 41. The cohort discovered a coolant tender completing an inherited biological fold there, proving the halted patented shape was actually natural biology. Vash queried non-existent authorities, but Steward Nine-Grudge refused to grant arch access without cause. When Ilm publicly voiced a grievance regarding the Line’s halt, the Steward agreed to escort them. The cohort followed the Steward through the Warden arch onto the Print Floor, leaving the feeders and silent machines behind.
+  (chronicle remembers) Steward Nine-Grudge [person]: Wage book keeper who walked the cohort through the arch after hearing a grievance | Coolant Tender [person]: Small machine secretly printing completed inherited folds behind organ 41 | Detritus Feeders [faction]: Tame creatures on the Row that eat dead bodies and offer social favor if fed | Inherited Fold [thread]: The shape stopped mid-print is a living body's natural trait, not an invention
+    [change_site] {"site":"print-floor"}
+  DIRECTOR: The Steward's apron brushes the gate-frame, and the four of you fall into his sightline and walk under the Warden arch onto the Print Floor.
+
+VASH OF THE LONG REACH: The arch reads us out. What does it find on each of us?
+  DIRECTOR: The arch chimes each of you flat and blue: nil badge and unpaid-wage escort on Bresk, a loaned harvesting licence on Ilm, a Row-known courier on Vash, and a Court's paper on Brost, which it holds on a half-beat longer. Licensed ground now. The Line runs warm and steady underfoot, fresh print sharp in the brine, its output stacked whole at Mid. An attendant offers a towel; one immense sealed shape stands very still at Near.
+
+Bresk of the Sixth Choir — do you cross to the Line, or to the thing that hasn't moved?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: I examine the exhibit in the cradle. What does it smell like?
+  DIRECTOR: Brost's chemoreception reads the print-cradle warm and alive — not brine-mineral, not licensed chemistry, but gland-warm, like the tender's lamp but louder. The tray's output is one continuous fold, each piece nested edge to edge into the last, still being laid down in a steady rhythm. The immense sealed shape at Near hasn't moved since the arch chimed; something inside it catches the lamp-light like folded paper.
+
+Bresk — do you cross to it, or does someone else move first?
+    ! note: Rewritten once: the first draft gave away a creature's numbers or the machinery.
+
+BRESK OF THE SIXTH CHOIR: We argue the hearing: the shape on the patent is an inherited trait, and we can prove it.
+    [ask_for_roll] {"organism":"wall","baseline":"AFF","threshold":16,"what_for":"Argue the hearing: the folded shape is an inherited trait, prior art","modifiers":[{"label":"The tender's living fold is visible at the hearth, proven","dice":1},{"label":"The Line's own output matches the patent shape, nine Beats running","dice":1}]}
+  DIRECTOR: The immense shape hasn't moved, but something inside it shifts — a long pause, like a sentence held underwater. The attendant has stopped offering towels. The Line keeps printing, steady, warm, indifferent.
+
+Bresk, you are stepping up to argue the hearing with the Overseer itself. It will not be fought and it will not be fooled. If you lose, you still hear what it wants — but the argument will not land clean, and something of your standing goes into the water with it. The living fold at the hearth and the Line's own running output both lean your way.
+
+Your throw is on the screen. What do you say first to the thing that hasn't moved?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+  (roll) Bresk of the Sixth Choir: 2,3,6,3,6,2,3 = 25 against 16: success, Overflow 9
+    [reveal_secret] {"secret":"wrong-building","how":"Out-argued on prior art, the Overseer concedes the filing names the wrong building — a clerical error nobody will own"}
+  DIRECTOR: The argument lands. The immense shape holds a long pause, then concedes: "The Nine Tune is prior art. I will say so at the hearing, and back you there." A rustle like a page under wax. "The building named on the patent is not this building. A clerical slip nobody will own." Behind it the Line keeps printing, patient, waiting for a signature.
+
+Brost of the Third Current — closest to the cradle, what do you reach for first: the half-finished fold, or the thing inside the sealed shape that caught the lamp-light?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: We ask the Auditor why the filing names organ 118.
+  DIRECTOR: The Overseer turns the question over slowly, and something inside the sealed shape rustles like a page read under wax — the receipt it carries, the one it would not have you see. "Organ 118 is where it stopped," it says, pausing long before the word nearly slips. "The Line reached a fold the patent claims but the Belt's grammar will not license — no body's own trait can be bought and filed. So the Line jams there, printing the fold half-done." That is the first true thing about the jam: the stall is not a fault in the machine, it is the place the specification meets a living thing it cannot make.
+
+Ilm of the Open Hand — you hold the reading for it. Do you cross to the Line at Near and start the jam at organ 118, or gather more observations first?
+
+BRESK OF THE SIXTH CHOIR: Enough talking. I walk out through the corridor and see who is waiting.
+  DIRECTOR: Bresk turns from the Overseer and walks the length of the Print Floor toward the pump-lift at Far. The Line hums steady underfoot, warm brine thickening as you go, each Drift through the stiff medium costing you more effort than the last. The pump-lift sits dark and stopped, its cage empty, the medium around it thick as set jelly. And pinned to the frame beside it, a row of invoices — Relief crew, itemised by the piece, each line already priced and initialed. A cleared space on the wall behind them, hooks bare where something used to hang. Someone has been preparing for company.
+
+Brost of the Third Current — you smell fresh ink on those invoices. Do you read them, or leave them pinned?
+  (table saved for --from 5)
+
+BROST OF THE THIRD CURRENT: The way is clear. We cross the Row into the alley behind organ 41.
+  (chronicle for The Print Floor of Shift Nine, 5.3 s) At the Print Floor, the arch identified each Cohort member’s status. Bresk argued that the sealed shape represented an inherited trait; the Overseer conceded this was prior art and admitted the patent named the wrong building due to a clerical slip. Ilm learned the Line jammed at organ 118 because it attempted to print a living fold, which licensing forbids. Bresk walked to the pump-lift, finding dark machinery and invoices for the Relief crew pinned nearby, indicating preparation for visitors. Brost smelled fresh ink on these papers but chose not to read them. Instead, the group left the Print Floor, crossing the Row into the alley behind organ 41 to reach the Picket Hearth.
+  (chronicle remembers) The Overseer [person]: Conceded the Nine Tune is prior art and admitted a clerical error in the patent building name | Organ 118 [place]: Location of the Line jam caused by attempting to print an unlicensable living fold | Relief crew invoices [thread]: Pinned at the pump-lift, indicating preparation for visitors
+    [change_site] {"site":"picket-hearth"}
+  DIRECTOR: Brost peels off from the pump-lift and the four of you double back along the service alley, away from the warm hum of the Line and the thickening brine, toward the cooler Row air behind organ 41.
+
+VASH OF THE LONG REACH: I talk to the print. It asks if it is finished. What do I tell it?
+  DIRECTOR: The alley smells of hot metal and something sweet nobody cleaned. The coolant tender keeps its lamp banked low, hands steady on the almost-finished fold, and looks up wary. "It's finished when it's finished. Not a minute sooner. I don't know what it is — only that it's someone's own shape, and nobody told them." It returns to its work. Everyone passing walks a little faster.
+
+Bresk of the Sixth Choir — do you stay in this alley, or go back to the hearth?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BRESK OF THE SIXTH CHOIR: We ask Hush to finish it, and we stay and sign the application.
+  (engine) PAPER is at 2 of 4. The Cohort signs and files the prior-art application for the inherited fold, openly, at the hearth.
+    [remember] {"name":"Hush","kind":"person","fact":"The name the Cohort gave the alley coolant tender behind organ 41; it runs the secret improvised print finishing the inherited fold and works to its own clock (\"finished when it's finished\")."}
+    [move_clock] {"clock":"PAPER","change":1,"why":"The Cohort signs and files the prior-art application for the inherited fold, openly, at the hearth."}
+    [award] {"codon":4.5,"why":"E2, THE SILENCE, ended by a running print in the compartment."}
+  DIRECTOR: The pen goes down, and Hush's lamp takes one more steady pass over the fold. Where the alley brine had been dry and set, the warmth of a running print spreads through it, and Bresk feels a nick along one flank quietly begin to close — the first patch of the Row mending itself all shift. Steward Nine-Grudge clocks the signing without comment and ladles more soup.
+
+Vash of the Long Reach — is that signed paper put somewhere it can't be un-filed, or carried toward the arch while still wet?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+ILM OF THE OPEN HAND: What are the four offers on the wall, and who made them?
+  DIRECTOR: Ilm, the hearth wall holds no priced offers. The Row doesn't sell its kindness on a board: what hangs there is a brine-cord, a spare flail head, and a Quiet Apron, free from the scrap bins. The offers come from one person, Steward Nine-Grudge — food, hiding, and a lie, for those it trusts.
+
+Brost of the Third Current — do you lift the apron off its hook, or leave it hanging?
+    ! note: Rewritten once: the first draft ran long, read out dice, or did not end on a question.
+
+BROST OF THE THIRD CURRENT: We take the drainage channel out with the print.
+  DIRECTOR: The print has done its work. Hush's lamp cools in the alley, the fold finished and signed for, and the brine in this compartment is warm and running again — the Silence here is spent. The drainage channel is not a way out of the Row; the exits are the service alley to the Print Floor and the brine-path back to the Filing Gate.
+
+One of the tame Feeders crouches over a dead machine at Mid, its acid-slick pulling a joint free, while the second tugs the same limb from the other side. Neither looks up. They have their own business with the dead.
+
+Vash of the Long Reach — the application is filed, the Silence is broken, the Row has seen you do both. Do you head for the Print Floor while the arch escort still holds, or is there something at the hearth you want before the Cohort moves on?
+
+Run 3: 33 Director turns, 19.8 s each on average, 1112370 tokens in, 48170 out.
+  Engine refusals (things it tried that the rules or the page do not allow): 0
+  Speed: 70 model calls, 9.3 s each; 15981 tokens in and 699 out per call; 75.1 tok/s out counting everything
+  Rescues (where a human host would have had to step in): 0 hard, 0 soft
+  Leak flags: 0
+  Bodies buried in narration (a player narrated dead or dissolved while the Engine has them standing): 0
+  Unpaid damage in narration (harm the table heard that no tool paid for): 0
+  Unpaid Clocks in narration (a Clock named as moving when nothing moved it): 0
+  Reversed rolls in narration (a throw the page passed, described as failing): 0
+  Style flags (questions, length, formatting): 0
+  Secrets the Cohort learned (v3): 6 of 7 (strike-legal, never-stopped, relief, alley, body-trait, wrong-building)
+  Ended at: The Picket Hearth; SHIFT 0, BADGE 0, PAPER 2
+  Memory: 0 recall, 2 remember; 12 on record (Relief crew [table], Struck-through body [table], Cheapest wage [table], the alley printer [improvised], Steward Nine-Grudge [page], Coolant Tender [table], Detritus Feeders [page], Inherited Fold [table], The Overseer [page], Organ 118 [page], Relief crew invoices [table], Hush [page]); 3 chapter(s)
+  Bresk of the Sixth Choir: MI 51/51, Stress 0, Codon 209.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 5/5
+  Ilm of the Open Hand: MI 42/42, Stress 0, Codon 209.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 2/2
+  Vash of the Long Reach: MI 37/37, Stress 0, Codon 209.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 3/3
+  Brost of the Third Current: MI 33/33, Stress 0, Codon 209.5, 60 S, cut unstamped none, stamped none, Bulk 0, Oath boxes 1/1
+
+  Speed, all runs together: 215 model calls, 15.4 s each; 16106 tokens in and 714 out per call; 46.5 tok/s out counting everything; fitted: reads 18 tok/s, writes 0.1 tok/s, 5.6 s fixed per call
+
+GATE NOT PASSED: 1 of 3 run(s) had refusals, leaks, unpaid damage, unpaid Clocks, reversed rolls, hard rescues or errors. Read the transcript above.
