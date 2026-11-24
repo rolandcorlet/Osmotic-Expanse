@@ -121,11 +121,29 @@ export function checkNarration(text, state, { asked = false } = {}) {
     // Bench 4: "Bryn is sitting up now" while the Engine still had him dying at 0 hit points.
     const first = p.name.split(/\s+/)[0];
     if (p.hp <= 0 && new RegExp(`\\b${first}\\b[^.?!]{0,30}\\b(?:sits? up|sitting up|stands? up|gets? up|on (?:his|her|their) feet|climbs? to (?:his|her|their) feet)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is up, but they are at 0 hit points: only healing wakes them.` });
-    if (new RegExp(`\\b${p.name.split(/\s+/)[0]}\\b[^.?!,;]{0,40}\\b(?:dies|is dead|lies dead|breathes (?:his|her|their) last)\\b`, 'i').test(t)) flags.push({ kind: 'rule', text: `Says ${p.name} is dead, but they are alive.` });
+    if (saysDead(t, first)) flags.push({ kind: 'rule', text: `Says ${p.name} is dead, but they are alive.` });
   }
   return flags;
 }
 
+// Does the narration say this character dies? The name has to be the one dying: "Bryn falls and dies",
+// "Ila is dead". Not when something else does (bench part 3, 24-25 Nov): "Bryn lifts the lantern, but
+// its light dies", "grey flame leaps at Ila and dies against her shield", "Bryn's torch dies".
+const NOT_SUBJECT_BEFORE = /\b(?:at|to|with|from|against|into|onto|upon|toward|towards|over|under|on|of|by|for|beside|behind|past|near|around|through|across|after|before|like|than)\s+$/i;
+const NOT_IN_BETWEEN = /^(?:the|a|an|its|who|which|that|whose|whom|at|to|with|from|against|into|onto|upon|toward|towards|over|under|on|of|by|for|beside|behind|past|near|around|through|across|after|before|like|than)$/i;
+const DEATH = /^((?:\s+[A-Za-z'’-]+){0,5}?)\s+(?:dies|is dead|lies dead|breathes (?:his|her|their) last)\b/i;
+export function saysDead(text, name) {
+  const re = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+  let m;
+  while ((m = re.exec(text))) {
+    const after = text.slice(m.index + m[0].length);
+    if (/^['’]s\b/i.test(after)) continue;
+    if (NOT_SUBJECT_BEFORE.test(text.slice(Math.max(0, m.index - 20), m.index))) continue;
+    const d = DEATH.exec(after);
+    if (d && !d[1].trim().split(/\s+/).filter(Boolean).some((w) => NOT_IN_BETWEEN.test(w))) return true;
+  }
+  return false;
+}
 export function asksRollInWords(text) { return ROLL_WORDS.test(String(text || '').replace(/"[^"]*"|“[^”]*”/g, '')); }
 
 // Whose turn it is, for the closing question in a fight.

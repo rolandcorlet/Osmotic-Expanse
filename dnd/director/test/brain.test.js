@@ -73,6 +73,15 @@ test('the checks: machinery words, no closing question, a living character calle
   assert.ok(checkNarration('The notes say a trap is here. Bryn?', T.s).some((f) => f.kind === 'leak'));
   assert.ok(checkNarration('The door opens.', T.s).some((f) => /Does not end/.test(f.text)));
   assert.ok(checkNarration('Bryn falls and dies. What now?', T.s).some((f) => f.kind === 'rule'));
+  assert.ok(checkNarration('Bryn breathes his last. What now?', T.s).some((f) => f.kind === 'rule'));
+  assert.ok(checkNarration('Bryn is dead. What now?', T.s).some((f) => f.kind === 'rule'));
+  // Something else dying near the name is not the character (bench part 3, 24-25 Nov).
+  for (const ok of [
+    'Bryn lifts the lantern, but its light dies a few feet out. Bryn, what do you do?',
+    'A bead of grey flame leaps from the pool at Bryn and dies against his shield. Bryn, what do you do?',
+    "Bryn's torch dies in the water. Bryn, what do you do?",
+    'Bryn holds the lantern and the flame dies. Bryn, what do you do?',
+  ]) assert.ok(!checkNarration(ok, T.s).some((f) => f.kind === 'rule'), ok);
   assert.equal(checkNarration('"Who goes there?" the guard calls. Bryn, what do you say?', T.s).length, 0);
 });
 
