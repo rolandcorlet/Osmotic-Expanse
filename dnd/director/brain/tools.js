@@ -281,6 +281,10 @@ export const TOOLS = [
       // As with damage: healing someone the Engine does not track, or healing nothing, is a note.
       if (!ref) return { note: `Nothing changed: the Engine tracks only the party (${party(T.state)}) and the monsters here (${here(T.state)}). For anyone else, just narrate it.` };
       if (/^\s*0*\s*$/.test(String(a.dice ?? ''))) return { note: 'Nothing changed: no healing was given.' };
+      // A character who has died cannot be healed back on the spot (a town priest's miracle is for later, in
+      // the story). The narration carries it; nothing in the Ledger changes (bench part 3, 24 Nov: Ila).
+      const pc = ref.startsWith('pc:') && T.state.pcs ? T.state.pcs[ref.slice(3)] : null;
+      if (pc && pc.dead) return { note: `Nothing changed: ${pc.name} is dead, and healing cannot bring the dead back. Narrate what the healing does for the living, if anything.` };
       const amt = /^\s*\d+\s*$/.test(String(a.dice)) ? Number(a.dice) : undefined;
       const before = T.state.seq;
       const no = T.do({ type: 'heal', target: ref, amount: amt, dice: amt === undefined ? String(a.dice) : undefined, why: a.why });

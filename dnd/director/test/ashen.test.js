@@ -207,3 +207,14 @@ test('look-ups find the adventure\'s monsters, and rules topics say where they c
   const g = lookUp(srd, 'grappling');
   assert.ok(g.rules && g.source === 'SRD');
 });
+
+test('healing a character who has died is a note, not a refusal (bench part 3, 24 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  T.s.pcs[pc.id] = { ...pc, dead: true, hp: 0 };
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(1), now: 1 });
+  const out = tb.run('heal', { target: pc.name, dice: '1', why: 'the lantern' });
+  assert.ok(!out.refused, 'no refusal');
+  assert.match(out.note, /is dead/);
+});
