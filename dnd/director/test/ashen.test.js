@@ -271,3 +271,17 @@ test('a caster out of spell slots is a note that names its cantrips, not a refus
   assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
   assert.match(out.note, /spell slots left.*cantrips/);
 });
+
+test('a monster acting on a character who has died is a note, not a refusal (bench part 3, 24 Nov)', () => {
+  const T = table(11);
+  T.as('p1', { type: 'join', name: 'Roly' });
+  T.as('p1', { type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  T.s.pcs[pc.id] = { ...pc, dead: true, hp: 0 };
+  T.host({ type: 'foe.reveal' });
+  const cap = Object.values(T.s.foes).find((f) => f.mid === 'ac-iron-brand-captain');
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(4), now: 4 });
+  const out = tb.run('monster_action', { monster: cap.name, action: 'Scimitar', targets: [`pc:${pc.id}`] });
+  assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
+  assert.match(out.note, /is dead/);
+});

@@ -230,6 +230,8 @@ export const TOOLS = [
       if (no && /\bnot .*\bturn\b/i.test(no)) return { note: `Nothing changed: ${no}`, ...T.fightBrief() };
       // A caster out of slots (bench part 3, 24 Nov: Brother Aldane's Spiritual Weapon) is a note listing its cantrips.
       if (no && /spell slots left/.test(no)) return { note: `Nothing changed: ${no} Use a cantrip or another action.`, ...T.fightBrief() };
+      // A dead character is no target (bench part 3, 24 Nov: a Slam on a dead Bryn): a note, and the monster picks another.
+      if (no && /is dead\.$/.test(no)) return { note: `Nothing changed: ${no} Name a living target, or end the monster's turn.`, ...T.fightBrief() };
       if (no) return { refused: no };
       return { ...since(T, before), party: T.partyBrief() };
     },
