@@ -285,3 +285,13 @@ test('a monster acting on a character who has died is a note, not a refusal (ben
   assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
   assert.match(out.note, /is dead/);
 });
+
+test('a check with no ability named is asked, not refused: the reason decides, dexterity by default (bench part 3, 24 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(5), now: 5 });
+  const out = tb.run('ask_for_roll', { characters: [pc.name], kind: 'check', dc: 10, reason: 'Steady yourself and get back onto your feet in the waist-deep water' });
+  assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
+  assert.equal(tb.state.requests.find((q) => q.pcId === pc.id).ability, 'dex');
+});

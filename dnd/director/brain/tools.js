@@ -109,6 +109,17 @@ export const TOOLS = [
         ];
         ability = (SAVE_WORDS.find(([, re]) => re.test(why)) || ['dex'])[0];
       }
+      // A check with no ability or skill named (bench part 3, 24 Nov: "Steady yourself and get back onto your feet"):
+      // read the kind of check from the reason's words, and otherwise use dexterity. Never a refusal.
+      if (lower(a.kind) !== 'save' && !skill && !['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(ability)) {
+        const why = lower(a.reason);
+        const CHECK_WORDS = [
+          ['str', /climb|swim|lift|push|pull|break|force|haul|heave|shove|strength|batter|smash/],
+          ['wis', /listen|notice|spot|search|sense|track|read the|sign|omen|perceive|watch|wisdom/],
+          ['dex', /steady|footing|balance|slip|stealth|sneak|quiet|pick|catch|dodge|feet|agile|nimble/],
+        ];
+        ability = (CHECK_WORDS.find(([, re]) => re.test(why)) || ['dex'])[0];
+      }
       const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill, ability, dc: a.dc, reason: a.reason, adv: lower(a.advantage), effect });
       if (no) return { refused: no };
       return { asked: ids.map((id) => T.state.pcs[id].name).join(', '), note: 'The roll is on their screen. Stop here and wait for it: do not describe the outcome.' };
