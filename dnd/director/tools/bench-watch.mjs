@@ -142,7 +142,7 @@ const local = (isoTime) => (isoTime ? isoTime.replace('T', ' ').replace(/\.\d+Z$
 
 export function gpuLine(st) {
   if (!st.gpus || !st.gpus.length) return st.gpuNote ? `GPUs: ${st.gpuNote}` : '';
-  return 'GPUs: ' + st.gpus.map((g) => `${g.index} ${g.name.replace(/^NVIDIA (GeForce )?/, '')} ${g.tempC ?? '?'}°C, ${g.loadPct ?? '?'}% load, ${g.memUsedMiB !== null && g.memTotalMiB ? `${(g.memUsedMiB / 1024).toFixed(1)}/${(g.memTotalMiB / 1024).toFixed(0)} GB` : '? GB'}, ${g.powerW !== null ? `${Math.round(g.powerW)} W` : '? W'}`).join('; ');
+  return 'GPUs: ' + st.gpus.map((g) => `${g.index} ${g.name.replace(/^NVIDIA (GeForce )?/, '')} ${g.tempC !== null ? Math.round(g.tempC) : '?'}°C, ${g.loadPct ?? '?'}% load, ${g.memUsedMiB !== null && g.memTotalMiB ? `${(g.memUsedMiB / 1024).toFixed(1)}/${(g.memTotalMiB / 1024).toFixed(0)} GB` : '? GB'}, ${g.powerW !== null ? `${Math.round(g.powerW)} W` : '? W'}`).join('; ');
 }
 
 // One verdict for a status file: { verdict, text }. verdict is one of running, stuck, gone, finished,
