@@ -196,6 +196,13 @@ export const TOOLS = [
         const swapped = isPc && tl.length === 1 ? findFoe(T.state, tl[0]) : null;
         if (swapped && !swapped.dead) { foe = swapped; a = { ...a, monster: swapped.id, targets: [a.monster] }; }
       }
+      // A character of the party named as the monster (bench part 3, 24 Nov: "Ila" readying an action): the party
+      // acts on its own turn, so this is a note, not a refusal.
+      if (!foe) {
+        const ownRef = lower(a.monster).replace(/^pc:/, '');
+        const ownPc = Object.values(T.state.pcs).find((p) => p.id === ownRef || lower(p.name) === ownRef);
+        if (ownPc) return { note: `Nothing changed: ${ownPc.name} is one of the party and acts on their own turn. monster_action is for the monsters here (${here(T.state)}).`, ...T.fightBrief() };
+      }
       if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
       // A monster that has already fallen does nothing: a note, not a broken rule (bench 21 Nov, the chapel).
       if (foe.dead || foe.hp <= 0) return { note: `Nothing changed: ${foe.name} has already fallen and cannot act. Still standing: ${here(T.state)}.`, ...T.fightBrief() };

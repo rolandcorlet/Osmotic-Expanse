@@ -234,3 +234,13 @@ test('a save with no ability named is asked, not refused: the reason decides, de
   assert.ok(!out2.refused);
   assert.equal(tb2.state.requests.find((q) => q.pcId === pc.id && q.reason.includes('charm')).ability, 'wis');
 });
+
+test('a monster action named for a character is a note, not a refusal (bench part 3, 24 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(1), now: 1 });
+  const out = tb.run('monster_action', { monster: pc.name, action: 'Ready', targets: [] });
+  assert.ok(!out.refused, 'no refusal');
+  assert.match(out.note, /one of the party/);
+});
