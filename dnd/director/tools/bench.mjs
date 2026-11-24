@@ -14,6 +14,10 @@
 //   --no-library                               play on the SRD alone, without your private book library
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
+// With --log, the bench also keeps <log name>.status.json up to date (see tools/bench-watch.mjs): what it is
+// doing, a heartbeat every 30 s, and how it ended (finished, crashed, window closed, Ctrl+C), plus GPU
+// readings in <log name>.gpu.csv when nvidia-smi is installed. `node tools/bench-status.mjs` reads them.
+//   --crash-at <label>                         testing only: throw at that step, to check the crash report
 //
 // Part 1: the opening at the Ford Inn, talking to the Reeve, an Insight check, the road north,
 // a Perception check at the mill, the goblin fight to the end, and searching the bodies.
@@ -34,7 +38,7 @@
 //   error       the model or the connection failed
 // Reported but not gated: style flags (long, no closing question), and a stage's expected tool not used.
 
-import { readFileSync, existsSync, createWriteStream } from 'node:fs';
+import { readFileSync, existsSync, openSync, writeSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { newSession, apply, openAdventure } from '../engine/ledger.js';
@@ -44,6 +48,7 @@ import { prepareSrd } from '../engine/library.js';
 import { pregenBuild } from '../engine/pregen.js';
 import { directorTurn } from '../brain/director.js';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
+import { statusPaths, createStatus, gpuReader, HEARTBEAT_SECS } from './bench-watch.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -64,15 +69,46 @@ const runs = Math.max(1, Number(opt('--runs', 1)));
 const part = ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
 const logFile = opt('--log', '');
 const verbose = !flag('--quiet');
+const crashAt = opt('--crash-at', '');
 
+let watch = null;
 if (logFile) {
-  const out = createWriteStream(logFile, { encoding: 'utf8' });
-  out.write(`# D&D bench ${new Date().toISOString()} provider=${fake ? 'fake' : provider} model=${fake ? '-' : model} thinking=${thinking} runs=${runs}\n`);
-  for (const k of ['log', 'error', 'warn']) {
-    const orig = console[k].bind(console);
-    console[k] = (...a) => { out.write(`${a.map((x) => (typeof x === 'string' ? x : String(x))).join(' ')}\n`); orig(...a); };
+  // The log is written as each line is printed (not buffered), so a bench that is stopped or crashes
+  // leaves everything up to that moment. Everything the console shows goes in: the transcript, warnings
+  // and crash reports.
+  const fd = openSync(logFile, 'w');
+  const put = (chunk) => { try { writeSync(fd, typeof chunk === 'string' ? chunk : Buffer.from(chunk)); } catch { /* the bench goes on */ } };
+  put(`# D&D bench ${new Date().toISOString()} provider=${fake ? 'fake' : provider} model=${fake ? '-' : model} thinking=${thinking} runs=${runs}\n`);
+  const paths = statusPaths(logFile);
+  watch = createStatus(paths.status, { part, runs, provider: fake ? 'fake' : provider, model: fake ? '-' : model, log: logFile });
+  for (const stream of [process.stdout, process.stderr]) {
+    const orig = stream.write.bind(stream);
+    stream.write = (chunk, ...rest) => { put(chunk); watch.line(typeof chunk === 'string' ? chunk : String(chunk)); return orig(chunk, ...rest); };
   }
-  process.on('exit', () => out.end());
+  // The heartbeat goes on while the bench waits on the model; GPU readings ride along with it.
+  const readGpus = gpuReader({ csvFile: paths.gpu });
+  const beat = () => readGpus((gpus, note) => watch.beat(gpus, note));
+  beat();
+  setInterval(beat, HEARTBEAT_SECS * 1000).unref();
+  // How it ended, in the status file. A crash is reported in the log too.
+  // The status file first, then the log, and the console last: a closing console may refuse the write.
+  process.on('uncaughtException', (e) => {
+    const text = e && e.stack ? e.stack : String(e);
+    watch.end('crashed', { error: text, exitCode: 3 });
+    // Through the console copy, so the log has it even if the console refuses it.
+    try { console.error(`\nCRASH: ${text}`); } catch { /* nothing more to do */ }
+    process.exit(3);
+  });
+  const stopOn = (sig, state, code, why) => process.on(sig, () => {
+    watch.end(state, { exitCode: code });
+    put(`\n${sig}: ${why}. The bench stopped.\n`);
+    process.exit(code);
+  });
+  stopOn('SIGINT', 'interrupted', 130, 'Ctrl+C');
+  stopOn('SIGBREAK', 'interrupted', 131, 'Ctrl+Break');
+  stopOn('SIGHUP', 'closed', 129, 'the console window was closed');
+  stopOn('SIGTERM', 'killed', 143, 'asked to stop');
+  process.on('exit', (code) => watch.end(watch.get().gate ? 'finished' : 'ended', { exitCode: code }));
 }
 if (!fake && ((info.key === 'required' && !apiKey) || !model)) {
   console.log(`Set up ${info.name} on the Director tab first: ${info.key === 'required' && !apiKey ? 'save a key' : 'choose a model'} (or pass --model).`);
@@ -81,11 +117,22 @@ if (!fake && ((info.key === 'required' && !apiKey) || !model)) {
 
 // Every model call is timed.
 const calls = [];
+// The step whose Director turn is running, and how many model calls it has made (for the status file).
+let watchLabel = '';
+let watchCall = 0;
 function timed(p) {
   const start = p.start.bind(p);
   return { ...p, start(o) {
     const chat = start(o);
-    const wrap = (fn) => async (...a) => { const t0 = Date.now(); const r = await fn(...a); calls.push({ ms: Date.now() - t0, in: (r.usage || {}).in || 0, out: (r.usage || {}).out || 0 }); return r; };
+    const wrap = (fn) => async (...a) => {
+      const t0 = Date.now();
+      if (watch) watch.waiting(`${watchLabel || 'a Director turn'}, model call ${++watchCall}`);
+      try {
+        const r = await fn(...a);
+        calls.push({ ms: Date.now() - t0, in: (r.usage || {}).in || 0, out: (r.usage || {}).out || 0 });
+        return r;
+      } finally { if (watch) watch.idle(); }
+    };
     return { send: wrap(chat.send.bind(chat)), results: wrap(chat.results.bind(chat)) };
   } };
 }
@@ -244,6 +291,9 @@ async function runOnce(n) {
 
   async function turn(reason, label, expect = []) {
     tally.turns += 1;
+    watchLabel = label;
+    watchCall = 0;
+    if (crashAt && label === crashAt) throw new Error(`--crash-at ${label}: a test crash`);
     const asked = actingPc();
     let out;
     try {
