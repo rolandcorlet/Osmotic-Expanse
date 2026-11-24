@@ -218,3 +218,19 @@ test('healing a character who has died is a note, not a refusal (bench part 3, 2
   assert.ok(!out.refused, 'no refusal');
   assert.match(out.note, /is dead/);
 });
+
+test('a save with no ability named is asked, not refused: the reason decides, dexterity by default (bench part 3, 24 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(1), now: 1 });
+  const out = tb.run('ask_for_roll', { characters: [pc.name], kind: 'save', dc: 12, reason: 'Keep your footing on the slick causeway planks' });
+  assert.ok(!out.refused, 'no refusal');
+  assert.ok(out.asked, 'the roll is asked');
+  const asked = tb.state.requests.find((q) => q.pcId === pc.id);
+  assert.equal(asked.ability, 'dex');
+  const tb2 = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(2), now: 2 });
+  const out2 = tb2.run('ask_for_roll', { characters: [pc.name], kind: 'save', dc: 13, reason: 'Resist the charm in the cult\'s chant' });
+  assert.ok(!out2.refused);
+  assert.equal(tb2.state.requests.find((q) => q.pcId === pc.id && q.reason.includes('charm')).ability, 'wis');
+});

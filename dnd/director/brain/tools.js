@@ -98,6 +98,17 @@ export const TOOLS = [
         const ab = Object.entries({ str: 'strength', dex: 'dexterity', con: 'constitution', int: 'intelligence', wis: 'wisdom', cha: 'charisma' }).find(([, n]) => why.includes(n));
         if (sk) skill = sk.id; else if (ab) ability = ab[0];
       }
+      // A save with no ability named (bench part 3, 24 Nov: "Keep your footing"): read the kind of save from the
+      // reason's words, and otherwise use dexterity, the usual "get out of the way" save. Never a refusal.
+      if (lower(a.kind) === 'save' && !skill && !['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(ability)) {
+        const why = lower(a.reason);
+        const SAVE_WORDS = [
+          ['wis', /charm|fear|frighten|mind|will|illusion|dominat|command|sleep|compel|hypnot|enchant|sway/],
+          ['con', /poison|venom|disease|sicken|endure|hold (your )?breath|exhaust|fatigue|cold|toxin|spore|pain/],
+          ['dex', /footing|slip|balance|dodge|fall|leap|dive|duck|catch|jump|ledge|plank|causeway|avoid|blast|trap|dart|bolt|breath weapon/],
+        ];
+        ability = (SAVE_WORDS.find(([, re]) => re.test(why)) || ['dex'])[0];
+      }
       const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill, ability, dc: a.dc, reason: a.reason, adv: lower(a.advantage), effect });
       if (no) return { refused: no };
       return { asked: ids.map((id) => T.state.pcs[id].name).join(', '), note: 'The roll is on their screen. Stop here and wait for it: do not describe the outcome.' };
