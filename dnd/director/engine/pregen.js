@@ -70,7 +70,7 @@ export function completeBuild(spec, srd, rand = Math.random) {
   const b = {
     name: spec.name || `${pickRand(NAMES[race.id] || NAMES.human, rand)}`,
     race: race.id, subrace: spec.subrace || ((race.subraces || [])[0] || {}).id || '', class: cls.id, subclass: '', level,
-    method: 'standard', base: {}, raceChoice: [], raceSkills: [], skills: [], background: 'acolyte', bgSkills: [], kit: [], kitPick: {},
+    method: 'standard', base: {}, raceChoice: [], raceSkills: [], skills: [], background: 'acolyte', bgName: spec.bgName || '', bgSkills: [], kit: [], kitPick: {},
     style: '', expertise: [], ancestry: spec.ancestry || pickRand(Object.keys(DRAGON_ANCESTRY), rand), alignment: spec.alignment || pickRand(ALIGN, rand),
     spells: { cantrips: [], known: [], prepared: [], raceCantrip: '' }, languages: spec.languages || [],
   };
@@ -151,8 +151,10 @@ export function randomBuild(srd, rand = Math.random, level = 1) {
 }
 
 // A ready-made character as a builder input, at the given level.
-export function pregenBuild(id, srd, level = 1) {
-  const p = PREGENS.find((x) => x.id === id);
+// `id` is a ready-made character's id (looked up in `list`, an adventure's own, then these six) or the
+// ready-made character itself.
+export function pregenBuild(id, srd, level = 1, list = null) {
+  const p = id && typeof id === 'object' ? id : ((list || []).find((x) => x.id === id) || PREGENS.find((x) => x.id === id));
   if (!p) return null;
   let n = 0;
   const rand = () => ((n = (n * 9301 + 49297) % 233280) / 233280); // the same picks every time

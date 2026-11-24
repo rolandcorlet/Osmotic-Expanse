@@ -2,10 +2,12 @@
 // kept in this browser's storage, so the DM's Assistant and the Players' Assistant work offline
 // from a single web page.
 
-import { newSession, restart, apply, viewFor, RuleError } from '../engine/ledger.js';
+import { newSession, restart, apply, viewFor, RuleError, openAdventure } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
+import { mergeAdventureMonsters } from '../engine/merge.js';
 
 export function createLocal({ role, srd, adventures, storeKey }) {
+  mergeAdventureMonsters(srd, adventures); // The Ashen Crown's own creatures, before anything indexes the SRD
   const rng = systemRng();
   const byId = (id) => adventures.find((a) => a.id === id) || adventures[0];
   const read = () => { try { return JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) { return null; } };
@@ -14,11 +16,8 @@ export function createLocal({ role, srd, adventures, storeKey }) {
   if (!state || !state.pcs) state = newSession(byId(role === 'host' ? 'lantern' : 'freeform'));
   const history = [];
   const ctx = (pid) => ({ role, pid, rng, now: Date.now(), adventure: byId(state.adventure), srd, selfXp: true });
-  const placeFirst = (s, adv) => {
-    let out = s;
-    for (const enc of ((adv.sites || [])[0] || {}).foes || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note }, { role: 'host', rng, now: Date.now(), adventure: adv, srd });
-    return out;
-  };
+  // A new game: the first place's monsters (hidden) and clocks.
+  const placeFirst = (s, adv) => openAdventure(s, adv, { role: 'host', rng, now: Date.now(), adventure: adv, srd });
   if (!state.seq && role === 'host') { state = placeFirst(state, byId(state.adventure)); write(); }
   return {
     adventure: () => byId(state.adventure),

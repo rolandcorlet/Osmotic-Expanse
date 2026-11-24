@@ -34,6 +34,7 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   out.push(`WHY YOU ARE TAKING A TURN: ${reason || 'the table is waiting for the DM'}.`);
   if (hostNote) out.push(`A NOTE FROM THE HUMAN HOST (follow it): ${hostNote}`);
   out.push(`ADVENTURE: ${adventure.name}.${!s.started ? ` This is the very start of the game. Open with the adventure's introduction in your own words: ${adventure.intro}` : ''}`);
+  if (adventure.director) out.push(`HOW TO RUN THIS ADVENTURE: ${adventure.director}`);
   out.push(`TIME: day ${s.time.day}, ${String(Math.floor(s.time.hour)).padStart(2, '0')}:00.`);
 
   out.push(`\nWHERE THE PARTY IS: ${site.name} (id ${site.id}).`);
@@ -76,6 +77,8 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   const fresh = s.rolls.filter((r) => r.seq > lastSeq);
   if (fresh.length) out.push(`\nROLLS SINCE YOUR LAST NARRATION:\n${fresh.slice(-16).map((r) => `- ${r.who}: ${r.label}${r.reason ? ` (${r.reason})` : ''}: ${r.total}${r.at != null ? ` against ${r.at}` : ''}${r.success === true ? ', SUCCESS' : r.success === false ? ', FAILURE' : ''}${r.crit ? ', critical' : ''}${r.dmg && r.dmg.total != null ? `, ${r.dmg.total} damage` : ''}`).join('\n')}`);
 
+  const clocks = s.clocks || [];
+  if (clocks.length) out.push(`\nCLOCKS (tick them with the clock tool when the notes say): ${clocks.map((c) => `${c.name} (id ${c.id}): ${c.filled} of ${c.size}${c.done ? ', FULL' : ''}${c.hidden ? ', hidden from the players' : ''}. When full: ${c.note || 'it happens'}`).join('; ')}`);
   const open = s.quests.filter((q) => !q.done);
   if (s.quests.length) out.push(`\nQUESTS: ${s.quests.map((q) => `${q.id} ${q.done ? '(done) ' : ''}${q.text}`).join('; ')}`);
   void open;

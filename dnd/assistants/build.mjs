@@ -38,6 +38,8 @@ for (const p of PAGES) {
   const entry = `
     import srd from ${JSON.stringify(join(root, 'data', 'srd.json'))};
     import { ADVENTURES } from ${JSON.stringify(join(director, 'data', 'adventures', 'index.js'))};
+    import { mergeAdventureMonsters } from ${JSON.stringify(join(director, 'engine', 'merge.js'))};
+    mergeAdventureMonsters(srd, ADVENTURES); // the adventures' own creatures (The Ashen Crown's), before anything indexes the SRD
     window.DND_LOCAL = { role: ${JSON.stringify(p.role)}, srd, adventures: ADVENTURES, storeKey: ${JSON.stringify(p.storeKey)} };
     import(${JSON.stringify(join(director, 'public', 'app.js'))});
   `;

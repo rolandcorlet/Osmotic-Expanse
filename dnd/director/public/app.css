@@ -272,3 +272,14 @@ details>summary:hover{color:var(--ink)}
   .chip{min-height:30px}
   .toast{bottom:110px}
 }
+/* Take over a character, and clocks (Ashen Crown). */
+.takeover{display:flex;flex-direction:column;gap:8px;margin:6px 0}
+.pc-free{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--r);background:color-mix(in srgb,var(--panel2) 70%,transparent)}
+.clocks{display:flex;flex-direction:column;gap:8px}
+.clock{display:flex;align-items:center;gap:10px}
+.clock-face{width:44px;height:44px;flex:0 0 44px}
+.clock-face path{fill:var(--input);stroke:var(--line);stroke-width:1.2}
+.clock-face path.on{fill:var(--accent)}
+.clock.full .clock-face path.on{fill:var(--no)}
+.pregen .row{gap:4px;flex-wrap:wrap}
+.row.wrap>.btn{flex:1 1 auto;min-width:max-content}

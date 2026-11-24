@@ -9,7 +9,8 @@ import * as PG from '/engine/pregen.js';
 const path = location.pathname.replace(/\/+$/, '') || '/';
 // The Assistants are the same screens with no server (public/local.js): window.DND_LOCAL says which.
 const LOCAL = (typeof window !== 'undefined' && window.DND_LOCAL) || null;
-const role = LOCAL ? LOCAL.role : path === '/host' ? 'host' : path === '/play' ? 'player' : path === '/table' ? 'table' : 'home';
+const PAGE_ROLE = (typeof window !== 'undefined' && window.DND_ROLE) || '';
+const role = LOCAL ? LOCAL.role : PAGE_ROLE || (['/host', '/director'].includes(path) ? 'host' : ['/play', '/player'].includes(path) ? 'player' : path === '/table' ? 'table' : 'home');
 let local = null;
 const params = new URLSearchParams(location.search);
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -300,7 +301,7 @@ function mainHtml() {
     const p = state.players[pid];
     if (!p) return joinHtml();
     if (t === 'build' || !myPc()) return buildHtml();
-    if (t === 'sheet') return `<div class="stack">${sheetHtml(myPc(), { own: true })}</div>`;
+    if (t === 'sheet') return `<div class="stack">${sheetHtml(myPc(), { own: true })}${seatCard(myPc())}</div>`;
     if (t === 'spells') return spellsTabHtml(myPc());
     if (LOCAL) return `<div class="lay-two"><div class="col scroll" data-scroll="ls1">${sheetHtml(myPc(), { own: true })}</div><div class="col scroll" data-scroll="ls2">${actionsCard(myPc())}${xpCard(myPc())}${rollsCard(25, 'Your rolls')}</div></div>`;
     return playHtml();
@@ -613,7 +614,7 @@ function playHtml() {
   const lvl = canLevel(p) ? '<section class="card ask"><h3>Level up!</h3><div>You have enough experience for the next level.</div><button class="btn primary" data-act="tab" data-t="build">Level up now</button></section>' : '';
   return `<div class="lay-two">
     <div class="col">${reqs.map((q) => requestCard(q, p)).join('')}${storyCard({ input: sayBox() })}</div>
-    <div class="col scroll" data-scroll="play2">${lvl}${fightCard()}
+    <div class="col scroll" data-scroll="play2">${lvl}${fightCard()}${clocksCard()}
       ${p ? `<section class="card"><h3>${esc(p.name)}<span class="right"><span class="chip">AC ${p.ac}</span><span class="chip">${p.hp}/${p.maxHp} hp${p.tempHp ? ` +${p.tempHp}` : ''}</span></span></h3>${hpBar(p)}${deathHtml(p)}${condControls(p)}
         ${p.cast && p.cast.slots.some((x) => x[0]) ? `<div class="slots">${p.cast.slots.map(([m, u], k) => (m ? `<div class="slot"><span>${R.ordinal(k + 1)}</span><span class="pips">${Array.from({ length: m }, (_, n) => `<i class="pip${n < u ? ' used' : ''}"></i>`).join('')}</span></div>` : '')).join('')}</div>` : ''}</section>` : ''}
       ${actionsCard(p)}
@@ -626,8 +627,51 @@ function tableHtml() {
   const s = site();
   return `<div class="lay-two"><div class="col">${storyCard({ n: 80 })}</div>
     <div class="col scroll" data-scroll="t2"><section class="card"><h3>${esc(s.name)}<span class="right small dim">Day ${state.time.day}</span></h3><div class="small dim">${esc(s.region || '')}</div></section>
-      ${fightCard()}${partyMini()}${rollsCard(12, 'Latest rolls')}
-      ${info && info.addresses ? `<section class="card"><h3>Join this table</h3>${info.addresses.map((a) => `<div><b>http://${esc(a)}:${info.port}/play</b></div>`).join('')}${info.online ? `<div>From anywhere: <b>${esc(info.online)}</b></div>` : ''}</section>` : ''}</div></div>`;
+      ${fightCard()}${clocksCard()}${partyMini()}${rollsCard(12, 'Latest rolls')}
+      ${info && info.addresses ? `<section class="card"><h3>Join this table</h3>${info.addresses.map((a) => `<div><b>http://${esc(a)}:${info.port}/player.html</b></div>`).join('')}${info.online ? `<div>From anywhere: <b>${esc(info.online)}</b></div>` : ''}</section>` : ''}</div></div>`;
+}
+
+// The adventure's own ready-made characters (The Ashen Crown has ten), else the builder's six.
+const pregenList = () => (adv && Array.isArray(adv.pregens) && adv.pregens.length ? adv.pregens : PG.PREGENS);
+
+// Characters a player can take over: nobody plays them, or their player has offered them.
+const takeable = () => (state ? Object.values(state.pcs).filter((c) => !c.dead && !c.quick && (!c.playerId || c.open) && c.playerId !== pid) : []);
+function takeoverHtml() {
+  if (role !== 'player' || LOCAL || myPc()) return '';
+  const list = takeable();
+  if (!list.length) return '';
+  return `<section class="card ask"><h3>Take over a character<span class="right small dim">${list.length} free</span></h3>
+    <div class="small dim">Play one already in the party: the DM has been running them, or their player has offered them.</div>
+    <div class="takeover">${list.map((c) => `<div class="pc-free"><div class="grow"><b>${esc(c.name)}</b> <span class="small dim">level ${c.level} ${esc(c.raceName || '')} ${esc(c.clsName || '')}</span>
+      <div class="small">${c.hp}/${c.maxHp} hp · AC ${c.ac}${c.playerId ? ` · offered by ${esc((state.players[c.playerId] || {}).name || 'a player')}` : ' · played by the DM for now'}</div></div>
+      <button class="btn primary" data-act="pc.take" data-id="${c.id}">Take over</button></div>`).join('')}</div>
+    <div class="small dim">Or pick a ready-made hero below, or make your own.</div></section>`;
+}
+// Offering, stepping back from or handing back the character you play.
+function seatCard(p) {
+  if (role !== 'player' || LOCAL || !p) return '';
+  const b = p.borrow;
+  return `<section class="card"><h3>Your seat at the table</h3>
+    ${b ? `<div class="small">You are playing ${esc(p.name)} for ${esc(b.name)}.</div>` : ''}
+    <div class="row">${b ? `<button class="btn" data-act="pc.return">Hand ${esc(p.name)} back to ${esc(b.name)}</button>` : ''}
+      <button class="btn${p.open ? ' on' : ''}" data-act="pc.open" title="Another player may take ${esc(p.name)} over; you keep playing until they do">${p.open ? 'Offered to the table ✓' : 'Offer to another player'}</button>
+      <button class="btn ghost" data-act="pc.leave" title="Stop playing ${esc(p.name)}: the DM runs them until someone takes them over">Step back</button></div></section>`;
+}
+
+// Clocks: dangers and plans that fill up (the burning bridge, the invasion of Brindol).
+function clockSvg(c) {
+  const n = c.size; const r = 18; const cx = 22; const cy = 22;
+  const seg = (k) => { const a0 = (k / n) * 2 * Math.PI - Math.PI / 2; const a1 = ((k + 1) / n) * 2 * Math.PI - Math.PI / 2;
+    const p = (a) => `${(cx + r * Math.cos(a)).toFixed(2)},${(cy + r * Math.sin(a)).toFixed(2)}`;
+    return `<path d="M${cx},${cy} L${p(a0)} A${r},${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${p(a1)} Z" class="${k < c.filled ? 'on' : ''}"/>`; };
+  return `<svg viewBox="0 0 44 44" class="clock-face${c.done ? ' full' : ''}" aria-hidden="true">${Array.from({ length: n }, (_, k) => seg(k)).join('')}</svg>`;
+}
+function clocksCard() {
+  const list = (state && state.clocks) || [];
+  if (!list.length) return '';
+  const host = role === 'host';
+  return `<section class="card"><h3>Clocks</h3><div class="clocks">${list.map((c) => `<div class="clock${c.done ? ' full' : ''}">${clockSvg(c)}<div class="grow"><b>${esc(c.name)}</b><div class="small dim">${c.filled} of ${c.size}${c.hidden ? ' · hidden from players' : ''}</div>${c.done && c.note ? `<div class="small">${esc(c.note)}</div>` : host && c.note ? `<div class="small faint">${esc(c.note)}</div>` : ''}</div>
+    ${host ? `<span class="row nw"><button class="btn sm" data-act="clock.back" data-id="${c.id}" title="Take a segment off">−</button><button class="btn sm" data-act="clock.tick" data-id="${c.id}" title="Fill a segment">+</button><button class="btn sm ghost" data-act="clock.remove" data-id="${c.id}" title="Remove the clock">✕</button></span>` : ''}</div>`).join('')}</div></section>`;
 }
 
 // ------------------------------------------------------------------ the builder
@@ -666,7 +710,7 @@ function buildHtml() {
   const errs = R.validateInput(b, srd);
   let body = '';
   if (ui.buildStep === 'basics') {
-    body = `<div class="fld"><span class="fl">Ready-made characters: pick one to play straight away, or change anything after</span><div class="pregens">${PG.PREGENS.map((x) => { const v = preview(PG.pregenBuild(x.id, srd)); return v ? `<button class="pregen${b.pregen === x.id ? ' on' : ''}" data-act="b.pregen" data-id="${x.id}" title="${esc(x.blurb)}"><b>${esc(x.input.name)}</b><span class="small">${esc(v.raceName)} ${esc(v.clsName)}</span><span class="chip">${esc(x.role)}</span><span class="small dim">${esc(x.blurb)}</span></button>` : ''; }).join('')}</div></div>
+    body = `<div class="fld"><span class="fl">Ready-made characters: pick one to play straight away, or change anything after</span><div class="pregens">${pregenList().map((x) => { const v = preview(PG.pregenBuild(x, srd)); return v ? `<button class="pregen${b.pregen === x.id ? ' on' : ''}" data-act="b.pregen" data-id="${x.id}" title="${esc(x.blurb)}"><b>${esc(x.input.name)}</b><span class="small">${esc(v.raceName)} ${esc(v.clsName)}</span><span class="row nw"><span class="chip">${esc(x.role)}</span>${x.hook ? `<span class="chip dim">${esc(x.hook)}</span>` : ''}</span><span class="small dim">${esc(x.blurb)}</span></button>` : ''; }).join('')}</div></div>
       <div class="fields">
       <label class="fld wide"><span class="fl">Character name</span><input type="text" data-k="b.name" data-bind="build.name" data-save="1" value="${esc(b.name)}" maxlength="40"></label>
       <label class="fld"><span class="fl">Race</span><select data-k="b.race" data-bind="build.race" data-save="1" data-live="1">${srd.races.map((r) => `<option value="${r.id}" ${r.id === b.race ? 'selected' : ''}>${esc(r.name)}</option>`).join('')}</select></label>
@@ -715,7 +759,7 @@ function buildHtml() {
     body = pv ? `<dl class="kv"><dt>Name</dt><dd>${esc(b.name || '—')}</dd><dt>Race and class</dt><dd>${esc(pv.raceName)} ${esc(pv.clsName)}, level ${pv.level}</dd><dt>Hit points</dt><dd>${pv.maxHp}</dd><dt>Armor Class</dt><dd>${pv.ac} (${esc(pv.acNote)})</dd><dt>Abilities</dt><dd>${AB.map((a) => `${a.toUpperCase()} ${pv.ab[a]} (${sg(pv.mods[a])})`).join(' · ')}</dd><dt>Skills</dt><dd>${esc(pv.skills.map(skillName).join(', '))}</dd><dt>Attacks</dt><dd>${esc(pv.attacks.map((a) => `${a.name} ${sg(a.hit)} (${a.dmg})`).join('; '))}</dd>${pv.cast ? `<dt>Spells</dt><dd>${esc([...pv.cast.cantrips, ...(pv.cast.kind === 'prepared' ? pv.cast.prepared : pv.cast.known)].map((id) => (spellOf(id) || {}).name).join(', ') || 'none chosen')}</dd>` : ''}</dl>` : '';
   }
   const stepIdx = STEPS.findIndex(([id]) => id === ui.buildStep);
-  return `<div class="lay-two"><div class="col scroll" data-scroll="b1"><section class="card"><h3>Make a character<span class="right"><button class="btn sm" data-act="b.random" title="Fill every choice at random: race, class, scores, skills, gear and spells. Change anything you like after.">&#127922; Random fill</button><button class="btn sm ghost" data-act="b.reset">Start again</button></span></h3>
+  return `<div class="lay-two"><div class="col scroll" data-scroll="b1">${takeoverHtml()}<section class="card"><h3>Make a character<span class="right"><button class="btn sm" data-act="b.random" title="Fill every choice at random: race, class, scores, skills, gear and spells. Change anything you like after.">&#127922; Random fill</button><button class="btn sm ghost" data-act="b.reset">Start again</button></span></h3>
       <div class="seg">${STEPS.map(([id, n]) => `<button class="${ui.buildStep === id ? 'on' : ''}" data-act="b.step" data-v="${id}">${n}</button>`).join('')}</div>
       ${body}
       <div class="row">${stepIdx > 0 ? `<button class="btn" data-act="b.step" data-v="${STEPS[stepIdx - 1][0]}">Back</button>` : ''}<span class="grow"></span>${stepIdx < STEPS.length - 1 ? `<button class="btn primary" data-act="b.step" data-v="${STEPS[stepIdx + 1][0]}">Next</button>` : `<button class="btn primary big" data-act="b.create" ${errs.length ? 'disabled' : ''}>Create ${esc(b.name || 'character')}</button>`}</div>
@@ -1063,12 +1107,12 @@ function hostRunHtml() {
   const narr = `<div class="row nw"><select style="max-width:130px" data-bind="host.sayAs" data-live="1"><option value="">Narrate</option><option value="DM" ${ui.host.sayAs === 'DM' ? 'selected' : ''}>Say as DM</option>${((site().npcs) || []).map((n) => `<option value="${esc(n.name)}" ${ui.host.sayAs === n.name ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}</select><input type="text" class="grow" data-k="h.narr" data-bind="host.narrate" value="${esc(ui.host.narrate)}" maxlength="4000" placeholder="${ui.host.sayAs ? 'What they say…' : 'Describe what happens…'}"><button class="btn primary" data-act="h.narrate">Send</button></div>
     ${state.director && state.director.mode !== 'off' ? `<div class="row nw"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" placeholder="Note to the AI Director (optional)">${state.director.thinking ? '<button class="btn alert" data-act="d.cancel">Stop thinking</button>' : '<button class="btn" data-act="d.run">AI: take a turn</button>'}</div>` : ''}`;
   return `<div class="lay-three">
-    <div class="col scroll" data-scroll="r1">${hostSceneCard()}
+    <div class="col scroll" data-scroll="r1">${hostSceneCard()}${clocksCard()}
       <section class="card"><h3>Quests</h3>${state.quests.map((q) => `<div class="row nw small"><button class="chip${q.done ? ' ok' : ''}" data-act="quest" data-id="${q.id}">${q.done ? '✓' : '○'}</button><span class="grow${q.done ? ' faint' : ''}">${esc(q.text)}</span></div>`).join('') || '<div class="empty">None.</div>'}
         <div class="row nw"><input type="text" class="grow" data-k="h.quest" data-bind="host.quest" value="${esc(ui.host.quest)}" placeholder="New quest"><button class="btn sm" data-act="quest.add">Add</button></div></section></div>
     <div class="col">${storyCard({ input: narr })}</div>
     <div class="col scroll" data-scroll="r3">${fightCard()}
-      ${!state.fight && foes.some((f) => !f.dead) ? `<section class="card"><div class="row"><button class="btn primary grow" data-act="fight.start">Start a fight here</button><button class="btn" data-act="fight.startauto" title="Roll everyone's initiative now">…rolling for everyone</button>${foes.some((f) => f.hidden && !f.dead) ? '<button class="btn" data-act="foe.reveal">Reveal hidden</button>' : ''}</div></section>` : ''}
+      ${!state.fight && foes.some((f) => !f.dead) ? `<section class="card"><div class="row wrap"><button class="btn primary grow" data-act="fight.start">Start a fight here</button><button class="btn" data-act="fight.startauto" title="Roll everyone's initiative now">…rolling for everyone</button>${foes.some((f) => f.hidden && !f.dead) ? '<button class="btn" data-act="foe.reveal">Reveal hidden</button>' : ''}</div></section>` : ''}
       <section class="card"><h3>Monsters here<span class="right"><button class="btn sm" data-act="tab" data-t="encounter">Add</button></span></h3>${foes.length ? foes.map(foeCard).join('') : '<div class="empty">None here.</div>'}</section>
       ${askRollCard()}
       <section class="card"><h3>Party</h3>${pcs.map((p) => `<div class="pcard${curKey() === `pc:${p.id}` ? ' now' : ''}"><div class="row nw"><b class="grow">${esc(p.name)}</b><span class="small dim">L${p.level} ${esc(p.clsName)} · AC ${p.ac} · PP ${p.passive}</span></div>${hpBar(p)}<div class="row nw small"><span>${p.dead ? 'dead' : p.hp <= 0 ? (p.stable ? 'stable' : `dying ${p.death.s}✓ ${p.death.f}✗`) : `${p.hp}/${p.maxHp}${p.tempHp ? ` +${p.tempHp}` : ''}`}</span>${p.conc ? `<span class="chip warn">${esc(p.conc.name)}</span>` : ''}<span class="grow"></span>${!p.playerId ? '<span class="chip">no player</span>' : ''}</div>${hpControls(p)}${condControls(p)}</div>`).join('') || (LOCAL ? '<div class="empty">No characters yet. Add the party on the Party tab.</div>' : '<div class="empty">No characters yet. Players make them on their own screens, or you can on the Party tab.</div>')}</section>
@@ -1089,6 +1133,8 @@ function partyHtml() {
         ${state.loot.length ? `<div class="note gold">Unclaimed loot: ${esc(state.loot.map((x) => `${x.qty > 1 ? `${x.qty} × ` : ''}${x.name}`).join(', '))}</div>` : ''}</section>
       <section class="card"><h3>Players at the table</h3>${players.map((p) => `<div class="row nw"><b class="grow">${esc(p.name)}</b><select style="max-width:220px" data-assign="${p.id}"><option value="">No character</option>${pcs.map((c) => `<option value="${c.id}" ${p.pcId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>`).join('') || '<div class="empty">Nobody has joined yet.</div>'}</section>
       <section class="card"><h3>Add a character</h3>
+        <div class="small dim">A ready-made hero, with no player yet: the AI Director plays them until a player takes them over.</div>
+        <div class="row nw"><select class="grow" data-bind="host.pg" data-live="1">${pregenList().map((x) => `<option value="${x.id}" ${ui.host.pg === x.id ? 'selected' : ''}>${esc(x.input.name)} · ${esc(x.role)}</option>`).join('')}</select><button class="btn" data-act="h.pregen">Add to the party</button></div>
         <div class="small dim">Quick: just the numbers you track at the table.</div>
         <div class="fields three"><label class="fld wide"><span class="fl">Name</span><input type="text" data-k="q.name" data-bind="host.q.name" value="${esc((ui.host.q || {}).name || '')}"></label>
           <label class="fld"><span class="fl">Class</span><input type="text" data-k="q.cls" data-bind="host.q.cls" value="${esc((ui.host.q || {}).cls || '')}" placeholder="Fighter"></label>
@@ -1214,6 +1260,20 @@ const ACT = {
   'col.theme': (d) => { store.set('dnd.colours', JSON.stringify(THEMES[d.n] || DEFAULTS)); applyColours(); },
   'key.go': () => { const q = new URLSearchParams(location.search); q.set('key', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },
   'code.go': () => { const q = new URLSearchParams(location.search); q.set('t', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },
+  'pc.take': (d) => send({ type: 'pc.take', pcId: d.id }).then((ok) => { if (ok) { ui.tab = 'play'; toast(`You are now playing ${(state.pcs[d.id] || {}).name || 'them'}.`, true); } return ok; }),
+  'pc.open': () => { const p = myPc(); return p ? send({ type: 'pc.open', pcId: p.id, open: !p.open }) : null; },
+  'pc.leave': () => { const p = myPc(); if (!p || !confirm(`Step back from ${p.name}? The DM plays them until someone takes them over; you can take them back yourself.`)) return null; return send({ type: 'pc.open', pcId: p.id, open: true, leave: true }); },
+  'pc.return': () => { const p = myPc(); return p ? send({ type: 'pc.return', pcId: p.id }) : null; },
+  'clock.tick': (d) => send({ type: 'clock.tick', id: d.id, by: 1 }),
+  'clock.back': (d) => send({ type: 'clock.tick', id: d.id, by: -1 }),
+  'clock.remove': (d) => { const c = (state.clocks || []).find((x) => x.id === d.id); if (!c || !confirm(`Remove the clock "${c.name}"?`)) return null; return send({ type: 'clock.remove', id: d.id }); },
+  'h.pregen': () => {
+    const list = pregenList(); const x = list.find((p) => p.id === ui.host.pg) || list[0];
+    if (!x) return null;
+    const lv = Math.max(1, ...Object.values(state.pcs).map((p) => p.level || 1));
+    const input = PG.pregenBuild(x, srd, lv, list);
+    return send({ type: 'pc.create', input });
+  },
   join: async () => { const name = ui.join.name.trim(); if (!name) { toast('Type your name first.'); return; } store.set('dnd.name', name); if (await send({ type: 'join', name })) ui.tab = 'build'; },
   say: async () => { const text = ui.say.trim(); if (text && await send({ type: 'say', text })) ui.say = ''; },
   stabilize: (d) => send({ type: 'stabilize', target: `pc:${d.id}` }),
@@ -1285,7 +1345,7 @@ const ACT = {
   'b.kit': (d) => { const b = ui.build; b.kit = b.kit || []; b.kit[Number(d.n)] = Number(d.k2); saveDraft(); },
   'b.step': (d) => { ui.buildStep = d.v; },
   'b.random': () => { const lv = role === 'host' ? Number(ui.build.level) || 1 : 1; ui.build = { ...BLANK_BUILD(), ...PG.randomBuild(srd, Math.random, lv) }; ui.buildStep = 'review'; saveDraft(); toast(`Rolled up ${ui.build.name}. Change anything you like, then create.`, true); },
-  'b.pregen': (d) => { const lv = role === 'host' ? Number(ui.build.level) || 1 : 1; const x = PG.pregenBuild(d.id, srd, lv); if (!x) return; ui.build = { ...BLANK_BUILD(), ...x, pregen: d.id }; ui.buildStep = 'review'; saveDraft(); toast(`${x.name} is ready to check. Create them on this page.`, true); },
+  'b.pregen': (d) => { const lv = role === 'host' ? Number(ui.build.level) || 1 : 1; const x = PG.pregenBuild(d.id, srd, lv, pregenList()); if (!x) return; ui.build = { ...BLANK_BUILD(), ...x, pregen: d.id }; ui.buildStep = 'review'; saveDraft(); toast(`${x.name} is ready to check. Create them on this page.`, true); },
   'b.reset': () => { ui.build = BLANK_BUILD(); ui.buildStep = 'basics'; saveDraft(); },
   'b.create': async () => {
     const b = { ...ui.build, level: role === 'host' ? Number(ui.build.level) || 1 : 1 };

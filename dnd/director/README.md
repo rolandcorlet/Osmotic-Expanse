@@ -2,11 +2,13 @@
 
 The D&D 5e versions of the project's apps, built on the free **System Reference Document 5.1**
 (Creative Commons Attribution 4.0). Nothing here copies the Player's Handbook, Dungeon Master's Guide
-or Monster Manual; every rule, class, spell, monster and item comes from the SRD.
+or Monster Manual; every rule, class, spell, monster and item comes from the SRD. If you own the books,
+the Director can also read your own text copies of them on your computer (the **book library**, below);
+that library stays on your machine and is never committed or published.
 
 | Folder | What it is |
 |---|---|
-| `director/` | **The AI Director for D&D.** A small server you run on the table's computer: the DM's console (`/host`), each player's phone (`/play`) and a shared screen (`/table`). An AI can run the game (Co-pilot or Auto) through a rules Engine that keeps every number honest. |
+| `director/` | **The AI Director for D&D.** A small server you run on the table's computer, with three screens: the Director's (DM's) console `director.html` (also `/host`), each player's `player.html` (also `/play`) and a shared `table.html` (also `/table`). An AI can run the game (Co-pilot or Auto) through a rules Engine that keeps every number honest. |
 | `dm/` | **The Dungeon Master's Assistant**, one offline web page (built). |
 | `players/` | **The Players' Assistant**, one offline web page (built). |
 | `data/srd.json` | The SRD rules data every app reads: 12 classes, 9 races, 319 spells, 334 monsters, 239 magic items, equipment, conditions and 33 rules sections. |
@@ -22,7 +24,10 @@ Websites (once pushed): `https://osmotic-expanse.vercel.app/dnd/`, `/dnd/dm/` an
    player link and the host key.
 3. Open the host console, go to the **Director** tab, choose an AI (Gemini, Claude, OpenAI, a local
    Ollama or LM Studio…), paste its key and pick a model. Press **Test**.
-4. Players open the player link on their phones, type their name and build a character.
+4. Players open `player.html` on their phones and type their name. They can **take over a
+   character** already in the party (one nobody plays, or one its player has offered), pick one of
+   the adventure's **ready-made heroes** (ten for The Ashen Crown), roll a random one, or **build
+   their own** in the six-step builder.
 5. Choose **Co-pilot** (you approve each turn) or **Auto**, and press **Take a turn**.
 
 `Start Director (online).bat` adds a public link for players who are not on your Wi-Fi
@@ -47,12 +52,50 @@ as in the Osmotic Expanse Director (save ids start with `dnd-`, in the same `oxd
 - **Rests**: short rests spend hit dice and restore short-rest abilities and warlock slots; long rests
   restore everything.
 
-### The adventure
+### The adventures
+
+**The Ashen Crown of Sundermark** (levels 1 to 10, the default) is Roly's three-act campaign set out
+for the Director (`director/data/adventures/ashen-crown.js`). Session 1 opens mid-ambush on a burning
+bridge at Highbridge Gorge; Act I is written in full (the hub town of Oakhurst, Blackreed Mill, the
+Sunken Barrow of Saint Vane, the Ironfang foundry and the night at Thorne Keep), and Acts II and III
+give each node of the Keystone hunt, the four factions, the Battle of Brindol's Gates, the three
+approaches to Cinderhelm and the two-phase fight with Lord Malakor Vane. The AI Director is told the
+campaign's rules every turn: the **three clue rule** (every place points three ways onward, and a lost
+clue comes back another way) and **three methods** for every big encounter (fight, stealth or
+trickery, talk or leverage). It also has:
+
+- **Clocks**: dangers that fill segment by segment (the burning bridge, the portcullis winch, the
+  invasion of Brindol, Malakor's runic chains), shown as pies on every screen; the Director ticks them
+  with its `clock` tool and the DM with + and −.
+- **Its own monsters**: the Iron Brand captain, Taskmaster Kragg, Snikt the goblin shaman, Vorgath the
+  Earth-Shaker, the Ash Hounds, Lord Malakor Vane and his Ash-King avatar, written for this project, so
+  the campaign plays on the SRD alone.
+- **Ten ready-made Sundermark heroes**, one of each of ten classes, each with one of the campaign's
+  three reasons for travelling with the caravan (hired steel, a personal letter, a lost heirloom).
+- **Taking over a character**: the DM can put a ready-made hero in the party with no player (the AI
+  Director plays them); any player without a character can take them over. A player can offer their
+  character or step back from it on the Sheet tab, and a borrowed character goes back to its owner.
 
 **The Lantern of Thornwick Ford** (levels 1 to 3) is written for this project: eight places from a
 village inn to a drowned chapel, with read-aloud text, DM notes, people with voices and wants,
 checks and what they reveal, treasure, SRD encounters and XP milestones. A blank **Your own campaign**
 start is there too; write your own side quests on the **Seeds** tab and the AI weaves them in.
+
+## The book library (private)
+
+If you own the Player's Handbook, Monster Manual and Dungeon Master's Guide as text files, the
+Director can use them on your computer: 43 more spells, the Monster Manual's creatures that the SRD
+lacks (about 60 read cleanly from the scan, each checked against its own numbers), the other subraces,
+subclasses and backgrounds, and about 2,100 sections of rules text that `look_up_rules` searches and
+cites by book and page.
+
+1. Put the `.txt` books in `director/library/books/` (any names: each is recognised by what is in it).
+2. Double-click `director/Import my books.bat` (or run `node tools/import-books.mjs`).
+3. Start the Director: the window says what the library added.
+
+`director/library/` is in `.gitignore`: the books and `library.json` never leave your computer, and
+the server keeps the rules text to itself (it is searched, never sent to a browser). Start with
+`--no-library` to play on the SRD alone.
 
 ## The bench (testing the AI with a real model)
 
@@ -69,6 +112,11 @@ A model passes the gate when no run has an Engine refusal, a leak (a DC, AC or h
 machinery), a living character called dead, a roll asked for in words, a closing question to the
 wrong player in a fight, a stalled fight, or an error. Style notes and an expected tool not used are
 reported but not gated. `--fake` runs it with a stand-in that only narrates, to check the bench.
+
+`--part 4` plays **The Ashen Crown, session 1** with three of its ready-made heroes: the opening turn
+must start the fight on the burning bridge, then the clues in the wreckage, Oakhurst, Father Lucan, an
+Insight check on the bailiff, the road to Blackreed Mill, a Stealth check on the roof and the fight with
+the River Rats. `Sponge dnd part4.bat` (at the top of the repository) runs it three times.
 
 ## The Assistants
 

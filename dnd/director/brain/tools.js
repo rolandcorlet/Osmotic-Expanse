@@ -397,8 +397,23 @@ export const TOOLS = [
     run(a, T) { const no = T.do({ type: 'rest.long' }); return no ? { refused: no } : { ok: true }; },
   },
   {
+    name: 'clock',
+    description: 'Start, fill or clear a clock: a danger or a plan that fills segment by segment (a burning bridge, an invasion). The place\'s notes say when to tick one; the clocks are listed in your briefing. When a clock fills, what it warns of happens: narrate it.',
+    parameters: obj({ action: S('start, tick or clear.'), name: S('The clock\'s name or id.'), size: I('For start: how many segments (2 to 12).'), by: I('For tick: segments to fill (default 1; negative takes some off).'), note: S('For start: what happens when it fills.') }, ['action', 'name']),
+    run(a, T) {
+      const what = String(a.action || 'tick').toLowerCase();
+      const type = /^(start|add|new|begin)/.test(what) ? 'clock.add' : /^(clear|remove|stop|end|delete)/.test(what) ? 'clock.remove' : 'clock.tick';
+      const no = T.do({ type, name: a.name, id: a.name, size: a.size, by: a.by, note: a.note });
+      if (no) return { refused: no };
+      const k = String(a.name || '').toLowerCase();
+      const c = (T.state.clocks || []).find((x) => x.id === a.name || x.name.toLowerCase() === k) || (T.state.clocks || []).find((x) => x.name.toLowerCase().includes(k));
+      if (type === 'clock.remove' || !c) return { ok: true };
+      return { ok: true, clock: `${c.name}: ${c.filled} of ${c.size}${c.done ? `. FULL: ${c.note || 'it happens now'}` : ''}` };
+    },
+  },
+  {
     name: 'look_up_rules',
-    description: 'Look up the 5e SRD: a spell, a monster, a condition, a magic item, or a rules topic (grappling, cover, resting, falling, surprise...).',
+    description: 'Look up the rules: a spell, a monster, a condition, a magic item, or a rules topic (grappling, cover, resting, falling, surprise...). Searches the SRD and, when installed, the DM\'s own books.',
     parameters: obj({ query: S('What to look up.') }, ['query']),
     run(a, T) { return lookUp(T.srd, a.query); },
   },
@@ -414,7 +429,11 @@ export const TOOLS = [
   },
 ];
 
-// A short answer from the SRD for the model.
+// Lower-cased rules text, worked out once per section.
+const LOW = new WeakMap();
+const lowText = (r) => { let t = LOW.get(r); if (!t) { t = String(r.text || '').toLowerCase(); LOW.set(r, t); } return t; };
+
+// A short answer from the SRD (and the DM's book library, when installed) for the model.
 export function lookUp(srd, query) {
   const q = lower(query);
   if (!q) return { refused: 'Say what to look up.' };
@@ -422,24 +441,28 @@ export function lookUp(srd, query) {
   const exact = (list) => list.find((x) => lower(x.name) === q || x.id === q.replace(/\s+/g, '-'));
   const s = exact(srd.spells);
   if (s) return { spell: s.name, level: s.level ? `${R.ordinal(s.level)}-level ${s.school}` : `${s.school} cantrip`, casting_time: s.time, range: s.range, duration: `${s.conc ? 'Concentration, ' : ''}${s.dur}`, text: `${s.desc}${s.higher ? ` ${s.higher}` : ''}`.slice(0, 1500) };
-  const m = exact(srd.monsters);
-  if (m) return { monster: statLine(m) };
+  const m = exact(srd.monsters) || srd.monsters.find((x) => lower(x.name).replace(/^the /, '') === q.replace(/^the /, ''));
+  if (m) return { monster: statLine(m), ...(m.lore ? { lore: m.lore.slice(0, 500) } : {}), ...(m.check ? { note: m.check } : {}), ...(m.lib ? { source: `Monster Manual${m.page ? ` p.${m.page}` : ''}` } : {}) };
   const c = exact(srd.conditions);
   if (c) return { condition: c.name, text: c.desc };
   const it = exact(srd.magicItems);
   if (it) return { item: it.name, rarity: it.rarity, text: it.desc.slice(0, 1200) };
   // A rules topic: the section whose text mentions the words most.
   const words = q.split(/\s+/).filter((w) => w.length > 2);
-  let best = null;
-  for (const r of srd.rules) {
-    const low = r.text.toLowerCase();
-    const score = words.reduce((n, w) => n + (low.split(w).length - 1), 0) + (lower(r.name).includes(q) ? 50 : 0);
-    if (score && (!best || score > best.score)) best = { score, r };
+  const ranked = [];
+  for (const r of [...srd.rules, ...(srd.libRules || [])]) {
+    const low = lowText(r);
+    const hits = words.map((w) => low.split(w).length - 1);
+    // Every word should appear; a section's own name counts most.
+    const score = hits.reduce((n, h) => n + Math.min(h, 12), 0) * (hits.every((h) => h) ? 2 : 1) + (lower(r.name).includes(q) ? 60 : 0) + words.filter((w) => lower(r.name).includes(w)).length * 8;
+    if (score) ranked.push({ score, r });
   }
+  ranked.sort((x, y) => y.score - x.score);
+  const best = ranked[0];
   if (best) {
-    const low = best.r.text.toLowerCase();
-    const at = Math.max(0, low.indexOf(words[0] || q) - 200);
-    return { rules: best.r.name, text: best.r.text.slice(at, at + 1400).replace(/[#*]/g, '') };
+    const low = lowText(best.r);
+    const at = Math.max(0, low.indexOf(words.find((w) => low.includes(w)) || q) - 200);
+    return { rules: best.r.name, source: best.r.book ? `${best.r.book} p.${best.r.page}` : 'SRD', text: best.r.text.slice(at, at + 1400).replace(/[#*]/g, ''), ...(ranked.length > 1 ? { also: ranked.slice(1, 4).map((x) => `${x.r.name}${x.r.book ? ` (${x.r.book} p.${x.r.page})` : ''}`) } : {}) };
   }
   const near = [...srd.spells, ...srd.monsters, ...srd.magicItems].filter((x) => lower(x.name).includes(q)).slice(0, 8).map((x) => x.name);
   void ix;

@@ -10,11 +10,16 @@
 //   node tools/bench.mjs --fake                no model: a stand-in that only narrates (checks the bench itself)
 //   node tools/bench.mjs --part 2              part 2: from the Mill Road to the watchtower, Grisk, Nell and the lantern
 //   node tools/bench.mjs --part 3              part 3: the Greyfen, the drowned chapel, the crypt, Brother Aldane, the lantern rehung
+//   node tools/bench.mjs --part 4              part 4: The Ashen Crown, session 1: the ambush at Highbridge Gorge, Oakhurst, Blackreed Mill
+//   --no-library                               play on the SRD alone, without your private book library
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
 //
 // Part 1: the opening at the Ford Inn, talking to the Reeve, an Insight check, the road north,
 // a Perception check at the mill, the goblin fight to the end, and searching the bodies.
+// Part 4 (The Ashen Crown of Sundermark, three of its ready-made heroes at 1st level): the game opens
+// mid-ambush on the burning bridge, then the clues, Oakhurst, Father Lucan, the bailiff, the road to
+// Blackreed Mill, a stealth check on the roof and the fight with the River Rats.
 // Part 2 (level 2 heroes, the mill goblins already dead): the switchback path, the sentries on the
 // Tumbledown Gate, a short rest, the watchtower, talking to Grisk the bugbear chief, the fight,
 // freeing Nell, the lantern, the letter on the throne, and the milestone.
@@ -32,9 +37,11 @@
 import { readFileSync, existsSync, createWriteStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { newSession, apply } from '../engine/ledger.js';
+import { newSession, apply, openAdventure } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
-import { adventureById } from '../data/adventures/index.js';
+import { ADVENTURES, adventureById } from '../data/adventures/index.js';
+import { prepareSrd } from '../engine/library.js';
+import { pregenBuild } from '../engine/pregen.js';
 import { directorTurn } from '../brain/director.js';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 
@@ -54,7 +61,7 @@ const model = opt('--model', (cfg.models || {})[provider] || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default');
 const runs = Math.max(1, Number(opt('--runs', 1)));
-const part = ['2', '3'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
+const part = ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
 const logFile = opt('--log', '');
 const verbose = !flag('--quiet');
 
@@ -122,7 +129,10 @@ function speedLine(list, label) {
 const makeProvider = () => timed(fake ? fakeProvider() : build({ provider, apiKey, baseUrl, model, numCtx, thinking }));
 
 const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.json'), 'utf8'));
-const adventure = adventureById('lantern');
+// As the server does: the private book library (if built) and every adventure's own monsters.
+const libFile = join(here, '..', 'library', 'library.json');
+const prep = prepareSrd(srd, { libraryFile: flag('--no-library') ? null : libFile, adventures: ADVENTURES });
+const adventure = adventureById(part === 4 ? 'ashen-crown' : 'lantern');
 const rng = systemRng();
 const ctx = (role, pid) => ({ role, pid, rng, now: Date.now(), adventure, srd });
 const BASE = { str: 15, dex: 13, con: 14, int: 8, wis: 12, cha: 10 };
@@ -130,6 +140,10 @@ const HEROES = [
   ['p1', 'Roly', { name: 'Bryn', race: 'dwarf', subrace: 'hill-dwarf', class: 'fighter', method: 'standard', base: BASE, skills: ['athletics', 'perception'], background: 'acolyte', style: 'defense', kit: [0, 0, 0, 0] }],
   ['p2', 'Keith', { name: 'Ila', race: 'human', class: 'cleric', subclass: 'life', method: 'standard', base: { str: 13, dex: 10, con: 14, int: 8, wis: 15, cha: 12 }, skills: ['medicine', 'insight'], background: 'acolyte', spells: { cantrips: ['sacred-flame', 'guidance', 'light'], prepared: ['cure-wounds', 'bless', 'guiding-bolt'] } }],
 ];
+
+// Part 4's heroes: three of The Ashen Crown's ready-made characters, built as the player's screen builds them.
+const HEROES4 = [['p1', 'Roly', 'bram'], ['p2', 'Keith', 'hilde'], ['p3', 'Sam', 'pell']]
+  .map(([pid, name, id]) => [pid, name, pregenBuild(id, srd, 1, adventure.pregens || [])]);
 
 // What the players say, in order. `expect` names a tool the stage should use (reported, not gated).
 const SCRIPT = [
@@ -182,17 +196,33 @@ const SCRIPT3 = [
   { pid: 'p1', say: 'We take everyone home along the causeway, and I hang the lantern back on its hook over the ford.', expect: ['complete_quest'] },
 ];
 
+// Part 4 (24 Nov): The Ashen Crown of Sundermark, session 1. The game opens mid-ambush, so the very
+// first Director turn should start the fight.
+const SCRIPT4 = [
+  { start: true, expect: ['start_combat'] },
+  { fight: 'highbridge' },
+  { pid: 'p2', say: 'I search the wreckage and the strongbox. What did the raiders leave behind?', expect: ['ask_for_roll'] },
+  { pid: 'p1', say: 'We help Halia get the wagons off the bridge and on to Oakhurst.', expect: ['move_party'] },
+  { pid: 'p3', say: 'I find Father Lucan at the shrine and show him the plaque rubbing. What does it mean?', expect: [] },
+  { pid: 'p2', say: 'I watch the bailiff while he thanks us for saving the caravan. Is he hiding something?', expect: ['ask_for_roll'] },
+  { pid: 'p1', say: 'We follow the ledger downriver to Blackreed Mill.', expect: ['move_party'] },
+  { pid: 'p3', say: 'I creep across the roof shingles to the loft hatch, as quietly as I can.', expect: ['ask_for_roll'] },
+  { pid: 'p1', say: 'I kick in the bunkhouse door and attack the nearest smuggler!', expect: ['start_combat'] },
+  { fight: 'blackreed' },
+  { pid: 'p2', say: 'I search the mill\'s strongroom for papers and the shipments.', expect: ['ask_for_roll'] },
+];
+
 // ---- one run ---------------------------------------------------------------------------------
 async function runOnce(n) {
   const t0 = Date.now();
   const callsAt = calls.length;
   const tally = { turns: 0, refusal: 0, leak: 0, rule: 0, 'roll-words': 0, 'wrong-seat': 0, stall: 0, error: 0, style: 0, missing: 0 };
   const notes = [];
-  let s = newSession(adventure);
+  let s = part === 4 ? openAdventure(newSession(adventure), adventure, ctx('host', null)) : newSession(adventure);
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
-  for (const [pid, name, input] of HEROES) {
+  for (const [pid, name, input] of (part === 4 ? HEROES4 : HEROES)) {
     act('player', pid, { type: 'join', name });
-    if (part >= 2) act('host', null, { type: 'pc.create', input: { ...input, level: part }, forPid: pid });
+    if (part === 2 || part === 3) act('host', null, { type: 'pc.create', input: { ...input, level: part }, forPid: pid });
     else act('player', pid, { type: 'pc.create', input });
   }
   if (part === 2) {
@@ -335,13 +365,19 @@ async function runOnce(n) {
     // cleric's slots would (bench 21 Nov: they reached Brother Aldane half dead every run).
     for (const p of Object.values(s.pcs)) {
       if (p.dead) continue;
-      if (part === 3 && p.hp < p.maxHp) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: p.maxHp - p.hp });
+      if ((part === 3 || part === 4) && p.hp < p.maxHp) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: p.maxHp - p.hp });
       else if (p.hp <= 0) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: 5 });
     }
   }
 
   console.log(`\n=== Run ${n} of ${runs} ===`);
-  for (const [k, step] of (part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+  for (const [k, step] of (part === 4 ? SCRIPT4 : part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+    // Blackreed Mill is written for a level 2 party of four: for the bench's three 1st-level heroes, two
+    // of the five River Rats are out on the river (taken away as the party arrives).
+    if (part === 4 && step.pid === 'p3' && /roof shingles/.test(step.say || '')) {
+      const rats = Object.values(s.foes).filter((f) => f.siteId === 'blackreed' && f.base === 'River Rat' && !f.dead);
+      for (const f of rats.slice(0, 2)) act('host', null, { type: 'foe.remove', foeId: f.id });
+    }
     if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); continue; }
     if (step.start) { await turn('the game begins: open the adventure', 'opening', step.expect); continue; }
     act('player', step.pid, { type: 'say', text: step.say });
@@ -361,7 +397,7 @@ const GATED = ['refusal', 'leak', 'rule', 'roll-words', 'wrong-seat', 'stall', '
 const results = [];
 for (let r = 1; r <= runs; r++) results.push(await runOnce(r));
 console.log('\n=== Summary ===');
-console.log(`Part ${part}. Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
+console.log(`Part ${part}${part === 4 ? ` (The Ashen Crown, ${prep.library ? 'with your book library' : 'SRD only'})` : ''}. Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
 results.forEach((x, i) => {
   const t = x.tally;
   const bad = GATED.filter((k) => t[k]);

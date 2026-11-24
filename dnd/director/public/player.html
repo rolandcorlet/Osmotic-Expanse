@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14110e">
+<title>D&amp;D AI Director — Player</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Cpolygon points=%2716,2 29,9 29,23 16,30 3,23 3,9%27 fill=%27%2314110e%27 stroke=%27%23d4a84a%27 stroke-width=%272.5%27/%3E%3Ctext x=%2716%27 y=%2721%27 font-size=%2711%27 text-anchor=%27middle%27 fill=%27%23d4a84a%27 font-family=%27Georgia%27 font-weight=%27700%27%3E20%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/app.css">
+<!-- The player's screen: the same app as /, with its role fixed by this page. -->
+<script>window.DND_ROLE = 'player';</script>
+</head>
+<body>
+<div id="app" class="app">
+  <header id="head"></header>
+  <main id="main"></main>
+  <nav id="nav"></nav>
+</div>
+<div id="fx" class="fx" hidden></div>
+<div id="toast" class="toast" hidden></div>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

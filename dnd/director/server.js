@@ -15,10 +15,11 @@ import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
 
-import { newSession, newGameId, restart, apply, viewFor, RuleError } from './engine/ledger.js';
+import { newSession, newGameId, restart, apply, viewFor, RuleError, openAdventure } from './engine/ledger.js';
+import { prepareSrd } from './engine/library.js';
 import { createMemory } from './brain/memory.js';
 import { systemRng } from './engine/dice.js';
-import { adventureById, adventureList, DEFAULT_ADVENTURE } from './data/adventures/index.js';
+import { ADVENTURES, adventureById, adventureList, DEFAULT_ADVENTURE } from './data/adventures/index.js';
 import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
 import { createSlots } from './slots.js';
@@ -32,8 +33,12 @@ const PORT = Number(opt('--port', process.env.PORT || 8788));
 const SAVE_DIR = opt('--saves', join(here, 'saves'));
 const SAVE = join(SAVE_DIR, 'session.json');
 const SRD_FILE = join(here, '..', 'data', 'srd.json');
-const srdText = readFileSync(SRD_FILE, 'utf8');
-const srd = JSON.parse(srdText);
+const srd = JSON.parse(readFileSync(SRD_FILE, 'utf8'));
+// Your private book library (library/library.json, built by tools/import-books.mjs) and every
+// adventure's own monsters join the SRD before anything indexes it. --no-library plays SRD-only.
+const prepared = prepareSrd(srd, { libraryFile: flag('--no-library') ? null : opt('--library', join(here, 'library', 'library.json')), adventures: ADVENTURES });
+if (prepared.library) { const a = prepared.library; console.log(`Book library: ${a.spells} spells, ${a.monsters} monsters, ${a.subraces} subraces, ${a.subclasses} subclasses, ${a.backgrounds} backgrounds and ${a.rules} rules sections added (private to this computer).`); }
+const srdText = JSON.stringify(srd);
 const srdGz = gzipSync(srdText);
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
@@ -162,15 +167,20 @@ const FILES = {
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/dice.js': ['engine/dice.js', 'text/javascript'],
   '/engine/pregen.js': ['engine/pregen.js', 'text/javascript'],
+  // The three screens as their own pages (the same app, its role fixed by the page).
+  '/player.html': ['public/player.html', 'text/html'],
+  '/table.html': ['public/table.html', 'text/html'],
+  '/director.html': ['public/director.html', 'text/html'],
 };
-const PAGES = new Set(['/', '/table', '/play', '/host']);
+const PAGES = new Set(['/', '/table', '/play', '/player', '/host', '/director']);
 
 // A new game places the first place's own monsters out of sight, as moving there would.
 function fresh(adv, old = null, opts = {}) {
   const s = old ? restart(old, adv, opts) : newSession(adv);
   const first = (adv.sites || [])[0];
   let out = s;
-  for (const enc of (first && first.foes) || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note }, { role: 'host', rng, now: Date.now(), adventure: adv, srd });
+  void first;
+  out = openAdventure(out, adv, { role: 'host', rng, now: Date.now(), adventure: adv, srd });
   return out;
 }
 
@@ -322,7 +332,7 @@ const server = http.createServer(async (req, res) => {
       const sites = (adventure.sites || []).map((x) => (role === 'host' ? x : { id: x.id, name: x.name, region: x.region }));
       json(res, 200, role === 'host'
         ? { ...adventure, sites, adventures: adventureList(), voice: voice.hostView() }
-        : { id: adventure.id, name: adventure.name, levels: adventure.levels, blurb: adventure.blurb, sites });
+        : { id: adventure.id, name: adventure.name, levels: adventure.levels, blurb: adventure.blurb, sites, pregens: adventure.pregens || null });
       return;
     }
     // The same view as the live stream, fetched once: the page falls back to this when a tunnel or proxy holds the stream back.
@@ -485,11 +495,11 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(` Adventure: ${adventure.name}`);
   console.log(line);
   console.log(' On this computer:');
-  console.log(`   Host console   http://localhost:${PORT}/host?key=${hostKey}`);
-  console.log(`   Table screen   http://localhost:${PORT}/table`);
+  console.log(`   Director (DM)  http://localhost:${PORT}/director.html?key=${hostKey}`);
+  console.log(`   Table screen   http://localhost:${PORT}/table.html`);
   if (ips.length) {
     console.log(' For players, on the same Wi-Fi or network:');
-    for (const ip of ips) console.log(`   Join           http://${ip}:${PORT}/play`);
+    for (const ip of ips) console.log(`   Player         http://${ip}:${PORT}/player.html`);
   } else {
     console.log(' No network address found: other devices cannot join yet.');
   }

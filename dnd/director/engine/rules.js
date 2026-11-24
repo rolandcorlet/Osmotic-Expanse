@@ -48,7 +48,7 @@ export function index(srd) {
     weapon: by(srd.weapons), armor: by(srd.armor), gear: by(srd.gear), skill: by(srd.skills),
     cond: by(srd.conditions), magic: by(srd.magicItems), bg: by(srd.backgrounds),
   };
-  Object.defineProperty(srd, '_ix', { value: ix, enumerable: false });
+  Object.defineProperty(srd, '_ix', { value: ix, enumerable: false, configurable: true });
   return ix;
 }
 export const item = (srd, id) => { const ix = index(srd); return ix.weapon[id] || ix.armor[id] || ix.gear[id] || ix.magic[id] || null; };

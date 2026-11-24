@@ -24,8 +24,18 @@ export function newSession(adventure) {
     story: [], log: [], rolls: [], requests: [],
     players: {}, pcs: {}, foes: {}, fight: null,
     quests: (adventure && adventure.quests ? adventure.quests.map((q, n) => ({ id: `q${n + 1}`, text: q, done: false })) : []),
-    loot: [], time: { day: 1, hour: 8 }, seeds: [], notes: '', nextId: 1, started: false,
+    loot: [], time: { day: 1, hour: 8 }, seeds: [], notes: '', nextId: 1, started: false, clocks: [],
   };
+}
+
+// The first place's own monsters (hidden) and clocks, placed as a new game opens.
+export function openAdventure(state, adventure, ctx) {
+  const first = ((adventure || {}).sites || [])[0];
+  let out = state;
+  const host = { ...ctx, role: 'host', pid: null, ai: false, adventure };
+  for (const enc of (first && first.foes) || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note }, host);
+  for (const c of (first && first.clocks) || []) out = apply(out, { type: 'clock.add', ...c, quiet: true }, host);
+  return out;
 }
 
 // A new game with the same people at the table. Characters may come along (fresh hit points).
@@ -312,6 +322,8 @@ H['pc.create'] = (s, a, ctx) => {
     if (p.pcId && s.pcs[p.pcId] && !s.pcs[p.pcId].dead) no('You already have a living character. Ask the DM to retire it first.');
     p.pcId = pc.id; pc.playerId = ctx.pid;
   } else pc.playerId = null;
+  pc.ownerId = pc.playerId;
+  pc.open = !pc.playerId;
   pc.xp = Math.max(pc.xp || 0, ctx.srd.xpTable[pc.level - 1] || 0);
   s.pcs[pc.id] = pc;
   story(s, ctx, 'event', `${pc.name}, a level ${pc.level} ${pc.raceName} ${pc.clsName}, joins the party.`, 'Engine');
@@ -379,6 +391,89 @@ H['pc.assign'] = (s, a, ctx) => {
   pc.playerId = null;
   if (a.pid) { const p = s.players[a.pid]; if (!p) no('That player is not at the table.'); p.pcId = pc.id; pc.playerId = p.id; }
   log(s, ctx, a.pid ? `${pc.name} is now played by ${s.players[a.pid].name}.` : `${pc.name} has no player for now.`);
+  pc.open = !pc.playerId; pc.borrow = null;
+  if (pc.playerId && !pc.ownerId) pc.ownerId = pc.playerId;
+};
+
+// Taking over a character: one with no player (a ready-made character the DM put in the party, or
+// one whose player left), or one its player has offered. The owner is remembered, so it can go back.
+const livingPcOf = (s, ctx) => { const p = s.players[ctx.pid]; return p && p.pcId && s.pcs[p.pcId] && !s.pcs[p.pcId].dead ? s.pcs[p.pcId] : null; };
+H['pc.open'] = (s, a, ctx) => {
+  const pc = s.pcs[a.pcId] || (!isHost(ctx) && livingPcOf(s, ctx));
+  if (!pc) no('There is no such character.');
+  if (!isHost(ctx) && pc.playerId !== ctx.pid) no('You can only offer your own character.');
+  pc.open = a.open !== false;
+  if (pc.open && a.leave) {
+    const p = s.players[pc.playerId];
+    if (p) p.pcId = null;
+    pc.playerId = null;
+    story(s, ctx, 'event', `${pc.name} steps back: anyone at the table can take ${pc.name} over, and the DM plays them until then.`, 'Engine');
+  } else log(s, ctx, pc.open ? `${pc.name} can be taken over by another player.` : `${pc.name} is no longer offered.`);
+};
+H['pc.take'] = (s, a, ctx) => {
+  if (isHost(ctx)) no('The host gives characters with Assign.');
+  const me = s.players[ctx.pid];
+  if (!me) no('Join the table first.');
+  if (livingPcOf(s, ctx)) no('You already play a living character. Offer it or step back from it first.');
+  const pc = s.pcs[a.pcId];
+  if (!pc) no('There is no such character.');
+  if (pc.dead) no(`${pc.name} is dead.`);
+  if (pc.playerId === ctx.pid) no(`You already play ${pc.name}.`);
+  if (pc.playerId && !pc.open) no(`${pc.name} is played by ${(s.players[pc.playerId] || {}).name || 'someone else'}, who has not offered them.`);
+  const from = pc.playerId ? s.players[pc.playerId] : null;
+  if (from) from.pcId = null;
+  const owner = pc.ownerId && s.players[pc.ownerId] ? pc.ownerId : null;
+  pc.borrow = owner && owner !== ctx.pid ? { from: owner, name: s.players[owner].name } : null;
+  if (!pc.ownerId) pc.ownerId = ctx.pid;
+  pc.playerId = ctx.pid; pc.open = false; me.pcId = pc.id;
+  story(s, ctx, 'event', `${me.name} takes over ${pc.name}${from ? ` from ${from.name}` : ''}.`, 'Engine');
+};
+H['pc.return'] = (s, a, ctx) => {
+  const pc = s.pcs[a.pcId] || (!isHost(ctx) && livingPcOf(s, ctx));
+  if (!pc) no('There is no such character.');
+  if (!isHost(ctx) && pc.playerId !== ctx.pid) no('You can only hand back the character you play.');
+  const cur = s.players[pc.playerId];
+  if (cur) cur.pcId = null;
+  const owner = pc.borrow && s.players[pc.borrow.from];
+  if (owner && !livingPcOf(s, { pid: owner.id })) { owner.pcId = pc.id; pc.playerId = owner.id; pc.open = false; story(s, ctx, 'event', `${pc.name} goes back to ${owner.name}.`, 'Engine'); }
+  else { pc.playerId = null; pc.open = true; story(s, ctx, 'event', `${pc.name} is free for anyone to take over; the DM plays them until then.`, 'Engine'); }
+  pc.borrow = null;
+};
+
+// Clocks: a danger or a plan that fills up (the burning bridge, the invasion of Brindol).
+const findClock = (s, k) => {
+  const list = s.clocks || [];
+  const c = list.find((x) => x.id === k) || list.find((x) => x.name.toLowerCase() === String(k || '').toLowerCase()) || list.find((x) => k && x.name.toLowerCase().includes(String(k).toLowerCase()));
+  if (!c) no(`There is no clock called "${k}". Clocks: ${list.map((x) => `${x.id} (${x.name})`).join(', ') || 'none'}.`);
+  return c;
+};
+H['clock.add'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const name = str(a.name, 60);
+  if (!name) no('Name the clock.');
+  s.clocks = s.clocks || [];
+  if (s.clocks.some((c) => c.name.toLowerCase() === name.toLowerCase() && !c.done)) no(`There is already a clock called "${name}".`);
+  const size = Math.max(2, Math.min(12, Math.trunc(Number(a.size) || 4)));
+  const c = { id: nextId(s, 'k'), name, size, filled: Math.max(0, Math.min(size, Math.trunc(Number(a.filled) || 0))), note: str(a.note, 300), hidden: !!a.hidden, done: false };
+  s.clocks.push(c);
+  if (!a.quiet) story(s, ctx, 'event', `A clock starts: ${name} (${c.filled} of ${size}).`, 'Engine');
+  return c;
+};
+H['clock.tick'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const c = findClock(s, a.id || a.name);
+  if (c.done && (Number(a.by) || 1) > 0) no(`${c.name} is already full.`);
+  const by = Math.trunc(Number(a.by ?? 1)) || 1;
+  c.filled = Math.max(0, Math.min(c.size, c.filled + by));
+  if (c.filled >= c.size) { c.done = true; story(s, ctx, 'event', `${c.name}: the clock is full. ${c.note}`, 'Engine'); }
+  else { c.done = false; story(s, ctx, 'event', `${c.name}: ${c.filled} of ${c.size}.`, 'Engine'); }
+  return c;
+};
+H['clock.remove'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const c = findClock(s, a.id || a.name);
+  s.clocks = s.clocks.filter((x) => x !== c);
+  log(s, ctx, `Clock removed: ${c.name}.`);
 };
 
 H.say = (s, a, ctx) => {
@@ -1251,6 +1346,7 @@ H['site.move'] = (s, a, ctx) => {
   s.scene.siteId = to.id;
   const first = !s.scene.visited.includes(to.id);
   if (first) for (const enc of to.foes || []) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id }, { ...ctx, ai: false });
+  if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, quiet: true }, { ...ctx, ai: false });
   if (to.travelHours) H['time.pass'](s, { hours: to.travelHours }, ctx);
   story(s, ctx, 'event', `The party arrives at ${to.name}.`, 'Engine', { move: true });
 };
@@ -1355,6 +1451,7 @@ export function viewFor(state, role, pid) {
   const s = clone(state);
   delete s.notes;
   delete s.seeds;
+  s.clocks = (s.clocks || []).filter((c) => !c.hidden).map((c) => ({ ...c, note: c.done ? c.note : '' }));
   s.log = s.log.filter((l) => l.kind !== 'note-host');
   s.foes = Object.fromEntries(Object.values(s.foes).filter((f) => !f.hidden && f.siteId === s.scene.siteId).map((f) => [f.id, {
     id: f.id, name: f.name, mid: f.mid, conds: f.conds, dead: f.dead, fled: f.fled, health: R.healthWord(f.hp, f.maxHp), siteId: f.siteId,
