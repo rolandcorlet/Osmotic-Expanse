@@ -257,3 +257,17 @@ test('a weapon the monster does not have swings its listed weapon, not a refusal
   assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
   assert.match(out.happened.join(' '), /attacks .* with Scimitar/);
 });
+
+test('a caster out of spell slots is a note that names its cantrips, not a refusal (bench part 3, 24 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  T.host({ type: 'foe.add', monster: 'cult-fanatic', count: 1, name: 'Brother Aldane' });
+  const foe = Object.values(T.s.foes).find((f) => f.mid === 'cult-fanatic');
+  // Spend all three level-2 slots through the Engine, then ask for another through the Director's tool.
+  for (let i = 0; i < 3; i++) T.host({ type: 'foe.act', foeId: foe.id, action: 'Spiritual Weapon', target: `pc:${pc.id}` });
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(3), now: 3 });
+  const out = tb.run('monster_action', { monster: 'Brother Aldane', action: 'Spiritual Weapon', targets: [`pc:${pc.id}`] });
+  assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
+  assert.match(out.note, /spell slots left.*cantrips/);
+});

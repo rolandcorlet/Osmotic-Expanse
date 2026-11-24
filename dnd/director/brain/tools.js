@@ -228,6 +228,8 @@ export const TOOLS = [
       }
       // Acting out of turn changes nothing: a note that says who is up, not a rule broken (as in the v3 Director).
       if (no && /\bnot .*\bturn\b/i.test(no)) return { note: `Nothing changed: ${no}`, ...T.fightBrief() };
+      // A caster out of slots (bench part 3, 24 Nov: Brother Aldane's Spiritual Weapon) is a note listing its cantrips.
+      if (no && /spell slots left/.test(no)) return { note: `Nothing changed: ${no} Use a cantrip or another action.`, ...T.fightBrief() };
       if (no) return { refused: no };
       return { ...since(T, before), party: T.partyBrief() };
     },
