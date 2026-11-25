@@ -66,3 +66,15 @@ test('replay: a recorded call that worked and is now refused is a regression; fu
     assert.deepEqual(f.bad, [], g.adventure.id);
   }
 });
+
+test('replay: the tool calls iq3_s made in the 26 Nov bench still get the same kind of answer', () => {
+  const lines = readFileSync(new URL('./replay/bench-26nov-iq3s.calls.jsonl', import.meta.url), 'utf8').split('\n').filter(Boolean);
+  assert.ok(lines.length >= 20);
+  let calls = 0;
+  for (const line of lines) {
+    const rec = JSON.parse(line);
+    const adv = ADVENTURES.find((a) => a.id === rec.adventure);
+    for (const c of replayRecord(rec, { adventure: adv, srd: srdAll })) { calls += 1; assert.ok(!c.regression, `${rec.label}: ${c.name} was ${c.was}, now ${c.now}: ${c.text}`); }
+  }
+  assert.ok(calls > 50);
+});

@@ -809,6 +809,18 @@ H['fight.next'] = (s, a, ctx) => {
 H['fight.end'] = (s, a, ctx) => {
   hostOnly(ctx);
   if (!s.fight) nop('There is no fight to end.');
+  // The AI Director ends a fight it has won while the Engine still has a foe standing (bench 26 Nov: the
+  // last skeleton "comes apart" in the narration after a hit that did not drop it). The record follows
+  // the story: those foes are beaten (out of the fight, their XP earned), so the place's rules ("when
+  // no foe is left standing") still happen. A party that flees (award false) leaves them standing.
+  if (ctx.ai && a.award !== false) {
+    const still = s.fight.order.filter((o) => o.key.startsWith('foe:')).map((o) => s.foes[o.key.slice(4)]).filter((f) => f && !f.dead);
+    if (still.length && Object.values(s.pcs).some((p) => !p.dead && p.hp > 0)) {
+      for (const f of still) { f.dead = true; f.fled = true; f.beaten = true; s.fight.xp = (s.fight.xp || 0) + (f.xp || 0); }
+      assume(ctx, `${still.map((f) => f.name).join(', ')} ${still.length > 1 ? 'were' : 'was'} still standing in the record: the fight is over, so ${still.length > 1 ? 'they count' : 'it counts'} as beaten.`);
+      log(s, ctx, `${still.map((f) => f.name).join(', ')}: beaten as the fight ends.`, 'note-host');
+    }
+  }
   const xp = (s.fight.xp || 0) + (s.unspentXp || 0);
   s.unspentXp = 0;
   const alive = Object.values(s.pcs).filter((p) => !p.dead);
@@ -2338,7 +2350,7 @@ H['rule.override'] = (s, a, ctx) => {
   if (!done || !done.text) {
     if (RS.off[r.key]) nop(`The rule ${r.key} is already switched off.`);
     RS.off[r.key] = reason || 'switched off';
-    log(s, ctx, `Rule ${r.key} switched off${reason ? `: ${reason}` : ''}. It will not happen.`, 'rule');
+    log(s, ctx, `Rule ${r.key} switched off${reason ? `: ${reason.replace(/[.\s]+$/, '')}` : ''}. It will not happen.`, 'rule');
     return;
   }
   const u = done.undo || {};
@@ -2354,7 +2366,7 @@ H['rule.override'] = (s, a, ctx) => {
   if (u.xp) { for (const [id, n] of Object.entries(u.xp)) if (s.pcs[id]) s.pcs[id].xp = Math.max(0, (s.pcs[id].xp || 0) - n); s.xpPaid = (s.xpPaid || []).filter((k) => k !== u.xpKey); said.push('the milestone XP is taken back'); }
   delete RS.fired[r.key];
   if (r.key !== ATTACK_RULE.key) RS.off[r.key] = reason || 'undone';
-  log(s, ctx, `Rule ${r.key} undone${reason ? ` (${reason})` : ''}: ${said.join(', ') || 'nothing left to take back'}.`, 'rule');
+  log(s, ctx, `Rule ${r.key} undone${reason ? ` (${reason.replace(/[.\s]+$/, '')})` : ''}: ${said.join(', ') || 'nothing left to take back'}.`, 'rule');
   if (said.length) story(s, ctx, 'event', `${cap1(said.join(', '))}.`, 'Engine');
 };
 H['rule.on'] = (s, a, ctx) => {

@@ -111,7 +111,7 @@ export default {
       exits: [{ to: 'tower-gate', label: 'out to the yard' }, { to: 'causeway', label: 'the goat path down the far side of the crag to the Greyfen (the goblins\' route to the chapel)' }],
       rules: [
         { id: 'grisk-sells', when: 'hurt', who: 'Grisk', if: 'down Goblin guard', do: 'flee', say: 'Below half his hit points with his goblin down, Grisk offers to "sell" the lantern and the girl, drops the key and runs.' },
-        { id: 'milestone', when: 'cleared', do: 'xp', xp: 300, say: 'Nell can be freed (the key was Grisk\'s) and the lantern is here: the party reaches 2nd level.' },
+        { id: 'milestone', when: 'cleared', do: 'xp', xp: 300, say: 'Nell can be freed (the key was Grisk\'s) and the lantern is here.' },
       ],
     },
     {

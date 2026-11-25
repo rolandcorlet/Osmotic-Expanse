@@ -67,10 +67,12 @@ export function planFight({ groups, designed, actual, srd, mode = 'auto' }) {
   const asWritten = R.encounterDifficulty(writtenFor, xpsOf(base), srd);
   if (!asWritten.base) return null;
   const forUs = R.encounterDifficulty(actual, xpsOf(base), srd);
-  // The same share of the party's medium budget as the fight was of the written party's; never past "hard"
-  // for a party smaller than written (a small party has no one to fall back on); never harder as 'down'.
+  // The same share of the party's medium budget as the fight was of the written party's; never harder
+  // as 'down'. A party smaller than written has no one to fall back on and faces more attacks than the
+  // budget counts: never past halfway between medium and hard for it (bench 26 Nov: three 3rd-level heroes
+  // wiped by Blackreed's six River Rats, "hard" by the budget; the simulation agreed, 15% wipes, now 3%).
   let target = (asWritten.adjusted / Math.max(1, asWritten.thresholds[1])) * forUs.thresholds[1];
-  if (actual.length < lo) target = Math.min(target, forUs.thresholds[2]);
+  if (actual.length < lo) target = Math.min(target, (forUs.thresholds[1] + forUs.thresholds[2]) / 2);
   if (mode === 'down') target = Math.min(target, forUs.adjusted);
   // Numbers first: every group that may change is scaled by the same factor, so the mix stays.
   const seen = new Map();

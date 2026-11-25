@@ -221,7 +221,7 @@ test('fights are fitted to the party at the table: numbers first, then hit point
   assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 4, 'not fitted before the game starts');
   act({ type: 'rules.run', starting: true });
   assert.ok(W.s.fight, 'the ambush starts the game');
-  assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 3, 'three 3rd-level heroes: one goblin fewer');
+  assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 2, 'three 3rd-level heroes (fewer than the four written): two goblins fewer');
 });
 
 test('the Ashen Crown bridge: the bridge burns each round and the captain runs at the end of round 2', () => {
@@ -279,4 +279,28 @@ test('a hero\'s damage spells do harm: the damage is read from the spell\'s word
   T.as('p1', { type: 'spell.cast', pcId: w.id, spell: 'fireball', targets: [`foe:${ogre.id}`] });
   assert.ok(T.s.foes[ogre.id].hp < ogre.maxHp, 'the fireball burns');
   assert.match(T.s.story.filter((e) => /Fireball/.test(e.text)).at(-1).text, /\d+ fire damage/);
+});
+
+test('the AI Director ending a won fight with a foe still standing in the record: it counts as beaten, and the place\'s rules follow', () => {
+  const T = table(22);
+  hero(T, 'p1', 'Bryn');
+  for (const site of ['causeway', 'chapel']) T.host({ type: 'site.move', siteId: site });
+  T.host({ type: 'fight.start', autoRoll: true });
+  const [a, b, c] = foesAt(T, 'chapel');
+  T.host({ type: 'damage', target: `foe:${a.id}`, amount: 99 });
+  T.host({ type: 'damage', target: `foe:${b.id}`, amount: 99 });
+  T.host({ type: 'damage', target: `foe:${c.id}`, amount: 5 });
+  const xp = Object.values(T.s.pcs)[0].xp;
+  T.ai({ type: 'fight.end' });
+  assert.equal(T.s.fight, null);
+  assert.ok(T.s.foes[c.id].dead && T.s.foes[c.id].beaten, 'the last one is beaten');
+  assert.ok(T.s.log.some((l) => /\[rule chapel\/milestone\]/.test(l.text)), 'the milestone for clearing the chapel is paid');
+  assert.ok(Object.values(T.s.pcs)[0].xp >= xp + 150 + 150, 'the fight XP (all three) and the milestone');
+  // A party that flees leaves them standing.
+  const U = table(23);
+  hero(U, 'p1', 'Bryn');
+  U.host({ type: 'site.move', siteId: 'mill-road' });
+  U.host({ type: 'fight.start', autoRoll: true });
+  U.ai({ type: 'fight.end', award: false });
+  assert.ok(foesAt(U, 'mill-road').every((f) => !f.dead));
 });
