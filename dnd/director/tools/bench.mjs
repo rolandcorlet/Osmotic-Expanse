@@ -12,6 +12,7 @@
 //   node tools/bench.mjs --part 3              part 3: the Greyfen, the drowned chapel, the crypt, Brother Aldane, the lantern rehung
 //   node tools/bench.mjs --part 4              part 4: The Ashen Crown, session 1: the ambush at Highbridge Gorge, Oakhurst, Blackreed Mill
 //   --no-library                               play on the SRD alone, without your private book library
+//   --level <n>                                the heroes' level (default: part 1 at 3, part 2 at 4, part 3 at 5, part 4 at 3)
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
 // With --log, the bench also keeps <log name>.status.json up to date (see tools/bench-watch.mjs): what it is
@@ -22,10 +23,10 @@
 //
 // Part 1: the opening at the Ford Inn, talking to the Reeve, an Insight check, the road north,
 // a Perception check at the mill, the goblin fight to the end, and searching the bodies.
-// Part 4 (The Ashen Crown of Sundermark, three of its ready-made heroes at 1st level): the game opens
+// Part 4 (The Ashen Crown of Sundermark, three of its ready-made heroes, 3rd level): the game opens
 // mid-ambush on the burning bridge, then the clues, Oakhurst, Father Lucan, the bailiff, the road to
 // Blackreed Mill, a stealth check on the roof and the fight with the River Rats.
-// Part 2 (level 2 heroes, the mill goblins already dead): the switchback path, the sentries on the
+// Part 2 (level 4 heroes, the mill goblins already dead): the switchback path, the sentries on the
 // Tumbledown Gate, a short rest, the watchtower, talking to Grisk the bugbear chief, the fight,
 // freeing Nell, the lantern, the letter on the throne, and the milestone.
 //
@@ -68,6 +69,11 @@ const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default');
 const runs = Math.max(1, Number(opt('--runs', 1)));
 const part = ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
+// The heroes' level in each part. Raised by two (25 Nov) after boss fights (Grisk, Brother Aldane) killed
+// the two-hero party in 3 of 5 runs and the endings went untested: a party of two needs about two levels
+// more than the party of four an adventure is written for. --level overrides.
+const LEVELS = { 1: 3, 2: 4, 3: 5, 4: 3 };
+const level = Math.min(20, Math.max(1, Math.round(Number(opt('--level', LEVELS[part]))) || LEVELS[part]));
 const logFile = opt('--log', '');
 const verbose = !flag('--quiet');
 const crashAt = opt('--crash-at', '');
@@ -79,9 +85,9 @@ if (logFile) {
   // and crash reports.
   const fd = openSync(logFile, 'w');
   const put = (chunk) => { try { writeSync(fd, typeof chunk === 'string' ? chunk : Buffer.from(chunk)); } catch { /* the bench goes on */ } };
-  put(`# D&D bench ${new Date().toISOString()} provider=${fake ? 'fake' : provider} model=${fake ? '-' : model} thinking=${thinking} runs=${runs}\n`);
+  put(`# D&D bench ${new Date().toISOString()} provider=${fake ? 'fake' : provider} model=${fake ? '-' : model} thinking=${thinking} runs=${runs} level=${level}\n`);
   const paths = statusPaths(logFile);
-  watch = createStatus(paths.status, { part, runs, provider: fake ? 'fake' : provider, model: fake ? '-' : model, log: logFile });
+  watch = createStatus(paths.status, { part, runs, level, provider: fake ? 'fake' : provider, model: fake ? '-' : model, log: logFile });
   for (const stream of [process.stdout, process.stderr]) {
     const orig = stream.write.bind(stream);
     stream.write = (chunk, ...rest) => { put(chunk); watch.line(typeof chunk === 'string' ? chunk : String(chunk)); return orig(chunk, ...rest); };
@@ -184,14 +190,16 @@ const adventure = adventureById(part === 4 ? 'ashen-crown' : 'lantern');
 const rng = systemRng();
 const ctx = (role, pid) => ({ role, pid, rng, now: Date.now(), adventure, srd });
 const BASE = { str: 15, dex: 13, con: 14, int: 8, wis: 12, cha: 10 };
+// A level 4 ability increase each, and the spells a cleric of 3rd and 5th level prepares (the Engine keeps
+// only those the level can cast).
 const HEROES = [
-  ['p1', 'Roly', { name: 'Bryn', race: 'dwarf', subrace: 'hill-dwarf', class: 'fighter', method: 'standard', base: BASE, skills: ['athletics', 'perception'], background: 'acolyte', style: 'defense', kit: [0, 0, 0, 0] }],
-  ['p2', 'Keith', { name: 'Ila', race: 'human', class: 'cleric', subclass: 'life', method: 'standard', base: { str: 13, dex: 10, con: 14, int: 8, wis: 15, cha: 12 }, skills: ['medicine', 'insight'], background: 'acolyte', spells: { cantrips: ['sacred-flame', 'guidance', 'light'], prepared: ['cure-wounds', 'bless', 'guiding-bolt'] } }],
+  ['p1', 'Roly', { name: 'Bryn', asi: [{ level: 4, ab: { str: 2 } }], race: 'dwarf', subrace: 'hill-dwarf', class: 'fighter', method: 'standard', base: BASE, skills: ['athletics', 'perception'], background: 'acolyte', style: 'defense', kit: [0, 0, 0, 0] }],
+  ['p2', 'Keith', { name: 'Ila', race: 'human', class: 'cleric', subclass: 'life', method: 'standard', base: { str: 13, dex: 10, con: 14, int: 8, wis: 15, cha: 12 }, skills: ['medicine', 'insight'], background: 'acolyte', spells: { cantrips: ['sacred-flame', 'guidance', 'light'], prepared: ['cure-wounds', 'bless', 'guiding-bolt', 'spiritual-weapon', 'spirit-guardians'] }, asi: [{ level: 4, ab: { wis: 2 } }] }],
 ];
 
 // Part 4's heroes: three of The Ashen Crown's ready-made characters, built as the player's screen builds them.
 const HEROES4 = [['p1', 'Roly', 'bram'], ['p2', 'Keith', 'hilde'], ['p3', 'Sam', 'pell']]
-  .map(([pid, name, id]) => [pid, name, pregenBuild(id, srd, 1, adventure.pregens || [])]);
+  .map(([pid, name, id]) => [pid, name, pregenBuild(id, srd, level, adventure.pregens || [])]);
 
 // What the players say, in order. `expect` names a tool the stage should use (reported, not gated).
 const SCRIPT = [
@@ -221,7 +229,7 @@ const SCRIPT2 = [
   { pid: 'p2', say: 'I read the letter on the throne.', expect: ['award_xp'] },
 ];
 
-// Part 3 (21 Nov): level 3 heroes with the lantern, from Thornwick Ford through the Greyfen to the
+// Part 3 (21 Nov; level 5 heroes since 25 Nov) with the lantern, from Thornwick Ford through the Greyfen to the
 // sanctum and home. The quests close only at their places (the vanished at the sanctum, the lantern
 // at the ford), so this is also the test of those fences.
 const SCRIPT3 = [
@@ -270,8 +278,8 @@ async function runOnce(n) {
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
   for (const [pid, name, input] of (part === 4 ? HEROES4 : HEROES)) {
     act('player', pid, { type: 'join', name });
-    if (part === 2 || part === 3) act('host', null, { type: 'pc.create', input: { ...input, level: part }, forPid: pid });
-    else act('player', pid, { type: 'pc.create', input });
+    if (part === 4) act('player', pid, { type: 'pc.create', input });
+    else act('host', null, { type: 'pc.create', input: { ...input, level }, forPid: pid });
   }
   if (part === 2) {
     // The mill is behind them: the party is on the Mill Road, the scouts are dead, the story says so.
@@ -424,6 +432,7 @@ async function runOnce(n) {
   }
 
   console.log(`\n=== Run ${n} of ${runs} ===`);
+  console.log(`  Party: ${Object.values(s.pcs).map((p) => `${p.name} (${p.clsName || p.cls} ${p.level}, ${p.maxHp} hp, AC ${p.ac})`).join(', ')}`);
   // A bench fault in one run (an Engine refusal of the bench's own move, a bug) is that run's error,
   // and the other runs go on.
   try {
@@ -435,9 +444,9 @@ async function runOnce(n) {
       console.log(`  The whole party is dead: run ${n} ends at step ${k}.`);
       break;
     }
-    // Blackreed Mill is written for a level 2 party of four: for the bench's three 1st-level heroes, two
+    // Blackreed Mill is written for a level 2 party of four: for three 1st-level heroes (--level 1), two
     // of the five River Rats are out on the river (taken away as the party arrives).
-    if (part === 4 && step.pid === 'p3' && /roof shingles/.test(step.say || '')) {
+    if (part === 4 && level < 2 && step.pid === 'p3' && /roof shingles/.test(step.say || '')) {
       const rats = Object.values(s.foes).filter((f) => f.siteId === 'blackreed' && f.base === 'River Rat' && !f.dead);
       for (const f of rats.slice(0, 2)) act('host', null, { type: 'foe.remove', foeId: f.id });
     }

@@ -103,6 +103,10 @@ test('the bench keeps its status file: a finished run, and a crash with its erro
   assert.equal(st.exitCode, r.status);
   assert.equal(st.run, 1);
   assert.match(readFileSync(log, 'utf8'), /GATE: (PASS|FAIL)/);
+  // Part 3's heroes are level 5 (raised by two on 25 Nov), shown at the start of each run.
+  assert.match(readFileSync(log, 'utf8'), /^# D&D bench .* level=5$/m);
+  assert.match(readFileSync(log, 'utf8'), /Party: Bryn \(Fighter 5, \d+ hp, AC \d+\), Ila \(Cleric 5,/);
+  assert.equal(st.level, 5);
   // A fault inside a run is that run's error: the bench goes on and finishes, gated.
   const log2 = join(tmp, 'bench-y.log');
   const e = spawnSync(process.execPath, [bench, '--fake', '--part', '3', '--runs', '2', '--log', log2, '--crash-at', 'step 9'], { encoding: 'utf8' });
