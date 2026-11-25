@@ -2,6 +2,8 @@
 rem Double-click this file on the computer that will host the table.
 title Dungeons and Dragons 5e - AI Director
 cd /d "%~dp0"
+rem A click in this window must not pause it (QuickEdit): switch that off for this window.
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\no-quickedit.ps1 >nul 2>nul
 where node >nul 2>nul
 if errorlevel 1 (
   echo Node.js is not installed on this computer.

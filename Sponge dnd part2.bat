@@ -1,6 +1,8 @@
 @echo off
 title Sponge bench - D^&D part 2 x2
 cd /d "%~dp0dnd\director"
+rem A click in this window must not pause it (QuickEdit): switch that off for this window.
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\no-quickedit.ps1 >nul 2>nul
 echo Stopping any bench that is still running...
 powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*bench.mjs*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
 del /q bench-part2-2.exit.txt 2>nul

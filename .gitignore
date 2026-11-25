@@ -31,6 +31,8 @@ dnd/director/*.status.json.tmp
 dnd/director/*.gpu.csv
 dnd/director/*.exit.txt
 dnd/director/bench-stop.txt
+# superseded bench logs, kept on the computer that ran them
+dnd/director/bench-logs/
 v3/director/*.log
 
 # ---- Private: your own copies of the D&D books and the library built from them ----
