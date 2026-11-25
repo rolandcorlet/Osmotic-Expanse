@@ -284,6 +284,11 @@ details>summary:hover{color:var(--ink)}
 .pregen .row{gap:4px;flex-wrap:wrap}
 .row.wrap>.btn{flex:1 1 auto;min-width:max-content}
 
+/* ---- weapons table in the character builder */
+.wtab { width: 100%; border-collapse: collapse; font-size: 13px; }
+.wtab th { text-align: left; font-weight: 600; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding: 4px 6px 4px 0; border-bottom: 1px solid var(--line); }
+.wtab td { padding: 5px 6px 5px 0; border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent); vertical-align: top; }
+
 /* ---- printed character sheet --------------------------------------------------------------------
    Paper, not the screen: black on white whatever the Colours tab says, to save ink. Only printed. */
 #print-sheet { display: none; }

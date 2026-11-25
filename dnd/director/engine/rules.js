@@ -228,7 +228,7 @@ export function derive(input, srd) {
     let dmgMod = use + (styleOn === 'dueling' && melee(w) && !w.props.includes('two-handed') ? 2 : 0);
     let dice = w.dmg || '1';
     if (monkW && ex.martial_arts) { const md = `${ex.martial_arts.dice_count}d${ex.martial_arts.dice_value}`; if (avgDie(md) > avgDie(dice)) dice = md; }
-    attacks.push({ id: `w:${w.id}`, name: w.name, hit, dmg: `${dice}${dmgMod ? signed(dmgMod) : ''}`, type: w.type, range: melee(w) ? (w.props.includes('reach') ? 'reach 10 ft.' : 'reach 5 ft.') : `range ${w.reach || ''} ft.`, melee: melee(w), props: w.props, proficient: p, ability: use === mods.dex && use !== mods.str ? 'dex' : 'str', versatile: w.versatile ? `${w.versatile}${dmgMod ? signed(dmgMod) : ''}` : '' });
+    attacks.push({ id: `w:${w.id}`, name: w.name, hit, dmg: `${dice}${dmgMod ? signed(dmgMod) : ''}`, type: w.type, range: melee(w) ? (w.props.includes('reach') ? 'reach 10 ft.' : 'reach 5 ft.') : `range ${w.reach || ''} ft.`, melee: melee(w), props: w.props, proficient: p, ability: finesse || monkW ? (mods.dex > mods.str ? 'dex' : 'str') : melee(w) ? 'str' : 'dex', choice: finesse || monkW, hands: w.props.includes('two-handed') ? 2 : w.versatile ? 'versatile' : 1, light: w.props.includes('light'), thrown: w.thrown || '', versatile: w.versatile ? `${w.versatile}${dmgMod ? signed(dmgMod) : ''}` : '' });
   }
   {
     const ma = cls.id === 'monk' && ex.martial_arts ? `${ex.martial_arts.dice_count}d${ex.martial_arts.dice_value}` : '';

@@ -487,6 +487,40 @@ function sheetHtml(p, { own = false, host = false } = {}) {
     ${edit ? `<section class="card"><h3>Notes</h3><textarea rows="4" data-k="notes.${p.id}" data-notes="${p.id}">${esc(p.notes || '')}</textarea></section>` : ''}`;
 }
 
+// ------------------------------------------------------------------ weapons in the builder
+// How a weapon is held and which ability it attacks with, by the Engine's rule: finesse weapons take the
+// better of STR and DEX, other melee weapons (thrown or not) STR, ranged weapons DEX; a monk's monk
+// weapons the better of the two.
+const ABU = (a) => a.toUpperCase();
+function handsText(w) {
+  const pr = w.props || [];
+  if (pr.includes('two-handed')) return 'two-handed';
+  if (w.versatile) return `one-handed, or two hands for ${w.versatile.replace(/[+-]\d+$/, '')}`;
+  return pr.includes('light') ? 'one-handed, light' : 'one-handed';
+}
+function abilityText(w, mods) {
+  const pr = w.props || [];
+  if (pr.includes('finesse')) { const a = mods && mods.dex > mods.str ? 'dex' : 'str'; return `STR or DEX (finesse)${mods ? `, uses ${ABU(a)} ${sg(mods[a])}` : ''}`; }
+  const a = w.range === 'Melee' ? 'str' : 'dex';
+  return `${ABU(a)}${mods ? ` ${sg(mods[a])}` : ''}`;
+}
+function weaponsTable(pv) {
+  const ws = (pv.attacks || []).filter((a) => String(a.id || '').startsWith('w:'));
+  if (!ws.length) return '';
+  const shield = pv.inventory.some((x) => x.id === 'shield');
+  const big = ws.filter((a) => a.hands === 2 && a.melee);
+  const light = ws.filter((a) => a.light && a.melee);
+  const notes = [
+    shield && big.length ? `${big.map((a) => a.name).join(' and ')} need${big.length > 1 ? '' : 's'} both hands: put the shield away to use ${big.length > 1 ? 'them' : 'it'}.` : '',
+    light.length >= 2 || (light.length === 1 && pv.inventory.some((x) => x.id === light[0].id.slice(2) && x.qty > 1)) ? 'Two light weapons: you can attack with one in each hand (the second attack is a bonus action, without your ability modifier to damage).' : '',
+  ].filter(Boolean);
+  return `<div class="fld"><span class="fl">Your weapons</span><table class="wtab"><tr><th>Weapon</th><th>Hands</th><th>Attacks with</th><th>To hit</th><th>Damage</th><th>Range</th></tr>${ws.map((a) => {
+    const hands = a.hands === 2 ? 'Two-handed' : a.hands === 'versatile' ? `One, or two for ${esc(a.versatile)}` : a.light ? 'One-handed, light' : 'One-handed';
+    const ab = `${a.choice ? `STR or DEX ${a.props.includes('finesse') ? '(finesse)' : '(monk)'}: ` : ''}${ABU(a.ability)} ${sg(pv.mods[a.ability])}`;
+    return `<tr><td><b>${esc(a.name)}</b>${a.proficient ? '' : ' <span class="chip warn">not proficient</span>'}</td><td>${hands}</td><td>${ab}</td><td>${sg(a.hit)}</td><td>${esc(a.dmg)} ${esc(a.type)}</td><td class="small dim">${esc(a.range)}${a.thrown ? `, thrown ${esc(a.thrown)} ft.` : ''}</td></tr>`;
+  }).join('')}</table>${notes.map((n) => `<div class="note">${esc(n)}</div>`).join('')}</div>`;
+}
+
 // ------------------------------------------------------------------ printed sheet
 // A paper character sheet: the classic 5e layout in black on white (whatever the screen's colours, to
 // save ink). Page one is the character and always fits one page; then the full text of the features and
@@ -829,8 +863,9 @@ function buildHtml() {
       <div class="fld"><span class="fl">Extra languages (comma separated)</span><input type="text" data-k="b.lang" data-langs="1" value="${esc((b.languages || []).join(', '))}" placeholder="Elvish, Dwarvish"></div>`;
   } else if (ui.buildStep === 'gear') {
     body = `${cls.kit.choices.map((ch, n) => `<div class="fld"><span class="fl">${esc(ch.desc)}</span><div class="seg">${ch.options.map((o, k) => `<button class="${Number((b.kit || [])[n] || 0) === k ? 'on' : ''}" data-act="b.kit" data-n="${n}" data-k2="${k}">${esc(o.label)}</button>`).join('')}</div>
-        ${(ch.options[Number((b.kit || [])[n] || 0)] || { items: [] }).items.map(([id, q], k) => (String(id).startsWith('@') ? Array.from({ length: q }, (_, c) => `<select style="width:auto" data-kitpick="${n}:${k}" data-c="${c}">${R.categoryItems(srd, id).map((x) => `<option value="${x.id}" ${((b.kitPick || {})[`${n}:${k}`] || [])[c] === x.id ? 'selected' : ''}>${esc(x.name)}${x.dmg ? ` (${x.dmg} ${x.type})` : ''}</option>`).join('')}</select>`).join(' ') : '')).join('')}</div>`).join('')}
+        ${(ch.options[Number((b.kit || [])[n] || 0)] || { items: [] }).items.map(([id, q], k) => (String(id).startsWith('@') ? Array.from({ length: q }, (_, c) => `<select style="width:auto" data-kitpick="${n}:${k}" data-c="${c}">${R.categoryItems(srd, id).map((x) => `<option value="${x.id}" ${((b.kitPick || {})[`${n}:${k}`] || [])[c] === x.id ? 'selected' : ''}>${esc(x.name)}${x.dmg ? ` (${x.dmg} ${x.type} · ${handsText(x)} · ${abilityText(x, pv && pv.mods)})` : ''}</option>`).join('')}</select>`).join(' ') : '')).join('')}</div>`).join('')}
       ${cls.kit.fixed.length ? `<div class="note">Also: ${cls.kit.fixed.map(([id, q]) => `${q > 1 ? `${q} ` : ''}${(R.item(srd, id) || { name: id }).name}`).join(', ')}.</div>` : ''}
+      ${pv ? weaponsTable(pv) : ''}
       ${pv ? `<div class="note gold">You will carry: ${esc(pv.inventory.map((x) => `${x.qty > 1 ? `${x.qty} ` : ''}${x.name}`).join(', '))}. AC ${pv.ac} (${esc(pv.acNote)}).</div>` : ''}`;
   } else if (ui.buildStep === 'magic') {
     body = spellPicker(b, pv, 'build') + ((race.traits || []).some((t) => t.name === 'High Elf Cantrip') || (race.subraces.find((x) => x.id === (b.subrace || (race.subraces[0] || {}).id)) || { traits: [] }).traits.some((t) => t.name === 'High Elf Cantrip')
