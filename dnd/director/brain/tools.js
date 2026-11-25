@@ -636,7 +636,7 @@ export function toolbox({ state, adventure, srd, rng, now, memory = null }) {
       T.lastNo = null;
       T.assumed = [];
       const before = T.state.seq;
-      try { out = tool.run(args || {}, T); } catch (e) { out = { refused: `That could not be done: ${e.message}` }; }
+      try { out = tool.run(healArgs(tool, args || {}, T), T); } catch (e) { out = { refused: `That could not be done: ${e.message}` }; }
       // One sorting for every tool, by the Engine's own kinds (in place of a fix per refusal):
       //   nothing to change -> a note that says what is true; a real no -> refused, with the valid choices;
       //   done -> the result, with what was assumed to make it work.
@@ -653,6 +653,36 @@ export function toolbox({ state, adventure, srd, rng, now, memory = null }) {
     },
   };
   return T;
+}
+
+// A required part given under another name (bench part 4, 26 Nov: add_quest({ quest: "…" }) for `text`):
+// the one part the tool does not know, a near name, or a usual synonym, is read as the missing one, and the
+// Engine says so. Nothing is guessed when two parts could be meant.
+const SYNONYMS = {
+  text: ['quest', 'goal', 'description', 'name', 'title', 'message', 'what'], place: ['site', 'destination', 'to', 'location', 'where', 'exit', 'id'],
+  monster: ['name', 'foe', 'creature', 'who', 'id', 'enemy'], character: ['target', 'pc', 'who', 'name', 'hero'], target: ['character', 'who', 'name', 'pc', 'monster', 'creature'],
+  quest: ['id', 'name', 'text', 'title'], action: ['attack', 'name', 'ability', 'move', 'weapon', 'spell'], condition: ['cond', 'status', 'effect'],
+  rule: ['id', 'name', 'key'], reason: ['why', 'because', 'note'], why: ['reason', 'note'], dice: ['amount', 'damage', 'roll', 'value'],
+  hours: ['time', 'duration'], amount: ['xp', 'value', 'points'], name: ['clock', 'title', 'id'], characters: ['character', 'pcs', 'who', 'targets'],
+};
+export function healArgs(tool, args, T) {
+  const props = Object.keys((tool.parameters && tool.parameters.properties) || {});
+  const req = (tool.parameters && tool.parameters.required) || [];
+  const out = { ...args };
+  const given = (k) => out[k] != null && out[k] !== '' && !(Array.isArray(out[k]) && !out[k].length);
+  for (const r of req) {
+    if (given(r)) continue;
+    const extra = Object.keys(out).filter((k) => !props.includes(k) && given(k));
+    if (!extra.length) continue;
+    const near = extra.find((k) => k.toLowerCase().replace(/[^a-z]/g, '') === r.replace(/[^a-z]/g, '') || NAMES.distance(k.toLowerCase(), r, 2) <= 2);
+    const syn = extra.filter((k) => (SYNONYMS[r] || []).includes(k.toLowerCase()));
+    const k = near || (syn.length === 1 ? syn[0] : extra.length === 1 ? extra[0] : null);
+    if (!k) continue;
+    out[r] = out[k];
+    delete out[k];
+    if (T && T.assume) T.assume(`"${k}" was read as ${tool.name}'s "${r}".`);
+  }
+  return out;
 }
 
 // The adventure rules the Engine carried out after `seq`, in words (the DM's log).

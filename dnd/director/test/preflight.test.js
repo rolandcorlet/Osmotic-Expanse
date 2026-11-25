@@ -8,6 +8,7 @@ import { generateScript } from '../engine/script-gen.js';
 import { recordTurn, replayRecord, fuzzTools, packState } from '../brain/replay.js';
 import { fuzzGame } from '../brain/fuzz-game.js';
 import { directorTurn } from '../brain/director.js';
+import { toolbox } from '../brain/tools.js';
 import { readFileSync } from 'node:fs';
 import { prepareSrd } from '../engine/library.js';
 import { ADVENTURES } from '../data/adventures/index.js';
@@ -77,4 +78,20 @@ test('replay: the tool calls iq3_s made in the 26 Nov bench still get the same k
     for (const c of replayRecord(rec, { adventure: adv, srd: srdAll })) { calls += 1; assert.ok(!c.regression, `${rec.label}: ${c.name} was ${c.was}, now ${c.now}: ${c.text}`); }
   }
   assert.ok(calls > 50);
+});
+
+test('a tool\'s required part under another name is read as meant, and said (bench part 4, 26 Nov)', () => {
+  const T = table(24);
+  hero(T, 'p1', 'Bryn');
+  const tb = toolbox({ state: T.s, adventure, srd, rng: makeRng(1), now: 1 });
+  const r = tb.run('add_quest', { quest: 'Find the forge that stamps the masks.' });
+  assert.ok(r.ok && !r.refused, JSON.stringify(r));
+  assert.match(r.assumed, /"quest" was read as add_quest's "text"/);
+  assert.ok(tb.state.quests.some((q) => /forge that stamps/.test(q.text)));
+  // Two parts that could be meant: nothing is guessed.
+  const two = tb.run('add_quest', { goal: 'a', title: 'b' });
+  assert.ok(two.refused);
+  // The recorded refusal from the bench replays as a fix.
+  const rec = { v: 1, adventure: 'lantern', part: 4, run: 1, label: 'step 2', state: packState(T.s), calls: [{ name: 'add_quest', args: { quest: 'Find the forge.' }, was: 'refused', text: 'Write the quest.' }] };
+  assert.ok(replayRecord(rec, { adventure, srd })[0].fixed);
 });
