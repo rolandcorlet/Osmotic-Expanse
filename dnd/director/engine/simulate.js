@@ -31,8 +31,16 @@ export function partyOf(text, level = 1) {
   return t.split(',').map((x) => x.trim()).filter(Boolean).map((x) => { const [cls, lv] = x.split(':'); return { cls: cls.toLowerCase(), level: Number(lv) || level }; });
 }
 
+// The simulated heroes choose their spells from the SRD alone, so a place's numbers mean the same with or
+// without a private book library (its extra spells changed the wizard's picks and the verdicts: 26 Nov).
+const srdOnly = new WeakMap();
+function heroBook(srd) {
+  if (!srd.spells.some((x) => x.lib)) return srd;
+  if (!srdOnly.has(srd)) srdOnly.set(srd, { ...srd, spells: srd.spells.filter((x) => !x.lib) });
+  return srdOnly.get(srd);
+}
 function build(srd, { cls, level }, n, rand) {
-  const input = completeBuild({ class: cls, race: 'human', level, name: `${cls[0].toUpperCase()}${cls.slice(1)} ${n + 1}` }, srd, rand);
+  const input = completeBuild({ class: cls, race: 'human', level, name: `${cls[0].toUpperCase()}${cls.slice(1)} ${n + 1}` }, heroBook(srd), rand);
   return { ...input, name: `${cls[0].toUpperCase()}${cls.slice(1)} ${n + 1}` };
 }
 
@@ -121,7 +129,9 @@ function bestSpell(srd, pc) {
   if (!c) return null;
   const ix = R.index(srd);
   const ids = [...new Set([...(c.cantrips || []), c.raceCantrip, ...(c.kind === 'prepared' ? c.prepared || [] : c.known || [])].filter(Boolean))];
-  const hurts = ids.map((id) => ix.spell[id]).filter((sp) => sp && !sp.conc && (sp.attack || sp.save) && (sp.dmgSlot || sp.dmgLevel || sp.id === 'magic-missile'));
+  // A spell that harms when it is cast, in an action (not Glyph of Warding's hour, nor a trap or a mishap).
+  const hurts = ids.map((id) => ix.spell[id]).filter((sp) => sp && !sp.conc && (sp.dmgSlot || sp.dmgLevel)
+    && ['attack', 'save', 'auto'].includes(sp.how) && /^1 (?:action|bonus action)/i.test(String(sp.time || '1 action')));
   const top = c.slots.map(([m, u], n) => (m > u ? n + 1 : 0)).filter(Boolean).pop() || 0;
   const slotted = hurts.filter((sp) => sp.level > 0 && sp.level <= top).sort((a, b) => b.level - a.level)[0];
   if (slotted) return { spell: slotted, level: top };

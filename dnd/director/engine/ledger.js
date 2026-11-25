@@ -1001,6 +1001,8 @@ H['spell.cast'] = (s, a, ctx) => {
   const atLevel = (tab) => tab[Object.keys(tab).map(Number).filter((n) => n <= pc.level).sort((x, y) => y - x)[0]];
   const harms = !sp.how || ['attack', 'save', 'auto'].includes(sp.how);
   const dmgExpr = !harms ? '' : String((sp.dmgSlot ? sp.dmgSlot[lvl] || sp.dmgSlot[sp.level] : sp.dmgLevel ? atLevel(sp.dmgLevel) : '') || '').replace(/\+MOD$/, `+${Math.max(0, am)}`);
+  // "Damage of the type you choose" (Chromatic Orb): the one the call names, else the first the spell lists.
+  const dtype = sp.dmgType === 'chosen' ? ((sp.dmgTypes || []).find((t) => t === String(a.damageType || '').toLowerCase()) || (sp.dmgTypes || [])[0] || 'force') : sp.dmgType;
   const hits = sp.count ? sp.count[lvl] || sp.count[sp.level] || 1 : sp.countLevel ? atLevel(sp.countLevel) || 1 : 1;
   // A sure hit (Magic Missile): every dart strikes, shared out over the targets named.
   if (sp.how === 'auto' && dmgExpr && targets.length) {
@@ -1011,8 +1013,8 @@ H['spell.cast'] = (s, a, ctx) => {
       if (!each[n]) return;
       const one = /^(\d+)d(\d+)(?:\+(\d+))?$/.exec(dmgExpr);
       const d = rollDice(one ? `${Number(one[1]) * each[n]}d${one[2]}${one[3] ? `+${Number(one[3]) * each[n]}` : ''}` : dmgExpr, ctx.rng);
-      if (t.kind === 'foe') { const r = damageFoe(s, ctx, t.o, d.total, sp.dmgType, { magical: true }); lines.push(`${each[n]} dart${each[n] > 1 ? 's' : ''} strike${each[n] > 1 ? '' : 's'} ${t.o.name} for ${r.taken} ${sp.dmgType} damage${r.notes.length ? `, ${r.notes.join(', ')}` : ''}.`); }
-      else { const r = damagePc(s, ctx, t.o, d.total, sp.dmgType); lines.push(`${t.o.name} takes ${r.taken} ${sp.dmgType} damage.`); }
+      if (t.kind === 'foe') { const r = damageFoe(s, ctx, t.o, d.total, dtype, { magical: true }); lines.push(`${each[n]} dart${each[n] > 1 ? 's' : ''} strike${each[n] > 1 ? '' : 's'} ${t.o.name} for ${r.taken} ${dtype} damage${r.notes.length ? `, ${r.notes.join(', ')}` : ''}.`); }
+      else { const r = damagePc(s, ctx, t.o, d.total, dtype); lines.push(`${t.o.name} takes ${r.taken} ${dtype} damage.`); }
     });
   } else if (sp.attack && dmgExpr && targets.length) {
     // One attack roll per ray or beam (Scorching Ray, Eldritch Blast), shared out over the targets named.
@@ -1029,8 +1031,8 @@ H['spell.cast'] = (s, a, ctx) => {
       if (hit) {
         const d = rollDice(dmgExpr, ctx.rng, { crit: r.kept === 20 || (tfx.autoCrit && sp.attack === 'melee') });
         dmg = { dice: d.dice, total: d.total };
-        const res = t.kind === 'foe' ? damageFoe(s, ctx, t.o, d.total, sp.dmgType, { magical: true }) : damagePc(s, ctx, t.o, d.total, sp.dmgType);
-        lines.push(`It ${r.kept === 20 ? 'strikes true, a critical hit,' : 'hits'} ${t.o.name} for ${res.taken} ${sp.dmgType} damage${res.notes.length ? `, ${res.notes.join(', ')}` : ''}.`);
+        const res = t.kind === 'foe' ? damageFoe(s, ctx, t.o, d.total, dtype, { magical: true }) : damagePc(s, ctx, t.o, d.total, dtype);
+        lines.push(`It ${r.kept === 20 ? 'strikes true, a critical hit,' : 'hits'} ${t.o.name} for ${res.taken} ${dtype} damage${res.notes.length ? `, ${res.notes.join(', ')}` : ''}.`);
         // Life drained (Vampiric Touch): the caster regains half the damage dealt.
         if (sp.drain === 'half' && res.taken > 0 && pc.hp > 0) { const back = Math.min(Math.floor(res.taken / 2), pc.maxHp - pc.hp); if (back > 0) { pc.hp += back; lines.push(`${pc.name} regains ${back} hit points.`); } }
       } else lines.push(`It misses ${t.o.name}.`);
@@ -1048,11 +1050,11 @@ H['spell.cast'] = (s, a, ctx) => {
         addRoll(s, ctx, { who: t.o.name, foeId: t.o.id, kind: 'save', label: `${R.ABILITY_NAMES[sp.save.ability]} save vs ${sp.name}`, dice: r.rolls, mod: sb, total: r.kept + sb, at: c.dc, success: ok, secret: true });
         if (d) {
           const amount = ok ? (sp.save.success === 'half' ? Math.floor(d.total / 2) : 0) : d.total;
-          const res = amount ? damageFoe(s, ctx, t.o, amount, sp.dmgType, { magical: true }) : { taken: 0, notes: [] };
-          lines.push(`${t.o.name} ${ok ? 'resists' : 'fails to resist'}${amount ? `: ${res.taken} ${sp.dmgType} damage${res.notes.length ? `, ${res.notes.join(', ')}` : ''}` : ''}.`);
+          const res = amount ? damageFoe(s, ctx, t.o, amount, dtype, { magical: true }) : { taken: 0, notes: [] };
+          lines.push(`${t.o.name} ${ok ? 'resists' : 'fails to resist'}${amount ? `: ${res.taken} ${dtype} damage${res.notes.length ? `, ${res.notes.join(', ')}` : ''}` : ''}.`);
         } else lines.push(`${t.o.name} ${ok ? 'resists the spell' : 'is caught by the spell'}.`);
       } else {
-        s.requests.push({ id: nextId(s, 'q'), pcId: t.id, kind: 'save', ability: sp.save.ability, skill: '', dc: c.dc, adv: '', reason: `${sp.name} from ${pc.name}`, by: 'engine', t: ctx.now || 0, effect: d ? { dmg: String(d.total), type: sp.dmgType, half: sp.save.success === 'half', cond: '' } : null });
+        s.requests.push({ id: nextId(s, 'q'), pcId: t.id, kind: 'save', ability: sp.save.ability, skill: '', dc: c.dc, adv: '', reason: `${sp.name} from ${pc.name}`, by: 'engine', t: ctx.now || 0, effect: d ? { dmg: String(d.total), type: dtype, half: sp.save.success === 'half', cond: '' } : null });
         lines.push(`${t.o.name} must make a ${R.ABILITY_NAMES[sp.save.ability]} saving throw.`);
       }
     }
@@ -1073,10 +1075,10 @@ H['spell.cast'] = (s, a, ctx) => {
     if (sp.attack) {
       const r = d20(ctx.rng, { adv: a.adv === 'adv', dis: a.adv === 'dis' });
       addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'attack', label: sp.name, dice: r.rolls, mod: c.atk, total: r.kept + c.atk, at: null, success: r.kept === 1 ? false : null, crit: r.kept === 20, mode: r.mode, dmg: { dice: d.dice, total: d.total } });
-      lines.push(`Spell attack: ${r.kept + c.atk} to hit, ${r.kept === 20 ? 'a critical hit (roll the damage dice again), ' : ''}${d.total} ${sp.dmgType || ''} damage if it hits.`);
+      lines.push(`Spell attack: ${r.kept + c.atk} to hit, ${r.kept === 20 ? 'a critical hit (roll the damage dice again), ' : ''}${d.total} ${dtype || ''} damage if it hits.`);
     } else {
       addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'dice', label: `${sp.name} damage`, dice: d.dice, mod: d.flat, total: d.total });
-      lines.push(`${d.total} ${sp.dmgType || ''} damage${sp.save ? ` (a DC ${c.dc} ${R.ABILITY_NAMES[sp.save.ability]} save${sp.save.success === 'half' ? ' halves it' : ' avoids it'})` : ''}.`);
+      lines.push(`${d.total} ${dtype || ''} damage${sp.save ? ` (a DC ${c.dc} ${R.ABILITY_NAMES[sp.save.ability]} save${sp.save.success === 'half' ? ' halves it' : ' avoids it'})` : ''}.`);
     }
   } else if (sp.heal && !targets.length) {
     const d = rollDice((sp.heal[lvl] || sp.heal[sp.level] || '').replace(/MOD/i, String(am)) + (pc.subclass === 'life' && lvl > 0 ? `+${2 + lvl}` : ''), ctx.rng);
@@ -1445,7 +1447,7 @@ function castMonsterSpell(s, ctx, foe, book, sp, a) {
   const lv = Math.max(1, book.casterLevel || 1);
   const byLevel = (tab) => tab[Object.keys(tab).map(Number).filter((n) => n <= lv).sort((x, y) => y - x)[0]];
   const dmgExpr = !harms ? '' : String((d.dmgLevel ? byLevel(d.dmgLevel) : d.dmgSlot ? d.dmgSlot[sp.level] || d.dmgSlot[d.level] : '') || '').replace(/\+MOD$/, `+${Math.max(0, book.mod)}`);
-  const dtype = d.dmgType || '';
+  const dtype = d.dmgType === 'chosen' ? ((d.dmgTypes || [])[0] || 'force') : d.dmgType || '';
   if (d.attack) {
     const t = targets[0];
     if (!t) refuse(`Name the character ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));

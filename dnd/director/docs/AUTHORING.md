@@ -138,6 +138,15 @@ at the table, using the 5e encounter budget:
 - **A lone named foe stays one.** Write `scale: false` on a group that must keep its number.
 - **A smaller party never gets more foes.** It gets tougher ones instead.
 - **The DM decides how much.** The DM can choose *fitted*, *only made easier* or *as written*.
+- **A smaller party can lose a lesser group altogether.** The toughest foe always stays.
+
+How hard to write a fight: when the party just goes in swinging, **hard, or at most deadly**, with the
+place's talk and stealth routes making it easier still. The checker rates each fight for the written party
+and warns when it is deadly, with how far past the deadly line it is; write `deadly: true` on the place
+when that is meant. The fight simulation is the better judge at low levels (the budget's multiplier for
+many foes overstates them): aim for about one wipe in ten for the written party. Foes that a route takes
+out of the fight (militia, a revolt) or that only fight if something happens (a beast yoked to a machine)
+belong in the notes, not the foes list, so the checks measure the fight the party actually meets.
 
 ## The checks before any GPU time
 
@@ -149,10 +158,11 @@ at the table, using the 5e encounter budget:
 | 3. Replay and fuzz | `node tools/replay.mjs` (replays every `*.calls.jsonl` a bench with `--log` wrote) | seconds |
 | 4. A generated bench script | `node tools/bench.mjs --script gen --adventure my-adventure --fake` | seconds |
 
-**How to read the simulation.** It plays both sides simply: heroes hit the weakest foe and casters use
-their best damage spell; monsters swing their weapons, and their spells and traits are not played. Treat a
-wipe as "look at this fight", not a verdict. A fight the checker calls deadly as written will usually wipe
-here too, which may be what you meant if the party is supposed to talk or sneak its way through.
+**How to read the simulation.** It plays both sides simply: heroes (SRD spells, their ability score
+improvements taken) hit the weakest foe and casters use their best damage spell that is cast in an action;
+monsters swing their weapons as many times as their Multiattack says, and their spells, breath and traits
+are not played. Treat a wipe as "look at this fight", not a verdict. A lone big monster can wipe more often
+than its budget suggests (the Ashen Crown's young green dragon, "hard", wipes about one party in five).
 
 Once the preflight passes, a real bench is
 `node tools/bench.mjs --script gen --adventure my-adventure --runs 3 --log my-adventure.log` on the PC.

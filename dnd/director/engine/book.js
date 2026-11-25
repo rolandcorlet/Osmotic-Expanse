@@ -88,6 +88,10 @@ export function compileSpell(sp, gaps = []) {
     const base = dm.flat || `${dm.n}d${dm.d}${plus}`;
     if (!sp.dmgType) sp.dmgType = dm.type ? dm.type.toLowerCase() : 'chosen';
     if (dm.types && !sp.dmgTypes) sp.dmgTypes = dm.types.map((x) => x.toLowerCase());
+    if (sp.dmgType === 'chosen' && !sp.dmgTypes) {
+      const listed = [...new Set([...desc.matchAll(new RegExp(`\\b(${DMG})\\b`, 'gi'))].map((x) => x[1].toLowerCase()))];
+      if (listed.length > 1) sp.dmgTypes = listed;
+    }
     if (sp.level === 0) {
       sp.dmgLevel = { 1: base };
       for (const st of desc.matchAll(/(\d+)(?:st|th) level \((\d+d\d+)\)/gi)) sp.dmgLevel[st[1]] = `${st[2]}${plus}`;
@@ -239,7 +243,8 @@ function compileAction(a, mon, gaps, section) {
 const NW = '(?:one|two|three|four|five|six|a|an|\\d+)';
 function readMulti(text, mon) {
   const acts = [...(mon.actions || []), ...(mon.traits || [])].filter((x) => !/^Multiattack/i.test(x.n));
-  const attacks = acts.filter((x) => x.hit != null);
+  // An attack by its bonus, or by its words when the book has not been read yet (a pasted stat block).
+  const attacks = acts.filter((x) => x.hit != null || /(?:Weapon|Spell) Attack:/i.test(x.d || ''));
   const stem = (w) => String(w).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z ]/g, '').replace(/\b(?:its|his|her|a|an)\b/g, '').trim().replace(/(?:es|s)$/, '');
   const find = (word) => {
     const w = stem(word);
@@ -258,7 +263,7 @@ function readMulti(text, mon) {
   };
   const t = String(text).replace(/—or /g, '. Or it makes ').replace(/—/g, ': ').replace(/\bAlternatively,/g, 'Or');
   // "makes two attacks, only one of which can be a bite": the other attack twice, or one of each.
-  const only = new RegExp(`makes (\\w+) attacks, only one of which can be (?:a |an |with its )?([\\w' ]+?)(?: attack)?\\.`, 'i').exec(t);
+  const only = new RegExp(`makes (\\w+) attacks, only one of which can be (?:a |an |with its )?([\\w' -]+?)(?: attack)?\\.`, 'i').exec(t);
   if (only) {
     const n = num(only[1]); const x = find(only[2]); const other = attacks.find((a) => a.n !== x);
     const out = [];
@@ -267,7 +272,7 @@ function readMulti(text, mon) {
     return out;
   }
   // "makes three attacks, either with its longsword or its longbow"
-  const either = new RegExp(`makes (\\w+) attacks?, either with (?:its )?([\\w' ]+?) or (?:with )?(?:its )?([\\w' ]+?)\\.`, 'i').exec(t);
+  const either = new RegExp(`makes (\\w+) attacks?, either with (?:its )?([\\w' -]+?) or (?:with )?(?:its )?([\\w' -]+?)\\.`, 'i').exec(t);
   const choices = [];
   if (either) for (const w of [either[2], either[3]]) { const nm = find(w); if (nm) choices.push({ [nm]: num(either[1]) }); }
   // "makes two melee attacks, each one with a different weapon"
@@ -278,8 +283,8 @@ function readMulti(text, mon) {
   if (!either && !diff) {
     for (const sen of t.split(/(?<=\.)\s+/)) {
       // "It can use Hurl Flame in place of any melee attack." "It can replace one of those attacks with a bite attack."
-      const rep = new RegExp(`(?:use|make) (?:its |one |${NW} )?([\\w' ]+?)(?: attacks?)? in place of (?:one of |any |its |one )*(?:(${NW}) )?([\\w' ]+?) attacks?`, 'i').exec(sen);
-      const rep2 = /replace one of (?:those|its|the) attacks with (?:a |an |its )?([\w' ]+?) attack/i.exec(sen);
+      const rep = new RegExp(`(?:use|make) (?:its |one |${NW} )?([\\w' -]+?)(?: attacks?)? in place of (?:one of |any |its |one )*(?:(${NW}) )?([\\w' -]+?) attacks?`, 'i').exec(sen);
+      const rep2 = /replace one of (?:those|its|the) attacks with (?:a |an |its )?([\w' -]+?) attack/i.exec(sen);
       if (rep) { swaps.push({ put: rep[1], out: rep[3], n: rep[2] ? num(rep[2]) : 1 }); continue; }
       if (rep2) { swaps.push({ put: rep2[1], out: 'any', n: 1 }); continue; }
       const fresh = (/\bmakes\b/i.test(sen) && !/\b(?:then|also|If)\b/.test(sen)) || /^In \w+ form/i.test(sen) || /^Or\b/.test(sen);
@@ -288,16 +293,16 @@ function readMulti(text, mon) {
       segs.forEach((seg, i) => {
         if (i > 0) { cur = {}; choices.push(cur); }
         for (const u of seg.matchAll(/\buses? (?:its |either its )?([A-Z][\w' ]+?)( twice)?(?=\.|,| or | and |$)/g)) add(cur, find(u[1]) || u[1].trim(), u[2] ? 2 : 1);
-        for (const m of seg.matchAll(new RegExp(`\\b(${NW}) (?:with|using|to) (?:its |his |her )?([\\w' ]+?)(?=,| and |\\.| or |\\(|$)`, 'gi'))) add(cur, find(m[2]), num(m[1]));
+        for (const m of seg.matchAll(new RegExp(`\\b(${NW}) (?:with|using|to) (?:its |his |her )?([\\w' -]+?)(?=,| and |\\.| or |\\(|$)`, 'gi'))) add(cur, find(m[2]), num(m[1]));
         if (!/attacks?:/i.test(seg)) {
-          for (const m of seg.matchAll(new RegExp(`\\bmakes? (?:either )?(${NW}|\\d+d\\d+) ([\\w' ]+?) attacks?\\b(?! with)`, 'gi'))) {
+          for (const m of seg.matchAll(new RegExp(`\\bmakes? (?:either )?(${NW}|\\d+d\\d+) ([\\w' -]+?) attacks?\\b(?! with)`, 'gi'))) {
             const n = /\dd\d/.test(m[1]) ? m[1] : num(m[1]); const nm = find(m[2]);
             if (n && nm) add(cur, nm, n);
           }
-          for (const m of seg.matchAll(new RegExp(`\\bmakes? (${NW}) (?:melee |ranged |weapon )?attacks? with (?:its |his |her )?([\\w' ]+?)(?=,| and |\\.| or |$)`, 'gi'))) add(cur, find(m[2]), num(m[1]));
-          for (const m of seg.matchAll(new RegExp(`\\band (${NW}) ([\\w' ]+?) attacks?\\b`, 'gi'))) add(cur, find(m[2]), num(m[1]));
+          for (const m of seg.matchAll(new RegExp(`\\bmakes? (${NW}) (?:melee |ranged |weapon )?attacks? with (?:its |his |her )?([\\w' -]+?)(?=,| and |\\.| or |$)`, 'gi'))) add(cur, find(m[2]), num(m[1]));
+          for (const m of seg.matchAll(new RegExp(`\\band (${NW}) ([\\w' -]+?) attacks?\\b`, 'gi'))) add(cur, find(m[2]), num(m[1]));
         }
-        const heads = /as many ([\w' ]+?) attacks as it has (\w+)/i.exec(seg);
+        const heads = /as many ([\w' -]+?) attacks as it has (\w+)/i.exec(seg);
         if (heads) add(cur, find(heads[1]), `one per ${heads[2].replace(/s$/, '')}`);
         // "makes three attacks" and nothing more: its first attack, that many times.
         const bare = new RegExp(`\\bmakes (${NW}) (melee |ranged )?attacks?\\.?$`, 'i').exec(seg.trim());

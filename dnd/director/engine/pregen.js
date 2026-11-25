@@ -77,6 +77,29 @@ export function completeBuild(spec, srd, rand = Math.random) {
   // Abilities: the standard array, best score in the class's main ability.
   (PRIORITY[cls.id] || ABILITIES).forEach((a, k) => { b.base[a] = STANDARD_ARRAY[k]; });
   if (race.bonusChoice) b.raceChoice = (spec.raceChoice || (PRIORITY[cls.id] || ABILITIES).filter((a) => !(race.bonus || {})[a])).slice(0, race.bonusChoice);
+  // Ability Score Improvements at the class's levels (4th, 8th...; a fighter's 6th too): +2 to the main
+  // ability up to 20, then the next. Heroes built above 3rd level had none (the fight simulation's 6th-level
+  // fighter hit for 5: 26 Nov).
+  if (spec.asi) b.asi = spec.asi;
+  else {
+    const L = cls.levels || {};
+    const sub = (race.subraces || []).find((x) => x.id === b.subrace);
+    const score = (a) => (b.base[a] || 10) + ((race.bonus || {})[a] || 0) + (((sub && sub.bonus) || {})[a] || 0) + (b.raceChoice.includes(a) ? 1 : 0);
+    const gained = {};
+    b.asi = [];
+    for (let l = 2; l <= level; l++) {
+      if (!((Number((L[l] || {}).asi) || 0) > (Number((L[l - 1] || {}).asi) || 0))) continue;
+      const ab = {};
+      let left = 2;
+      for (const a of PRIORITY[cls.id] || ABILITIES) {
+        const room = 20 - score(a) - (gained[a] || 0);
+        const add = Math.min(left, Math.max(0, room));
+        if (add > 0) { ab[a] = add; gained[a] = (gained[a] || 0) + add; left -= add; }
+        if (!left) break;
+      }
+      if (Object.keys(ab).length) b.asi.push({ level: l, ab });
+    }
+  }
   if (subclassLevel(cls.id) <= level) b.subclass = (cls.subclasses[0] || {}).id || '';
   if (styleLevel(cls.id) && styleLevel(cls.id) <= level) b.style = spec.style || (STYLE[cls.id] || Object.keys(FIGHTING_STYLES)).find((s) => FIGHTING_STYLES[s]) || '';
   // Background and skills: the background's first, then class skills that do not repeat them.

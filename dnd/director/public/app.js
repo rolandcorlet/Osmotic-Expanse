@@ -47,7 +47,7 @@ const TABS = LOCAL ? {
 } : {
   player: [['play', 'Play'], ['map', 'Map'], ['sheet', 'Sheet'], ['spells', 'Spells'], ['build', 'Character'], ['rules', 'Rules'], ['dice', 'Dice'], ['story', 'Story'], ['colours', 'Colours']],
   table: [['table', 'Table'], ['map', 'Map'], ['story', 'Story'], ['rules', 'Rules'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['map', 'Map'], ['director', 'Director'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['rules', 'Rules'], ['seeds', 'Seeds'], ['memory', 'Chronicle'], ['saves', 'Saves'], ['voice', 'Voice'], ['dice', 'Dice'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['map', 'Map'], ['director', 'Director'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['books', 'Books'], ['rules', 'Rules'], ['seeds', 'Seeds'], ['memory', 'Chronicle'], ['saves', 'Saves'], ['voice', 'Voice'], ['dice', 'Dice'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -93,6 +93,7 @@ const ui = {
   seeds: { idea: '', text: '', edit: null },
   saves: { slots: null, cloud: null, cloudSlots: null, name: '', url: '', key: '', busy: false },
   mem: { q: '' },
+  books: { text: '', name: '', kind: 'auto', how: 'both', file: '', list: null, job: null, sel: null, saveName: '', busy: false },
   seenReq: {}, lastRollId: null, freshId: null, keyTry: '',
   readAloud: store.get('dnd.read') == null ? role === 'table' : store.get('dnd.read') === 'on',
   talk: 'idle', talkAsk: false,
@@ -318,6 +319,7 @@ function mainHtml() {
   if (t === 'encounter') return encounterHtml();
   if (t === 'bestiary') return bestiaryHtml();
   if (t === 'adventure') return adventureHtml();
+  if (t === 'books') return booksHtml();
   if (t === 'seeds') return LOCAL ? notesHtml() : seedsHtml();
   if (t === 'memory') return memoryHtml();
   if (t === 'saves') return savesHtml();
@@ -1377,6 +1379,91 @@ function seedsHtml() {
       <div class="scroll" data-scroll="seeds">${(state.seeds || []).map((x) => `<div class="row slotrow"><div class="grow"><b>${esc(x.title)}</b><div class="small faint">${esc(x.text.split('\n').slice(1, 3).join(' · ').slice(0, 160))}</div></div><div class="seg"><button class="${x.on ? 'on' : ''}" data-act="sd.on" data-id="${x.id}">On</button><button class="${x.on ? '' : 'on'}" data-act="sd.on" data-id="${x.id}">Off</button></div><button class="btn sm" data-act="sd.edit" data-id="${x.id}">Edit</button><button class="btn sm danger" data-act="sd.del" data-id="${x.id}">Delete</button></div>`).join('') || '<div class="empty">No seeds yet.</div>'}</div></section></div>`;
 }
 
+// ------------------------------------------------------------------ the Books tab
+// Paste a book or a campaign; the server reads it (brain/convert.js) and shows what the Engine will get,
+// entry by entry, with the words beside the numbers, before anything is saved.
+const BK_HOW = [['both', 'Book reader, then the AI'], ['reader', 'Book reader only'], ['ai', 'AI only']];
+async function booksApi(path, body) {
+  try {
+    const res = await fetch(`/api/books${path}${body ? '' : `?${auth()}`}`, body ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, ...body }) } : {});
+    return await res.json();
+  } catch (e) { toast('Cannot reach the Director host. Is it still running?'); return { ok: false }; }
+}
+async function booksLoad() {
+  const B = ui.books;
+  const out = await booksApi('/');
+  if (out && out.books) { B.list = out; if (out.job) booksWatch(); }
+  render();
+}
+let booksTimer = null;
+function booksWatch() {
+  clearTimeout(booksTimer);
+  booksTimer = setTimeout(async () => {
+    const B = ui.books;
+    const out = await booksApi('/job');
+    B.job = out.job || null;
+    if (B.job && B.job.result && !B.saveName) B.saveName = B.job.result.name || B.name;
+    if (B.job && B.job.result && B.sel == null) B.sel = (B.job.result.entries || []).length ? 0 : null;
+    if (B.job && B.job.busy) booksWatch();
+    if (ui.tab === 'books') render();
+  }, ui.books.job && ui.books.job.busy ? 900 : 50);
+}
+function booksHtml() {
+  const B = ui.books;
+  if (!B.list && !B.loading) { B.loading = true; booksLoad().finally(() => { B.loading = false; }); }
+  const L = B.list || { books: [], adventures: [], kinds: [['auto', 'Work it out']], ai: '' };
+  const J = B.job;
+  const n = B.text.length;
+  const left = `<section class="card fill bk-in"><h3>Convert a book or a campaign<span class="right">${L.ai ? `<span class="chip ok" title="The AI from the Director tab reads what the book reader cannot, and writes campaigns.">AI: ${esc(L.ai)}</span>` : '<span class="chip warn" title="Choose an AI and a model on the Director tab to convert campaigns and odd layouts.">No AI set up: book reader only</span>'}</span></h3>
+    <div class="fields three">
+      <label class="fld"><span class="fl">Name</span><input type="text" data-bind="books.name" value="${esc(B.name)}" maxlength="80" placeholder="Tome of the Fen"></label>
+      <label class="fld"><span class="fl">What it is</span><select data-bind="books.kind">${L.kinds.map(([id, nm]) => `<option value="${id}"${B.kind === id ? ' selected' : ''}>${esc(nm)}</option>`).join('')}</select></label>
+      <label class="fld"><span class="fl">Read it with</span><select data-bind="books.how">${BK_HOW.map(([id, nm]) => `<option value="${id}"${B.how === id ? ' selected' : ''}>${nm}</option>`).join('')}</select></label>
+    </div>
+    <textarea class="grow bk-paste" data-k="bk.text" data-bind="books.text" spellcheck="false" placeholder="Paste here: monster stat blocks, spells, a chapter of rules, or a whole campaign. Or add a file below.&#10;&#10;The book reader reads the usual 5e layout at once (a name, &quot;Medium fey, neutral evil&quot;, Armor Class, Hit Points... or a spell's Casting Time, Range, Components and Duration). The AI reads anything else, and turns a campaign into an adventure, place by place.">${esc(B.text)}</textarea>
+    <div class="row nw"><label class="btn">Add a file<input type="file" accept=".txt,.md,.json,text/plain" data-booksfile="1" hidden></label><span class="small faint grow">${B.file ? `${esc(B.file)} · ` : ''}${n ? `${n.toLocaleString()} characters` : 'Plain text, Markdown or JSON'}</span>${n ? '<button class="btn" data-act="bk.clear">Clear</button>' : ''}<button class="btn primary" data-act="bk.convert" ${!B.text.trim() || (J && J.busy) || B.busy ? 'disabled' : ''}>Convert</button></div>
+    <p class="small dim bk-foot">Nothing is changed or saved until you choose to: you see what the Engine would get first. The words you paste are kept beside the converted version, on this computer only.</p></section>`;
+  return `<div class="lay-two bk">${left}<section class="card fill bk-out">${J ? booksResultHtml(J) : booksListHtml(L)}</section></div>`;
+}
+function booksResultHtml(J) {
+  const B = ui.books;
+  if (J.busy) {
+    const pct = J.of ? Math.round((100 * J.at) / J.of) : 0;
+    return `<h3>Converting…</h3><div class="bk-busy"><div class="bk-step">${esc(J.step || 'Reading')}${J.of ? ` (${J.at} of ${J.of})` : ''}</div><div class="bk-bar"><i style="width:${J.of ? pct : 8}%"></i></div><p class="small dim">The book reader takes a moment; the AI takes longer, about a minute a part on a computer's own model. You can use the other tabs meanwhile.</p></div>`;
+  }
+  if (J.error) return `<h3>That did not convert<span class="right"><button class="btn sm" data-act="bk.discard">Back</button></span></h3><div class="note hot">${esc(J.error)}</div>`;
+  const R = J.result || {};
+  const saveRow = (label) => `<div class="row nw bk-save"><label class="fld grow"><span class="fl">Save as</span><input type="text" data-bind="books.saveName" value="${esc(B.saveName)}" maxlength="80"></label><button class="btn primary" data-act="bk.save">${label}</button><button class="btn" data-act="bk.discard">Discard</button></div>`;
+  if (R.adventure) {
+    const A = R.adventure;
+    const C = R.check || { errors: [], warnings: [] };
+    return `<h3>${esc(A.name)}<span class="right"><span class="chip">${(A.sites || []).length} places</span><span class="chip ${C.errors.length ? 'no' : 'ok'}">${C.errors.length} errors</span><span class="chip ${C.warnings.length ? 'warn' : ''}">${C.warnings.length} warnings</span></span></h3>
+      <div class="small dim">${esc(A.blurb || '')}</div>
+      <div class="scroll grow bk-list" data-scroll="bk-adv">${(A.sites || []).map((x) => `<div class="bk-row"><div class="grow"><b>${esc(x.name || x.id)}</b> <span class="faint small">${esc(x.id)} · level ${x.level || '?'}</span><div class="small dim">${esc(String(x.read || x.notes || '').slice(0, 180))}</div><div class="small">${(x.foes || []).map((f) => `<span class="chip">${f.count || 1} × ${esc(f.name || f.monster)}</span>`).join(' ')} ${(x.exits || []).map((e) => `<span class="chip">→ ${esc(e.to)}</span>`).join(' ')}</div></div></div>`).join('')}
+        ${C.errors.map((e) => `<div class="note hot small"><b>${esc(e.where)}</b>: ${esc(e.text)}</div>`).join('')}${C.warnings.map((e) => `<div class="small" style="color:var(--warn-c)"><b>${esc(e.where)}</b>: ${esc(e.text)}</div>`).join('')}</div>
+      ${C.errors.length ? '<p class="small dim">The adventure can still be saved: the Director plays round what the checker flags, and you can fix the file in library/adventures.</p>' : ''}${saveRow('Save as an adventure')}`;
+  }
+  const E = R.entries || [];
+  const counts = { monster: 0, spell: 0, rule: 0 };
+  for (const e of E) counts[e.kind] += 1;
+  const withGaps = E.filter((e) => e.gaps.length).length;
+  const sel = E[B.sel] || null;
+  return `<h3>${esc(R.name || 'Converted')}<span class="right">${counts.monster ? `<span class="chip">${counts.monster} monster${counts.monster > 1 ? 's' : ''}</span>` : ''}${counts.spell ? `<span class="chip">${counts.spell} spell${counts.spell > 1 ? 's' : ''}</span>` : ''}${counts.rule ? `<span class="chip">${counts.rule} rules section${counts.rule > 1 ? 's' : ''}</span>` : ''}<span class="chip ${withGaps ? 'warn' : 'ok'}">${withGaps ? `${withGaps} to check` : 'all read'}</span></span></h3>
+    ${(R.notes || []).length ? `<div class="small dim">${R.notes.map(esc).join(' ')}</div>` : ''}
+    ${E.length ? `<div class="bk-split"><div class="scroll bk-list" data-scroll="bk-ent">${E.map((e, k) => `<button class="bk-row bk-pick${k === B.sel ? ' on' : ''}" data-act="bk.sel" data-n="${k}"><span class="grow">${esc(e.name)}</span><span class="faint small">${e.kind}</span>${e.gaps.length ? `<span class="chip warn">${e.gaps.length}</span>` : '<span class="ok-mark">✓</span>'}</button>`).join('')}</div>
+      ${sel ? `<div class="bk-detail"><div class="bk-words"><div class="fl">The words</div><pre class="scroll" data-scroll="bk-w">${esc(sel.words || '(written by the AI from the text)')}</pre></div><div class="bk-eng"><div class="fl">For the Engine</div><div class="scroll receipt" data-scroll="bk-e">${sel.facts.map((f) => `<div class="ln"><span>${esc(f)}</span></div>`).join('')}${sel.gaps.map((g) => `<div class="note hot small">Not read: ${esc(g)}</div>`).join('')}</div></div></div>` : ''}</div>` : '<div class="empty">Nothing was read from that text. Try "What it is", or let the AI read it.</div>'}
+    ${E.length ? saveRow('Save to your books') : '<div class="row"><button class="btn" data-act="bk.discard">Back</button></div>'}`;
+}
+function booksListHtml(L) {
+  const num = (c) => [c.monsters ? `${c.monsters} monsters` : '', c.spells ? `${c.spells} spells` : '', c.rules ? `${c.rules} rules sections` : ''].filter(Boolean).join(' · ') || 'empty';
+  return `<h3>Your books<span class="right"><button class="btn sm" data-act="bk.refresh">Refresh</button></span></h3>
+    <p class="small dim">Everything the Engine reads its rules from. Each book is kept as you gave it, with an engine version beside it.</p>
+    <div class="scroll grow bk-list" data-scroll="bk-books">${(L.books || []).map((b) => `<div class="bk-row"><div class="grow"><b>${esc(b.name)}</b> <span class="faint small">${esc(b.kind || '')}</span><div class="small dim">${num(b.counts || {})}${b.gaps ? ` · <span style="color:var(--warn-c)">${b.gaps} not read</span>` : ''}${b.savedAt ? ` · ${esc(new Date(b.savedAt).toLocaleDateString())}` : ''}</div></div>${b.fixed ? '<span class="chip">built in</span>' : `<button class="btn sm danger" data-act="bk.remove" data-id="${esc(b.id)}">Remove</button>`}</div>`).join('') || '<div class="empty">Loading…</div>'}
+      <div class="fl bk-sub">Adventures</div>
+      ${(L.adventures || []).map((a) => `<div class="bk-row"><div class="grow"><b>${esc(a.name)}</b> <span class="faint small">${esc(a.levels || '')}</span><div class="small dim">${a.places} place${a.places === 1 ? '' : 's'}${a.converted ? ' · converted' : ''}</div></div>${a.converted ? '<span class="chip ok">yours</span>' : '<span class="chip">built in</span>'}</div>`).join('')}</div>
+    <p class="small dim">A converted adventure is started from <b>Saves → New game</b>. Removed books are set aside in library/converted/_removed, never deleted.</p>`;
+}
+
 function memoryHtml() {
   const d = state.director || {};
   const chapters = (d.chronicle || []).slice().reverse();
@@ -1416,6 +1503,29 @@ const ACT = {
   'v.screen': (d) => { ui.voice.outScreen = d.id; },
   'v.in': (d) => { ui.voice.inEngine = d.id; },
   'v.test': () => { V.blocked = false; V.q.push({ text: 'The fog curls along the river, and somewhere in it a lantern swings.', clip: serverVoice() ? fetchClip('The fog curls along the river, and somewhere in it a lantern swings.') : null }); pumpVoice(); },
+  'bk.convert': async () => {
+    const B = ui.books;
+    B.busy = true; render();
+    const out = await booksApi('/convert', { text: B.text, kind: B.kind, name: B.name, how: B.how });
+    B.busy = false;
+    if (!out.ok) { toast(out.error || 'That did not convert.'); render(); return; }
+    B.job = { busy: true, step: 'Reading', at: 0, of: 0 }; B.sel = null; B.saveName = '';
+    booksWatch();
+  },
+  'bk.clear': () => { ui.books.text = ''; ui.books.file = ''; },
+  'bk.sel': (d) => { ui.books.sel = Number(d.n); },
+  'bk.save': async () => {
+    const B = ui.books;
+    const out = await booksApi('/save', { name: B.saveName || B.name });
+    if (!out.ok) { toast(out.error || 'That was not saved.'); return; }
+    toast(out.saved || 'Saved.', true);
+    B.job = null; B.sel = null; B.saveName = '';
+    await booksLoad();
+    reloadAdventure();
+  },
+  'bk.discard': async () => { await booksApi('/discard', {}); ui.books.job = null; ui.books.sel = null; ui.books.saveName = ''; },
+  'bk.remove': async (d) => { const out = await booksApi('/remove', { id: d.id }); toast(out.ok ? out.saved : out.error || 'That was not removed.', !!out.ok); await booksLoad(); },
+  'bk.refresh': async () => { await booksLoad(); },
   'col.reset': () => { store.del('dnd.colours'); applyColours(); },
   'col.theme': (d) => { store.set('dnd.colours', JSON.stringify(THEMES[d.n] || DEFAULTS)); applyColours(); },
   'key.go': () => { const q = new URLSearchParams(location.search); q.set('key', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },
@@ -1638,6 +1748,11 @@ function onField(e) {
   if (t.dataset.racecantrip) { if (e.type === 'change') { ui.build.spells = { ...(ui.build.spells || {}), raceCantrip: t.value }; saveDraft(); render(); } return; }
   if (t.dataset.notes) { if (e.type === 'change') send({ type: 'pc.notes', pcId: t.dataset.notes, text: t.value }); return; }
   if (t.dataset.hostnotes) { ui.host.note = t.value; return; }
+  if (t.dataset.booksfile) {
+    const f = t.files && t.files[0];
+    if (f) f.text().then((txt) => { ui.books.text = txt; ui.books.file = f.name; if (!ui.books.name) ui.books.name = f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '); render(); });
+    return;
+  }
   if (t.dataset.loadfile) {
     const f = t.files && t.files[0];
     if (f) f.text().then((txt) => { try { local.importJson(txt); onState(local.view(pid)); toast('Loaded.', true); } catch (err) { toast(err.message); } });

@@ -16,10 +16,11 @@ import { spawn } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
 
 import { newSession, newGameId, restart, attempt, viewFor, RuleError, openAdventure } from './engine/ledger.js';
-import { prepareSrd } from './engine/library.js';
+import { prepareSrd, mergeAdventureMonsters } from './engine/library.js';
 import { createMemory } from './brain/memory.js';
 import { systemRng } from './engine/dice.js';
 import { ADVENTURES, adventureById, adventureList, DEFAULT_ADVENTURE } from './data/adventures/index.js';
+import * as CV from './brain/convert.js';
 import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
 import { createSlots } from './slots.js';
@@ -41,8 +42,23 @@ const srd = JSON.parse(readFileSync(SRD_FILE, 'utf8'));
 // adventure's own monsters join the SRD before anything indexes it. --no-library plays SRD-only.
 const prepared = prepareSrd(srd, { libraryFile: flag('--no-library') ? null : opt('--library', join(here, 'library', 'library.json')), adventures: ADVENTURES });
 if (prepared.library) { const a = prepared.library; console.log(`Book library: ${a.spells} spells, ${a.monsters} monsters, ${a.subraces} subraces, ${a.subclasses} subclasses, ${a.backgrounds} backgrounds and ${a.rules} rules sections added (private to this computer).`); }
-const srdText = JSON.stringify(srd);
-const srdGz = gzipSync(srdText);
+// What the DM converted on the Books tab (brain/convert.js): books join the rules, campaigns the list.
+// Both are private, in library/, beside the books they came from.
+const LIB_DIR = join(here, 'library');
+const CONVERTED_DIR = join(LIB_DIR, 'converted');
+const ADVENTURES_DIR = join(LIB_DIR, 'adventures');
+if (!flag('--no-library')) {
+  for (const b of CV.loadBooks(CONVERTED_DIR)) { const a = CV.mergeBook(srd, b); console.log(`Converted book "${b.name}": ${a.monsters} monsters, ${a.spells} spells, ${a.rules} rules sections.`); }
+  for (const a of CV.loadAdventures(ADVENTURES_DIR)) {
+    if (ADVENTURES.some((x) => x.id === a.id)) continue;
+    ADVENTURES.push(a);
+    mergeAdventureMonsters(srd, [a]);
+    console.log(`Converted adventure "${a.name}".`);
+  }
+}
+let srdText = JSON.stringify(srd);
+let srdGz = gzipSync(srdText);
+const refreshSrd = () => { srdText = JSON.stringify(srd); srdGz = gzipSync(srdText); };
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
 const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state });
@@ -202,13 +218,78 @@ function json(res, code, body) {
   res.end(text);
 }
 
-function readBody(req) {
+// ---- the Books tab ----------------------------------------------------------------------------
+let convertJob = null; // { busy, step, at, of, error, result, original, startedAt }
+async function booksApi(path, method, body) {
+  if (path === '/' && method === 'GET') {
+    const lib = srd.library || null;
+    return {
+      ai: director.aiName ? director.aiName() : '',
+      kinds: CV.KINDS,
+      books: [
+        { id: 'srd', name: 'System Reference Document 5.1', kind: 'built in', counts: { monsters: srd.monsters.filter((m) => !m.lib && !m.adventure).length, spells: srd.spells.filter((x) => !x.lib).length, rules: (srd.rules || []).length }, gaps: (srd.engine || {}).gaps || 0, fixed: true },
+        ...(lib ? [{ id: 'library', name: 'Your imported books', kind: (lib.books || []).map((b) => b.kind).join(', '), counts: { monsters: lib.added.monsters, spells: lib.added.spells, rules: lib.added.rules }, gaps: null, fixed: true }] : []),
+        ...CV.listBooks(CONVERTED_DIR),
+      ],
+      adventures: ADVENTURES.map((a) => ({ id: a.id, name: a.name, levels: a.levels, converted: !!a.converted, places: (a.sites || []).length })),
+      job: jobView(),
+    };
+  }
+  if (path === '/job') return { job: jobView(true) };
+  if (path === '/convert' && method === 'POST') {
+    if (convertJob && convertJob.busy) return { ok: false, error: 'A conversion is already running.' };
+    const text = String(body.text || '');
+    if (!text.trim()) return { ok: false, error: 'Paste some text first.' };
+    if (text.length > CV.MAX_PASTE) return { ok: false, error: 'That is more than one go can take: split it into parts.' };
+    const ai = director.aiReady && director.aiReady() ? (system, user) => director.ask(system, user) : null;
+    convertJob = { busy: true, step: 'Reading', at: 0, of: 0, error: '', result: null, original: text, startedAt: Date.now() };
+    CV.convertText({ text, kind: body.kind, name: String(body.name || '').slice(0, 80), how: body.how || 'both', ask: ai, srd, onProgress: (p) => { Object.assign(convertJob, p); } })
+      .then((r) => { convertJob.result = r; })
+      .catch((e) => { convertJob.error = e.message || String(e); })
+      .finally(() => { convertJob.busy = false; convertJob.step = ''; });
+    return { ok: true };
+  }
+  if (path === '/save' && method === 'POST') {
+    const r = convertJob && convertJob.result;
+    if (!r) return { ok: false, error: 'There is nothing converted to save.' };
+    const name = String(body.name || r.name || 'Converted').slice(0, 80);
+    if (r.adventure) {
+      const adv = CV.saveAdventure(ADVENTURES_DIR, { ...r.adventure, name }, convertJob.original);
+      const at = ADVENTURES.findIndex((x) => x.id === adv.id);
+      if (at >= 0 && !ADVENTURES[at].converted) return { ok: false, error: `An adventure called "${adv.id}" is built in: give this one another name.` };
+      if (at >= 0) ADVENTURES[at] = adv; else ADVENTURES.push(adv);
+      mergeAdventureMonsters(srd, [adv]);
+      refreshSrd();
+      convertJob = null;
+      return { ok: true, saved: `"${adv.name}" is in the adventure list.` };
+    }
+    const meta = CV.saveBook(CONVERTED_DIR, { name, kind: r.kind, original: convertJob.original, book: r.book });
+    const eng = CV.loadBooks(CONVERTED_DIR).find((b) => b.id === meta.id);
+    const added = eng ? CV.mergeBook(srd, eng) : { monsters: 0, spells: 0, rules: 0 };
+    refreshSrd();
+    convertJob = null;
+    return { ok: true, saved: `"${meta.name}" is in your books: ${added.monsters} monsters, ${added.spells} spells and ${added.rules} rules sections the Engine can use now.` };
+  }
+  if (path === '/discard' && method === 'POST') { if (!(convertJob && convertJob.busy)) convertJob = null; return { ok: true }; }
+  if (path === '/remove' && method === 'POST') {
+    const ok = CV.removeBook(CONVERTED_DIR, String(body.id || ''));
+    return ok ? { ok: true, saved: 'Set aside (library/converted/_removed). It leaves the rules when the Director restarts.' } : { ok: false, error: 'There is no converted book by that name.' };
+  }
+  return { ok: false, error: 'Not found.' };
+}
+function jobView(full = false) {
+  if (!convertJob) return null;
+  const { busy, step, at, of, error, result, startedAt } = convertJob;
+  return { busy, step, at, of, error, startedAt, result: result && (full ? result : { kind: result.kind, name: result.name }) };
+}
+
+function readBody(req, max = 65536) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > 65536) { reject(new Error('too large')); req.destroy(); return; }
+      if (size > max) { reject(new Error('too large')); req.destroy(); return; }
       chunks.push(c);
     });
     req.on('end', () => {
@@ -450,6 +531,15 @@ const server = http.createServer(async (req, res) => {
       out.slots = slots.list();
       out.cloud = slots.cloudView();
       json(res, 200, out);
+      return;
+    }
+    // The Books tab: convert pasted text (brain/convert.js), see it, save it, list what the Engine has.
+    if (url.pathname.startsWith('/api/books')) {
+      const body = req.method === 'POST' ? await readBody(req, 12 * 1024 * 1024).catch(() => null) : {};
+      if (!body) { json(res, 200, { ok: false, error: 'That is too much to paste at once (about 10 MB at most): split it into parts.' }); return; }
+      const who = access(req, { ...q, ...body, role: 'host' });
+      if (who.role !== 'host') { json(res, 403, { error: 'Only the DM can convert books.' }); return; }
+      json(res, 200, await booksApi(url.pathname.slice('/api/books'.length) || '/', req.method, body));
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/director') {

@@ -218,10 +218,10 @@ test('fights are fitted to the party at the table: numbers first, then hit point
   const W = { s: openAdventure({ ...newSession(ashen), auto: { rules: true, scale: 'auto' } }, ashen, { role: 'host', pid: null, rng: makeRng(2), now: 1, adventure: ashen, srd: srdAll }) };
   const act = (a, role = 'host', pid = null) => { W.s = apply(W.s, a, { role, pid, rng: makeRng(3), now: 2, adventure: ashen, srd: srdAll }); };
   for (const [pid, id] of [['p1', 'bram'], ['p2', 'hilde'], ['p3', 'pell']]) { act({ type: 'join', name: pid }, 'player', pid); act({ type: 'pc.create', input: PG.pregenBuild(id, srdAll, 3, ashen.pregens) }, 'player', pid); }
-  assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 4, 'not fitted before the game starts');
+  assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 3, 'not fitted before the game starts');
   act({ type: 'rules.run', starting: true });
   assert.ok(W.s.fight, 'the ambush starts the game');
-  assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 2, 'three 3rd-level heroes (fewer than the four written): two goblins fewer');
+  assert.equal(Object.values(W.s.foes).filter((f) => f.base === 'Iron Brand goblin').length, 2, 'three 3rd-level heroes (fewer than the four written): one goblin fewer');
 });
 
 test('the Ashen Crown bridge: the bridge burns each round and the captain runs at the end of round 2', () => {

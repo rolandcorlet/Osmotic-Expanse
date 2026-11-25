@@ -86,7 +86,7 @@ test('ten Sundermark heroes, each a valid build at 1st and 5th level', () => {
 test('a new game opens mid-ambush: the raiders are placed out of sight and the bridge clocks start', () => {
   const T = table();
   const foes = Object.values(T.s.foes);
-  assert.equal(foes.length, 5);
+  assert.equal(foes.length, 4); // three goblins and the captain (trimmed 26 Nov)
   assert.ok(foes.every((f) => f.hidden && f.siteId === 'highbridge'));
   assert.deepEqual(T.s.clocks.map((c) => [c.name, c.size, c.filled]), [['The burning bridge', 6, 0], ['The portcullis winch', 3, 0]]);
   const brief = briefing(T.s, adv, srd, { reason: 'the game begins' });

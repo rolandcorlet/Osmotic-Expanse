@@ -41,9 +41,9 @@ export default {
   sites: [
     // ------------------------------------------------------------------ Act I: Local heroes
     {
-      id: 'highbridge', name: 'Highbridge Gorge', region: 'The King\'s Way', level: 1,
+      id: 'highbridge', name: 'Highbridge Gorge', region: 'The King\'s Way', level: 1, deadly: true,
       read: 'A hundred-foot stone bridge in the rain, slick and narrow, over a whitewater gorge. The tollhouse at the near end is a bonfire of splintered beams. At the far end a rusted iron portcullis blocks the road, its winch house beside it. Wagons are slewed across the span, horses rearing; goblins in iron masks pour out of the pines behind you and a scarred captain crouches over the overturned lead wagon.',
-      notes: 'START HERE: the game opens mid-ambush. Reveal the raiders and start combat at once. The Iron Brand captain is prying the Iron Strongbox open; at the end of round 2 (or when below half hit points) the captain flees through the side postern gate with whatever it holds (monster_flees), leaving the four goblins to hold the bridge. Tick the burning bridge clock at the end of every round of the fight. When the raiders are beaten or surrender, the rain wins: the fire dies back, Halia\'s teamsters crank the gate up together (no roll needed once nobody is shooting at them), clear both clocks with the clock tool, and the wagons roll on toward Oakhurst. THREE METHODS: (A) fight across the bridge and break the rusted winch chain (AC 15, 15 hit points: tick the winch clock for every 5 damage) or crank it with a DC 14 Athletics check (fills it); (B) climb along the stone arches under the bridge (DC 12 Athletics or Acrobatics) to flank the winch house unseen and drop burning tollhouse beams on the raiders (2d6 fire to those beneath); (C) once the captain flees, the goblins are paid mercenaries, not fanatics: Command, Sleep or a DC 13 Intimidation makes them throw down their crossbows and talk. Halia Vance is wounded but fights on with her cane. THE THREE CLUES (found in the wreckage once the fight ends, any order): 1) a waterproof wax-sealed ledger page listing shipments of "Alchemical Blasting Oil" through Blackreed Watermill downriver, signed with the initial "B"; 2) the Iron Strongbox has a false bottom holding a rubbing of a burial plaque from the Sunken Barrow of Saint Vane, marking where the First Runic Keystone rests; 3) the goblins\' iron masks bear the fresh maker\'s stamp of the old Ironfang copper mine, three miles north in the crags. When they find each clue, add its quest: "Follow the ledger signed B to the Blackreed Mill.", "Find out why the Iron Brand wants the Sunken Barrow of Saint Vane.", "Find the forge that stamps the Iron Brand masks: the old Ironfang mine." Captured goblins can confirm any one of these. Oakhurst is one mile past the bridge.',
+      notes: 'START HERE: the game opens mid-ambush. Reveal the raiders and start combat at once. The Iron Brand captain is prying the Iron Strongbox open; at the end of round 2 (or when below half hit points) the captain flees through the side postern gate with whatever it holds (monster_flees), leaving the three goblins to hold the bridge. Tick the burning bridge clock at the end of every round of the fight. When the raiders are beaten or surrender, the rain wins: the fire dies back, Halia\'s teamsters crank the gate up together (no roll needed once nobody is shooting at them), clear both clocks with the clock tool, and the wagons roll on toward Oakhurst. THREE METHODS: (A) fight across the bridge and break the rusted winch chain (AC 15, 15 hit points: tick the winch clock for every 5 damage) or crank it with a DC 14 Athletics check (fills it); (B) climb along the stone arches under the bridge (DC 12 Athletics or Acrobatics) to flank the winch house unseen and drop burning tollhouse beams on the raiders (2d6 fire to those beneath); (C) once the captain flees, the goblins are paid mercenaries, not fanatics: Command, Sleep or a DC 13 Intimidation makes them throw down their crossbows and talk. Halia Vance is wounded but fights on with her cane. THE THREE CLUES (found in the wreckage once the fight ends, any order): 1) a waterproof wax-sealed ledger page listing shipments of "Alchemical Blasting Oil" through Blackreed Watermill downriver, signed with the initial "B"; 2) the Iron Strongbox has a false bottom holding a rubbing of a burial plaque from the Sunken Barrow of Saint Vane, marking where the First Runic Keystone rests; 3) the goblins\' iron masks bear the fresh maker\'s stamp of the old Ironfang copper mine, three miles north in the crags. When they find each clue, add its quest: "Follow the ledger signed B to the Blackreed Mill.", "Find out why the Iron Brand wants the Sunken Barrow of Saint Vane.", "Find the forge that stamps the Iron Brand masks: the old Ironfang mine." Captured goblins can confirm any one of these. Oakhurst is one mile past the bridge.',
       npcs: [
         { name: 'Halia Vance', who: 'the caravan master, a tough human veteran with a silver-topped cane and an arrow in her shoulder', voice: 'clipped orders over the noise, never panics', wants: 'the strongbox kept and every wagon over the bridge' },
         { name: 'Gex', who: 'a goblin raider in a branded iron mask, paid by the job', voice: 'whining, fast, bargains for his life', wants: 'to live, and to be paid by somebody' },
@@ -56,7 +56,7 @@ export default {
         { skill: 'perception', dc: 12, find: 'A wax-sealed ledger page lies in the mud where the captain knelt, signed "B".' },
       ],
       foes: [
-        { monster: 'goblin', count: 4, name: 'Iron Brand goblin', note: 'iron-masked mercenaries; surrender once the captain flees' },
+        { monster: 'goblin', count: 3, name: 'Iron Brand goblin', note: 'iron-masked mercenaries; surrender once the captain flees' },
         { monster: 'ac-iron-brand-captain', count: 1, name: 'Iron Brand captain', note: 'prying open the Iron Strongbox; flees at the end of round 2' },
       ],
       clocks: [
@@ -94,6 +94,8 @@ export default {
       treasure: 'Halia pays 50 gp for each node cleared. Father Lucan gives the party a vial of holy water and teaches them the dawn hymn.',
       rules: [
         { id: 'safe-in-oakhurst', when: 'enter', do: 'quest', quest: 'safely into oakhurst' },
+        // The prologue's milestone: the leads from the hub are written for 2nd-level characters (26 Nov).
+        { id: 'milestone', when: 'quest safely into oakhurst', do: 'xp', level: 2, say: 'The caravan is safe in Oakhurst: every character reaches 2nd level.' },
       ],
       exits: [
         { to: 'blackreed', label: 'downriver along the Silverrun to Blackreed Mill' },
@@ -129,9 +131,9 @@ export default {
       exits: [{ to: 'oakhurst', label: 'back upriver to Oakhurst' }, { to: 'thorne-keep', label: 'the secret drainage tunnel into the basement of Thorne Keep (with the map)' }],
     },
     {
-      id: 'barrow-crypt', name: 'The Sunken Barrow of Saint Vane: the upper crypt', region: 'The Greyfen Marsh', travelHours: 4, level: 2,
+      id: 'barrow-crypt', name: 'The Sunken Barrow of Saint Vane: the upper crypt', region: 'The Greyfen Marsh', travelHours: 4, level: 2, deadly: true,
       read: 'A half-drowned stone abbey rises from the reeds of the Greyfen, its bell tower leaning. Inside, the upper crypt is a forest of broken pillars. Torchlight and shouting: masked hobgoblins with picks and shields stand back to back around a robed woman, while yellowed skeletons and a hunched, grey-skinned thing close in on them from the burial niches.',
-      notes: 'NODE B (level 2-3). A three-way standoff: four Iron Brand hobgoblin excavators and the cult fanatic Sister Morwen against six skeletons and a ghoul. They are fighting each other when the party arrives; let them (deal_damage between the sides as it goes). THREE METHODS: divide and conquer (let the undead and the excavators wear each other down, then mop up); bluff or bargain with Sister Morwen for a temporary truce (DC 13 Deception or Persuasion: she wants the Keystone and will betray the party in the sanctum); or simply fight. A dying hobgoblin confesses that Bailiff Thorne is preparing to open Oakhurst\'s gates to a warband (clue). Sister Morwen carries ciphered orders from Lord Malakor Vane naming the locations of the Second and Third Keystones (DC 13 Investigation or Arcana to decipher: Karak-Tor and Starfall Spire). The way down to the inner sanctum is a flooded stair.',
+      notes: 'NODE B (level 2-3). A three-way standoff: the last Iron Brand hobgoblin excavator and the cult fanatic Sister Morwen against two skeletons and a ghoul (the rest of both sides already lie broken on the crypt floor). They are fighting each other when the party arrives; let them (deal_damage between the sides as it goes). THREE METHODS: divide and conquer (let the undead and the excavators wear each other down, then mop up); bluff or bargain with Sister Morwen for a temporary truce (DC 13 Deception or Persuasion: she wants the Keystone and will betray the party in the sanctum); or simply fight. A dying hobgoblin confesses that Bailiff Thorne is preparing to open Oakhurst\'s gates to a warband (clue). Sister Morwen carries ciphered orders from Lord Malakor Vane naming the locations of the Second and Third Keystones (DC 13 Investigation or Arcana to decipher: Karak-Tor and Starfall Spire). The way down to the inner sanctum is a flooded stair.',
       npcs: [
         { name: 'Sister Morwen', who: 'a cult fanatic of the Iron Brand, sent to dig out the First Keystone', voice: 'fervent, sing-song, calls Malakor "the Heir"', wants: 'the Keystone, and anyone she can use to get it' },
       ],
@@ -141,9 +143,9 @@ export default {
         { skill: 'medicine', dc: 10, find: 'A dying hobgoblin gasps that the bailiff will open Oakhurst\'s gates to a warband.' },
       ],
       foes: [
-        { monster: 'hobgoblin', count: 4, name: 'Iron Brand excavator', note: 'fighting the undead when the party arrives' },
+        { monster: 'hobgoblin', count: 1, name: 'Iron Brand excavator', note: 'fighting the undead when the party arrives' },
         { monster: 'cult-fanatic', count: 1, name: 'Sister Morwen', note: 'Iron Brand cultist; will bargain' },
-        { monster: 'skeleton', count: 6, name: 'Barrow skeleton', note: 'attack the living nearest them, of either side' },
+        { monster: 'skeleton', count: 2, name: 'Barrow skeleton', note: 'attack the living nearest them, of either side' },
         { monster: 'ghoul', count: 1, name: 'Barrow ghoul', note: 'feeds on the fallen' },
       ],
       treasure: 'Burial offerings in the niches: 40 gp in old coins and a silver sun-disc (25 gp). Morwen\'s ciphered orders.',
@@ -166,8 +168,8 @@ export default {
     },
     {
       id: 'ironfang', name: 'The Ironfang Goblin Foundry', region: 'The northern crags', travelHours: 2, level: 3,
-      read: 'An old terraced copper mine has become a war-foundry. A great brick furnace chimney belches black smoke over the crags; mine-cart tracks hang on trestles between the terraces, over vats of glowing slag. Goblins in chains haul ore under the whip of a huge bugbear, and an ogre sits on a pile of finished iron masks, eating.',
-      notes: 'NODE C (level 3). Taskmaster Kragg (a bugbear chief) runs it with a hired ogre and eight overworked goblins. The goblin shaman Snikt is locked in a punishment cage on the top terrace. THREE METHODS: goblin uprising (free Snikt, DC 12 Sleight of Hand or Athletics on the cage, then DC 12 Persuasion: Snikt rallies the eight goblins to revolt against Kragg and the ogre; the goblins then flee or fight on the party\'s side, so remove them with monster_flees and narrate them mobbing Kragg); demolition (alchemical blasting oil from the mill, or a DC 13 Investigation to find the cracked chimney flue, collapses the furnace chimney: 4d6 bludgeoning to everyone on the lower terrace, DC 13 Dexterity save for half); frontal assault across the suspended mine-cart tracks and slag vats (falling into a slag vat is 3d6 fire). Snikt is an NPC, not a monster: he becomes a friend in Oakhurst if freed. CLUES AND REWARDS: Torgga Ironvein\'s stolen Clan Anvil (add the quest "Return the Clan Anvil to Torgga Ironvein."), and an iron war-map showing the Iron Brand\'s muster camps across the valley and a red mark on Thorne Keep. ' + MILESTONE(4, 2700),
+      read: 'An old terraced copper mine has become a war-foundry. A great brick furnace chimney belches black smoke over the crags; mine-cart tracks hang on trestles between the terraces, over vats of glowing slag. Goblins in chains haul ore under the whip of a huge bugbear and his goblin whip-hand.',
+      notes: 'NODE C (level 3). Taskmaster Kragg (a bugbear chief) runs it with a goblin whip-hand, his overseer; eight overworked goblins in chains do the work and do not fight for him. The goblin shaman Snikt is locked in a punishment cage on the top terrace. THREE METHODS: goblin uprising (free Snikt, DC 12 Sleight of Hand or Athletics on the cage, then DC 12 Persuasion: Snikt rallies the eight chained goblins to revolt against Kragg: they mob him and drag his whip-hand down, so remove the whip-hand with monster_flees and narrate the mob); demolition (alchemical blasting oil from the mill, or a DC 13 Investigation to find the cracked chimney flue, collapses the furnace chimney: 4d6 bludgeoning to everyone on the lower terrace, DC 13 Dexterity save for half); frontal assault across the suspended mine-cart tracks and slag vats (falling into a slag vat is 3d6 fire). Snikt is an NPC, not a monster: he becomes a friend in Oakhurst if freed. CLUES AND REWARDS: Torgga Ironvein\'s stolen Clan Anvil (add the quest "Return the Clan Anvil to Torgga Ironvein."), and an iron war-map showing the Iron Brand\'s muster camps across the valley and a red mark on Thorne Keep. ' + MILESTONE(4, 2700),
       npcs: [
         { name: 'Snikt', who: 'a goblin shaman in a punishment cage, clever and bitter', voice: 'hoarse whisper, talks about himself in the third person', wants: 'out, and Kragg humbled' },
         { name: 'Taskmaster Kragg', who: 'a bugbear chief with a chain whip', voice: 'slow, heavy, amused by pain', wants: 'his quota of masks and blades for the Iron Brand' },
@@ -179,19 +181,17 @@ export default {
       ],
       foes: [
         { monster: 'ac-kragg', count: 1, name: 'Taskmaster Kragg', note: 'the foundry boss' },
-        { monster: 'ogre', count: 1, name: 'Hired ogre', note: 'paid in meat; flees if Kragg falls and the goblins turn' },
-        { monster: 'goblin', count: 8, name: 'Ironfang goblin', note: 'overworked slaves; revolt if Snikt rallies them' },
+        { monster: 'goblin', count: 1, name: 'Goblin whip-hand', note: 'Kragg\'s overseer; dragged down if Snikt\'s revolt starts' },
       ],
       treasure: 'Torgga\'s Clan Anvil (too heavy to carry far without a cart: the party can come back for it). The iron war-map. A chest with 80 gp and a Potion of Healing.',
       rules: [
-        { id: 'ogre-quits', when: 'down', who: 'Taskmaster Kragg', do: 'flee', target: 'Hired ogre', say: 'With Kragg down, the hired ogre wants no more of it and lumbers off.' },
         { id: 'foundry-stopped', when: 'cleared', do: 'quest', quest: 'ironfang' },
         { id: 'milestone', when: 'quest ironfang', do: 'xp', level: 4 },
       ],
       exits: [{ to: 'oakhurst', label: 'down from the crags to Oakhurst' }],
     },
     {
-      id: 'thorne-keep', name: 'Thorne Keep', region: 'Oakhurst', travelHours: 0.2, level: 4,
+      id: 'thorne-keep', name: 'Thorne Keep', region: 'Oakhurst', travelHours: 0.2, level: 4, deadly: true,
       read: 'Storm clouds boil over Oakhurst. Thorne Keep\'s gates are barred, torches move on the battlements, and through the rain you glimpse red-scaled shapes among the bailiff\'s guards: the Iron Brand is inside.',
       notes: 'NODE D, the Act I climax (level 4): the Night of Iron and Fire. Bailiff Cedric Thorne has locked himself in with his house guards and an Iron Brand strike team under Wyrm-Captain Drazhul, a half-red dragon veteran. THREE METHODS: rally the town (present the proof of Thorne\'s treason to Halia Vance: the town militia storms the front gates beside the party, which takes the house guards out of the fight; narrate the militia and remove the guards with monster_flees as the militia carries them off); sewer infiltration (the drainage tunnel map from the mill: DC 12 Stealth to come up in the keep\'s vault, behind the defenders); a rooftop duel (confront Drazhul on the storm-lashed battlements; Drazhul honours a one-on-one challenge, DC 14 Intimidation or Persuasion, and his soldiers stand back). Thorne begs, bribes (200 gp and the keep\'s deeds) and blames Malakor; he knows Malakor\'s name and that the Iron Brand gathers at Cinderhelm. REWARD: the town deeds Thorne Keep to the party as their home base, and the Act I story is done. ' + MILESTONE(5, 6500) + ' Then Halia sends word to Brindol: Act II begins.',
       npcs: [
@@ -205,8 +205,8 @@ export default {
       ],
       foes: [
         { monster: 'half-red-dragon-veteran', count: 1, name: 'Wyrm-Captain Drazhul', note: 'leads the strike team' },
-        { monster: 'hobgoblin', count: 3, name: 'Iron Brand soldier', note: 'Drazhul\'s strike team' },
-        { monster: 'guard', count: 4, name: 'Thorne\'s house guard', note: 'loyal to their pay; surrender to the militia' },
+        { monster: 'hobgoblin', count: 2, name: 'Iron Brand soldier', note: 'Drazhul\'s strike team' },
+        { monster: 'guard', count: 2, name: 'Thorne\'s house guard', note: 'loyal to their pay; surrender to the militia' },
         { monster: 'noble', count: 1, name: 'Bailiff Cedric Thorne', note: 'hides in the vault; surrenders when cornered' },
       ],
       treasure: 'The deeds to Thorne Keep. Thorne\'s strongroom: 300 gp, a silver signet ring (50 gp), a Potion of Healing, and Malakor\'s letter naming Cinderhelm.',
@@ -241,9 +241,9 @@ export default {
       ],
     },
     {
-      id: 'karak-tor', name: 'The Dwarven Vault of Karak-Tor', region: 'The Ironvein mountains', travelHours: 12, level: 5,
+      id: 'karak-tor', name: 'The Dwarven Vault of Karak-Tor', region: 'The Ironvein mountains', travelHours: 12, level: 5, deadly: true,
       read: 'A vast dwarven hall carved from black basalt, lit red by a river of magma behind a runic seal. A clanking drill-rig, hauled by a snorting iron-scaled beast, gnaws at the seal; grey-skinned dwarves shout orders over the din, while at the far end Thane Durgan\'s kin are pinned behind an overturned ore-cart.',
-      notes: 'NODE E1 (levels 5-6). Vorgath the Earth-Shaker, Malakor\'s duergar sapper chief, drives a gorgon-hauled drill-rig at the magma-sealed vault that holds the Second Keystone. Four duergar sappers. THREE METHODS: reactivate the ancient dwarven steam-cannons (DC 14 Arcana or Athletics, two successes: each blast is 4d10 bludgeoning to the drill-rig and those by it); solve the runic weight-scale puzzle (DC 15 Investigation or History) to drop Vorgath\'s camp into the lava cistern (everyone in the camp makes a DC 15 Dexterity save or takes 6d10 fire); or bribe the underpaid duergar mercenaries with 500 gp from the vault\'s treasury (DC 13 Persuasion: the duergar walk away, use monster_flees). The Second Runic Keystone is behind the seal. Thane Durgan becomes a firm ally. ' + MILESTONE(6, 14000),
+      notes: 'NODE E1 (levels 5-6). Vorgath the Earth-Shaker, Malakor\'s duergar sapper chief, drives a gorgon-hauled drill-rig at the magma-sealed vault that holds the Second Keystone. Four duergar sappers. The gorgon is yoked to the rig and does not fight: if the rig is wrecked it tears free and bolts into the dark (narrate it). THREE METHODS: reactivate the ancient dwarven steam-cannons (DC 14 Arcana or Athletics, two successes: each blast is 4d10 bludgeoning to the drill-rig and those by it); solve the runic weight-scale puzzle (DC 15 Investigation or History) to drop Vorgath\'s camp into the lava cistern (everyone in the camp makes a DC 15 Dexterity save or takes 6d10 fire); or bribe the underpaid duergar mercenaries with 500 gp from the vault\'s treasury (DC 13 Persuasion: the duergar walk away, use monster_flees). The Second Runic Keystone is behind the seal. Thane Durgan becomes a firm ally. ' + MILESTONE(6, 14000),
       npcs: [{ name: 'Vorgath the Earth-Shaker', who: 'a duergar warlord and siege engineer', voice: 'gravel and sneers', wants: 'the Keystone, and his pay, in that order' }],
       checks: [
         { skill: 'arcana', dc: 14, find: 'The steam-cannons wake: the runes glow and the boilers hiss.' },
@@ -252,7 +252,6 @@ export default {
       ],
       foes: [
         { monster: 'ac-vorgath', count: 1, name: 'Vorgath the Earth-Shaker', note: 'the sapper chief' },
-        { monster: 'gorgon', count: 1, name: 'Drill-rig gorgon', note: 'yoked to the drill-rig' },
         { monster: 'duergar', count: 4, name: 'Duergar sapper', note: 'underpaid mercenaries; can be bribed' },
       ],
       treasure: 'The Second Runic Keystone. The vault treasury: 1,200 gp, a Potion of Greater Healing, and rune-forged dwarven armour promised for Act III.',
@@ -264,7 +263,7 @@ export default {
     {
       id: 'starfall', name: 'Starfall Spire', region: 'The crystal mountain', travelHours: 14, level: 6,
       read: 'A tower of crystal and silver rises from a mountain peak, linked to lesser spires by bridges of glass over the clouds. Green mist coils around its crown, and a voice like rustling leaves calls down from above: "Visitors. How... delightful."',
-      notes: 'NODE E2 (levels 6-7). Venyx the Whisperer, a young green dragon and Malakor\'s ally, holds Archmage Selari\'s apprentices hostage with three Iron Brand battle-mages. The Third Keystone is in the observatory dome. THREE METHODS: play to the dragon\'s vanity and paranoia by showing intercepted letters proving Malakor means to betray him (DC 15 Deception or Persuasion, advantage with the letters from Thorne\'s strongroom or Morwen\'s orders): Venyx abandons the mages, or turns on them; sneak in through the giant eagle rookery (DC 14 Stealth) to free the hostages; or battle across the glass sky-bridges (a creature knocked prone on a bridge makes a DC 13 Dexterity save or slides off, 6d6 falling damage onto a lower bridge). ' + MILESTONE(7, 23000),
+      notes: 'NODE E2 (levels 6-7). Venyx the Whisperer, a young green dragon and Malakor\'s ally, holds Archmage Selari\'s apprentices hostage with three Iron Brand battle-mages, who guard the hostages in the observatory dome and give up once Venyx falls or turns (narrate it; if the party fights them there, add_monsters mage). The Third Keystone is in the observatory dome. THREE METHODS: play to the dragon\'s vanity and paranoia by showing intercepted letters proving Malakor means to betray him (DC 15 Deception or Persuasion, advantage with the letters from Thorne\'s strongroom or Morwen\'s orders): Venyx abandons the mages, or turns on them; sneak in through the giant eagle rookery (DC 14 Stealth) to free the hostages; or battle across the glass sky-bridges (a creature knocked prone on a bridge makes a DC 13 Dexterity save or slides off, 6d6 falling damage onto a lower bridge). ' + MILESTONE(7, 23000),
       npcs: [{ name: 'Venyx the Whisperer', who: 'a young green dragon, vain and suspicious', voice: 'silky, amused, every sentence a little trap', wants: 'to be flattered, and never to be anyone\'s pawn' }],
       checks: [
         { skill: 'deception', dc: 15, find: 'Venyx believes Malakor means to betray him, and turns his poison on the mages.' },
@@ -272,7 +271,6 @@ export default {
       ],
       foes: [
         { monster: 'young-green-dragon', count: 1, name: 'Venyx the Whisperer', note: 'vain and paranoid; can be turned' },
-        { monster: 'mage', count: 3, name: 'Iron Brand battle-mage', note: 'guard the hostages' },
       ],
       treasure: 'The Third Runic Keystone. Selari\'s thanks: griffon mounts for Act III, and a Wand of Magic Missiles.',
       rules: [
@@ -301,14 +299,14 @@ export default {
       exits: [{ to: 'brindol', label: 'out of the bog, back to Brindol' }],
     },
     {
-      id: 'brindol-gates', name: 'The Battle of Brindol\'s Gates', region: 'Brindol', travelHours: 0, level: 8,
+      id: 'brindol-gates', name: 'The Battle of Brindol\'s Gates', region: 'Brindol', travelHours: 0, level: 8, deadly: true,
       read: 'Night, fire and drums. Wyverns scream over Brindol\'s walls with riders on their backs, two hill giants batter the great gate with an iron-shod ram, and inside the walls a cry goes up: "The captain of the gate is not the captain!"',
-      notes: 'NODE E4 (level 8): Malakor\'s diversionary night assault. Wyvern riders over the walls, hill giants at the gate, doppelganger saboteurs inside. Every ally the party made in Acts I and II arrives to fight beside them: Halia and the Oakhurst militia, Torgga with the +1 weapons, Snikt and his goblins, Clan Ironvein\'s engineers, Selari\'s griffons, Lady Jarmaath\'s knights. Narrate the allies taking on the rest of the army; the party\'s fight is the heroes\' part of the battle. THREE METHODS: hold the gate against the giants; hunt the doppelgangers (DC 14 Insight unmasks one); take the fight to the wyverns from the towers. ' + MILESTONE(9, 48000) + ' Afterwards Lady Jarmaath gives the party command of the march on Cinderhelm: add the quests "Stop Lord Malakor Vane before he takes the Ashen Crown." and "Destroy the Ashen Crown on the Runic Anvil."',
+      notes: 'NODE E4 (level 8): Malakor\'s diversionary night assault. Wyvern riders over the walls, hill giants at the gate, doppelganger saboteurs inside. Every ally the party made in Acts I and II arrives to fight beside them: Halia and the Oakhurst militia, Torgga with the +1 weapons, Snikt and his goblins, Clan Ironvein\'s engineers, Selari\'s griffons, Lady Jarmaath\'s knights. Narrate the allies taking on the rest of the army; the party\'s fight is the heroes\' part of the battle: one wyvern rider, one hill giant at the gate and one doppelganger. THREE METHODS: hold the gate against the giants; hunt the doppelgangers (DC 14 Insight unmasks one); take the fight to the wyverns from the towers. ' + MILESTONE(9, 48000) + ' Afterwards Lady Jarmaath gives the party command of the march on Cinderhelm: add the quests "Stop Lord Malakor Vane before he takes the Ashen Crown." and "Destroy the Ashen Crown on the Runic Anvil."',
       checks: [{ skill: 'insight', dc: 14, find: 'The captain of the gate blinks wrong: a doppelganger.' }],
       foes: [
-        { monster: 'wyvern', count: 2, name: 'Iron Brand wyvern', note: 'ridden by Iron Brand lancers' },
-        { monster: 'hill-giant', count: 2, name: 'Hill giant', note: 'battering the gate' },
-        { monster: 'doppelganger', count: 3, name: 'Doppelganger saboteur', note: 'disguised as Brindol\'s officers' },
+        { monster: 'wyvern', count: 1, name: 'Iron Brand wyvern', note: 'ridden by Iron Brand lancers' },
+        { monster: 'hill-giant', count: 1, name: 'Hill giant', note: 'battering the gate' },
+        { monster: 'doppelganger', count: 1, name: 'Doppelganger saboteur', note: 'disguised as Brindol\'s officers' },
       ],
       treasure: 'The thanks of Brindol: 1,000 gp, and a +1 shield or +1 armour from the Council armoury.',
       rules: [
@@ -326,7 +324,7 @@ export default {
       exits: [{ to: 'coronation', label: 'down into the vault of the Ashen Crown' }, { to: 'brindol', label: 'back south to Brindol' }],
     },
     {
-      id: 'coronation', name: 'The Coronation of Ash', region: 'Cinderhelm', travelHours: 1, level: 10,
+      id: 'coronation', name: 'The Coronation of Ash', region: 'Cinderhelm', travelHours: 1, level: 10, deadly: true,
       read: 'A circular forge-cathedral hangs over a lake of magma on four colossal iron chains, each wrapped in glowing runes. At its heart stands the great Runic Anvil of Cinderhelm. Before it, in black plate and red scales, Lord Malakor Vane lifts a crown of grey ash toward his brow, and fire swirls around him like a cloak.',
       notes: 'THE FINAL BATTLE (level 10). PHASE 1: Lord Malakor Vane, a half-red dragon warlord with legendary actions, wreathed in a fire shield while any of the four runic suspension chains stands. Each chain is AC 19 with 30 hit points, or a DC 18 Strength check with a tool or a 5th-level spell breaks one: tick the chains clock each time; when it is full the fire shield drops. PHASE 2: when Malakor drops to 0 hit points the Ashen Crown fuses to his brow. Remove him (monster_flees, narrated as the transformation) and add_monsters ac-ash-avatar named "Malakor, Avatar of the Ash-King". If the quest "Taint the Blood-Ash Elixir." is done, the Crown sears him: deal_damage 45 to the Avatar at once and add the stunned condition until the end of its first turn, and from the start Malakor has disadvantage on his saves and 50 fewer hit points (deal_damage 50 to him before the fight). VICTORY: the Crown can only be destroyed by plunging it onto the Runic Anvil and striking it with Torgga\'s warhammer or a 5th-level spell. Ending: the Ash-King\'s soul screams into the magma and Cinderhelm falls silent.',
       npcs: [{ name: 'Lord Malakor Vane', who: 'the half-dragon warlord of the Iron Brand, a fallen knight', voice: 'cold, patient, contemptuous; speaks of destiny', wants: 'the Crown on his brow and the valley at his feet' }],

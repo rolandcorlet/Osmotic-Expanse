@@ -231,6 +231,15 @@ export function createDirector({ getState, commit, act = null, memory = null, ad
   }
 
   return {
+    // One question to the AI set up here, with no tools and no history, whether or not the Director is
+    // running: the Books tab's converter (brain/convert.js).
+    aiReady: () => usable() && !!modelOf(),
+    aiName: () => (usable() && modelOf() ? `${info().name}: ${modelOf()}` : ''),
+    async ask(system, user) {
+      const p = makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx, thinking: 'off' });
+      const reply = await p.start({ system, tools: [] }).send(user);
+      return reply.text;
+    },
     // Called by the server after a player does something the Director should answer.
     playerActed(reason) {
       if (!ready()) return;

@@ -145,6 +145,23 @@ by the same code when the Engine loads it, and the adventure checker warns about
 Importing your books makes the library's engine version too. The SRD's engine version reads all of it:
 81 damaging spells, 148 multiattacks, 72 saves after a hit, 36 spellcasters, nothing left over.
 
+### The Books tab: paste a book or a campaign
+
+On the DM screen, **Books** converts what you paste or add as a file (text, Markdown or JSON):
+- **Monster stat blocks and spells** in the usual 5e layout are read at once by the book reader, with no AI;
+  anything in another layout is read by the AI chosen on the Director tab.
+- **Rules text** (a chapter of a core rulebook, house rules) is cut into sections by its headings, for the
+  Director's rules look-ups.
+- **A whole campaign** is written up by the AI as an adventure, place by place (its own stat blocks read by
+  the book reader), then checked by the adventure checker, with its problems sent back once.
+- **Engine-ready JSON** (monsters, spells, or an adventure) is read as it is.
+
+Before anything is saved you see each entry with its words beside what the Engine will use, and what could
+not be read. Saving puts a book in `library/converted/<name>/` (the words you pasted, the book, its engine
+version and its gaps) and it joins the rules at once; a campaign goes to `library/adventures/` and joins
+the adventure list (start it from **Saves → New game**). **Your books** lists everything the Engine reads.
+Removing a converted book sets it aside in `library/converted/_removed/`. All of it stays on your computer.
+
 ## The book library (private)
 
 If you own the Player's Handbook, Monster Manual and Dungeon Master's Guide as text files, the

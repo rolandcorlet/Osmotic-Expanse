@@ -1,0 +1,521 @@
+// The converter behind the DM's Books tab: what you paste (a monster book, spells, a chapter of rules,
+// a campaign) becomes data the Engine can use, beside the words you pasted, which are kept unchanged.
+//
+//   1. What is it? sniffKind() guesses: stat blocks, spells, rules text, a campaign, or engine-ready JSON.
+//   2. The book reader reads standard 5e layouts at once, with no AI (readStatBlocks, readSpells, readRules).
+//   3. The AI from the Director tab reads what the reader could not (aiReadEntries), and writes a whole
+//      campaign as an adventure, place by place, checked by the adventure checker (aiCampaign).
+//   4. The book compiler (engine/book.js) turns the words into the Engine's numbers; summarise() lists,
+//      entry by entry, what was read and what was not, for the DM to see before saving.
+//   5. Saved books go to library/converted/<id>/ (the original words, the book, its engine version and
+//      its gaps), saved campaigns to library/adventures/. Both are private and load at start-up.
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, renameSync } from 'node:fs';
+import { join } from 'node:path';
+import * as BOOK from '../engine/book.js';
+import { checkAdventure } from '../engine/check.js';
+
+export const KINDS = [
+  ['auto', 'Work it out'],
+  ['monsters', 'Monsters (stat blocks)'],
+  ['spells', 'Spells'],
+  ['rules', 'Rules text'],
+  ['campaign', 'A campaign or adventure'],
+  ['json', 'Engine-ready data (JSON)'],
+];
+const KIND_IDS = KINDS.map(([k]) => k);
+export const MAX_PASTE = 4_000_000; // characters: a whole book
+
+export const slug = (t) => String(t || '').toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60) || 'untitled';
+const clean = (t) => String(t || '').replace(/\r/g, '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[−–—]/g, (c) => (c === '—' ? '—' : '-')).replace(/ /g, ' ');
+const SIZES = 'Tiny|Small|Medium|Large|Huge|Gargantuan';
+const ABN = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
+const ABS = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+const CR_XP = { 0: 10, 0.125: 25, 0.25: 50, 0.5: 100, 1: 200, 2: 450, 3: 700, 4: 1100, 5: 1800, 6: 2300, 7: 2900, 8: 3900, 9: 5000, 10: 5900, 11: 7200, 12: 8400, 13: 10000, 14: 11500, 15: 13000, 16: 15000, 17: 18000, 18: 20000, 19: 22000, 20: 25000, 21: 33000, 22: 41000, 23: 50000, 24: 62000, 25: 75000, 26: 90000, 27: 105000, 28: 120000, 29: 135000, 30: 155000 };
+const crNum = (t) => { const s = String(t || '').trim(); if (/^\d+\/\d+$/.test(s)) { const [a, b] = s.split('/').map(Number); return a / b; } return Number(s) || 0; };
+const pbOf = (cr) => (cr < 5 ? 2 : cr < 9 ? 3 : cr < 13 ? 4 : cr < 17 ? 5 : cr < 21 ? 6 : cr < 25 ? 7 : cr < 29 ? 8 : 9);
+
+// ---- 1. what is it ------------------------------------------------------------------------------
+export function sniffKind(text) {
+  const t = clean(text).trim();
+  if (/^[[{]/.test(t)) { try { JSON.parse(t); return { kind: 'json', why: 'it is JSON' }; } catch { /* not JSON after all */ } }
+  const count = (rx) => (t.match(rx) || []).length;
+  const blocks = Math.min(count(/^\s*Armou?r Class\b/gim), count(/^\s*Hit Points\b/gim));
+  const spells = count(/^\s*Casting Time\s*:/gim);
+  const story = count(/\b(read aloud|the characters|the party|Dungeon Master|DM\b|chapter \d|part \d|encounter|adventure hook|quest)\b/gi);
+  const places = count(/^\s*(?:[A-Z]?\d{1,2}[a-z]?\.|Area \d+)\s+[A-Z]/gm);
+  if (t.length > 1500 && story >= 6 && (story + places * 2) * 1500 > t.length * (blocks + spells > 0 ? 0.6 : 0.3)) return { kind: 'campaign', why: `it reads like an adventure (${story} mentions of the party, encounters, chapters)` };
+  if (blocks && blocks >= spells) return { kind: 'monsters', why: `${blocks} stat block${blocks > 1 ? 's' : ''} (Armor Class and Hit Points)` };
+  if (spells) return { kind: 'spells', why: `${spells} spell${spells > 1 ? 's' : ''} (Casting Time)` };
+  return { kind: 'rules', why: 'plain rules text' };
+}
+
+// ---- 2. the book reader: stat blocks -----------------------------------------------------------
+// The standard 5e layout, as copied from a PDF or a web page: a name, "Medium fey, neutral evil", Armor
+// Class, Hit Points, Speed, the six scores, the lines after them, then traits, Actions, Bonus Actions,
+// Reactions and Legendary Actions, each entry "Name. What it does."
+export function readStatBlocks(text, { prefix = '', taken = new Set() } = {}) {
+  const L = clean(text).split('\n').map((x) => x.trim());
+  const starts = [];
+  for (let i = 0; i < L.length; i++) {
+    if (!new RegExp(`^(${SIZES})\\b[^,]*,`, 'i').test(L[i])) continue;
+    let k = i - 1;
+    while (k >= 0 && !L[k]) k--;
+    if (k < 0 || L[k].length > 60 || /[.:]$/.test(L[k])) continue;
+    if (L.slice(i, i + 6).some((x) => /^Armou?r Class\b/i.test(x))) starts.push({ name: k, size: i });
+  }
+  // A block also ends where something else begins: a spell ("Frost Lance / 2nd-level evocation /
+  // Casting Time"), or a heading.
+  const stops = [];
+  for (let i = 1; i < L.length; i++) {
+    if (/^(?:\d(?:st|nd|rd|th)[- ]level\s+\w+|\w+\s+cantrip)(\s*\(ritual\))?$/i.test(L[i]) && L.slice(i, i + 4).some((x) => /^Casting Time\s*:/i.test(x))) stops.push(i - 1);
+    if (/^#{1,4}\s/.test(L[i])) stops.push(i);
+  }
+  const monsters = [];
+  const leftovers = [];
+  starts.forEach((s, n) => {
+    const end = Math.min(n + 1 < starts.length ? starts[n + 1].name : L.length, ...stops.filter((x) => x > s.size));
+    const lines = L.slice(s.size, end).filter(Boolean);
+    const m = statBlock(L[s.name], lines);
+    if (!m) { leftovers.push([L[s.name], ...lines].join('\n')); return; }
+    let id = slug(m.name);
+    if (taken.has(id)) id = `${prefix || 'x'}-${id}`;
+    taken.add(id);
+    m.id = id;
+    m.words = [L[s.name], ...lines].join('\n');
+    monsters.push(m);
+  });
+  if (!starts.length && /Armou?r Class/i.test(text)) leftovers.push(clean(text));
+  return { monsters, leftovers };
+}
+
+function statBlock(name, lines) {
+  const head = /^(Tiny|Small|Medium|Large|Huge|Gargantuan)\s+([^,(]+?)(?:\s*\(([^)]*)\))?\s*,\s*(.+)$/i.exec(lines[0]);
+  if (!head) return null;
+  const all = lines.join('\n');
+  const grab = (rx) => { const x = rx.exec(all); return x ? x[1].trim() : ''; };
+  const ac = /Armou?r Class\s+(\d+)(?:\s*\(([^)]*)\))?/i.exec(all);
+  const hp = /Hit Points\s+(\d+)(?:\s*\(([^)]*)\))?/i.exec(all);
+  if (!ac || !hp) return null;
+  // The six scores: "16 (+3) 12 (+1) ..." after STR DEX CON..., on one line or six.
+  const scoreStart = all.search(/\bSTR\b/);
+  const scores = [...all.slice(Math.max(0, scoreStart)).matchAll(/(\d{1,2})\s*\(\s*[+-]?\s*\d+\s*\)/g)].slice(0, 6).map((x) => Number(x[1]));
+  const crm = /Challenge\s+([\d/]+)(?:\s*\(([\d,]+)\s*XP\))?/i.exec(all);
+  const cr = crm ? crNum(crm[1]) : 0;
+  const pbm = /Proficiency Bonus\s*\+?(\d+)/i.exec(all);
+  const listOf = (label) => grab(new RegExp(`^${label}\\s+(.+)$`, 'im')).split(/[;,]\s*/).map((x) => x.trim().toLowerCase()).filter(Boolean);
+  const bonuses = (label) => Object.fromEntries(grab(new RegExp(`^${label}\\s+(.+)$`, 'im')).split(/,\s*/).map((x) => /^([A-Za-z ]+?)\s*([+-]\d+)/.exec(x.trim())).filter(Boolean).map((x) => [x[1].trim(), Number(x[2])]));
+  const saves = Object.fromEntries(Object.entries(bonuses('Saving Throws')).map(([k, v]) => [k.slice(0, 3).toLowerCase(), v]).filter(([k]) => ABS.includes(k)));
+  // Sections: traits first, then each heading's entries.
+  const out = {
+    name: name.replace(/\s+/g, ' ').trim(), size: head[1][0].toUpperCase() + head[1].slice(1).toLowerCase(), type: head[2].trim().toLowerCase(), sub: (head[3] || '').trim(),
+    align: head[4].trim(), ac: Number(ac[1]), acNote: (ac[2] || '').trim(), hp: Number(hp[1]), hd: (hp[2] || '').replace(/\s+/g, ''),
+    speed: grab(/^Speed\s+(.+)$/im), ab: scores.length === 6 ? scores : [10, 10, 10, 10, 10, 10], saves, skills: bonuses('Skills'),
+    vuln: listOf('Damage Vulnerabilities'), res: listOf('Damage Resistances'), imm: listOf('Damage Immunities'), cimm: listOf('Condition Immunities'),
+    senses: grab(/^Senses\s+(.+)$/im), lang: grab(/^Languages\s+(.+)$/im) || '-', cr, xp: crm && crm[2] ? Number(crm[2].replace(/,/g, '')) : CR_XP[cr] || 0, pb: pbm ? Number(pbm[1]) : pbOf(cr),
+    traits: [], actions: [],
+  };
+  const statLine = /^(Armou?r Class|Hit Points|Speed|STR\b|DEX\b|CON\b|INT\b|WIS\b|CHA\b|Saving Throws|Skills|Damage|Condition Immunities|Senses|Languages|Challenge|Proficiency Bonus|\d{1,2}\s*\()/i;
+  const HEAD = /^(Actions|Bonus Actions|Reactions|Legendary Actions|Mythic Actions|Lair Actions)\s*$/i;
+  let sec = 'traits';
+  let cur = null;
+  let pastStats = false;
+  for (const line of lines.slice(1)) {
+    if (!pastStats) { if (/^Challenge\b|^Proficiency Bonus\b/i.test(line)) { pastStats = true; continue; } if (statLine.test(line)) continue; }
+    const h = HEAD.exec(line);
+    if (h) {
+      const w = h[1].toLowerCase();
+      sec = w.startsWith('bonus') ? 'actions' : w.startsWith('reaction') ? 'reactions' : w.startsWith('legendary') || w.startsWith('mythic') ? 'legendary' : w.startsWith('lair') ? 'lair' : 'actions';
+      cur = null;
+      pastStats = true;
+      continue;
+    }
+    // "Claw. Melee Weapon Attack..." or "Fire Breath (Recharge 5-6). ..." starts an entry; anything else continues one.
+    const e = /^([A-Z][\w'’ ,/-]{0,50}?(?:\s*\([^)]{1,40}\))?)\.\s+(.+)$/.exec(line);
+    if (e && e[1].split(/\s+/).length <= 8 && !/^(Hit|Each|The|If|On|At|When|This|It|A|An)$/.test(e[1])) {
+      pastStats = true;
+      if (sec === 'lair') continue;
+      const use = /\((Recharge [\d-]+|Recharges after [^)]*|\d+\/Day(?: each)?|Costs \d+ Actions)\)/i.exec(e[1]);
+      cur = { n: e[1].replace(/\s*\((?:Recharge|Recharges|\d+\/Day|Costs)[^)]*\)/i, '').trim(), d: e[2].trim() };
+      if (use) cur.use = use[1].replace(/Day/i, 'day').replace(/Recharge (\d)-6/i, 'Recharge $1-6');
+      if (/Spellcasting/i.test(cur.n) && use && !/Recharge/i.test(use[1])) cur.n = `${cur.n} (${use[1]})`;
+      // "Breath Weapons (Recharge 5-6). The dragon uses one of the following breath weapons." The options
+      // that follow are actions of their own, sharing its recharge.
+      const prev = (out[sec] || []).slice().reverse().find((x) => /one of the following/i.test(x.d) && !x.of);
+      if (prev && !cur.use && /one of the following/i.test(prev.d) && (out[sec] || []).indexOf(prev) >= (out[sec] || []).length - 3) { cur.of = prev.n; if (prev.use) cur.use = prev.use; }
+      (out[sec] = out[sec] || []).push(cur);
+    } else if (cur) {
+      cur.d += /^(?:-|•|Cantrips|\d(?:st|nd|rd|th) level|At will|\d+\/day)/i.test(line) ? `\n${line.replace(/^[•-]\s*/, '')}` : ` ${line}`;
+    } else if (sec === 'legendary' && !cur) {
+      // the paragraph before the legendary options
+    }
+  }
+  if (out.legendary && !out.legendary.length) delete out.legendary;
+  return out;
+}
+
+// ---- the book reader: spells -------------------------------------------------------------------
+// "Frost Lance / 2nd-level evocation / Casting Time: 1 action / Range / Components / Duration / words /
+// At Higher Levels. ..."
+export function readSpells(text, { prefix = '', taken = new Set() } = {}) {
+  const L = clean(text).split('\n').map((x) => x.trim());
+  const LEVEL = /^(?:(\d)(?:st|nd|rd|th)[- ]level\s+(\w+)|(\w+)\s+cantrip)(\s*\(ritual\))?\s*$/i;
+  const starts = [];
+  for (let i = 1; i < L.length; i++) if (LEVEL.test(L[i]) && L[i - 1] && L.slice(i, i + 4).some((x) => /^Casting Time\s*:/i.test(x))) starts.push(i - 1);
+  const spells = [];
+  starts.forEach((s, n) => {
+    const lines = L.slice(s, n + 1 < starts.length ? starts[n + 1] : L.length);
+    const lv = LEVEL.exec(lines[1]);
+    const get = (label) => { const x = lines.find((y) => new RegExp(`^${label}\\s*:`, 'i').test(y)); return x ? x.replace(/^[^:]*:\s*/, '').trim() : ''; };
+    const body = lines.slice(2).filter((x) => x && !/^(Casting Time|Range|Components|Duration|Classes)\s*:/i.test(x));
+    const words = body.join('\n');
+    const hi = words.search(/At Higher Levels\.?/i);
+    const comp = get('Components');
+    const dur = get('Duration');
+    let id = slug(lines[0]);
+    if (taken.has(id)) id = `${prefix || 'x'}-${id}`;
+    taken.add(id);
+    spells.push({
+      id, name: lines[0], level: lv[1] ? Number(lv[1]) : 0, school: (lv[2] || lv[3] || '').replace(/^\w/, (c) => c.toUpperCase()),
+      time: get('Casting Time'), range: get('Range'), comp: (comp.match(/\b[VSM]\b/g) || []).join(''), mat: (/\(([^)]*)\)/.exec(comp) || [0, ''])[1],
+      dur: dur.replace(/^Concentration,\s*/i, '').replace(/^up to/i, 'Up to'), conc: /concentration/i.test(dur), ritual: !!lv[4],
+      classes: get('Classes').split(/,\s*/).map((x) => x.toLowerCase()).filter(Boolean),
+      desc: (hi >= 0 ? words.slice(0, hi) : words).replace(/\n(?=[a-z])/g, ' ').trim(), higher: hi >= 0 ? words.slice(hi).replace(/^At Higher Levels\.?\s*/i, '').trim() : '',
+      words: lines.join('\n'),
+    });
+  });
+  return { spells, leftovers: [] };
+}
+
+// ---- the book reader: rules text ---------------------------------------------------------------
+// Sections by their headings ("# Combat", "CHAPTER 9: COMBAT", a short Title Case line on its own), for
+// the Director's look_up_rules, cited by book.
+export function readRules(text, book) {
+  const L = clean(text).split('\n');
+  const out = [];
+  let cur = null;
+  const push = () => {
+    if (!cur) return;
+    const t = cur.lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (t.length < 40) return;
+    for (let k = 0, part = 0; k < t.length; k += 2400, part++) out.push({ id: `${slug(book)}-${out.length + 1}`, name: `${cur.name}${part ? ` (${part + 1})` : ''}`, book, page: 0, text: t.slice(k, k + 2600) });
+  };
+  const isHead = (line, next) => {
+    const s = line.trim();
+    if (/^#{1,4}\s+\S/.test(s)) return s.replace(/^#+\s*/, '');
+    if (s.length < 3 || s.length > 60 || /[.,;:!?]$/.test(s) || /^\d+$/.test(s)) return '';
+    const words = s.split(/\s+/);
+    const caps = words.filter((w) => /^[A-Z0-9(]/.test(w)).length;
+    if ((s === s.toUpperCase() && /[A-Z]{3}/.test(s)) || (caps >= Math.ceil(words.length * 0.7) && words.length <= 8 && next && next.trim().length > 60)) return s;
+    return '';
+  };
+  L.forEach((line, i) => {
+    const h = isHead(line, L[i + 1]);
+    if (h) { push(); cur = { name: h.replace(/\b\w+/g, (w) => (w === w.toUpperCase() && w.length > 3 ? w[0] + w.slice(1).toLowerCase() : w)), lines: [] }; return; }
+    if (!cur) cur = { name: book, lines: [] };
+    cur.lines.push(line);
+  });
+  push();
+  return out;
+}
+
+// ---- engine-ready JSON ---------------------------------------------------------------------------
+// A book in the SRD's shape ({ spells, monsters, rules }), a list of monsters or spells, or an adventure.
+export function readJson(text) {
+  const x = JSON.parse(clean(text).trim());
+  if (Array.isArray(x)) {
+    if (x.every((e) => e && (e.ac != null || e.actions))) return { monsters: x };
+    if (x.every((e) => e && (e.level != null && (e.school || e.time)))) return { spells: x };
+    return { rules: x.filter((e) => e && e.text) };
+  }
+  if (x && x.sites) return { adventure: x };
+  return { spells: x.spells || [], monsters: x.monsters || [], rules: x.rules || [], magicItems: x.magicItems || [] };
+}
+
+// ---- 4. the engine version and what to show -------------------------------------------------------
+const ord = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
+function monsterFacts(m) {
+  const cr = m.cr === 0.125 ? '1/8' : m.cr === 0.25 ? '1/4' : m.cr === 0.5 ? '1/2' : m.cr;
+  const f = [`AC ${m.ac}${m.acNote ? ` (${m.acNote})` : ''}, ${m.hp} hp${m.hd ? ` (${m.hd})` : ''}, speed ${m.speed || '?'}, CR ${cr} (${m.xp} XP)`,
+    ABS.map((a, k) => `${a.toUpperCase()} ${m.ab[k]}`).join(' ')];
+  for (const sec of ['traits', 'actions', 'reactions', 'legendary']) {
+    for (const a of m[sec] || []) {
+      if (a.multi) { f.push(`${a.n}: ${a.multi.map((c) => Object.entries(c).map(([k, v]) => `${v} × ${k}`).join(', ')).join(', or ')}`); continue; }
+      if (a.spells) { f.push(`${a.n}: ${a.spells.dc ? `save DC ${a.spells.dc}, ` : ''}${a.spells.hit ? `+${a.spells.hit} to hit, ` : ''}${a.spells.list.map((x) => x.name).join(', ')}`); continue; }
+      const bits = [];
+      if (a.hit != null) bits.push(`${a.hit >= 0 ? '+' : ''}${a.hit} to hit${a.reach ? `, reach ${a.reach} ft` : a.range ? `, range ${a.range} ft` : ''}`);
+      if (a.dmg) bits.push(a.dmg.map(([d, t]) => `${d} ${t}`).join(' + '));
+      if (a.dc) bits.push(`DC ${a.dc[1]} ${ABN[a.dc[0]] || a.dc[0]} save${a.dc[2] === 'half' ? ', half on a success' : ''}${a.cond ? `, or ${a.cond}` : ''}`);
+      if (a.rider) bits.push(`then DC ${a.rider.dc} ${ABN[a.rider.ability] || a.rider.ability} save${a.rider.cond ? ` or ${a.rider.cond}` : ''}${a.rider.dmg.length ? ` (${a.rider.dmg.map(([d, t]) => `${d} ${t}`).join(' + ')}${a.rider.half ? ', half on a success' : ''})` : ''}`);
+      if (a.onHit) bits.push(`on a hit: ${a.onHit.join(', ')}${a.escape ? ` (escape DC ${a.escape})` : ''}`);
+      if (a.use) bits.push(a.use);
+      if (bits.length) f.push(`${a.n}: ${bits.join('; ')}`);
+    }
+  }
+  return f;
+}
+function spellFacts(s) {
+  const f = [`${s.level ? `${ord(s.level)}-level` : 'cantrip'} ${String(s.school || '').toLowerCase()}, ${s.time || '?'}, ${s.range || '?'}${s.conc ? ', concentration' : ''}`];
+  const dmg = s.dmgSlot ? s.dmgSlot[s.level] : s.dmgLevel ? s.dmgLevel[1] : '';
+  if (dmg) f.push(`${dmg.replace('+MOD', ' + modifier')} ${s.dmgType === 'chosen' ? (s.dmgTypes || []).join('/') || 'chosen' : s.dmgType}${s.count ? ` × ${s.count[s.level]}` : s.countLevel ? ' × beams by level' : ''}${s.dmgSlot && s.dmgSlot[9] !== dmg ? `, ${s.dmgSlot[9]} at 9th` : ''}${s.dmgLevel && s.dmgLevel[17] ? `, ${s.dmgLevel[17]} at 17th` : ''}`);
+  if (s.how) f.push(`lands by: ${s.how}${s.attack ? ` (${s.attack} spell attack)` : ''}${s.save ? ` (${ABN[s.save.ability] || s.save.ability} save${s.save.success === 'half' ? ', half on a success' : ''})` : ''}`);
+  else if (s.save) f.push(`${ABN[s.save.ability]} save`);
+  if (s.heal) f.push(`heals ${String(s.heal[s.level] || '').replace('+MOD', ' + modifier')}`);
+  if (s.conds) f.push(`conditions: ${s.conds.join(', ')}`);
+  return f;
+}
+
+// The engine version of what was read, and a line per entry for the screen.
+export function summarise(book) {
+  const eng = JSON.parse(JSON.stringify({ spells: book.spells || [], monsters: book.monsters || [], magicItems: book.magicItems || [] }));
+  for (const x of [...eng.spells, ...eng.monsters]) delete x.words;
+  const gaps = BOOK.compileBook(eng);
+  const gapsOf = (id) => gaps.filter((g) => g.id === id).map((g) => g.what);
+  const entries = [];
+  (book.monsters || []).forEach((m, k) => {
+    const e = eng.monsters[k];
+    const warn = [];
+    if (e.ab.every((v) => v === 10)) warn.push('its six ability scores were not found');
+    if (!e.actions.length) warn.push('it has no actions');
+    entries.push({ kind: 'monster', id: e.id, name: e.name, facts: monsterFacts(e), gaps: [...warn, ...gapsOf(e.id)], words: m.words || '' });
+  });
+  (book.spells || []).forEach((s, k) => {
+    const e = eng.spells[k];
+    entries.push({ kind: 'spell', id: e.id, name: e.name, facts: spellFacts(e), gaps: gapsOf(e.id), words: s.words || `${s.desc}${s.higher ? `\nAt Higher Levels. ${s.higher}` : ''}` });
+  });
+  for (const r of book.rules || []) entries.push({ kind: 'rule', id: r.id, name: r.name, facts: [`${r.text.split(/\s+/).length} words, for the Director's rules look-ups`], gaps: [], words: r.text.slice(0, 1500) });
+  return { engine: { ...eng, rules: book.rules || [] }, gaps, entries };
+}
+
+// ---- 3. the AI: what the reader could not read, and whole campaigns ----------------------------------
+export function parseJson(text) {
+  const t = String(text || '');
+  const fence = /```(?:json)?\s*([\s\S]*?)```/i.exec(t);
+  const body = fence ? fence[1] : t;
+  const a = body.search(/[[{]/);
+  const close = body[a] === '[' ? ']' : '}';
+  const b = body.lastIndexOf(close);
+  if (a < 0 || b <= a) throw new Error('The AI answered without the JSON asked for.');
+  const raw = body.slice(a, b + 1);
+  try { return JSON.parse(raw); } catch { return JSON.parse(raw.replace(/\/\/[^\n"]*$/gm, '').replace(/,\s*([}\]])/g, '$1')); }
+}
+// Pieces of about `size` characters, cut between paragraphs.
+export function chunks(text, size = 18000) {
+  const out = [];
+  let cur = '';
+  for (const p of clean(text).split(/\n{2,}/)) {
+    if (cur && cur.length + p.length > size) { out.push(cur); cur = ''; }
+    cur += (cur ? '\n\n' : '') + (p.length > size ? p.slice(0, size) : p);
+  }
+  if (cur.trim()) out.push(cur);
+  return out;
+}
+
+const MONSTER_SHAPE = '{"name":"Bog Hag","size":"Medium","type":"fey","sub":"","align":"neutral evil","ac":16,"acNote":"natural armor","hp":60,"hd":"11d8+11","speed":"30 ft., swim 30 ft.","ab":[16,12,13,12,14,13],"saves":{"wis":4},"skills":{"Stealth":3},"vuln":[],"res":[],"imm":[],"cimm":[],"senses":"darkvision 60 ft., passive Perception 12","lang":"Common, Sylvan","cr":3,"xp":700,"traits":[{"n":"Amphibious","d":"The hag can breathe air and water."}],"actions":[{"n":"Multiattack","d":"The hag makes two claw attacks."},{"n":"Claw","d":"Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 7 (1d8 + 3) slashing damage."},{"n":"Fetid Breath","use":"Recharge 5-6","d":"The hag exhales in a 15-foot cone. Each creature in it must make a DC 12 Constitution saving throw, taking 14 (4d6) poison damage on a failed save, or half as much damage on a successful one."}]}';
+const SPELL_SHAPE = '{"name":"Frost Lance","level":2,"school":"Evocation","time":"1 action","range":"90 feet","comp":"VS","mat":"","dur":"Instantaneous","conc":false,"ritual":false,"classes":["wizard"],"desc":"Make a ranged spell attack against a creature within range. On a hit, the target takes 3d8 cold damage.","higher":"When you cast this spell using a spell slot of 3rd level or higher, the damage increases by 1d8 for each slot level above 2nd."}';
+
+// Stat blocks or spells in a layout the reader does not know: the AI writes them in the SRD's shape, keeping
+// every rule in the words ("d"), which the book compiler then reads like any other.
+export async function aiReadEntries({ ask, kind, text, prefix = '', taken = new Set(), onProgress = () => {} }) {
+  const shape = kind === 'spells' ? SPELL_SHAPE : MONSTER_SHAPE;
+  const what = kind === 'spells' ? 'spell' : 'monster stat block';
+  const system = `You turn tabletop role-playing text into data for a Dungeons & Dragons 5e rules engine. Answer only with a JSON array, no other words. Each ${what} becomes one object in exactly this shape:\n${shape}\nKeep every rule in the words: each trait, action and reaction keeps its full text in "d", in the standard 5e wording ("Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 7 (1d8 + 3) slashing damage."), because the engine reads its numbers from those words. Copy numbers exactly; never invent anything the text does not give.`;
+  const parts = chunks(text, 9000);
+  const out = [];
+  const problems = [];
+  for (let i = 0; i < parts.length; i++) {
+    onProgress({ step: `Reading ${kind} with the AI`, at: i + 1, of: parts.length });
+    try {
+      const reply = parseJson(await ask(system, `Turn every ${what} in this text into the JSON array:\n\n${parts[i]}`));
+      for (const e of Array.isArray(reply) ? reply : [reply]) {
+        if (!e || !e.name) continue;
+        let id = slug(e.name);
+        if (taken.has(id)) id = `${prefix || 'x'}-${id}`;
+        taken.add(id);
+        if (kind === 'spells') out.push({ id, ...e, level: Number(e.level) || 0, classes: e.classes || [], words: '' });
+        else out.push({ id, ...e, ab: Array.isArray(e.ab) && e.ab.length === 6 ? e.ab.map(Number) : [10, 10, 10, 10, 10, 10], cr: crNum(e.cr), xp: Number(e.xp) || CR_XP[crNum(e.cr)] || 0, pb: pbOf(crNum(e.cr)), traits: e.traits || [], actions: e.actions || [], words: '' });
+      }
+    } catch (e) { problems.push(`Part ${i + 1}: ${e.message}`); }
+  }
+  return { entries: out, problems };
+}
+
+// A whole campaign, as an adventure for the Director, in steps a small local model can take:
+// what is in each part of the text; the adventure's frame; each place in full; the campaign's own stat
+// blocks read by the book reader; then the adventure checker, and its problems sent back once.
+export const CAMPAIGN_GUIDE = (() => {
+  const t = readFileSync(new URL('../docs/CONVERTER-PROMPT.md', import.meta.url), 'utf8');
+  const i = t.indexOf('\n---\n');
+  return (i >= 0 ? t.slice(i + 5) : t).trim();
+})();
+const NO_TALK = 'This time do not show an outline, ask questions or write JavaScript: answer only with the JSON asked for, no other words. Where the source leaves something open, choose what fits and say so in the notes.';
+
+export async function aiCampaign({ ask, text, name = '', srd, onProgress = () => {} }) {
+  const parts = chunks(text, 16000);
+  const system = `${CAMPAIGN_GUIDE}\n\n${NO_TALK}`;
+  // The campaign's own stat blocks: the book reader first, the AI for those it cannot read.
+  const prefix = slug(name || 'adv').split('-').map((w) => w[0]).join('').slice(0, 4) || 'adv';
+  const srdIds = new Set((srd.monsters || []).map((m) => m.id));
+  const own = readStatBlocks(text, { prefix, taken: new Set(srdIds) }).monsters.map(({ words, ...m }) => ({ ...m, id: srdIds.has(m.id) ? `${prefix}-${m.id}` : m.id.startsWith(`${prefix}-`) ? m.id : `${prefix}-${m.id}` }));
+  // 1. what each part holds
+  const found = { places: [], people: [], monsters: [], quests: [] };
+  for (let i = 0; i < parts.length; i++) {
+    onProgress({ step: 'Reading the campaign', at: i + 1, of: parts.length });
+    try {
+      const r = parseJson(await ask(system, `Part ${i + 1} of ${parts.length} of the source. List what it holds, as JSON {"places":[{"name":"","summary":""}],"people":[{"name":"","who":""}],"monsters":[{"name":"","srd":"the SRD id if one fits, else empty"}],"quests":[""]}.\n\n${parts[i]}`));
+      for (const k of Object.keys(found)) for (const x of r[k] || []) { const key = typeof x === 'string' ? x : x.name; if (key && !found[k].some((y) => (typeof y === 'string' ? y : y.name) === key)) found[k].push(x); }
+    } catch (e) { /* a part the model could not list: the places step still sees the whole list so far */ }
+  }
+  // 2. the frame
+  onProgress({ step: 'Writing the adventure\'s frame', at: 1, of: 1 });
+  const ownList = own.map((m) => `${m.id} (${m.name}, CR ${m.cr})`).join(', ') || 'none';
+  const frame = parseJson(await ask(system, `What the whole source holds:\n${JSON.stringify(found)}\n\nThe campaign's own monsters (use these ids): ${ownList}. Other monsters: 5e SRD ids, lower case with hyphens (goblin, giant-rat, cult-fanatic).\n\nWrite the adventure's frame as JSON: {"id":"lower-case-id","name":"","levels":"1 to 3","party":{"size":[4,5],"level":1},"blurb":"","intro":"","director":"","quests":[""],"questDone":[{"match":"","at":["site-id"],"when":""}],"sites":[{"id":"","name":"","region":"","level":1,"travelHours":1,"exits":[{"to":"site-id","label":""}]}],"ending":""}. One site per place the party can stand; every exit names another site's id.\n\nThe start of the source:\n${parts[0].slice(0, 8000)}`));
+  const adv = { ...frame, id: slug(frame.id || frame.name || name), name: frame.name || name || 'A converted adventure', monsters: own, sites: [] };
+  // 3. each place, from the parts that mention it
+  const sites = frame.sites || [];
+  for (let i = 0; i < sites.length; i++) {
+    const s = sites[i];
+    onProgress({ step: `Writing the places (${s.name || s.id})`, at: i + 1, of: sites.length });
+    const words = String(s.name || '').toLowerCase().split(/\W+/).filter((w) => w.length > 3);
+    const where = parts.filter((p) => words.some((w) => p.toLowerCase().includes(w))).slice(0, 2).join('\n\n...\n\n') || parts[0];
+    try {
+      const full = parseJson(await ask(system, `The adventure: ${adv.name}. Its places: ${sites.map((x) => `${x.id} (${x.name})`).join(', ')}. The campaign's own monsters: ${ownList}.\n\nWrite the whole site "${s.id}" (${s.name}) as JSON in the format: {"id":"${s.id}","name":"","region":"","level":${s.level || 1},"travelHours":${s.travelHours || 1},"read":"","notes":"","npcs":[{"name":"","who":"","voice":"","wants":""}],"checks":[{"skill":"perception","dc":12,"find":""}],"foes":[{"monster":"srd-or-own-id","count":1,"name":"","note":""}],"clocks":[],"rules":[{"id":"","when":"","do":""}],"treasure":"","exits":${JSON.stringify(s.exits || [])}}. Leave out what the place does not have.\n\nThe source, where it describes this place:\n${where}`));
+      adv.sites.push({ ...s, ...full, id: s.id, exits: full.exits || s.exits || [] });
+    } catch (e) { adv.sites.push({ ...s, read: '', notes: `Not converted: ${e.message}`, exits: s.exits || [] }); }
+  }
+  // 4. the checker, and its problems sent back once, place by place
+  const book = { ...srd, monsters: [...(srd.monsters || []), ...own] };
+  let check = checkAdventure(adv, book);
+  const bySite = {};
+  for (const e of check.errors) { const id = (/^([a-z0-9-]+)/.exec(e.where) || [])[1]; if (adv.sites.some((s) => s.id === id)) (bySite[id] = bySite[id] || []).push(e.text); }
+  const fix = Object.entries(bySite);
+  for (let i = 0; i < fix.length; i++) {
+    const [id, problems] = fix[i];
+    onProgress({ step: 'Fixing what the checker found', at: i + 1, of: fix.length });
+    const k = adv.sites.findIndex((s) => s.id === id);
+    try {
+      const again = parseJson(await ask(system, `The adventure checker found these problems in the site "${id}":\n- ${problems.join('\n- ')}\nThe places: ${adv.sites.map((x) => x.id).join(', ')}. The campaign's own monsters: ${ownList}.\nSend the whole site again as JSON, fixed:\n${JSON.stringify(adv.sites[k])}`));
+      adv.sites[k] = { ...adv.sites[k], ...again, id };
+    } catch { /* kept as it was: the checker's findings are shown */ }
+  }
+  check = checkAdventure(adv, book);
+  return { adventure: adv, check };
+}
+
+// ---- 5. saving and loading ---------------------------------------------------------------------------
+export function saveBook(dir, { name, kind, original, book }) {
+  mkdirSync(dir, { recursive: true });
+  let id = slug(name);
+  for (let n = 2; existsSync(join(dir, id)); n++) id = `${slug(name)}-${n}`;
+  const at = join(dir, id);
+  mkdirSync(at, { recursive: true });
+  const clean = { spells: (book.spells || []).map(({ words, ...x }) => x), monsters: (book.monsters || []).map(({ words, ...x }) => x), rules: book.rules || [], magicItems: book.magicItems || [] };
+  const { engine, gaps } = summarise(clean);
+  const meta = { id, name, kind, savedAt: new Date().toISOString(), counts: { monsters: clean.monsters.length, spells: clean.spells.length, rules: clean.rules.length }, gaps: gaps.length };
+  writeFileSync(join(at, 'original.txt'), String(original || ''));
+  writeFileSync(join(at, 'book.json'), JSON.stringify({ ...meta, ...clean }));
+  writeFileSync(join(at, 'book.engine.json'), JSON.stringify({ ...meta, ...engine, engine: { version: BOOK.ENGINE_VERSION, from: 'book.json', gaps: gaps.length } }));
+  writeFileSync(join(at, 'gaps.md'), [`# What the book compiler could not read: ${name}`, '', ...(gaps.length ? gaps.map((g) => `- **${g.name}** (\`${g.id}\`): ${g.what}`) : ['Nothing: everything was read.']), ''].join('\n'));
+  return meta;
+}
+export function listBooks(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((d) => !d.startsWith('_') && existsSync(join(dir, d, 'book.engine.json'))).map((d) => {
+    try { const b = JSON.parse(readFileSync(join(dir, d, 'book.engine.json'), 'utf8')); return { id: b.id || d, name: b.name || d, kind: b.kind || '', savedAt: b.savedAt || '', counts: b.counts || {}, gaps: b.gaps || 0 }; } catch { return null; }
+  }).filter(Boolean).sort((a, b) => String(b.savedAt).localeCompare(String(a.savedAt)));
+}
+export function loadBooks(dir) {
+  return listBooks(dir).map((b) => JSON.parse(readFileSync(join(dir, b.id, 'book.engine.json'), 'utf8')));
+}
+// Set aside, never deleted: library/converted/_removed/<id>.
+export function removeBook(dir, id) {
+  const from = join(dir, slug(id));
+  if (!existsSync(from)) return false;
+  mkdirSync(join(dir, '_removed'), { recursive: true });
+  renameSync(from, join(dir, '_removed', `${slug(id)}-${Date.now()}`));
+  return true;
+}
+// A converted book joins the rules the Engine uses: monsters and spells the SRD (and the library) lack,
+// and its rules text for look-ups. Returns what it added.
+export function mergeBook(srd, book) {
+  const add = (list, items) => { const ids = new Set(list.map((x) => x.id)); let n = 0; for (const x of items || []) if (x && x.id && !ids.has(x.id)) { list.push({ ...x, lib: book.name }); ids.add(x.id); n++; } return n; };
+  const added = { monsters: add(srd.monsters, book.monsters), spells: add(srd.spells, book.spells) };
+  const rules = [...(srd.libRules || []), ...(book.rules || []).map((r) => ({ ...r, book: r.book || book.name }))];
+  Object.defineProperty(srd, 'libRules', { value: rules, enumerable: false, configurable: true, writable: true });
+  added.rules = (book.rules || []).length;
+  if (Object.prototype.hasOwnProperty.call(srd, '_ix')) delete srd._ix;
+  return added;
+}
+
+export function saveAdventure(dir, adv, original = '') {
+  mkdirSync(dir, { recursive: true });
+  let id = slug(adv.id || adv.name);
+  const fixed = { ...adv, id, converted: new Date().toISOString() };
+  writeFileSync(join(dir, `${id}.json`), JSON.stringify(fixed, null, 1));
+  if (original) writeFileSync(join(dir, `${id}.original.txt`), String(original));
+  return fixed;
+}
+export function loadAdventures(dir) {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites));
+}
+
+// ---- the whole job ----------------------------------------------------------------------------------
+// text, kind ('auto' or one of KINDS), name, how ('reader' | 'ai' | 'both'), ask(system, user) -> reply
+// text (null without an AI), srd for ids and checks. Returns what the screen shows.
+export async function convertText({ text, kind = 'auto', name = '', how = 'both', ask = null, srd, onProgress = () => {} }) {
+  const words = clean(text);
+  if (!words.trim()) throw new Error('Paste some text first.');
+  const sniffed = sniffKind(words);
+  const k = KIND_IDS.includes(kind) && kind !== 'auto' ? kind : sniffed.kind;
+  const book = { name: name || 'Pasted text', spells: [], monsters: [], rules: [] };
+  const notes = [];
+  const prefix = slug(book.name).split('-').map((w) => w[0]).join('').slice(0, 4) || 'x';
+  const taken = new Set([...(srd.monsters || []), ...(srd.spells || [])].map((x) => x.id));
+  if (k === 'campaign') {
+    if (!ask) throw new Error('A campaign is converted by the AI: set it up on the Director tab first.');
+    const r = await aiCampaign({ ask, text: words, name, srd, onProgress });
+    return { kind: k, sniffed, name: r.adventure.name, adventure: r.adventure, check: r.check, entries: [], notes };
+  }
+  if (k === 'json') {
+    const j = readJson(words);
+    if (j.adventure) {
+      const own = j.adventure.monsters || [];
+      return { kind: 'campaign', sniffed, name: j.adventure.name, adventure: j.adventure, check: checkAdventure(j.adventure, { ...srd, monsters: [...srd.monsters, ...own] }), entries: [], notes };
+    }
+    Object.assign(book, j);
+  }
+  // "Work it out" on a mix (a bestiary with a few spells): every reader that finds something runs.
+  const auto = kind === 'auto' && (k === 'monsters' || k === 'spells');
+  const runMonsters = k === 'monsters' || (auto && /^\s*Armou?r Class\b/im.test(words));
+  const runSpells = k === 'spells' || (auto && /^\s*Casting Time\s*:/im.test(words));
+  if (runMonsters) {
+    const r = how === 'ai' ? { monsters: [], leftovers: [words] } : readStatBlocks(words, { prefix, taken });
+    if (!r.monsters.length && !r.leftovers.length) r.leftovers.push(words); // nothing in the usual layout: all of it for the AI
+    book.monsters.push(...r.monsters);
+    if (r.monsters.length) notes.push(`The book reader read ${r.monsters.length} stat block${r.monsters.length > 1 ? 's' : ''}.`);
+    if (r.leftovers.length && ask && how !== 'reader') {
+      const ai = await aiReadEntries({ ask, kind: 'monsters', text: r.leftovers.join('\n\n'), prefix, taken, onProgress });
+      book.monsters.push(...ai.entries);
+      notes.push(`The AI read ${ai.entries.length} more.`, ...ai.problems);
+    } else if (r.leftovers.length) notes.push(`${r.leftovers.length} stat block${r.leftovers.length > 1 ? 's were' : ' was'} not in a layout the reader knows${ask ? '' : ': set up the AI on the Director tab to read them'}.`);
+  }
+  if (runSpells) {
+    const r = how === 'ai' ? { spells: [] } : readSpells(words, { prefix, taken });
+    book.spells.push(...r.spells);
+    if (r.spells.length) notes.push(`The book reader read ${r.spells.length} spell${r.spells.length > 1 ? 's' : ''}.`);
+    const expected = (words.match(/^\s*Casting Time\s*:/gim) || []).length;
+    if ((how === 'ai' || r.spells.length < expected || !r.spells.length) && ask && how !== 'reader') {
+      const ai = await aiReadEntries({ ask, kind: 'spells', text: words, prefix, taken: new Set([...taken]), onProgress });
+      const have = new Set(book.spells.map((s) => s.name.toLowerCase()));
+      const more = ai.entries.filter((s) => !have.has(String(s.name).toLowerCase()));
+      book.spells.push(...more);
+      notes.push(`The AI read ${more.length} more.`, ...ai.problems);
+    }
+  }
+  if (k === 'rules') {
+    book.rules.push(...readRules(words, book.name));
+    notes.push(`${book.rules.length} section${book.rules.length === 1 ? '' : 's'} of rules text, for the Director's rules look-ups.`);
+  }
+  const { entries, gaps } = summarise(book);
+  return { kind: k, sniffed, name: book.name, book, entries, gaps: gaps.length, notes };
+}

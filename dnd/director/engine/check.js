@@ -186,7 +186,13 @@ export function checkAdventure(adv, srd) {
       const two = R.encounterDifficulty([lv, lv], xps, srd);
       fights.push({ site: s.id, level: lv, monsters: xps.length, xp: written.base, four: written.rating, two: two.rating, size: sz });
       N(at, `Fight: ${xps.length} monster${xps.length > 1 ? 's' : ''}, ${written.base} XP. For ${SCALE.partyWords(designed)}: ${written.rating.toLowerCase()} (fitted to the party in play).`);
-      if (written.rating === 'Deadly') W(at, `The fight here is deadly for ${SCALE.partyWords(designed)}, the party it is written for: check it is meant to be.`);
+      // How far past the deadly line: a place can say a deadly fight is meant (deadly: true), and then it is a note.
+      const over = written.thresholds[3] ? written.adjusted / written.thresholds[3] : 0;
+      if (written.rating === 'Deadly') {
+        const words = `deadly for ${SCALE.partyWords(designed)}, the party it is written for (${over.toFixed(1)} times the deadly line)`;
+        if (s.deadly) N(at, `The fight here is ${words}, as the place says it is meant to be.`);
+        else W(at, `The fight here is ${words}: check it is meant to be, and say so with deadly: true.`);
+      }
     }
     for (const c of s.clocks || []) {
       if (!c.name) { E(at, 'A clock has no name.'); continue; }

@@ -95,3 +95,16 @@ test('a tool\'s required part under another name is read as meant, and said (ben
   const rec = { v: 1, adventure: 'lantern', part: 4, run: 1, label: 'step 2', state: packState(T.s), calls: [{ name: 'add_quest', args: { quest: 'Find the forge.' }, was: 'refused', text: 'Write the quest.' }] };
   assert.ok(replayRecord(rec, { adventure, srd })[0].fixed);
 });
+
+test('built heroes above 3rd level take their Ability Score Improvements; a place can say a deadly fight is meant', async () => {
+  const { completeBuild } = await import('../engine/pregen.js');
+  const { checkAdventure } = await import('../engine/check.js');
+  const f = completeBuild({ class: 'fighter', race: 'human', level: 6, name: 'F' }, srd, () => 0.3);
+  assert.deepEqual(f.asi, [{ level: 4, ab: { str: 2 } }, { level: 6, ab: { str: 2 } }], 'a fighter\'s 4th and 6th, into Strength up to 20');
+  assert.deepEqual(completeBuild({ class: 'wizard', race: 'human', level: 3, name: 'W' }, srd, () => 0.3).asi, []);
+  const ashen = ADVENTURES.find((a) => a.id === 'ashen-crown');
+  const r = checkAdventure(ashen, srd);
+  assert.ok(!r.warnings.some((w) => /deadly/.test(w.text)), 'its deadly fights say they are meant');
+  const unmarked = { ...ashen, sites: ashen.sites.map((s) => ({ ...s, deadly: false })) };
+  assert.ok(checkAdventure(unmarked, srd).warnings.some((w) => /times the deadly line\): check it is meant to be/.test(w.text)));
+});
