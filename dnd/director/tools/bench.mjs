@@ -17,7 +17,8 @@
 // With --log, the bench also keeps <log name>.status.json up to date (see tools/bench-watch.mjs): what it is
 // doing, a heartbeat every 30 s, and how it ended (finished, crashed, window closed, Ctrl+C), plus GPU
 // readings in <log name>.gpu.csv when nvidia-smi is installed. `node tools/bench-status.mjs` reads them.
-//   --crash-at <label>                         testing only: throw at that step, to check the crash report
+//   --crash-at <label>                         testing only: throw at that step (the run's error), or at
+//                                              "summary" (a crash), to check the reports
 //
 // Part 1: the opening at the Ford Inn, talking to the Reeve, an Insight check, the road north,
 // a Perception check at the mill, the goblin fight to the end, and searching the bodies.
@@ -423,7 +424,17 @@ async function runOnce(n) {
   }
 
   console.log(`\n=== Run ${n} of ${runs} ===`);
+  // A bench fault in one run (an Engine refusal of the bench's own move, a bug) is that run's error,
+  // and the other runs go on.
+  try {
   for (const [k, step] of (part === 4 ? SCRIPT4 : part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+    // The whole party is dead (bench part 3, 25 Nov: the crypt skeletons killed Bryn after Ila): the adventure
+    // is over and the run ends here. A wipe is play, not a fault: reported, not gated.
+    if (Object.values(s.pcs).length && Object.values(s.pcs).every((p) => p.dead)) {
+      notes.push(`step ${k}: the whole party is dead, so the run ends here`);
+      console.log(`  The whole party is dead: run ${n} ends at step ${k}.`);
+      break;
+    }
     // Blackreed Mill is written for a level 2 party of four: for the bench's three 1st-level heroes, two
     // of the five River Rats are out on the river (taken away as the party arrives).
     if (part === 4 && step.pid === 'p3' && /roof shingles/.test(step.say || '')) {
@@ -447,6 +458,11 @@ async function runOnce(n) {
     if (s.requests.length && !s.fight) await answerRolls(`step ${k}`);
     void before;
   }
+  } catch (e) {
+    tally.error += 1;
+    notes.push(`bench error: ${e.message}`);
+    console.log(`  BENCH ERROR (run ${n} stops here): ${e.stack || e.message}`);
+  }
   const xp = Object.values(s.pcs).map((p) => `${p.name} ${p.xp} XP, ${p.hp}/${p.maxHp} hp`).join('; ');
   console.log(`  End: ${s.scene.siteId}; ${xp}`);
   return { tally, notes, secs: (Date.now() - t0) / 1000, calls: calls.slice(callsAt) };
@@ -455,6 +471,7 @@ async function runOnce(n) {
 const GATED = ['refusal', 'leak', 'rule', 'roll-words', 'wrong-seat', 'stall', 'error'];
 const results = [];
 for (let r = 1; r <= runs; r++) results.push(await runOnce(r));
+if (crashAt === 'summary') throw new Error('--crash-at summary: a test crash');
 console.log('\n=== Summary ===');
 console.log(`Part ${part}${part === 4 ? ` (The Ashen Crown, ${prep.library ? 'with your book library' : 'SRD only'})` : ''}. Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
 results.forEach((x, i) => {

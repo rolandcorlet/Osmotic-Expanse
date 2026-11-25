@@ -295,3 +295,19 @@ test('a check with no ability named is asked, not refused: the reason decides, d
   assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
   assert.equal(tb.state.requests.find((q) => q.pcId === pc.id).ability, 'dex');
 });
+
+test('a roll with no DC is asked at a DC the reason suggests, medium by default, not refused (bench part 3, 25 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(6), now: 6 });
+  const out = tb.run('ask_for_roll', { characters: [pc.name], kind: 'check', skill: 'intimidation', reason: 'Speak a holy word to drive the rats back' });
+  assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
+  assert.equal(tb.state.requests.find((q) => q.pcId === pc.id).dc, 13);
+  const tb2 = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(7), now: 7 });
+  tb2.run('ask_for_roll', { characters: [pc.name], kind: 'check', skill: 'athletics', dc: 0, reason: 'A hard climb up the wet stair' });
+  assert.equal(tb2.state.requests.find((q) => q.pcId === pc.id && /climb/.test(q.reason)).dc, 15);
+  const tb3 = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(8), now: 8 });
+  tb3.run('ask_for_roll', { characters: [pc.name], kind: 'check', skill: 'athletics', dc: 50, reason: 'Lift the portcullis' });
+  assert.equal(tb3.state.requests.find((q) => q.pcId === pc.id && /portcullis/.test(q.reason)).dc, 35);
+});

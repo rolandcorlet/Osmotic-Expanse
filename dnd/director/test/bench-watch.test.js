@@ -103,12 +103,23 @@ test('the bench keeps its status file: a finished run, and a crash with its erro
   assert.equal(st.exitCode, r.status);
   assert.equal(st.run, 1);
   assert.match(readFileSync(log, 'utf8'), /GATE: (PASS|FAIL)/);
+  // A fault inside a run is that run's error: the bench goes on and finishes, gated.
   const log2 = join(tmp, 'bench-y.log');
-  const c = spawnSync(process.execPath, [bench, '--fake', '--part', '3', '--runs', '1', '--log', log2, '--crash-at', 'step 9'], { encoding: 'utf8' });
-  assert.equal(c.status, 3);
+  const e = spawnSync(process.execPath, [bench, '--fake', '--part', '3', '--runs', '2', '--log', log2, '--crash-at', 'step 9'], { encoding: 'utf8' });
+  assert.equal(e.status, 1);
   const st2 = JSON.parse(readFileSync(statusPaths(log2).status, 'utf8'));
-  assert.equal(st2.state, 'crashed');
-  assert.match(st2.error, /--crash-at step 9: a test crash/);
-  assert.match(readFileSync(log2, 'utf8'), /CRASH: Error: --crash-at step 9/);
-  assert.ok(!existsSync(`${statusPaths(log2).status}.tmp`), 'no temporary file left behind');
+  assert.equal(st2.state, 'finished');
+  assert.equal(st2.gate, 'FAIL');
+  const text2 = readFileSync(log2, 'utf8');
+  assert.equal((text2.match(/BENCH ERROR \(run \d stops here\): Error: --crash-at step 9/g) || []).length, 2, 'each run reports it and the bench goes on');
+  assert.match(text2, /Run 2: .*FAIL \([^)]*error 1\)/);
+  // A crash outside the runs is reported as a crash, with its error.
+  const log3 = join(tmp, 'bench-z.log');
+  const c = spawnSync(process.execPath, [bench, '--fake', '--part', '3', '--runs', '1', '--log', log3, '--crash-at', 'summary'], { encoding: 'utf8' });
+  assert.equal(c.status, 3);
+  const st3 = JSON.parse(readFileSync(statusPaths(log3).status, 'utf8'));
+  assert.equal(st3.state, 'crashed');
+  assert.match(st3.error, /--crash-at summary: a test crash/);
+  assert.match(readFileSync(log3, 'utf8'), /CRASH: Error: --crash-at summary/);
+  assert.ok(!existsSync(`${statusPaths(log3).status}.tmp`), 'no temporary file left behind');
 });

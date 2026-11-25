@@ -120,7 +120,15 @@ export const TOOLS = [
         ];
         ability = (CHECK_WORDS.find(([, re]) => re.test(why)) || ['dex'])[0];
       }
-      const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill, ability, dc: a.dc, reason: a.reason, adv: lower(a.advantage), effect });
+      // No DC, or one off the scale (bench part 3, 25 Nov: "Speak a holy word to drive the rats back"): the
+      // reason's words decide, and otherwise medium (13), on the scale this tool gives. Never a refusal.
+      let dc = Number(a.dc);
+      if (!Number.isFinite(dc) || dc <= 0) {
+        const why = lower(a.reason);
+        dc = /very easy|trivial/.test(why) ? 5 : /very hard|nearly impossible|almost impossible/.test(why) ? 20 : /\bhard\b|difficult|tough/.test(why) ? 15 : /\beasy\b|simple/.test(why) ? 10 : 13;
+      }
+      dc = Math.min(35, Math.max(1, Math.round(dc)));
+      const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill, ability, dc, reason: a.reason, adv: lower(a.advantage), effect });
       if (no) return { refused: no };
       return { asked: ids.map((id) => T.state.pcs[id].name).join(', '), note: 'The roll is on their screen. Stop here and wait for it: do not describe the outcome.' };
     },
