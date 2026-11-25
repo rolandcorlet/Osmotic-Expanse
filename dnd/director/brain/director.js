@@ -100,7 +100,10 @@ export const LEAK = /\bno tools? (?:needed|called|required|used)\b|\b(?:tool|fun
 // Bench, 20 Nov: "only two hit-points of spite left in him" (a goblin's hit points, in words) got through.
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a few|a couple of)';
 const NUMBERS = new RegExp(`\\b(?:AC|Armou?r Class)\\s*(?:of\\s*)?\\d+|\\bDC\\s*\\d+|\\b${NUM}\\s*(?:hit[- ]points?|hp)\\b|\\+\\d+\\s*to hit\\b`, 'i');
-const ROLL_WORDS = /\b(?:make|roll|give me|i need|let's see)\b[^.?!]{0,40}\b(?:check|saving throw|save|roll)\b|\broll (?:a|for|me)\b/i;
+// A roll asked for in words: "make a Perception check", "give me a Dexterity save", "roll a d20", "roll for
+// initiative", "roll for it". Not "the wagons roll a mile" (bench part 4, 25 Nov): a bare "roll a" or
+// "roll for" needs dice, initiative or a check after it.
+const ROLL_WORDS = /\b(?:make|roll|give me|i need|let's see)\b[^.?!]{0,40}\b(?:check|saving throw|save|roll)\b|\broll (?:me )?(?:an? )?(?:d\d+|dice|die|initiative)\b|\broll for (?:initiative|it|\w+(?: \w+)? (?:check|save|saving throw))\b/i;
 
 export function checkNarration(text, state, { asked = false } = {}) {
   const flags = [];

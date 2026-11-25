@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { directorTurn, briefing, checkNarration } from '../brain/director.js';
+import { directorTurn, briefing, checkNarration, asksRollInWords } from '../brain/director.js';
 import { toolbox, lookUp } from '../brain/tools.js';
 import { makeRng } from '../engine/dice.js';
 import { table, hero, srd, adventure } from './helpers.js';
@@ -326,4 +326,11 @@ test('part 3 bench: quest named as "q2 <text>", end_combat with no fight, a mons
   const r = B.run('monster_action', { monster: pc.id, action: 'Dagger', targets: [foe.id] });
   assert.ok(!r.refused, JSON.stringify(r));
   assert.equal(B.refusals, 0);
+});
+
+test('a roll asked for in words is caught, a wagon that rolls is not (bench part 4, 25 Nov)', () => {
+  for (const t of ['Bryn, make a Perception check.', 'Give me a Dexterity saving throw, Ila.', 'Roll a d20 for me.', 'Roll for initiative!', 'Go on, roll for it.', 'Roll me a Wisdom save.', 'Ila, roll for a Stealth check.'])
+    assert.ok(asksRollInWords(t), t);
+  for (const t of ["The wagons roll a mile of wet King's Way and clock into Oakhurst.", 'Thunder rolls across the gorge.', 'The barrels roll for a while down the hill.', '"Roll a d20," the goblin jeers, but nobody moves.'])
+    assert.ok(!asksRollInWords(t), t);
 });
