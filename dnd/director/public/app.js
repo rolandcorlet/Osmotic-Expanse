@@ -4,6 +4,7 @@
 
 import * as R from '/engine/rules.js';
 import * as PG from '/engine/pregen.js';
+import { initMap, mapTabHtml, MAP_ACT, mapField, mapChip, mapFeet } from './map.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -42,9 +43,9 @@ const TABS = LOCAL ? {
   player: [['sheet', 'Sheet'], ['spells', 'Spells'], ['build', 'Character'], ['dice', 'Dice'], ['rules', 'Rules'], ['backup', 'Backup'], ['colours', 'Colours']],
   host: [['run', 'Table'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['seeds', 'Notes'], ['rules', 'Rules'], ['dice', 'Dice'], ['backup', 'Backup'], ['colours', 'Colours']],
 } : {
-  player: [['play', 'Play'], ['sheet', 'Sheet'], ['spells', 'Spells'], ['build', 'Character'], ['rules', 'Rules'], ['dice', 'Dice'], ['story', 'Story'], ['colours', 'Colours']],
-  table: [['table', 'Table'], ['story', 'Story'], ['rules', 'Rules'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['rules', 'Rules'], ['seeds', 'Seeds'], ['memory', 'Chronicle'], ['saves', 'Saves'], ['voice', 'Voice'], ['dice', 'Dice'], ['colours', 'Colours']],
+  player: [['play', 'Play'], ['map', 'Map'], ['sheet', 'Sheet'], ['spells', 'Spells'], ['build', 'Character'], ['rules', 'Rules'], ['dice', 'Dice'], ['story', 'Story'], ['colours', 'Colours']],
+  table: [['table', 'Table'], ['map', 'Map'], ['story', 'Story'], ['rules', 'Rules'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['map', 'Map'], ['director', 'Director'], ['party', 'Party'], ['encounter', 'Encounter'], ['bestiary', 'Bestiary'], ['adventure', 'Adventure'], ['rules', 'Rules'], ['seeds', 'Seeds'], ['memory', 'Chronicle'], ['saves', 'Saves'], ['voice', 'Voice'], ['dice', 'Dice'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -297,6 +298,7 @@ function mainHtml() {
   if (t === 'dice') return diceTabHtml();
   if (t === 'story') return `<div class="stack">${storyCard({ n: 400, title: 'The whole story' })}</div>`;
   if (t === 'backup') return backupHtml();
+  if (t === 'map' && !(role === 'player' && (!state.players[pid] || !myPc()))) return mapTabHtml();
   if (role === 'player') {
     const p = state.players[pid];
     if (!p) return joinHtml();
@@ -672,7 +674,7 @@ function fightCard() {
   if (f.phase === 'initiative') return `<section class="card ask danger"><h3>Battle! Rolling initiative</h3><div class="small dim">Waiting for: ${esc(state.requests.filter((q) => q.kind === 'initiative').map((q) => (state.pcs[q.pcId] || {}).name).join(', ') || 'the DM')}</div>
     ${role === 'host' ? `<div class="order">${f.order.map((o) => `<div class="o"><input type="number" class="in" style="width:56px;min-height:26px;padding:2px 4px" data-init="${o.key}" value="${o.init ?? ''}" placeholder="?"><span class="grow">${esc(nameOfKey(o.key))}</span></div>`).join('')}</div><div class="small dim">Type initiatives rolled at the table, or let the Engine roll the rest.</div><button class="btn" data-act="fight.begin">Roll the rest and start</button>` : ''}</section>`;
   const cur = curKey();
-  return `<section class="card${myTurn() ? ' ask turn' : ''}"><h3>Round ${f.round}<span class="right">${myTurn() ? '<span class="chip ok">Your turn</span>' : `<span class="chip">${esc(nameOfKey(cur))}'s turn</span>`}</span></h3>
+  return `<section class="card${myTurn() ? ' ask turn' : ''}"><h3>Round ${f.round}<span class="right">${ui.tab !== 'map' ? mapChip() : ''}${myTurn() ? '<span class="chip ok">Your turn</span>' : `<span class="chip">${esc(nameOfKey(cur))}'s turn</span>`}</span></h3>
     <div class="order">${f.order.map((o) => {
       const [kind, id] = o.key.split(':');
       const x = kind === 'pc' ? state.pcs[id] : state.foes[id];
@@ -692,7 +694,7 @@ function actionsCard(p) {
   const atkBtns = p.attacks.map((a) => `<button class="btn" data-act="attack" data-pc="${p.id}" data-a="${a.id}">${esc(a.name)} <span class="small" style="opacity:.75">${sg(a.hit)} · ${esc(a.dmg)}</span></button>`).join('');
   const smiteSlots = p.cls === 'paladin' && p.cast ? p.cast.slots.map((x, k) => ({ l: k + 1, left: x[0] - x[1] })).filter((x) => x.left > 0) : [];
   return `<section class="card"><h3>Attack</h3>
-    ${foes.length ? `<div class="chips">${foes.map((f) => `<button class="chip${`foe:${f.id}` === tgt ? ' on' : ''}" data-act="target" data-ref="foe:${f.id}">⚔ ${esc(f.name)} <span class="faint">${esc(f.health || '')}</span></button>`).join('')}</div>` : '<div class="small faint">No monster on the table: the roll shows your total to hit and the damage, and the DM says whether it lands.</div>'}
+    ${foes.length ? `<div class="chips">${foes.map((f) => `<button class="chip${`foe:${f.id}` === tgt ? ' on' : ''}" data-act="target" data-ref="foe:${f.id}">⚔ ${esc(f.name)} <span class="faint">${esc(f.health || '')}${mapFeet(`foe:${f.id}`)}</span></button>`).join('')}</div>` : '<div class="small faint">No monster on the table: the roll shows your total to hit and the damage, and the DM says whether it lands.</div>'}
     <div class="row">${atkBtns}</div>
     <div class="row">
       <div class="seg">${[['', 'Normal'], ['adv', 'Advantage'], ['dis', 'Disadvantage']].map(([id, n]) => `<button class="${ui.adv === id ? 'on' : ''}" data-act="advset" data-v="${id}">${n}</button>`).join('')}</div>
@@ -1554,6 +1556,19 @@ const ACT = {
   'sv.restore': async (d) => { const out = await savesOp({ op: 'restore', id: d.id }); if (out.ok) toast('It is on this computer now, under Saved games.', true); },
 };
 
+Object.assign(ACT, MAP_ACT);
+// The Map tab (public/map.js): it draws from the live state and posts moves like any other action.
+async function uploadPicture(blob) {
+  const res = await fetch(`/api/map/upload?key=${encodeURIComponent(key)}`, { method: 'POST', headers: { 'content-type': blob.type || 'application/octet-stream' }, body: blob });
+  const out = await res.json().catch(() => ({}));
+  if (!out.ok) throw new Error(out.error || 'The picture could not be sent to the Director host.');
+  return out.url;
+}
+initMap({
+  state: () => state, adv: () => adv, ui, role, local: !!LOCAL, esc, toast, send, render,
+  ix: () => ix, site: () => (state && adv ? site() : null), myPc: () => myPc(), curKey: () => (state ? curKey() : null), upload: uploadPicture,
+});
+
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-act]');
   if (!b || b.disabled) return;
@@ -1567,6 +1582,7 @@ document.addEventListener('click', async (e) => {
 
 function onField(e) {
   const t = e.target;
+  if (mapField(e)) return;
   if (t.dataset.colour) { const c = savedColours(); c[t.dataset.colour] = t.value; store.set('dnd.colours', JSON.stringify(c)); applyColours(); if (e.type === 'change') render(); return; }
   if (t.dataset.addcond) { if (e.type === 'change' && t.value) send({ type: 'cond.add', target: t.dataset.addcond, cond: t.value }); return; }
   if (t.dataset.init) { if (e.type === 'change' && t.value !== '') send({ type: 'fight.init', key: t.dataset.init, init: Number(t.value) }); return; }

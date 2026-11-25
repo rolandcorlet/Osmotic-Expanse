@@ -23,6 +23,7 @@ import { ADVENTURES, adventureById, adventureList, DEFAULT_ADVENTURE } from './d
 import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
 import { createSlots } from './slots.js';
+import { createMapStore, MAX_PICTURE } from './mapfiles.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -57,6 +58,8 @@ const slots = createSlots({
   prefix: 'dnd-',
 });
 const rng = systemRng();
+// The maps' pictures, kept with the saved games (mapfiles.js).
+const pictures = createMapStore(join(SAVE_DIR, 'maps'));
 
 // ---------------------------------------------------------------- the session
 let hostKey = opt('--host-key', '');
@@ -167,6 +170,8 @@ const FILES = {
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/dice.js': ['engine/dice.js', 'text/javascript'],
   '/engine/pregen.js': ['engine/pregen.js', 'text/javascript'],
+  '/engine/map.js': ['engine/map.js', 'text/javascript'],
+  '/map.js': ['public/map.js', 'text/javascript'],
   // The three screens as their own pages (the same app, its role fixed by the page).
   '/player.html': ['public/player.html', 'text/html'],
   '/table.html': ['public/table.html', 'text/html'],
@@ -318,6 +323,23 @@ const server = http.createServer(async (req, res) => {
       res.end(readFileSync(join(here, file)));
       return;
     }
+    // A map picture (named by its contents, so it can be kept for good).
+    if (req.method === 'GET' && url.pathname.startsWith('/maps/')) {
+      const pic = pictures.get(url.pathname.slice(6));
+      if (!pic) { json(res, 404, { error: 'No such picture.' }); return; }
+      res.writeHead(200, { 'content-type': pic.type, 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' });
+      res.end(pic.bytes);
+      return;
+    }
+    // The DM imports a picture for a map: the bytes come raw, and only a real image is kept.
+    if (req.method === 'POST' && url.pathname === '/api/map/upload') {
+      const who = access(req, { role: 'host', key: q.key });
+      if (who.role !== 'host') { json(res, 403, { error: 'Only the DM can import maps.' }); return; }
+      let bytes;
+      try { bytes = await readBytes(req, MAX_PICTURE); } catch (e) { json(res, 200, { ok: false, error: 'That picture is too big (25 MB at most).' }); return; }
+      try { json(res, 200, { ok: true, url: pictures.put(bytes) }); } catch (e) { json(res, 200, { ok: false, error: e.message }); }
+      return;
+    }
     if (req.method === 'GET' && url.pathname === '/api/info') {
       const out = { title: adventure.name, port: PORT, addresses: addresses(), voice: voice.publicView() };
       const trusted = isLocal(req) || codeOk(q) || (q.key && String(q.key).toUpperCase() === hostKey);
@@ -329,7 +351,8 @@ const server = http.createServer(async (req, res) => {
       const who = access(req, q);
       if (!who.role) { json(res, 403, who); return; }
       const role = who.role;
-      const sites = (adventure.sites || []).map((x) => (role === 'host' ? x : { id: x.id, name: x.name, region: x.region }));
+      // Players get the places' names and how they join (for the travel map), never the DM's notes.
+      const sites = (adventure.sites || []).map((x) => (role === 'host' ? x : { id: x.id, name: x.name, region: x.region, travelHours: x.travelHours || 0, exits: (x.exits || []).map((e) => ({ to: e.to })), map: x.map || null }));
       json(res, 200, role === 'host'
         ? { ...adventure, sites, adventures: adventureList(), voice: voice.hostView() }
         : { id: adventure.id, name: adventure.name, levels: adventure.levels, blurb: adventure.blurb, sites, pregens: adventure.pregens || null });

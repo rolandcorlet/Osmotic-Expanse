@@ -62,6 +62,21 @@ function since(T, seq) {
   return out;
 }
 
+// The map in one line per zone, for tool results: who stands where.
+export function mapLine(T) {
+  const s = T.state;
+  const m = s.map;
+  if (!m || !m.zones || !m.zones[s.scene.siteId]) return '';
+  return m.zones[s.scene.siteId].map((z) => {
+    const here = Object.entries(m.at).filter(([k, p]) => p.site === s.scene.siteId && p.zone === z.id).map(([k]) => {
+      const [kind, id] = k.split(':');
+      const o = kind === 'pc' ? s.pcs[id] : s.foes[id];
+      return o ? `${o.name}${o.dead ? ' (down)' : ''}${kind === 'foe' && o.hidden ? ' (hidden)' : ''}` : '';
+    }).filter(Boolean);
+    return `${z.name}: ${here.join(', ') || 'nobody'}`;
+  }).join('; ');
+}
+
 export const TOOLS = [
   {
     name: 'ask_for_roll',
@@ -152,6 +167,36 @@ export const TOOLS = [
       const hidden = Object.values(T.state.foes).filter((f) => f.siteId === site.id && !f.dead && f.hidden).map((f) => `${f.id} (${f.name})`);
       return { arrived: site.name, first_visit: !(T.state.scene.visited || []).includes(site.id), describe: site.read, notes: site.notes,
         monsters_already_here: hidden.length ? `${hidden.join(', ')}: placed and hidden. Do not add more; reveal them (reveal_monsters) when they are seen, or start_combat when the fight begins.` : 'none', exits: (site.exits || []).map((e) => `${e.to} (${e.label})`), ...since(T, before) };
+    },
+  },
+  {
+    name: 'move_creature',
+    description: 'Move characters or monsters on the map of this place: to another zone (each zone is about 30 feet across; MAP in the briefing lists them), or up to someone to fight them in melee. Use it when a monster charges, retreats, climbs, flees across the area or takes cover, and for a character with no player. Players move their own characters on their screens. A melee monster_action steps the monster up to its target by itself.',
+    parameters: obj({
+      who: A('Names or ids of who moves.'),
+      to_zone: S('The zone to move to, by its name in MAP. Leave empty when engaging someone.'),
+      engage: S('Optional: the name of someone to move right up to, to fight in melee.'),
+    }, ['who']),
+    run(a, T) {
+      const m = T.state.map;
+      if (!m || !(m.show.zones || m.show.grid)) return { note: 'Nothing changed: the map is switched off for this game. Just narrate where everyone is.' };
+      const who = listOf(a.who).length ? listOf(a.who) : listOf(a.creatures).concat(listOf(a.monsters), listOf(a.characters));
+      if (!who.length) return { note: 'Nothing changed: name who moves (the who list).' };
+      const zone = a.to_zone || a.zone || a.to || '';
+      const engage = a.engage || a.target || '';
+      if (!zone && !engage) return { note: 'Nothing changed: give to_zone (a zone in MAP) or engage (someone to move up to).', map: mapLine(T) };
+      const before = T.state.seq;
+      const done = []; const notes = [];
+      for (const w of who) {
+        const ref = targetRef(T.state, w);
+        if (!ref) { notes.push(`Nobody called "${w}" is here.`); continue; }
+        const no = T.do({ type: 'map.move', who: ref, zone: engage ? '' : zone, engage: engage ? (targetRef(T.state, engage) || engage) : '' });
+        if (no) notes.push(no); else { done.push(w); if (T.state.map.lastNote) notes.push(T.state.map.lastNote); }
+      }
+      const out = { map: mapLine(T), ...since(T, before) };
+      if (!done.length) return { note: `Nothing changed: ${notes.join(' ')}`, ...out };
+      if (notes.length) out.note = notes.join(' ');
+      return out;
     },
   },
   {
@@ -257,6 +302,13 @@ export const TOOLS = [
       if (no && /spell slots left/.test(no)) return { note: `Nothing changed: ${no} Use a cantrip or another action.`, ...T.fightBrief() };
       // A dead character is no target (bench part 3, 24 Nov: a Slam on a dead Bryn): a note, and the monster picks another.
       if (no && /is dead\.$/.test(no)) return { note: `Nothing changed: ${no} Name a living target, or end the monster's turn.`, ...T.fightBrief() };
+      // Too far to strike this turn (the map's reach rules): it closes in instead, as a Dash.
+      if (no && /too far from .* to attack this turn/.test(no)) {
+        const pcRef = targets[0] ? `pc:${targets[0]}` : '';
+        const moved = pcRef ? T.do({ type: 'map.move', who: `foe:${foe.id}`, engage: pcRef }) : 'no target';
+        return { note: `${foe.name} could not reach its target to attack${moved ? '' : ', so it moves up as far as it can instead (a Dash)'}. Narrate the charge, then end_turn.`, map: mapLine(T), ...since(T, before), ...T.fightBrief() };
+      }
+      if (no && /out of range/.test(no)) return { note: `Nothing changed: ${no}`, map: mapLine(T), ...T.fightBrief() };
       if (no) return { refused: no };
       return { ...since(T, before), party: T.partyBrief() };
     },

@@ -7,6 +7,7 @@
 
 import * as R from './rules.js';
 import { d20, rollDice, die, average } from './dice.js';
+import * as MAP from './map.js';
 
 export class RuleError extends Error {}
 const no = (msg) => { throw new RuleError(msg); };
@@ -25,6 +26,7 @@ export function newSession(adventure) {
     players: {}, pcs: {}, foes: {}, fight: null,
     quests: (adventure && adventure.quests ? adventure.quests.map((q, n) => ({ id: `q${n + 1}`, text: q, done: false })) : []),
     loot: [], time: { day: 1, hour: 8 }, seeds: [], notes: '', nextId: 1, started: false, clocks: [],
+    map: MAP.newMap(),
   };
 }
 
@@ -33,7 +35,7 @@ export function openAdventure(state, adventure, ctx) {
   const first = ((adventure || {}).sites || [])[0];
   let out = state;
   const host = { ...ctx, role: 'host', pid: null, ai: false, adventure };
-  for (const enc of (first && first.foes) || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note }, host);
+  for (const enc of (first && first.foes) || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, zone: enc.zone }, host);
   for (const c of (first && first.clocks) || []) out = apply(out, { type: 'clock.add', ...c, siteId: first.id, quiet: true }, host);
   return out;
 }
@@ -48,6 +50,11 @@ export function restart(old, adventure, { keepPlayers = true, keepCharacters = t
   }
   s.seeds = (old.seeds || []).slice();
   s.nextId = Math.max(old.nextId || 1, 1);
+  // The DM's maps come along: what is shown always, the pictures and zones when it is the same adventure.
+  if (old.map) {
+    s.map.show = { ...s.map.show, ...(old.map.show || {}) };
+    if (adventure && old.adventure === adventure.id) for (const k of ['travel', 'pos', 'zones', 'sites', 'grids']) s.map[k] = clone(old.map[k] || s.map[k]);
+  }
   return s;
 }
 
@@ -105,7 +112,7 @@ function target(s, ref) {
 // ---- the fight ----------------------------------------------------------------------------
 const keyOf = (kind, id) => `${kind}:${id}`;
 function currentKey(s) { return s.fight && s.fight.phase === 'turns' ? (s.fight.order[s.fight.turn] || {}).key : null; }
-function freshTurn() { return { action: false, bonus: false, reaction: false, attacks: 0, sneak: false }; }
+function freshTurn() { return { action: false, bonus: false, reaction: false, attacks: 0, sneak: false, moved: 0, dash: false, disengaged: false }; }
 function inTurnCheck(s, ctx, key, what) {
   if (!s.fight || s.fight.phase !== 'turns') return;
   if (isHost(ctx) && !ctx.ai) return; // the human DM may always step in
@@ -735,16 +742,23 @@ H.attack = (s, a, ctx) => {
       if (atk.spell) f.used.action = true; else { f.used.attacks += 1; f.used.action = true; }
     }
   }
+  // On the map: a melee attack steps up to the target; a ranged one may be spoilt by distance or a close enemy.
+  let mfx = { dis: false, why: [], far: '' };
+  const thrownAt = atk.melee && atk.thrown && mapOn(s) && s.map.show.reach && s.map.at[keyOf('pc', pc.id)] && s.map.at[keyOf('foe', foe.id)]
+    && !MAP.inReach(s.map.at[keyOf('pc', pc.id)], s.map.at[keyOf('foe', foe.id)], /reach 10/.test(atk.range || '') ? 10 : 5);
+  if (atk.melee && !thrownAt) stepUp(s, ctx, keyOf('pc', pc.id), keyOf('foe', foe.id), /reach 10/.test(atk.range || '') ? 10 : 5);
+  else mfx = rangedFx(s, ctx, keyOf('pc', pc.id), keyOf('foe', foe.id), thrownAt ? atk.thrown : atk.range);
+  if (mfx.far && !(isHost(ctx) && !ctx.ai)) no(`${mfx.far} Move closer first.`);
   const self = R.selfEffects(pc, 'attack');
-  const tfx = R.targetEffects(foe.conds, { melee: atk.melee });
+  const tfx = R.targetEffects(foe.conds, { melee: atk.melee && !thrownAt });
   const adv = a.adv === 'adv' || self.adv || tfx.adv;
-  const dis = a.adv === 'dis' || self.dis || tfx.dis;
+  const dis = a.adv === 'dis' || self.dis || tfx.dis || mfx.dis;
   const r = d20(ctx.rng, { adv, dis, own: Array.isArray(a.own) && a.own.length ? a.own : null });
   const total = r.kept + atk.hit;
   const hit = r.kept === 20 || (r.kept !== 1 && total >= foe.ac);
   // A hit on a paralyzed or unconscious creature from within 5 feet is a critical hit.
-  const critHit = hit && (r.kept === 20 || tfx.autoCrit);
-  let text = `${pc.name} attacks ${foe.name} with ${atk.name}${advWord(r)}`;
+  const critHit = hit && (r.kept === 20 || (tfx.autoCrit && !thrownAt));
+  let text = `${pc.name} ${thrownAt ? 'throws' : 'attacks'} ${foe.name} with ${atk.name}${advWord(r)}`;
   let dmgRow = null;
   if (hit) {
     let expr = a.twoHanded && atk.versatile ? atk.versatile : atk.dmg;
@@ -780,7 +794,7 @@ H.attack = (s, a, ctx) => {
     text += ` for ${res.taken + smite} damage${smite ? ' (with a divine smite)' : ''}${res.notes.length ? `, ${res.notes.join(', ')}` : ''}${foe.dead && !res.notes.includes('falls') ? ', and it falls' : ''}.`;
     dmgRow = { dice, total: amount + smite };
   } else text += r.kept === 1 ? ': a natural 1, a miss.' : ': a miss.';
-  addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'attack', label: `${atk.name} vs ${foe.name}`, dice: r.rolls, mod: atk.hit, total, at: foe.ac, success: hit, crit: critHit, mode: r.mode, why: [...self.why, ...tfx.why], dmg: dmgRow, hideAt: true });
+  addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'attack', label: `${atk.name} vs ${foe.name}`, dice: r.rolls, mod: atk.hit, total, at: foe.ac, success: hit, crit: critHit, mode: r.mode, why: [...self.why, ...tfx.why, ...mfx.why], dmg: dmgRow, hideAt: true });
   story(s, ctx, 'event', text, 'Engine', { roll: true });
 };
 
@@ -999,6 +1013,7 @@ H['foe.add'] = (s, a, ctx) => {
     const label = count > 1 || same ? `${base} ${same + n + 1}` : base;
     const hp = a.rollHp ? rollDice(m.hd, ctx.rng).total || m.hp : m.hp;
     s.foes[id] = { id, mid: m.id, base, name: label, siteId: a.siteId || s.scene.siteId, hp, maxHp: hp, ac: m.ac, dexMod: R.mod(m.ab[1]), xp: m.xp, cr: m.cr, conds: [], dead: false, hidden: !!a.hidden, spent: {}, note: str(a.note, 200), legendary: m.legendary ? 3 : null };
+    if (a.zone) s.foes[id].zone0 = str(a.zone, 40); // where on the map it starts (the adventure's zone for it)
     out.push(s.foes[id]);
     if (s.fight && !a.hidden && (a.siteId || s.scene.siteId) === s.scene.siteId) joinFight(s, ctx, 'foe', id);
   }
@@ -1072,9 +1087,14 @@ H['foe.act'] = (s, a, ctx) => {
     const pc = t.o;
     if (pc.dead) no(`${pc.name} is dead.`);
     const melee = /Melee/.test(act.d);
+    // On the map: a melee attack steps up to its target; a ranged one may be spoilt by distance or a close enemy.
+    let mfx = { dis: false, why: [], far: '' };
+    if (/^Melee (?:Weapon|Spell) Attack/i.test(act.d)) stepUp(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), Number((/reach (\d+) ft/i.exec(act.d) || [0, 5])[1]));
+    else if (!melee) mfx = rangedFx(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), (/range (\d+\/\d+) ft/i.exec(act.d) || [0, ''])[1]);
+    if (mfx.far && ctx.ai) no(`${mfx.far} Move ${foe.name} closer with move_creature first.`);
     const self = R.selfEffects({ conds: foe.conds }, 'attack');
     const tfx = R.targetEffects(pc.conds, { melee });
-    const r = d20(ctx.rng, { adv: a.adv === 'adv' || self.adv || tfx.adv, dis: a.adv === 'dis' || self.dis || tfx.dis });
+    const r = d20(ctx.rng, { adv: a.adv === 'adv' || self.adv || tfx.adv, dis: a.adv === 'dis' || self.dis || tfx.dis || mfx.dis });
     const total = r.kept + act.hit;
     const hit = r.kept === 20 || (r.kept !== 1 && total >= pc.ac);
     const crit = hit && (r.kept === 20 || tfx.autoCrit);
@@ -1102,7 +1122,7 @@ H['foe.act'] = (s, a, ctx) => {
         }
       }
     } else text += r.kept === 1 ? ' and fumbles.' : ' and misses.';
-    addRoll(s, ctx, { who: foe.name, foeId: foe.id, kind: 'attack', label: `${act.n} vs ${pc.name}`, dice: r.rolls, mod: act.hit, total, at: pc.ac, success: hit, crit, mode: r.mode, dmg: dmgRow, secret: true });
+    addRoll(s, ctx, { who: foe.name, foeId: foe.id, kind: 'attack', label: `${act.n} vs ${pc.name}`, dice: r.rolls, mod: act.hit, total, at: pc.ac, success: hit, crit, mode: r.mode, dmg: dmgRow, secret: true, why: mfx.why.length ? mfx.why : undefined });
     story(s, ctx, 'event', text, 'Engine', { roll: true });
     return;
   }
@@ -1344,8 +1364,11 @@ H['site.move'] = (s, a, ctx) => {
   if (ctx.ai && to.id !== here.id && !(here.exits || []).some((e) => e.to === to.id)) no(`${to.name} cannot be reached from ${here.name}. Exits: ${(here.exits || []).map((e) => `${e.to} (${e.label})`).join(', ')}.`);
   if (!s.scene.visited.includes(here.id)) s.scene.visited.push(here.id);
   s.scene.siteId = to.id;
+  // The party arrives together on the map, by the way they came in (placed after this action).
+  const m = mapUp(s);
+  if (to.id !== here.id) { m.cameFrom = here.id; for (const k of Object.keys(m.at)) if (k.startsWith('pc:')) delete m.at[k]; }
   const first = !s.scene.visited.includes(to.id);
-  if (first) for (const enc of to.foes || []) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id }, { ...ctx, ai: false });
+  if (first) for (const enc of to.foes || []) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id, zone: enc.zone }, { ...ctx, ai: false });
   if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, siteId: to.id, quiet: true }, { ...ctx, ai: false });
   if (to.travelHours) H['time.pass'](s, { hours: to.travelHours }, ctx);
   story(s, ctx, 'event', `The party arrives at ${to.name}.`, 'Engine', { move: true });
@@ -1433,6 +1456,364 @@ H['seed.save'] = (s, a, ctx) => {
 H['seed.toggle'] = (s, a, ctx) => { hostOnly(ctx); const x = s.seeds.find((y) => y.id === a.id); if (!x) no('No such story.'); x.on = !x.on; };
 H['seed.remove'] = (s, a, ctx) => { hostOnly(ctx); s.seeds = s.seeds.filter((y) => y.id !== a.id); };
 
+
+// ---- the map ----------------------------------------------------------------------------------------
+// Zones of about 30 feet at each place, a 5-foot battle grid inside each zone, and the travel map
+// (engine/map.js). The Engine keeps everyone at the party's place on a square; players move their own
+// character (within their movement on their turn in a fight), the DM and the AI Director move anyone.
+function mapUp(s) {
+  const blank = MAP.newMap();
+  if (!s.map) s.map = blank;
+  for (const k of Object.keys(blank)) if (s.map[k] == null) s.map[k] = blank[k];
+  s.map.show = { ...blank.show, ...s.map.show };
+  return s.map;
+}
+function siteZones(s, ctx, siteId) {
+  const m = mapUp(s);
+  if (!m.zones[siteId]) {
+    const st = ((ctx.adventure || {}).sites || []).find((x) => x.id === siteId);
+    m.zones[siteId] = st && Array.isArray(st.zones) && st.zones.length ? MAP.normZones(st.zones) : MAP.autoZones();
+  }
+  return m.zones[siteId];
+}
+const whoOf = (s, k) => { const [kind, id] = String(k).split(':'); return kind === 'pc' ? s.pcs[id] : s.foes[id]; };
+const standing = (s, k) => { const o = whoOf(s, k); return !!o && !o.dead; };
+// A monster's longest melee reach in feet (most have 5).
+function reachOf(s, ctx, k) {
+  const [kind, id] = String(k).split(':');
+  if (kind !== 'foe') return 5;
+  const m = monsterOf(ctx, s.foes[id]);
+  let ft = 5;
+  for (const a of (m && m.actions) || []) { const r = /reach (\d+) ft/i.exec(a.d || ''); if (r) ft = Math.max(ft, Number(r[1])); }
+  return ft;
+}
+function speedOfKey(s, ctx, k) {
+  const [kind, id] = String(k).split(':');
+  return kind === 'pc' ? MAP.speedOf(s.pcs[id]) : MAP.speedOf(s.foes[id], monsterOf(ctx, s.foes[id]));
+}
+// Squares held by the living, in one zone of the party's place (leaving out one creature).
+function heldIn(s, zoneId, cols, { except = '', only = null } = {}) {
+  const out = new Set();
+  for (const [k, p] of Object.entries(s.map.at)) {
+    if (k === except || p.site !== s.scene.siteId || p.zone !== zoneId || !standing(s, k)) continue;
+    if (only && !only(k)) continue;
+    out.add(p.y * cols + p.x);
+  }
+  return out;
+}
+const hostileTo = (s, k) => (o) => { const mover = k.split(':')[0]; const other = o.split(':')[0]; return mover !== other && !(other === 'foe' && s.foes[o.slice(4)] && s.foes[o.slice(4)].hidden); };
+
+// Everyone at the party's place gets a square: characters by the way the party came in, monsters in
+// their own zone (the adventure's, or the far side), each on the nearest free square.
+function placeEveryone(s, ctx) {
+  const m = mapUp(s);
+  const siteId = s.scene.siteId;
+  const zones = siteZones(s, ctx, siteId);
+  for (const k of Object.keys(m.at)) if (!whoOf(s, k)) delete m.at[k];
+  const grids = {};
+  const gridFor = (z) => grids[z.id] || (grids[z.id] = MAP.gridOf(m, siteId, z));
+  const taken = {};
+  const occ = (zid) => taken[zid] || (taken[zid] = new Set());
+  const valid = (p) => { if (!p || p.site !== siteId) return false; const z = MAP.zoneOf(zones, p.zone); if (!z) return false; const g = gridFor(z); return p.x >= 0 && p.y >= 0 && p.x < g.cols && p.y < g.rows; };
+  const here = [...Object.values(s.pcs).map((p) => `pc:${p.id}`), ...Object.values(s.foes).filter((f) => f.siteId === siteId && !f.fled).map((f) => `foe:${f.id}`)];
+  const need = [];
+  for (const k of here) {
+    const p = m.at[k];
+    if (!valid(p)) { need.push(k); continue; }
+    const g = gridFor(MAP.zoneOf(zones, p.zone));
+    const cell = p.y * g.cols + p.x;
+    if (!standing(s, k)) continue;
+    if (occ(p.zone).has(cell)) need.push(k); else occ(p.zone).add(cell);
+  }
+  if (!need.length) return;
+  const put = (k, z, ax, ay) => {
+    const g = gridFor(z);
+    const c = MAP.freeNear(g, occ(z.id), ax, ay) || [0, 0];
+    m.at[k] = { site: siteId, zone: z.id, x: c[0], y: c[1] };
+    if (standing(s, k)) occ(z.id).add(c[1] * g.cols + c[0]);
+  };
+  // The party: next to anyone already placed, or in by the zone that leads from where they came.
+  const placedPc = Object.keys(m.at).find((k) => k.startsWith('pc:') && valid(m.at[k]) && !need.includes(k));
+  const entry = zones.find((z) => (z.from || []).includes(m.cameFrom)) || MAP.entryZone(zones);
+  const others = zones.filter((z) => z !== entry);
+  const awaySide = () => {
+    if (!others.length) return 'bottom';
+    const cx = others.reduce((t, z) => t + z.x + z.w / 2, 0) / others.length;
+    const cy = others.reduce((t, z) => t + z.y + z.h / 2, 0) / others.length;
+    return MAP.OPPOSITE[MAP.sideToward(entry, { x: cx, y: cy, w: 0, h: 0 })];
+  };
+  for (const k of need.filter((x) => x.startsWith('pc:'))) {
+    if (placedPc) { const p = m.at[placedPc]; put(k, MAP.zoneOf(zones, p.zone), p.x + 0.5, p.y + 0.5); continue; }
+    const g = gridFor(entry);
+    put(k, entry, ...MAP.anchor(g, awaySide()));
+  }
+  // Monsters: their own zone, facing the party; otherwise the zone furthest from the party.
+  const party = Object.keys(m.at).find((k) => k.startsWith('pc:') && m.at[k].site === siteId);
+  const partyZone = party ? MAP.zoneOf(zones, m.at[party].zone) : entry;
+  const far = () => {
+    let best = zones[zones.length - 1]; let bd = -1;
+    for (const z of zones) { const p = MAP.zonePath(zones, partyZone.id, z.id); const d = p ? p.length : 0; if (d > bd) { bd = d; best = z; } }
+    return best;
+  };
+  for (const k of need.filter((x) => x.startsWith('foe:'))) {
+    const f = s.foes[k.slice(4)];
+    const z = (f.zone0 && MAP.findZone(zones, f.zone0)) || far();
+    const g = gridFor(z);
+    put(k, z, ...MAP.anchor(g, z.id === partyZone.id ? MAP.OPPOSITE[awaySide()] : MAP.sideToward(z, partyZone)));
+  }
+}
+
+// How far apart two creatures stand, in feet (through the zones between them).
+function distFt(s, ctx, a, b) {
+  if (a.zone === b.zone) return MAP.cheb(a, b) * MAP.CELL_FT;
+  const st = MAP.stepsBetween(s.map, s.scene.siteId, siteZones(s, ctx, s.scene.siteId), a, b);
+  return st == null ? 999 : st * MAP.CELL_FT;
+}
+const mapOn = (s) => !!(s.map && s.map.show && (s.map.show.zones || s.map.show.grid));
+// A melee attack steps up to its target first. With the reach rules on, only within the attacker's
+// movement this turn; otherwise the map simply follows the story.
+function stepUp(s, ctx, mk, tk, reachFt = 5) {
+  if (!mapOn(s)) return;
+  const m = s.map;
+  const a = m.at[mk]; const b = m.at[tk];
+  if (!a || !b || a.site !== s.scene.siteId || b.site !== s.scene.siteId || MAP.inReach(a, b, reachFt)) return;
+  const strict = !!m.show.reach && !(isHost(ctx) && !ctx.ai);
+  if (strict && ctx.ai) {
+    const steps = MAP.stepsBetween(m, s.scene.siteId, siteZones(s, ctx, s.scene.siteId), a, b);
+    if (steps == null || (steps - 1) * MAP.CELL_FT > speedOfKey(s, ctx, mk)) no(`${whoOf(s, mk).name} is too far from ${whoOf(s, tk).name} to attack this turn (${steps == null ? 'no way through' : `about ${steps * MAP.CELL_FT} feet`}): move it closer with move_creature, or use a ranged action.`);
+  }
+  try { H['map.move'](s, { who: mk, engage: tk, auto: true }, { ...ctx, freeMove: !strict }); } catch (e) { if (strict) no(`${whoOf(s, tk).name} is out of reach. ${e.message}`); }
+}
+// A ranged attack on the map, with the reach rules on: an enemy within 5 feet spoils the shot, a long
+// shot is harder, and beyond long range there is none.
+function rangedFx(s, ctx, fk, tk, range) {
+  const out = { dis: false, why: [], far: '' };
+  if (!mapOn(s) || !s.map.show.reach) return out;
+  const a = s.map.at[fk]; const b = s.map.at[tk];
+  if (!a || !b || a.site !== s.scene.siteId || b.site !== s.scene.siteId) return out;
+  const dist = distFt(s, ctx, a, b);
+  const two = /(\d+)\s*\/\s*(\d+)/.exec(range || '');
+  const one = /(\d+)\s*(?:feet|ft)/i.exec(range || '');
+  const normal = two ? Number(two[1]) : one ? Number(one[1]) : null;
+  const long = two ? Number(two[2]) : normal;
+  if (long != null && dist > long) out.far = `${whoOf(s, tk).name} is about ${dist} feet away, out of range (${long} feet).`;
+  else if (two && dist > normal) { out.dis = true; out.why.push('long range'); }
+  for (const [k, p] of Object.entries(s.map.at)) {
+    if (p.site !== s.scene.siteId || !hostileTo(s, fk)(k) || !standing(s, k) || !MAP.canReact(whoOf(s, k))) continue;
+    if (MAP.inReach(a, p, 5)) { out.dis = true; out.why.push('an enemy within 5 feet'); break; }
+  }
+  return out;
+}
+
+// Move a character or monster: to another zone, to a square, or up to someone to fight them.
+H['map.move'] = (s, a, ctx) => {
+  const m = mapUp(s);
+  const t = target(s, a.who);
+  if (!t) no(`Name who moves. Here: ${[...Object.values(s.pcs).map((p) => p.name), ...Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).map((f) => f.name)].join(', ')}.`);
+  if (t.kind === 'foe') { hostOnly(ctx); if (t.o.siteId !== s.scene.siteId) no(`${t.o.name} is not at this place.`); } else ownPc(s, ctx, t.id);
+  if (t.o.dead) no(`${t.o.name} cannot move: ${t.kind === 'pc' ? 'they are dead' : 'it is down'}.`);
+  placeEveryone(s, ctx);
+  const key = keyOf(t.kind, t.id);
+  const siteId = s.scene.siteId;
+  const zones = siteZones(s, ctx, siteId);
+  const from = { ...m.at[key] };
+  let zone = a.zone ? MAP.findZone(zones, a.zone) : MAP.zoneOf(zones, from.zone);
+  if (a.zone && !zone) no(`There is no zone called "${a.zone}" here. Zones: ${zones.map((z) => z.name).join(', ')}.`);
+  let engage = null;
+  if (a.engage) {
+    engage = target(s, a.engage);
+    if (!engage || (engage.kind === 'foe' && engage.o.siteId !== siteId)) no(`There is nobody called "${a.engage}" here to move up to.`);
+    if (engage.kind === t.kind && engage.id === t.id) no('They cannot move up to themselves.');
+    zone = MAP.zoneOf(zones, m.at[keyOf(engage.kind, engage.id)].zone);
+  }
+  const notes = [];
+  const g = MAP.gridOf(m, siteId, zone);
+  const held = heldIn(s, zone.id, g.cols, { except: key });
+  let cell = null;
+  if (a.x != null && a.y != null && a.x !== '' && a.y !== '') {
+    const x = Math.trunc(Number(a.x)); const y = Math.trunc(Number(a.y));
+    if (!(x >= 0 && y >= 0 && x < g.cols && y < g.rows)) no('That square is off the map.');
+    cell = [x, y];
+    if (held.has(y * g.cols + x)) {
+      // A monster hiding there steps aside rather than give itself away; anyone else is in the way.
+      const who = Object.keys(m.at).find((k) => k !== key && m.at[k].zone === zone.id && m.at[k].site === siteId && m.at[k].x === x && m.at[k].y === y && standing(s, k));
+      const hid = who && who.startsWith('foe:') && s.foes[who.slice(4)].hidden && t.kind === 'pc';
+      if (hid) { const c = MAP.freeNear(g, new Set([...held, y * g.cols + x]), x + 0.5, y + 0.5); if (c) m.at[who] = { ...m.at[who], x: c[0], y: c[1] }; }
+      else if (ctx.ai || isHost(ctx)) cell = MAP.freeNear(g, held, x + 0.5, y + 0.5);
+      else no('Someone is already standing there.');
+    }
+  } else if (engage) {
+    const tp = m.at[keyOf(engage.kind, engage.id)];
+    const reachSq = Math.max(1, Math.round(reachOf(s, ctx, key) / 5));
+    let best = null; let bd = Infinity;
+    for (let y = Math.max(0, tp.y - reachSq); y <= Math.min(g.rows - 1, tp.y + reachSq); y++) {
+      for (let x = Math.max(0, tp.x - reachSq); x <= Math.min(g.cols - 1, tp.x + reachSq); x++) {
+        if ((x === tp.x && y === tp.y) || held.has(y * g.cols + x)) continue;
+        if (x === from.x && y === from.y && from.zone === zone.id) { best = [x, y]; bd = -1; continue; }
+        const d = from.zone === zone.id ? Math.max(Math.abs(x - from.x), Math.abs(y - from.y)) : (x + 0.5 - MAP.anchor(g, MAP.sideToward(zone, MAP.zoneOf(zones, from.zone)))[0]) ** 2 + (y + 0.5 - MAP.anchor(g, MAP.sideToward(zone, MAP.zoneOf(zones, from.zone)))[1]) ** 2;
+        if (d < bd) { bd = d; best = [x, y]; }
+      }
+    }
+    if (!best) { best = MAP.freeNear(g, held, tp.x + 0.5, tp.y + 0.5); notes.push(`There is no room right beside ${engage.o.name}.`); }
+    cell = best;
+  } else if (zone.id !== from.zone) {
+    const path = MAP.zonePath(zones, from.zone, zone.id);
+    if (!path) no(`${zone.name} cannot be reached from ${MAP.zoneOf(zones, from.zone).name}: there is no way through.`);
+    cell = MAP.freeNear(g, held, ...MAP.anchor(g, MAP.sideToward(zone, MAP.zoneOf(zones, path[path.length - 2]))));
+  } else no('Say where to move: a zone, a square, or someone to move up to.');
+  if (!cell) no(`There is no room left in ${zone.name}.`);
+  let to = { site: siteId, zone: zone.id, x: cell[0], y: cell[1] };
+  const fight = s.fight && s.fight.phase === 'turns' ? s.fight : null;
+  const mine = fight && currentKey(s) === key;
+  if (!(from.zone === to.zone && from.x === to.x && from.y === to.y)) {
+    const blockedIn = (zid) => { const zg = MAP.gridOf(m, siteId, MAP.zoneOf(zones, zid)); return heldIn(s, zid, zg.cols, { except: key, only: hostileTo(s, key) }); };
+    const steps = MAP.stepsBetween(m, siteId, zones, from, to, { blockedIn });
+    const who = t.o;
+    const fromZ = MAP.zoneOf(zones, from.zone);
+    const b = MAP.budget(who, { speed: speedOfKey(s, ctx, key), used: mine ? fight.used : null, zoneTags: [...(fromZ.tags || []), ...(zone.tags || [])] });
+    if (!isHost(ctx) && !ctx.freeMove) {
+      // A player: a way there, and in a fight only on their own turn and within their movement.
+      if (steps == null) no('You cannot get there from here: something is in the way.');
+      if (fight) {
+        inTurnCheck(s, ctx, key, 'move');
+        const cost = steps * b.per;
+        if (cost > b.left) no(`That is ${cost} feet of movement, and ${who.name} has ${b.left} left${!fight.used.dash && !fight.used.action ? ' (Dash doubles it)' : ''}.`);
+        fight.used.moved = (fight.used.moved || 0) + cost;
+      }
+    } else if (ctx.ai && fight && t.kind === 'foe') {
+      // A monster the AI Director moves goes no further than it could Dash this turn.
+      const most = b.speed * 2;
+      if (b.speed === 0) no(`${who.name} cannot move (${(who.conds || []).join(', ') || 'held'}).`);
+      if (steps != null && steps * b.per > most) {
+        const path = MAP.zonePath(zones, from.zone, zone.id) || [from.zone];
+        const hops = Math.max(1, Math.floor(most / 30));
+        const stop = MAP.zoneOf(zones, path[Math.min(path.length - 1, hops)]);
+        if (stop.id !== zone.id) {
+          const sg2 = MAP.gridOf(m, siteId, stop);
+          const c = MAP.freeNear(sg2, heldIn(s, stop.id, sg2.cols, { except: key }), ...MAP.anchor(sg2, MAP.sideToward(stop, fromZ)));
+          if (c) { to = { site: siteId, zone: stop.id, x: c[0], y: c[1] }; zone = stop; engage = null; notes.push(`${who.name} can only get as far as ${stop.name} this turn.`); }
+        }
+      }
+      if (mine) fight.used.moved = (fight.used.moved || 0) + (steps == null ? 0 : steps * b.per);
+    } else if (mine && steps != null) fight.used.moved = (fight.used.moved || 0) + steps * b.per;
+  }
+  // Leaving an enemy's reach on your own turn invites an opportunity attack (unless you Disengaged).
+  if (mine && !fight.used.disengaged && (!a.auto || m.show.reach)) {
+    const left = [];
+    for (const [k, p] of Object.entries(m.at)) {
+      if (p.site !== siteId || !hostileTo(s, key)(k)) continue;
+      const o = whoOf(s, k);
+      if (!o || !MAP.canReact(o) || !standing(s, k)) continue;
+      const rf = reachOf(s, ctx, k);
+      if (MAP.inReach(from, p, rf) && !MAP.inReach(to, p, rf)) left.push(o.name);
+    }
+    if (left.length) story(s, ctx, 'event', `${t.o.name} moves out of ${left.join(' and ')}'s reach: ${left.length > 1 ? 'they' : left[0]} may make an opportunity attack.`, 'Engine');
+  }
+  m.at[key] = to;
+  const quiet = t.kind === 'foe' && t.o.hidden;
+  if (to.zone !== from.zone || engage) {
+    const line = engage ? `${t.o.name} ${to.zone !== from.zone ? `moves to ${zone.name} and ` : ''}closes in on ${engage.o.name}.` : `${t.o.name} moves to ${zone.name}.`;
+    if (quiet) log(s, ctx, line, 'note-host'); else story(s, ctx, 'event', line, 'Engine');
+  } else log(s, ctx, `${t.o.name} moves.`, quiet ? 'note-host' : 'event');
+  for (const n of notes) log(s, ctx, n, 'note-host');
+  s.map.lastNote = notes.join(' ');
+};
+// Dash (double movement) or Disengage (no opportunity attacks), each taking the action.
+H['map.dash'] = (s, a, ctx) => {
+  const t = target(s, a.who);
+  if (!t) no('Name who dashes.');
+  if (t.kind === 'foe') hostOnly(ctx); else ownPc(s, ctx, t.id);
+  const f = s.fight;
+  if (!f || f.phase !== 'turns') no('Dash and Disengage are for fights: outside one, move freely.');
+  const key = keyOf(t.kind, t.id);
+  if (currentKey(s) !== key) no(`It is not ${t.o.name}'s turn.`);
+  if (f.used.action && !(isHost(ctx) && !ctx.ai)) no(`${t.o.name} has already used their action this turn.`);
+  f.used.action = true;
+  if (a.kind === 'disengage') { f.used.disengaged = true; story(s, ctx, 'event', `${t.o.name} disengages.`, 'Engine'); } else { f.used.dash = true; story(s, ctx, 'event', `${t.o.name} dashes.`, 'Engine'); }
+};
+
+// What the maps show, for everyone (the DM's switches).
+H['map.show'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  for (const k of ['travel', 'zones', 'grid', 'reach']) if (a[k] != null) m.show[k] = !!a[k];
+};
+const IMG = /^\/maps\/[a-f0-9]{16,64}\.(?:png|jpg|gif|webp)$/;
+const DATA_IMG = /^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/;
+function picture(a) {
+  const url = String(a.url || '');
+  if (!IMG.test(url) && !(DATA_IMG.test(url) && url.length < 3e6)) no('That picture could not be used. Import it again.');
+  const w = Math.trunc(Number(a.w)); const h = Math.trunc(Number(a.h));
+  if (!(w > 0 && w <= 30000 && h > 0 && h <= 30000)) no('The picture\'s size is missing.');
+  return { url, w, h };
+}
+const siteRef = (s, ctx, id) => {
+  const sites = (ctx.adventure || {}).sites || [];
+  const st = id ? sites.find((x) => x.id === id) : sites.find((x) => x.id === s.scene.siteId);
+  if (id && !st && id !== s.scene.siteId) no('There is no such place.');
+  return st ? st.id : s.scene.siteId;
+};
+// The zones of a place, as the DM edits them (or back to the adventure's own with reset).
+H['map.zones'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  const id = siteRef(s, ctx, a.siteId);
+  if (a.reset) { delete m.zones[id]; siteZones(s, ctx, id); return; }
+  const list = MAP.normZones(a.zones);
+  if (!list.length) no('A place needs at least one zone.');
+  m.zones[id] = list;
+};
+// A battle map for a whole place: a picture with its squares counted (and walls, from a Universal VTT
+// file). split cuts it into zones of about 30 feet. Without squares it is only a picture behind the zones.
+H['map.site'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  const id = siteRef(s, ctx, a.siteId);
+  if (a.clear) { delete m.sites[id]; return; }
+  const pic = picture(a);
+  const cols = Math.trunc(Number(a.cols) || 0); const rows = Math.trunc(Number(a.rows) || 0);
+  if ((cols || rows) && !(cols >= 1 && cols <= 200 && rows >= 1 && rows <= 200)) no('Count the squares across and down (1 to 200).');
+  m.sites[id] = { ...pic, cols, rows, walls: MAP.cleanSegs(a.walls, MAP.MAX_WALLS, cols, rows), doors: MAP.cleanSegs(a.doors, 400, cols, rows) };
+  if (a.split && cols && rows) m.zones[id] = MAP.zonesFromSiteMap(cols, rows);
+  if (cols && rows) for (const k of Object.keys(m.at)) if (m.at[k].site === id) delete m.at[k]; // everyone re-placed on the new squares
+};
+// A battle map for one zone (when the place has no map of its own).
+H['map.grid'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  const id = siteRef(s, ctx, a.siteId);
+  const z = MAP.zoneOf(siteZones(s, ctx, id), a.zoneId);
+  if (!z) no('There is no such zone here.');
+  const k = `${id}/${z.id}`;
+  if (a.clear) { delete m.grids[k]; return; }
+  const cols = Math.trunc(Number(a.cols) || 6); const rows = Math.trunc(Number(a.rows) || 6);
+  if (!(cols >= 2 && cols <= MAP.MAX_CELLS && rows >= 2 && rows <= MAP.MAX_CELLS)) no(`A zone's battle map has 2 to ${MAP.MAX_CELLS} squares a side.`);
+  const pic = a.url ? picture(a) : {};
+  m.grids[k] = { ...pic, cols, rows, walls: MAP.cleanSegs(a.walls, MAP.MAX_WALLS, cols, rows), doors: MAP.cleanSegs(a.doors, 400, cols, rows) };
+};
+// The travel map's picture, and where a place sits on it.
+H['map.travel'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  if (a.clear) { m.travel = null; return; }
+  m.travel = picture(a);
+};
+H['map.pos'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  const id = siteRef(s, ctx, a.siteId);
+  if (a.clear) { delete m.pos[id]; return; }
+  const x = Number(a.x); const y = Number(a.y);
+  if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) no('Place it on the map.');
+  m.pos[id] = { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+};
+// Everyone here back to their starting squares.
+H['map.reset'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const m = mapUp(s);
+  for (const k of Object.keys(m.at)) if (m.at[k].site === s.scene.siteId) delete m.at[k];
+};
+
 export const ACTIONS = Object.keys(H);
 
 export function apply(state, action, ctx) {
@@ -1442,6 +1823,8 @@ export function apply(state, action, ctx) {
   s.seq += 1;
   s.t = ctx.now || 0;
   h(s, action, ctx);
+  // Everyone at the party's place has a square on the map. The map must never stop the game.
+  try { placeEveryone(s, ctx); } catch (e) { /* a broken map is redrawn next time */ }
   return s;
 }
 
@@ -1461,6 +1844,14 @@ export function viewFor(state, role, pid) {
   // A player sees their own requests with the reason, never the DC until it is resolved.
   s.requests = s.requests.filter((q) => { const p = s.players[pid]; return p && p.pcId === q.pcId; }).map((q) => ({ ...q, dc: q.kind === 'death' ? 10 : null, effect: q.effect ? { concentration: q.effect.concentration } : null }));
   s.rolls = s.rolls.map((r) => ({ ...r, at: r.kind === 'death' ? r.at : (r.at != null && r.kind !== 'attack' ? null : r.at) }));
+  // The map: only the characters and the monsters this screen can see, and no DM notes on zones.
+  if (s.map) {
+    const seen = new Set([...Object.keys(s.pcs).map((id) => `pc:${id}`), ...Object.keys(s.foes).map((id) => `foe:${id}`)]);
+    s.map.at = Object.fromEntries(Object.entries(s.map.at || {}).filter(([k]) => seen.has(k)));
+    s.map.zones = Object.fromEntries(Object.entries(s.map.zones || {}).map(([id, list]) => [id, list.map((z) => ({ ...z, note: '' }))]));
+    delete s.map.cameFrom;
+    delete s.map.lastNote;
+  }
   return s;
 }
 

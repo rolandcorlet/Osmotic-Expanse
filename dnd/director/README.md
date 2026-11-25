@@ -52,6 +52,43 @@ as in the Osmotic Expanse Director (save ids start with `dnd-`, in the same `oxd
 - **Rests**: short rests spend hit dice and restore short-rest abilities and warlock slots; long rests
   restore everything.
 
+### The maps
+
+A **Map** tab on every screen (player, table and DM) has three maps, each switched on or off for
+everyone by the DM:
+
+- **Travel map**: the adventure's places joined by their roads, with travel times. Players see where
+  they have been and the places one road away; tapping one puts "Let's head for…" in their Say box.
+  The DM can move the party from it, drag each place onto an imported map picture, or leave the
+  places where the adventure (or the Engine's own layout) puts them.
+- **Zone map**: the place where the party is, split into zones of about 30 feet (the gate arch, the
+  wall walk). Each zone can be marked as cover, high ground, difficult terrain, darkness, water, a
+  hazard or narrow. A place with no zones of its own gets three (near side, middle, far side).
+- **Battle grid**: one zone as 5-foot squares, 6 by 6 unless a battle map says otherwise. On their
+  turn a player taps a lit square (each shows what it costs), drags their token, or takes a way into
+  the next zone. Dash and Disengage are buttons. Walking out of an enemy's reach says the enemy may
+  make an opportunity attack.
+
+Who moves what: players move their own character (outside a fight freely; in a fight only on their
+turn and within their speed); the DM moves anyone anywhere; the AI Director moves monsters with its
+`move_creature` tool, thinks in zones (the briefing lists who stands in each), and a melee attack
+steps the attacker up to its target by itself. With the DM's **reach and range rules** switch on, a
+melee attack needs the target within reach this turn, a monster too far away charges instead of
+striking, ranged attacks are at disadvantage next to an enemy or at long range, and a target beyond
+long range is refused. With it off (the default), the map simply follows the story.
+
+The DM imports pictures on the Map tab: a **travel map** picture, a **battle map for the whole place**
+(a picture with its squares counted, or a Universal VTT file from Dungeondraft, Dungeon Alchemist,
+DungeonFog or Arkenforge, which brings its own squares, walls and doors; it can be cut into 30-foot
+zones at once), a **picture behind the zones**, or a **battle map for one zone**. Walls stop movement
+and doors let it through. The DM edits zones by dragging them (on a battle map they land on whole
+squares), naming them, tagging them and linking them. Pictures are kept with the saved games
+(`saves/maps`), named by their contents, and only real images (PNG, JPEG, WebP, GIF) are kept.
+
+An adventure can lay out its own: `zones` on a place (name, box, links, tags, `from` the places that
+lead in, and a note for the Director), `zone` on each of its monsters, and `map: { x, y }` for where the
+place sits on the travel map. The Lantern of Thornwick Ford has all three.
+
 ### The adventures
 
 **The Ashen Crown of Sundermark** (levels 1 to 10, the default) is Roly's three-act campaign set out

@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, statLine } from './tools.js';
 import * as R from '../engine/rules.js';
+import * as MAP from '../engine/map.js';
 import { ProviderError } from './net.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
@@ -59,6 +60,9 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   const players = Object.values(s.players).filter((p) => !p.pcId);
   if (players.length) out.push(`At the table without a character yet: ${players.map((p) => p.name).join(', ')}.`);
 
+  const mapText = mapBrief(s, site);
+  if (mapText) out.push(`\n${mapText}`);
+
   if (s.fight) {
     const f = s.fight;
     const nm = (k) => { const [kind, id] = k.split(':'); return kind === 'pc' ? s.pcs[id].name : s.foes[id].name; };
@@ -93,6 +97,32 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   if (recent.length) out.push(`\nRECENTLY AT THE TABLE (newest last; lines after your last narration are new):\n${recent.map((e) => `${e.seq > lastSeq ? '* ' : '  '}${e.who ? `${e.who}: ` : ''}${e.text}`).join('\n')}`);
   out.push('\nNow take your turn: use any tools you need, then narrate, ending on one question to one named character.');
   return out.join('\n');
+}
+
+// Where everyone stands, zone by zone (the Map tab's zones), and who is close enough to strike whom.
+export function mapBrief(s, site) {
+  const m = s.map;
+  if (!m || !m.show || !(m.show.zones || m.show.grid)) return '';
+  const zones = (m.zones || {})[site.id];
+  if (!zones || !zones.length) return '';
+  const name = (k) => { const [kind, id] = k.split(':'); const o = kind === 'pc' ? s.pcs[id] : s.foes[id]; return o ? `${o.name}${o.dead ? ' (down)' : ''}${kind === 'foe' && o.hidden ? ' (hidden)' : ''}` : ''; };
+  const here = Object.entries(m.at || {}).filter(([k, p]) => p.site === site.id && name(k));
+  const lines = zones.map((z) => {
+    const who = here.filter(([, p]) => p.zone === z.id).map(([k]) => name(k));
+    const tags = (z.tags || []).map((t) => MAP.TAGS[t]).filter(Boolean);
+    return `- ${z.name}${tags.length ? ` (${tags.join(', ')})` : ''}: ${who.join(', ') || 'nobody'}${z.note ? `. ${z.note}` : ''}`;
+  });
+  const links = [];
+  for (const z of zones) for (const l of z.links || []) if (z.id < l) links.push(`${z.name}–${(zones.find((x) => x.id === l) || {}).name}`);
+  const close = [];
+  const pcs = here.filter(([k]) => k.startsWith('pc:')); const foes = here.filter(([k]) => k.startsWith('foe:'));
+  for (const [pk, pp] of pcs) for (const [fk, fp] of foes) if (MAP.inReach(pp, fp) && !s.pcs[pk.slice(3)].dead && !s.foes[fk.slice(4)].dead) close.push(`${name(pk)} and ${name(fk)}`);
+  return [
+    `MAP (zones about 30 feet across; players move their own characters, move_creature moves the monsters; a melee monster_action steps up to its target${m.show.reach ? '; the reach and range rules are ON: a monster can only strike someone it can reach within its speed' : ''}):`,
+    ...lines,
+    links.length ? `Ways between zones: ${links.join(', ')}.` : '',
+    close.length ? `Within melee reach: ${close.join('; ')}.` : '',
+  ].filter(Boolean).join('\n');
 }
 
 // ---- checking what the model wants to say -------------------------------------------------------
