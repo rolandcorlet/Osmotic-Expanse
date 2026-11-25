@@ -63,7 +63,7 @@ import { checkAdventure } from '../engine/check.js';
 import { allRules } from '../engine/triggers.js';
 import { recordTurn } from '../brain/replay.js';
 import { generateScript } from '../engine/script-gen.js';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 import { statusPaths, createStatus, gpuReader, HEARTBEAT_SECS } from './bench-watch.mjs';
 
@@ -94,6 +94,7 @@ const level = Math.min(20, Math.max(1, Math.round(Number(opt('--level', LEVELS[p
 const logFile = opt('--log', '');
 // The model's tool calls, with the game before each turn, for replaying after code changes (tools/replay.mjs).
 const callsFile = logFile ? `${logFile.replace(/\.log$/i, '')}.calls.jsonl` : '';
+if (callsFile) { try { writeFileSync(callsFile, ''); } catch { /* a bench never stops for its record */ } } // this bench's calls only
 const verbose = !flag('--quiet');
 const crashAt = opt('--crash-at', '');
 
