@@ -283,3 +283,63 @@ details>summary:hover{color:var(--ink)}
 .clock.full .clock-face path.on{fill:var(--no)}
 .pregen .row{gap:4px;flex-wrap:wrap}
 .row.wrap>.btn{flex:1 1 auto;min-width:max-content}
+
+/* ---- printed character sheet --------------------------------------------------------------------
+   Paper, not the screen: black on white whatever the Colours tab says, to save ink. Only printed. */
+#print-sheet { display: none; }
+@media print {
+  @page { size: A4; margin: 11mm; }
+  html, body.printing { height: auto !important; overflow: visible !important; background: #fff !important; }
+  body.printing::before, body.printing::after { display: none !important; }
+  body.printing > :not(#print-sheet) { display: none !important; }
+  body.printing #print-sheet { display: block; }
+}
+#print-sheet {
+  --p-ink: #111; --p-dim: #555; --p-line: #8a8a8a; --p-soft: #efefef; --p-paper: #fff;
+  color: var(--p-ink); background: var(--p-paper); font: 8.4pt/1.28 Georgia, "Times New Roman", serif;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+#print-sheet h4 { margin: 0 0 3px; font: bold 7.6pt/1.2 Arial, Helvetica, sans-serif; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--p-line); padding-bottom: 2px; }
+.ps-page { width: 100%; }
+.ps-break { break-before: page; page-break-before: always; }
+.ps-head { display: grid; grid-template-columns: 34% 1fr; gap: 8px; align-items: end; border-bottom: 2px solid var(--p-ink); padding-bottom: 5px; margin-bottom: 7px; }
+.ps-name { font: bold 18pt/1.1 Georgia, serif; }
+.ps-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 8px; }
+.ps-meta div { border-bottom: 1px solid var(--p-line); font-size: 8.6pt; }
+.ps-meta span { display: block; font: 6.4pt/1.2 Arial, Helvetica, sans-serif; text-transform: uppercase; color: var(--p-dim); }
+.ps-cols { display: grid; grid-template-columns: 30% 35% 1fr; gap: 7px; align-items: start; }
+.ps-c { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.ps-card { border: 1px solid var(--p-line); border-radius: 4px; padding: 4px 6px; break-inside: avoid; }
+.ps-abils { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.ps-ab { border: 1.5px solid var(--p-ink); border-radius: 6px; text-align: center; padding: 2px 0 3px; }
+.ps-l { font: 6.2pt/1.2 Arial, Helvetica, sans-serif; text-transform: uppercase; letter-spacing: .03em; }
+.ps-big { font: bold 15pt/1.1 Georgia, serif; }
+.ps-sc { display: inline-block; min-width: 22px; border: 1px solid var(--p-line); border-radius: 8px; font-size: 7.6pt; background: var(--p-soft); }
+.ps-r { display: flex; gap: 4px; align-items: baseline; flex-wrap: wrap; }
+.ps-r b { min-width: 18px; text-align: right; }
+.ps-dot { font-size: 7pt; width: 9px; }
+.ps-dim { color: var(--p-dim); }
+.ps-key { margin-top: 2px; font-size: 7pt; }
+.ps-right { float: right; text-transform: none; }
+.ps-box { display: inline-block; width: 8px; height: 8px; border: 1px solid var(--p-ink); border-radius: 2px; margin-right: 2px; vertical-align: -1px; }
+.ps-vit { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.ps-vit > div { border: 1px solid var(--p-line); border-radius: 4px; text-align: center; padding: 2px 3px; break-inside: avoid; }
+.ps-vit span { display: block; font: 6.2pt/1.2 Arial, Helvetica, sans-serif; text-transform: uppercase; color: var(--p-dim); }
+.ps-vit b { display: block; font: bold 13pt/1.15 Georgia, serif; min-height: 15pt; }
+.ps-vit em { display: block; font-style: normal; font-size: 6.8pt; color: var(--p-dim); }
+.ps-vit > div:last-child:nth-child(2) { grid-column: span 2; }
+.ps-tab { width: 100%; border-collapse: collapse; }
+.ps-tab th { text-align: left; font: 6.4pt/1.2 Arial, Helvetica, sans-serif; text-transform: uppercase; color: var(--p-dim); }
+.ps-tab td { border-top: 1px solid var(--p-soft); padding: 1px 3px 1px 0; vertical-align: top; }
+.ps-note { margin-top: 3px; font-size: 7.6pt; }
+.ps-feat { margin-bottom: 4px; break-inside: avoid; }
+.ps-feat div { font-size: 7.4pt; }
+.ps-pre { white-space: pre-wrap; }
+.ps-slots { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 6px; }
+.ps-slot span { font: bold 7pt/1.2 Arial, Helvetica, sans-serif; margin-right: 4px; }
+.ps-flow { column-count: 2; column-gap: 12px; }
+.ps-head-sm .ps-name { font-size: 14pt; }
+.ps-fn { min-width: 0 !important; text-align: left !important; }
+.ps-notes .ps-pre { min-height: 60px; }
+.ps-lvl { break-after: avoid; margin-top: 5px !important; }
+.ps-spell { break-inside: avoid; margin-bottom: 4px; font-size: 7.6pt; }

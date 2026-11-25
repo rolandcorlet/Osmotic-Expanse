@@ -461,7 +461,9 @@ function startTunnel() {
       console.log(line);
       console.log(' For players anywhere (send them this link):');
       console.log(`   Join           ${publicUrl}/play?t=${tableCode}`);
-      console.log(' The link changes each time the host is started with --online.');
+      console.log(' For you, the DM, from anywhere (it asks for the host key):');
+      console.log(`   Director (DM)  ${publicUrl}/director.html`);
+      console.log(' The links change each time the host is started with --online.');
       console.log(line);
     }
   };
@@ -503,7 +505,10 @@ server.listen(PORT, '0.0.0.0', () => {
   } else {
     console.log(' No network address found: other devices cannot join yet.');
   }
-  if (publicUrl) console.log(` Outside link:    ${publicUrl}/play?t=${tableCode}`);
+  if (publicUrl) {
+    console.log(` Outside link:    ${publicUrl}/play?t=${tableCode}`);
+    console.log(` DM from outside: ${publicUrl}/director.html   (asks for the host key)`);
+  }
   console.log(` Host key: ${hostKey}   (keep it to yourself)`);
   console.log(` Table code: ${tableCode}   (asked of anyone joining from outside your network)`);
   console.log(' Close this window, or press Ctrl+C, to stop. The session is saved.');

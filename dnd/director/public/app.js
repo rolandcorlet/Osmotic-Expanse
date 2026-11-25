@@ -466,7 +466,7 @@ function sheetHtml(p, { own = false, host = false } = {}) {
   const feats = [...p.features.map((f) => ({ ...f, src: `${f.from}, level ${f.level}` })), ...p.traits.map((t) => ({ ...t, src: p.raceName }))];
   const nx = nextXp(p);
   return `<section class="card">
-      <h3><span>${esc(p.name)}</span><span class="right">${p.inspiration ? '<span class="chip on">Inspiration</span>' : ''}${p.conc ? `<span class="chip warn">Concentrating: ${esc(p.conc.name)}${edit ? ` <button class="chip" data-act="conc.end" data-pc="${p.id}">end</button>` : ''}</span>` : ''}${p.raging ? '<span class="chip no">Raging</span>' : ''}</span></h3>
+      <h3><span>${esc(p.name)}</span><span class="right">${edit ? `<button class="chip" data-act="sheet.print" data-pc="${p.id}" title="Print this character sheet, or save it as a PDF">Print</button>` : ''}${p.inspiration ? '<span class="chip on">Inspiration</span>' : ''}${p.conc ? `<span class="chip warn">Concentrating: ${esc(p.conc.name)}${edit ? ` <button class="chip" data-act="conc.end" data-pc="${p.id}">end</button>` : ''}</span>` : ''}${p.raging ? '<span class="chip no">Raging</span>' : ''}</span></h3>
       <div class="dim">Level ${p.level} ${esc(p.raceName)} ${esc(p.clsName)}${p.subclassName ? ` (${esc(p.subclassName)})` : ''} · ${esc(p.background)}${p.alignment ? ` · ${esc(p.alignment)}` : ''} · XP ${p.xp || 0}${nx != null ? ` / ${nx}` : ''}${canLevel(p) ? ' · <b style="color:var(--ok)">ready to level up</b>' : ''}</div>
       ${hpBar(p)}${vitalsTiles(p)}${deathHtml(p)}
       ${edit ? hpControls(p) : ''}
@@ -485,6 +485,82 @@ function sheetHtml(p, { own = false, host = false } = {}) {
     <section class="card"><h3>Features and traits</h3>${feats.map((f) => `<details class="feature"><summary>${esc(f.name)} <span class="faint small">${esc(f.src)}</span></summary><p>${esc(f.desc || 'See the rules.')}</p></details>`).join('')}
       <div class="small dim">Proficiencies: ${esc(p.profs.join(', ') || 'none')}. Languages: ${esc(p.langs.join(', '))}.</div></section>
     ${edit ? `<section class="card"><h3>Notes</h3><textarea rows="4" data-k="notes.${p.id}" data-notes="${p.id}">${esc(p.notes || '')}</textarea></section>` : ''}`;
+}
+
+// ------------------------------------------------------------------ printed sheet
+// A paper character sheet: the classic 5e layout in black on white (whatever the screen's colours, to
+// save ink). Page one is the character and always fits one page; then the full text of the features and
+// traits; then, for a caster, the spells. Printed with the browser's print dialog, which also saves a PDF.
+const box = (n) => Array.from({ length: n }, () => '<i class="ps-box"></i>').join('');
+function printSheetHtml(p) {
+  const player = p.playerId && state.players[p.playerId] ? state.players[p.playerId].name : '';
+  const nx = nextXp(p);
+  const meta = [
+    ['Class and level', `${p.clsName} ${p.level}${p.subclassName ? ` (${p.subclassName})` : ''}`],
+    ['Race', p.raceName], ['Background', p.background || '—'], ['Alignment', p.alignment || '—'],
+    ['Player', player || '—'], ['Experience', `${p.xp || 0}${nx != null ? ` / ${nx}` : ''}`],
+  ];
+  const abil = AB.map((a) => `<div class="ps-ab"><div class="ps-l">${ABN[a]}</div><div class="ps-big">${sg(p.mods[a])}</div><div class="ps-sc">${p.ab[a]}</div></div>`).join('');
+  const saves = AB.map((a) => `<div class="ps-r"><span class="ps-dot">${p.saves.includes(a) ? '●' : '○'}</span><b>${sg(R.saveBonus(p, a))}</b> ${ABN[a]}</div>`).join('');
+  const skills = srd.skills.map((k) => { const ex = (p.expertise || []).includes(k.id); const pr = ex || (p.skills || []).includes(k.id); return `<div class="ps-r"><span class="ps-dot">${ex ? '◆' : pr ? '●' : '○'}</span><b>${sg(R.skillBonus(p, k.id, srd).bonus)}</b> ${esc(k.name)} <span class="ps-dim">(${k.ability.replace(/^./, (c) => c.toUpperCase())})</span></div>`; }).join('');
+  const attacks = p.attacks.map((a) => `<tr><td><b>${esc(a.name)}</b></td><td>${sg(a.hit)}</td><td>${esc(a.dmg)}${a.versatile ? ` (${esc(a.versatile)})` : ''} ${esc(a.type)}</td><td class="ps-dim">${esc(a.range)}${a.props.length ? `, ${esc(a.props.filter((x) => x !== 'spell').join(', '))}` : ''}${a.proficient ? '' : ', not proficient'}</td></tr>`).join('');
+  const res = (p.resources || []).map((r) => `<div class="ps-r"><b>${esc(r.name)}</b>${r.die ? ` (${esc(r.die)})` : ''} ${r.pool || r.max > 10 ? `<span class="ps-dim">pool of ${r.max}</span>` : box(r.max)} <span class="ps-dim">${r.reset ? `per ${esc(r.reset)} rest` : ''}</span></div>`).join('');
+  const inv = p.inventory.map((x) => `<div class="ps-r">${x.qty > 1 ? `${x.qty} × ` : ''}${esc(x.name)}${x.magic ? ' <span class="ps-dim">(magic)</span>' : ''}</div>`).join('');
+  const featList = [...p.features.map((f) => ({ ...f, src: `${f.from}, level ${f.level}` })), ...p.traits.map((t) => ({ ...t, src: p.raceName }))];
+  const featNames = featList.map((f) => `<div class="ps-r"><b class="ps-fn">${esc(f.name)}</b> <span class="ps-dim">${esc(f.src)}</span></div>`).join('');
+  const feats = featList.map((f) => `<div class="ps-feat"><b>${esc(f.name)}</b> <span class="ps-dim">${esc(f.src)}</span><div>${esc(f.desc || 'See the rules.')}</div></div>`).join('');
+  const conds = [...(p.conds || []), ...(p.exhaustion ? [`exhaustion ${p.exhaustion}`] : [])];
+  const page1 = `<div class="ps-page">
+    <div class="ps-head"><div class="ps-name">${esc(p.name)}</div><div class="ps-meta">${meta.map(([k, v]) => `<div><span>${k}</span>${esc(v)}</div>`).join('')}</div></div>
+    <div class="ps-cols">
+      <div class="ps-c">
+        <div class="ps-abils">${abil}</div>
+        <div class="ps-card"><div class="ps-r"><i class="ps-box"></i> Inspiration${p.inspiration ? ' (has it)' : ''}</div><div class="ps-r"><b>${sg(p.prof)}</b> Proficiency bonus</div><div class="ps-r"><b>${p.passive}</b> Passive Perception</div></div>
+        <div class="ps-card"><h4>Saving throws</h4>${saves}</div>
+        <div class="ps-card"><h4>Skills</h4>${skills}<div class="ps-dim ps-key">● proficient · ◆ expertise</div></div>
+      </div>
+      <div class="ps-c">
+        <div class="ps-vit"><div><span>Armour class</span><b>${p.ac}</b><em>${esc(p.acNote || '')}</em></div><div><span>Initiative</span><b>${sg(p.mods.dex)}</b><em></em></div><div><span>Speed</span><b>${p.speed} ft</b><em></em></div></div>
+        <div class="ps-vit"><div><span>Hit point maximum</span><b>${p.maxHp}</b><em></em></div><div><span>Current hit points</span><b>${p.hp}</b><em>when printed</em></div><div><span>Temporary</span><b>${p.tempHp || ''}</b><em></em></div></div>
+        <div class="ps-vit"><div><span>Hit dice</span><b>${p.level}d${p.hitDie}</b><em>${p.hitDiceUsed ? `${p.hitDiceUsed} used` : ''}</em></div><div><span>Death saves</span><em>Successes ${box(3)}</em><em>Failures ${box(3)}</em></div></div>
+        ${conds.length ? `<div class="ps-card"><b>Conditions when printed:</b> ${esc(conds.join(', '))}</div>` : ''}
+        <div class="ps-card"><h4>Attacks</h4><table class="ps-tab"><tr><th>Name</th><th>Hit</th><th>Damage</th><th>Notes</th></tr>${attacks}</table>
+          ${p.extraAttacks ? `<div class="ps-note">Extra Attack: ${p.extraAttacks + 1} attacks when you take the Attack action.</div>` : ''}${p.sneak ? `<div class="ps-note">Sneak Attack: ${esc(p.sneak)} once a turn, with advantage or an ally next to the target.</div>` : ''}</div>
+        ${res ? `<div class="ps-card"><h4>Class abilities</h4>${res}</div>` : ''}
+        <div class="ps-card"><h4>Equipment <span class="ps-right">${p.gold || 0} gp</span></h4>${inv || '<div class="ps-dim">Nothing yet.</div>'}</div>
+      </div>
+      <div class="ps-c">
+        <div class="ps-card"><h4>Proficiencies and languages</h4><div>${esc(p.profs.join(', ') || 'none')}.</div><div><b>Languages:</b> ${esc(p.langs.join(', '))}.</div></div>
+        <div class="ps-card"><h4>Features and traits</h4>${featNames}${featList.length ? '<div class="ps-dim ps-key">Full text on the next page.</div>' : ''}</div>
+        <div class="ps-card ps-notes"><h4>Notes</h4><div class="ps-pre">${esc(p.notes || '')}</div></div>
+      </div>
+    </div></div>`;
+  const page2 = featList.length ? `<div class="ps-page ps-break">
+    <div class="ps-head ps-head-sm"><div class="ps-name">${esc(p.name)} <span class="ps-dim">features and traits</span></div><div class="ps-meta"><div><span>Class and level</span>${esc(`${p.clsName} ${p.level}`)}</div><div><span>Race</span>${esc(p.raceName)}</div></div></div>
+    <div class="ps-flow">${feats}</div></div>` : '';
+  if (!p.cast) return page1 + page2;
+  const c = p.cast;
+  const by = {};
+  for (const sp of castable(p)) (by[sp.level] = by[sp.level] || []).push(sp);
+  const slots = c.slots.map(([m], k) => (m ? `<div class="ps-slot"><span>${R.ordinal(k + 1)} level</span>${box(m)}</div>` : '')).join('');
+  const spells = Object.keys(by).sort((a, b) => a - b).map((l) => `<h4 class="ps-lvl">${Number(l) ? `${R.ordinal(Number(l))} level` : 'Cantrips'}</h4>${by[l].map((sp) => `<div class="ps-spell"><b>${esc(sp.name)}</b> <span class="ps-dim">${esc(sp.time)} · ${esc(sp.range)} · ${esc(sp.comp)} · ${esc(sp.dur)}${sp.conc ? ' · concentration' : ''}${sp.ritual ? ' · ritual' : ''}</span><div>${esc(sp.desc)}</div>${sp.higher ? `<div><i>At higher levels.</i> ${esc(sp.higher)}</div>` : ''}</div>`).join('')}`).join('');
+  const page3 = `<div class="ps-page ps-break">
+    <div class="ps-head ps-head-sm"><div class="ps-name">${esc(p.name)} <span class="ps-dim">spells</span></div><div class="ps-meta">${[['Spellcasting ability', ABN[c.ability]], ['Spell save DC', c.dc], ['Spell attack', sg(c.atk)]].map(([k, v]) => `<div><span>${k}</span>${esc(v)}</div>`).join('')}</div></div>
+    <div class="ps-card ps-slots">${slots}</div>
+    <div class="ps-flow">${spells}</div></div>`;
+  return page1 + page2 + page3;
+}
+function printSheet(p) {
+  if (!p) return;
+  let el = document.getElementById('print-sheet');
+  if (!el) { el = document.createElement('div'); el.id = 'print-sheet'; document.body.appendChild(el); }
+  el.innerHTML = printSheetHtml(p);
+  const title = document.title;
+  document.title = `${p.name} - character sheet`;
+  document.body.classList.add('printing');
+  const done = () => { document.body.classList.remove('printing'); document.title = title; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  window.print();
 }
 
 // ------------------------------------------------------------------ spells
@@ -1244,6 +1320,7 @@ function setPath(obj, pathStr, value) {
 }
 function spellsCtx(ctx) { return ctx === 'lvl' ? ui.lvl.spells : (ui.build.spells = ui.build.spells || { cantrips: [], known: [], prepared: [] }); }
 const ACT = {
+  'sheet.print': (d) => printSheet(state.pcs[d.pc]),
   tab: (d) => { ui.tab = d.t; if (d.t !== 'build') ui.lvl = { asi: { a: '', b: '' }, subclass: '', spells: null }; },
   readaloud: () => { ui.readAloud = !ui.readAloud; store.set('dnd.read', ui.readAloud ? 'on' : 'off'); if (!ui.readAloud) stopVoice(); else { V.blocked = false; pumpVoice(); } },
   talk: () => talk(),
