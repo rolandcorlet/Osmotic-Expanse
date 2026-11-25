@@ -96,10 +96,11 @@ export function gemini({ apiKey, model, fetchImpl = fetch, temperature = 0.8 }) 
     }
 
     return {
-      send(text) {
+      send(text, images = []) {
         // After an empty reply nothing was added for the model, so this joins the waiting user turn.
         const last = contents[contents.length - 1];
-        if (last && last.role === 'user') last.parts.push({ text }); else contents.push({ role: 'user', parts: [{ text }] });
+        const parts = [{ text }, ...images.map((i) => ({ inline_data: { mime_type: i.mime, data: i.data } }))];
+        if (last && last.role === 'user') last.parts.push(...parts); else contents.push({ role: 'user', parts });
         return turn();
       },
       results(list) {

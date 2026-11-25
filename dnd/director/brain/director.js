@@ -46,13 +46,14 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   if ((site.npcs || []).length) out.push(`PEOPLE HERE:\n${site.npcs.map((n) => `- ${n.name}: ${n.who}. Voice: ${n.voice}. Wants: ${n.wants}.`).join('\n')}`);
   if ((site.checks || []).length) out.push(`WHAT A SUCCESSFUL CHECK REVEALS HERE:\n${site.checks.map((c) => `- ${(R.index(srd).skill[c.skill] || {}).name || c.skill} DC ${c.dc}: ${c.find}`).join('\n')}`);
   if (site.treasure) out.push(`TREASURE HERE (give it when found): ${site.treasure}`);
+  if ((site.objects || []).length) out.push(`THINGS HERE A CHARACTER CAN USE (call use_object when one is opened, pulled, read or searched; the place's rules may make something happen):\n${site.objects.map((o) => (typeof o === 'string' ? `- ${o}` : `- ${o.name}${o.note ? `: ${o.note}` : ''}`)).join('\n')}`);
   out.push(`EXITS: ${(site.exits || []).map((e) => `${e.to} (${e.label})`).join('; ') || 'none'}`);
   const rulesText = rulesBrief(s, adventure, lastSeq);
   if (rulesText) out.push(`\n${rulesText}`);
 
   const foes = Object.values(s.foes).filter((f) => f.siteId === site.id);
   if (foes.length) {
-    out.push(`\nMONSTERS HERE:\n${foes.map((f) => `- ${f.name} (id ${f.id}, ${f.mid})${f.dead ? `: ${f.fled ? 'fled' : 'down'}` : `: HP ${f.hp}/${f.maxHp}, AC ${f.ac}${f.conds.length ? `, ${f.conds.join(', ')}` : ''}${f.hidden ? ', HIDDEN (the players have not seen it)' : ''}${Object.keys(f.spent || {}).length ? `, used: ${Object.keys(f.spent).join(', ')}` : ''}`}${f.note ? `. ${f.note}` : ''}`).join('\n')}`);
+    out.push(`\nMONSTERS HERE:\n${foes.map((f) => `- ${f.name} (id ${f.id}, ${f.mid})${f.dead ? `: ${f.fled ? 'fled' : 'down'}` : `: HP ${f.hp}/${f.maxHp}, AC ${f.ac}${f.conds.length ? `, ${f.conds.join(', ')}` : ''}${f.hidden ? ', HIDDEN (the players have not seen it)' : ''}${f.calm ? ', STANDING DOWN (not fighting; an attack on it starts a fight)' : ''}${Object.keys(f.spent || {}).length ? `, used: ${Object.keys(f.spent).join(', ')}` : ''}`}${f.note ? `. ${f.note}` : ''}`).join('\n')}`);
     const kinds = [...new Set(foes.filter((f) => !f.dead).map((f) => f.mid))];
     const ix = R.index(srd);
     if (kinds.length) out.push(`STAT BLOCKS (for you only):\n${kinds.map((k) => `- ${statLine(ix.monster[k])}`).join('\n')}`);
@@ -138,6 +139,9 @@ export function rulesBrief(s, adventure, lastSeq = 0) {
   lines.push('THE ADVENTURE\'S RULES HERE (the Engine carries them out by itself when they happen: you narrate them, you do not call tools for them; if the story has gone another way, override_rule with the rule\'s id and why):');
   for (const r of list) lines.push(`- [${r.key}] ${r.words}${r.status === 'waiting' ? '' : r.status === 'off' ? ` (SWITCHED OFF${r.why ? `: ${r.why}` : ''})` : r.status === 'done' ? ' (DONE)' : ' (passed)'}`);
   lines.push('- [*/attack] An attack on anyone here with no fight on starts the fight. The fight ends by itself when no foe in it is left standing (it pays its XP).');
+  const waits = [list.some((r) => r.ev === 'use' && r.status === 'waiting') ? 'a rule on a character using something happens when you call use_object for it' : '',
+    list.some((r) => r.zone && r.status === 'waiting') ? 'a rule on a character entering an area happens when they are moved there on the map (move_creature)' : ''].filter(Boolean);
+  if (waits.length) lines.push(`So that they can happen: ${waits.join('; ')}.`);
   if (fit && fit.text) lines.push(`FITTED TO THIS PARTY: ${fit.text} Describe the numbers as they are here, not as the notes give them.`);
   if (did.length) lines.push(`THE ENGINE DID THIS BY ITSELF SINCE YOUR LAST NARRATION (narrate it): ${did.join(' ')}`);
   return lines.join('\n');

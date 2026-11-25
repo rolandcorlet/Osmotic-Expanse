@@ -63,8 +63,18 @@ export function newSession(adventure) {
     players: {}, pcs: {}, foes: {}, fight: null,
     quests: (adventure && adventure.quests ? adventure.quests.map((q, n) => ({ id: `q${n + 1}`, text: q, done: false })) : []),
     loot: [], time: { day: 1, hour: 8 }, seeds: [], notes: '', nextId: 1, started: false, clocks: [],
-    map: MAP.newMap(),
+    map: adventureMaps(MAP.newMap(), adventure),
   };
+}
+// An adventure can bring its own maps (a converted PDF's, from the Books tab): travelPicture, and a
+// place's picture behind its zones. The DM changes or clears them on the Map tab like any other.
+function adventureMaps(m, adventure) {
+  const ok = (p) => p && /^\/maps\/[a-f0-9]{16,64}\.(?:png|jpg|gif|webp)$/.test(String(p.url || '')) && Number(p.w) > 0 && Number(p.h) > 0;
+  const pic = (p) => ({ url: p.url, w: Math.trunc(p.w), h: Math.trunc(p.h) });
+  if (!adventure) return m;
+  if (ok(adventure.travelPicture)) m.travel = pic(adventure.travelPicture);
+  for (const st of adventure.sites || []) if (ok(st.picture)) m.sites[st.id] = { ...pic(st.picture), cols: 0, rows: 0, walls: [], doors: [] };
+  return m;
 }
 
 // The first place's own monsters (hidden) and clocks, placed as a new game opens.
@@ -188,6 +198,7 @@ function beginTurn(s, ctx) {
       }
     }
     if (foe.legendary != null && m && m.legendary) foe.legendary = 3;
+    if (!foe.dead && !foe.calm) emit(ctx, { ev: 'turn', site: s.scene.siteId, foe: id });
   }
 }
 function advance(s, ctx) {
@@ -199,7 +210,7 @@ function advance(s, ctx) {
     if (f.turn >= n) { f.turn = 0; f.round += 1; emit(ctx, { ev: 'round', n: f.round, site: s.scene.siteId }); }
     const k = f.order[f.turn].key;
     const [kind, id] = k.split(':');
-    const alive = kind === 'pc' ? s.pcs[id] && !s.pcs[id].dead : s.foes[id] && !s.foes[id].dead;
+    const alive = kind === 'pc' ? s.pcs[id] && !s.pcs[id].dead : s.foes[id] && !s.foes[id].dead && !s.foes[id].calm;
     if (alive && !surprisedNow(f, k)) break;
   }
   beginTurn(s, ctx);
@@ -230,7 +241,7 @@ function startTurns(s, ctx) {
   beginTurn(s, ctx);
   // Someone dead, gone or surprised at the top of the order is passed over at once.
   const [kind, id] = f.order[0].key.split(':');
-  if ((kind === 'pc' && s.pcs[id].dead) || (kind === 'foe' && s.foes[id].dead) || surprisedNow(f, f.order[0].key)) advance(s, ctx);
+  if ((kind === 'pc' && s.pcs[id].dead) || (kind === 'foe' && (s.foes[id].dead || s.foes[id].calm)) || surprisedNow(f, f.order[0].key)) advance(s, ctx);
 }
 function joinFight(s, ctx, kind, id, { roll = false } = {}) {
   const f = s.fight;
@@ -717,12 +728,13 @@ H['fight.start'] = (s, a, ctx) => {
   if (!pcs.length) no('Nobody in the party can fight.');
   s.fight = { phase: 'initiative', round: 0, turn: 0, order: [], used: freshTurn(), xp: 0, surprised: [] };
   s.fight.surprised = surprisedKeys(s, ctx, [].concat(a.surprised || [], a.surprise ? [a.surprise] : []), foes, pcs);
-  for (const f of foes) { f.hidden = false; joinFight(s, ctx, 'foe', f.id); }
+  for (const f of foes) { f.hidden = false; delete f.calm; joinFight(s, ctx, 'foe', f.id); }
   for (const p of pcs) {
     joinFight(s, ctx, 'pc', p.id, { roll: !!a.autoRoll || !p.playerId });
     if (!a.autoRoll && p.playerId) s.requests.push({ id: nextId(s, 'q'), pcId: p.id, kind: 'initiative', ability: 'dex', skill: '', dc: 0, adv: '', reason: 'Roll initiative!', by: 'engine', t: ctx.now || 0 });
   }
   story(s, ctx, 'event', `Battle! ${foes.map((f) => f.name).join(', ')}. Roll initiative.`, 'Engine');
+  emit(ctx, { ev: 'fight', site: s.scene.siteId });
   if (s.fight.surprised.length) story(s, ctx, 'event', `Surprised: ${s.fight.surprised.map((k) => nameOf(s, k)).join(', ')} (no turn in the first round).`, 'Engine');
   if (s.fight.order.every((o) => o.init != null)) startTurns(s, ctx);
 };
@@ -814,7 +826,7 @@ H['fight.end'] = (s, a, ctx) => {
   // the story: those foes are beaten (out of the fight, their XP earned), so the place's rules ("when
   // no foe is left standing") still happen. A party that flees (award false) leaves them standing.
   if (ctx.ai && a.award !== false) {
-    const still = s.fight.order.filter((o) => o.key.startsWith('foe:')).map((o) => s.foes[o.key.slice(4)]).filter((f) => f && !f.dead);
+    const still = s.fight.order.filter((o) => o.key.startsWith('foe:')).map((o) => s.foes[o.key.slice(4)]).filter((f) => f && !f.dead && !f.calm);
     if (still.length && Object.values(s.pcs).some((p) => !p.dead && p.hp > 0)) {
       for (const f of still) { f.dead = true; f.fled = true; f.beaten = true; s.fight.xp = (s.fight.xp || 0) + (f.xp || 0); }
       assume(ctx, `${still.map((f) => f.name).join(', ')} ${still.length > 1 ? 'were' : 'was'} still standing in the record: the fight is over, so ${still.length > 1 ? 'they count' : 'it counts'} as beaten.`);
@@ -1225,6 +1237,8 @@ H['foe.flee'] = (s, a, ctx) => {
 // A monster's action from its stat block, against a character. One that strikes or catches a character
 // with no fight on starts one (the monster struck first).
 H['foe.act'] = (s, a, ctx) => {
+  const actor = s.foes[a.foeId] || (target(s, a.foeId, ctx) || {}).o;
+  if (actor && actor.calm && s.foes[actor.id]) delete actor.calm; // one that stood down and acts again is fighting
   const calm = !s.fight;
   const rolls = s.rolls.length; const asks = s.requests.length;
   foeAct(s, a, ctx);
@@ -1709,6 +1723,22 @@ H['loot.give'] = (s, a, ctx) => {
   }
   story(s, ctx, 'event', `${pc ? `${pc.name} receives` : 'The party finds'} ${[gold ? `${gold} gp` : '', name ? `${qty > 1 ? `${qty} × ` : ''}${it ? it.name : name}` : ''].filter(Boolean).join(' and ')}.`, 'Engine');
 };
+// A character uses something here: opens the chest, pulls the lever, reads the book. The place's rules on
+// "use <object>" happen (engine/triggers.js); otherwise the Director says what it does. `how` is the verb
+// ("opens"), `object` what is used, as the place's `objects` name it when it lists them.
+H['object.use'] = (s, a, ctx) => {
+  const t = target(s, a.who || a.pcId, ctx);
+  if (!t || t.kind !== 'pc') refuse(`Say who uses it: ${partyNames(s).join(', ') || 'nobody is in the party yet'}.`, partyNames(s));
+  const pc = ownPc(s, ctx, t.id);
+  if (pc.dead || pc.hp <= 0) nop(`${pc.name} cannot: they are ${pc.dead ? 'dead' : 'down'}.`);
+  const what = str(a.object, 80).replace(/[.\s]+$/, '');
+  if (!what) refuse('Say what is used.', objectsHere(s, ctx));
+  let how = str(a.how, 24).toLowerCase().replace(/[^a-z\s-]/g, '').trim() || 'uses';
+  if (!/s$/.test(how.split(' ')[0])) how = how.replace(/^(\S+)/, (v) => (/(?:sh|ch|x|z)$/.test(v) ? `${v}es` : `${v}s`));
+  story(s, ctx, 'event', `${pc.name} ${how} ${/^(?:the|a|an|his|her|their)\s/i.test(what) ? what : `the ${what}`}.`, 'Engine');
+  emit(ctx, { ev: 'use', site: s.scene.siteId, object: what, pc: pc.id });
+};
+const objectsHere = (s, ctx) => ((((ctx.adventure || {}).sites || []).find((x) => x.id === s.scene.siteId) || {}).objects || []).map((o) => (typeof o === 'string' ? o : o.name)).filter(Boolean);
 H['loot.take'] = (s, a, ctx) => {
   const pc = ownPc(s, ctx, a.pcId);
   const k = s.loot.findIndex((x, n) => String(n) === String(a.index) || x.name === a.name);
@@ -1998,6 +2028,7 @@ H['map.move'] = (s, a, ctx) => {
     if (left.length) story(s, ctx, 'event', `${t.o.name} moves out of ${left.join(' and ')}'s reach: ${left.length > 1 ? 'they' : left[0]} may make an opportunity attack.`, 'Engine');
   }
   m.at[key] = to;
+  if (t.kind === 'pc' && to.zone !== from.zone) emit(ctx, { ev: 'enter', site: siteId, zone: zone.id, zoneName: zone.name, pc: t.id });
   const quiet = t.kind === 'foe' && t.o.hidden;
   if (to.zone !== from.zone || engage) {
     const line = engage ? `${t.o.name} ${to.zone !== from.zone ? `moves to ${zone.name} and ` : ''}closes in on ${engage.o.name}.` : `${t.o.name} moves to ${zone.name}.`;
@@ -2135,8 +2166,15 @@ const questByWords = (s, w) => {
     || s.quests.find((q) => { const ws = k.split(/\s+/).filter((x) => x.length > 3); return ws.length && ws.every((x) => q.text.toLowerCase().includes(x)); }) || null;
 };
 
-// Does one "if" hold now?
-function holds(s, ctx, rule, c) {
+// Does one "if" hold now? `ev`: the moment that set the rule off (who entered, who used), if any.
+const itemsOf = (p) => (p && p.inventory) || [];
+const named = (k) => (x) => String(x.name || '').toLowerCase().includes(k) && (x.qty == null || x.qty > 0);
+function holders(s, ev, c) {
+  const k = c.arg.toLowerCase();
+  const who = ev && ev.pc && s.pcs[ev.pc] ? [s.pcs[ev.pc]] : Object.values(s.pcs).filter((p) => !p.dead);
+  return (c.k === 'carries' ? who : Object.values(s.pcs).filter((p) => !p.dead)).filter((p) => itemsOf(p).some(named(k)));
+}
+function holds(s, ctx, rule, c, ev = null) {
   const site = rule.site || s.scene.siteId;
   let v = false;
   switch (c.k) {
@@ -2146,7 +2184,8 @@ function holds(s, ctx, rule, c) {
     case 'standing': v = foesNamed(s, rule.site, c.arg).some(standingFoe); break;
     case 'hurt': v = foesNamed(s, rule.site, c.arg).some((f) => standingFoe(f) && f.hp < f.maxHp / 2); break;
     case 'quest': { const q = questByWords(s, c.arg); v = !!(q && q.done); break; }
-    case 'has': { const k = c.arg.toLowerCase(); v = [...(s.loot || []), ...Object.values(s.pcs).flatMap((p) => p.inventory || [])].some((x) => String(x.name || '').toLowerCase().includes(k)); break; }
+    case 'has': { const k = c.arg.toLowerCase(); v = [...(s.loot || []), ...Object.values(s.pcs).flatMap(itemsOf)].some(named(k)); break; }
+    case 'carries': v = holders(s, ev, c).length > 0; break;
     case 'passed': case 'failed': {
       const last = [...(s.outcomes || [])].reverse().find((o) => o.site === site && (o.skill || String(R.ABILITY_NAMES[o.ability] || '').toLowerCase()) === c.arg);
       v = !!last && (c.k === 'passed' ? last.ok : !last.ok); break;
@@ -2174,6 +2213,10 @@ function setOff(s, ctx, rule, ev) {
     if (rule.site && ev.site && ev.site !== rule.site) return false;
     if (w.ev === 'fail' || w.ev === 'succeed') return ev.skill === w.arg;
     if (w.ev === 'round') return w.arg ? ev.n === w.arg : ev.n > 1;
+    // "enter" alone is the party arriving; "enter <zone>" a character stepping into that zone.
+    if (w.ev === 'enter') { if (!w.arg) return !ev.zone; const z = String(w.arg).toLowerCase(); return !!ev.zone && (ev.zone === z || String(ev.zoneName || '').toLowerCase() === z); }
+    if (w.ev === 'use') { const a = String(w.arg).toLowerCase().replace(/^(?:the|a|an)\s+/, ''); const o = String(ev.object || '').toLowerCase().replace(/^(?:the|a|an)\s+/, ''); return !!a && !!o && (o.includes(a) || a.includes(o)); }
+    if (w.ev === 'turn') return !w.arg || foesNamed(s, rule.site, w.arg).some((f) => f.id === ev.foe);
     return true;
   }
   switch (w.ev) {
@@ -2245,6 +2288,36 @@ function carryOut(s, ctx, rule, ev) {
       said.push(`${l.map((f) => f.name).join(', ')} ${l.length > 1 ? 'are' : 'is'} revealed.`);
       break;
     }
+    // What was in the chest: to whoever opened it (or stepped in), else to the party's loot.
+    case 'give': {
+      const pc = ev && ev.pc && s.pcs[ev.pc] && !s.pcs[ev.pc].dead ? s.pcs[ev.pc] : null;
+      const before = Object.fromEntries(Object.values(s.pcs).map((p) => [p.id, { gold: p.gold || 0, inv: Object.fromEntries(itemsOf(p).map((x) => [x.name, x.qty])) }]));
+      const lootAt = s.loot.length;
+      H['loot.give'](s, { pcId: pc ? pc.id : undefined, item: rule.item, qty: rule.qty, gold: rule.gold }, host);
+      undo.given = { loot: s.loot.slice(lootAt).map((x) => x.name), pcs: {} };
+      for (const p of Object.values(s.pcs)) {
+        const b = before[p.id] || { gold: 0, inv: {} };
+        const items = itemsOf(p).filter((x) => x.qty > (b.inv[x.name] || 0)).map((x) => [x.name, x.qty - (b.inv[x.name] || 0)]);
+        const gold = (p.gold || 0) - b.gold;
+        if (items.length || gold) undo.given.pcs[p.id] = { items, gold };
+      }
+      const what = [rule.item ? `${rule.qty > 1 ? `${rule.qty} × ` : ''}${rule.item}` : '', rule.gold ? `${rule.gold} gp` : ''].filter(Boolean).join(' and ');
+      said.push(pc ? `${pc.name} gets ${what}.` : `The party finds ${what}.`);
+      break;
+    }
+    // They stand down: out of the fight (no turns, not beaten, no XP). The fight ends when nobody in it is
+    // still fighting; attacking them starts a new one.
+    case 'calm': {
+      const l = foesNamed(s, where, rule.target).filter((f) => standingFoe(f) && !f.calm);
+      if (!l.length) break;
+      for (const f of l) f.calm = true;
+      undo.calmed = l.map((f) => f.id);
+      const seen = l.filter((f) => !f.hidden);
+      if (seen.length) story(s, ctx, 'event', `${seen.map((f) => f.name).join(', ')} ${seen.length > 1 ? 'stand' : 'stands'} down.`, 'Engine');
+      said.push(`${l.map((f) => f.name).join(', ')} ${l.length > 1 ? 'stand' : 'stands'} down: no fight with ${l.length > 1 ? 'them' : 'it'} unless the party attacks.`);
+      if (s.fight && s.fight.phase === 'turns') { const k = currentKey(s); if (k && k.startsWith('foe:') && s.foes[k.slice(4)] && s.foes[k.slice(4)].calm) advance(s, host); }
+      break;
+    }
     default: break;
   }
   // A milestone: so much XP each, or what each still needs to reach a level. Paid once per place.
@@ -2263,6 +2336,13 @@ function carryOut(s, ctx, rule, ev) {
         levelReady(s, ctx);
         said.push(`A milestone: ${words}.`);
       }
+    }
+  }
+  // Who has the item the rule asked about, for the Director to name.
+  if (said.length || rule.do === 'say' || rule.do === 'xp') {
+    for (const c of rule.if.filter((x) => (x.k === 'has' || x.k === 'carries') && !x.not)) {
+      const h = holders(s, ev, c);
+      if (h.length) said.push(`(${h.map((p) => p.name).join(' and ')} ${h.length > 1 ? 'carry' : 'carries'} ${c.arg}.)`);
     }
   }
   if (rule.say && (said.length || rule.do === 'say' || rule.do === 'xp')) said.push(rule.say);
@@ -2287,7 +2367,7 @@ function runRules(s, ctx, action) {
   const RS = rulesOf(s);
   const party = Object.values(s.pcs).filter((p) => !p.dead);
   // The first place is "entered" when the game starts (its first narration, or the Director's first turn).
-  if (!RS.entered[s.scene.siteId] && party.length && (s.started || ctx.starting) && !ctx.events.some((e) => e.ev === 'enter')) ctx.events.unshift({ ev: 'enter', site: s.scene.siteId, from: s.scene.from || '' });
+  if (!RS.entered[s.scene.siteId] && party.length && (s.started || ctx.starting) && !ctx.events.some((e) => e.ev === 'enter' && !e.zone)) ctx.events.unshift({ ev: 'enter', site: s.scene.siteId, from: s.scene.from || '' });
   try {
     if (party.length && (s.started || ctx.starting)) fitFoes(s, ctx, s.scene.siteId);
   } catch (e) { log(s, ctx, `Could not fit the fight here to the party: ${e.message}`, 'note-host'); }
@@ -2295,13 +2375,13 @@ function runRules(s, ctx, action) {
     const events = ctx.events.splice(0);
     let fired = false;
     const rules = TRIG.rulesAt(ctx.adventure, s.scene.siteId).filter((r) => r.when.ev && !RS.off[r.key]);
-    const ready = (r) => r.if.every((c) => holds(s, ctx, r, c)) && (!r.once || !RS.fired[r.key]);
+    const ready = (r, ev) => r.if.every((c) => holds(s, ctx, r, c, ev)) && (!r.once || !RS.fired[r.key]);
     for (const ev of events) {
-      if (ev.ev === 'enter') RS.entered[ev.site] = s.seq;
+      if (ev.ev === 'enter' && !ev.zone) RS.entered[ev.site] = s.seq;
       if (ev.site && ev.site !== s.scene.siteId) continue;
       let fight = false;
       for (const r of rules) {
-        if (!setOff(s, ctx, r, ev) || !ready(r)) continue;
+        if (!setOff(s, ctx, r, ev) || !ready(r, ev)) continue;
         try { if (fireRule(s, ctx, r, ev)) { fired = true; if (r.do === 'fight') fight = true; } } catch (e) { log(s, ctx, `The rule ${r.key} could not be carried out: ${e.message}`, 'note-host'); }
       }
       // The default: an attack with no fight on starts one, unless the place's own rules already did.
@@ -2317,10 +2397,11 @@ function runRules(s, ctx, action) {
     // The default: a fight ends when nobody on the monsters' side is left standing.
     if (s.fight && s.fight.order.length && !RS.off['*/fight-ends']) {
       const foes = s.fight.order.filter((o) => o.key.startsWith('foe:')).map((o) => s.foes[o.key.slice(4)]).filter(Boolean);
-      if (foes.length && !foes.some(standingFoe)) {
+      if (foes.length && !foes.some((f) => standingFoe(f) && !f.calm)) {
+        const why = foes.some(standingFoe) ? 'No foe is still fighting' : 'No foe is left standing';
         H['fight.end'](s, {}, { ...ctx, role: 'host', pid: null, ai: false, assumed: null });
-        RS.fired['*/fight-ends'] = { seq: s.seq, text: 'No foe is left standing: the fight is over.', undo: {} };
-        log(s, ctx, 'No foe is left standing: the fight is over. [rule */fight-ends]', 'rule');
+        RS.fired['*/fight-ends'] = { seq: s.seq, text: `${why}: the fight is over.`, undo: {} };
+        log(s, ctx, `${why}: the fight is over. [rule */fight-ends]`, 'rule');
         fired = true;
       }
     }
@@ -2380,7 +2461,7 @@ function fitFoes(s, ctx, siteId) {
 export function rulesHere(state, adventure) {
   const RS = state.rules || { fired: {}, off: {} };
   const out = TRIG.rulesAt(adventure, state.scene.siteId).map((r) => ({
-    key: r.key, id: r.id, words: TRIG.ruleWords(r, adventure),
+    key: r.key, id: r.id, words: TRIG.ruleWords(r, adventure), ev: r.when.ev, zone: r.when.ev === 'enter' && !!r.when.arg,
     status: RS.off[r.key] ? 'off' : RS.fired[r.key] && (r.once || TRIG.STATES.includes(r.when.ev)) ? (RS.fired[r.key].text ? 'done' : 'passed') : 'waiting',
     did: (RS.fired[r.key] || {}).text || '', why: RS.off[r.key] || '',
   }));
@@ -2419,6 +2500,17 @@ H['rule.override'] = (s, a, ctx) => {
   if (u.clock && u.by) { const c = (s.clocks || []).find((x) => x.name === u.clock); if (c) { c.filled = Math.max(0, c.filled - u.by); c.done = c.filled >= c.size; said.push(`the clock "${c.name}" goes back to ${c.filled}`); } }
   if (u.quest) { const q = s.quests.find((x) => x.id === u.quest); if (q) { q.done = false; said.push(`the quest "${q.text}" is open again`); } }
   if (u.revealed) for (const id of u.revealed) if (s.foes[id]) s.foes[id].hidden = true;
+  if (u.given) {
+    for (const name of u.given.loot || []) { const k = s.loot.findIndex((x) => x.name === name); if (k >= 0) s.loot.splice(k, 1); }
+    for (const [id, g] of Object.entries(u.given.pcs || {})) {
+      const p = s.pcs[id];
+      if (!p) continue;
+      p.gold = Math.max(0, (p.gold || 0) - (g.gold || 0));
+      for (const [name, n] of g.items || []) { const it = itemsOf(p).find((x) => x.name === name); if (it) { it.qty -= n; if (it.qty <= 0) p.inventory = p.inventory.filter((x) => x !== it); } }
+    }
+    said.push('what it gave is taken back');
+  }
+  if (u.calmed) { const back = u.calmed.map((id) => s.foes[id]).filter((f) => f && f.calm); for (const f of back) delete f.calm; if (back.length) said.push(`${back.map((f) => f.name).join(', ')} ${back.length > 1 ? 'are' : 'is'} hostile again`); }
   if (u.xp) { for (const [id, n] of Object.entries(u.xp)) if (s.pcs[id]) s.pcs[id].xp = Math.max(0, (s.pcs[id].xp || 0) - n); s.xpPaid = (s.xpPaid || []).filter((k) => k !== u.xpKey); said.push('the milestone XP is taken back'); }
   delete RS.fired[r.key];
   if (r.key !== ATTACK_RULE.key) RS.off[r.key] = reason || 'undone';

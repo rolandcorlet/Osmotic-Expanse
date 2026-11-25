@@ -83,7 +83,8 @@ export function openaiLike({ id = 'openai', name = 'OpenAI', baseUrl, apiKey = '
     }
 
     return {
-      send(text) { messages.push({ role: 'user', content: text }); return turn(); },
+      // images: [{ mime, data (base64) }] for a model that can see (the Books tab's pictures).
+      send(text, images = []) { messages.push({ role: 'user', content: images.length ? [{ type: 'text', text }, ...images.map((i) => ({ type: 'image_url', image_url: { url: `data:${i.mime};base64,${i.data}` } }))] : text }); return turn(); },
       results(list) {
         for (const { call: c, result } of list) messages.push({ role: 'tool', tool_call_id: c.id || c.name, content: JSON.stringify(result) });
         return turn();

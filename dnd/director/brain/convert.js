@@ -9,6 +9,10 @@
 //      entry by entry, what was read and what was not, for the DM to see before saving.
 //   5. Saved books go to library/converted/<id>/ (the original words, the book, its engine version and
 //      its gaps), saved campaigns to library/adventures/. Both are private and load at start-up.
+//   A PDF's pictures (public/pdfread.js cuts them out) are looked at by the AI first, if it can see
+//   (seePictures): the words in a stat block, a scanned page or a handout join the text before it is
+//   read, and a campaign's maps go to its places (matchMaps). Without a model that can see, the DM says
+//   what each picture is on the Books tab.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, renameSync } from 'node:fs';
 import { join } from 'node:path';
 import * as BOOK from '../engine/book.js';
@@ -402,7 +406,7 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
 }
 
 // ---- 5. saving and loading ---------------------------------------------------------------------------
-export function saveBook(dir, { name, kind, original, book }) {
+export function saveBook(dir, { name, kind, original, book, pictures = [], files = [] }) {
   mkdirSync(dir, { recursive: true });
   let id = slug(name);
   for (let n = 2; existsSync(join(dir, id)); n++) id = `${slug(name)}-${n}`;
@@ -412,7 +416,8 @@ export function saveBook(dir, { name, kind, original, book }) {
   const { engine, gaps } = summarise(clean);
   const meta = { id, name, kind, savedAt: new Date().toISOString(), counts: { monsters: clean.monsters.length, spells: clean.spells.length, rules: clean.rules.length }, gaps: gaps.length };
   writeFileSync(join(at, 'original.txt'), String(original || ''));
-  writeFileSync(join(at, 'book.json'), JSON.stringify({ ...meta, ...clean }));
+  writeFileSync(join(at, 'book.json'), JSON.stringify({ ...meta, ...clean, ...(pictures.length ? { pictures } : {}) }));
+  writePictures(join(at, 'pictures'), files);
   writeFileSync(join(at, 'book.engine.json'), JSON.stringify({ ...meta, ...engine, engine: { version: BOOK.ENGINE_VERSION, from: 'book.json', gaps: gaps.length } }));
   writeFileSync(join(at, 'gaps.md'), [`# What the book compiler could not read: ${name}`, '', ...(gaps.length ? gaps.map((g) => `- **${g.name}** (\`${g.id}\`): ${g.what}`) : ['Nothing: everything was read.']), ''].join('\n'));
   return meta;
@@ -446,12 +451,13 @@ export function mergeBook(srd, book) {
   return added;
 }
 
-export function saveAdventure(dir, adv, original = '') {
+export function saveAdventure(dir, adv, original = '', files = []) {
   mkdirSync(dir, { recursive: true });
   let id = slug(adv.id || adv.name);
   const fixed = { ...adv, id, converted: new Date().toISOString() };
   writeFileSync(join(dir, `${id}.json`), JSON.stringify(fixed, null, 1));
   if (original) writeFileSync(join(dir, `${id}.original.txt`), String(original));
+  writePictures(join(dir, `${id}.pictures`), files);
   return fixed;
 }
 export function loadAdventures(dir) {
@@ -459,22 +465,163 @@ export function loadAdventures(dir) {
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites));
 }
 
+// ---- pictures ---------------------------------------------------------------------------------------
+// pictures: [{ n, page, w, h, mime, data (base64), scanned }] -> what each one is, and what to do with it:
+// use 'keep' (kept with the book or adventure), 'skip', 'travel' (the adventure's travel map) or
+// 'site:<id>' (that place's map). The DM can change any of them before saving.
+export const PICTURE_KINDS = [
+  ['map', 'Map of a place'],
+  ['travel', 'Travel or region map'],
+  ['stat-block', 'Stat block'],
+  ['page', 'Scanned page'],
+  ['handout', 'Handout'],
+  ['art', 'Picture'],
+  ['decoration', 'Decoration'],
+];
+const PIC_KIND = Object.fromEntries(PICTURE_KINDS);
+const WORDY = new Set(['stat-block', 'page', 'handout']);
+export const SEE_GUIDE = `You look at one picture from a tabletop roleplaying book (Dungeons & Dragons 5th edition or a game like it) so that a program can use it. Answer only with JSON, no other words:
+{"kind":"map|travel|stat-block|page|handout|art|decoration","about":"one short line: what it shows","place":"for a map, the place's name as the picture or its caption gives it; else empty","grid":{"cols":0,"rows":0},"text":"for a stat block, a page or a handout: every word in it, line by line, as written; else empty"}
+map: a map of one place the party can be in (a building, a dungeon level, a cave, a ship, a village, a battle map with squares). travel: a map of a region, a country or a world with several places on it. stat-block: a creature's or a character's statistics (Armor Class, Hit Points, the six abilities, actions). page: a page of a book that is mostly words. handout: a letter, a note, a poster, a sign or a riddle meant to be shown to the players. art: a picture of a person, a creature, an item or a scene. decoration: a border, an ornament, a logo or a background.
+grid: for a map with squares drawn on it, how many squares across and down; else 0 and 0.
+In "text", write a stat block in the usual layout: the name on its own line, then "Armor Class 13", "Hit Points 22 (4d8 + 4)", "Speed 30 ft.", the six scores "STR DEX CON INT WIS CHA" with their numbers, then Senses, Languages, Challenge, and each trait and action as "Name. Words."`;
+
+export async function seePictures({ ask, pictures, near = () => '', canSee = null, onProgress = () => {} }) {
+  const out = pictures.map((p) => ({ n: p.n, page: p.page, w: p.w, h: p.h, kind: p.scanned ? 'page' : '', about: '', place: '', grid: null, text: '', seen: false, use: 'keep' }));
+  const notes = [];
+  if (!pictures.length) return { pictures: out, notes };
+  if (!ask || canSee === false) {
+    notes.push(`${pictures.length} picture${pictures.length > 1 ? 's were' : ' was'} kept, not looked at: ${ask ? 'the AI set up on the Director tab cannot see pictures (choose one that can, such as Gemini, Claude, GPT-4o, or an Ollama vision model like gemma3 or qwen2.5vl)' : 'set up an AI on the Director tab to have them looked at'}. Say what each one is below.`);
+    return { pictures: out, notes };
+  }
+  let looked = 0;
+  let failed = 0;
+  let why = '';
+  for (let i = 0; i < pictures.length; i++) {
+    const p = pictures[i];
+    const o = out[i];
+    onProgress({ step: 'Looking at the pictures', at: i + 1, of: pictures.length });
+    try {
+      const words = String(near(p.page) || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
+      const r = parseJson(await ask(SEE_GUIDE, `${p.scanned ? `Page ${p.page} of the book, scanned: the whole page is this picture.` : `A picture on page ${p.page} of the book, ${p.w} by ${p.h} pixels.`}\nThe words on that page: ${words || '(none)'}`, [{ mime: p.mime || 'image/jpeg', data: p.data }]));
+      o.kind = PIC_KIND[r.kind] ? r.kind : p.scanned ? 'page' : 'art';
+      o.about = String(r.about || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+      o.place = o.kind === 'map' || o.kind === 'travel' ? String(r.place || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+      const g = r.grid || {};
+      o.grid = Number(g.cols) > 0 && Number(g.rows) > 0 ? { cols: Math.min(200, Math.trunc(g.cols)), rows: Math.min(200, Math.trunc(g.rows)) } : null;
+      o.text = WORDY.has(o.kind) ? String(r.text || '').replace(/\r/g, '').trim().slice(0, 12000) : '';
+      o.seen = true;
+      looked++;
+    } catch (e) {
+      failed++;
+      why = why || String(e.message || e).slice(0, 160);
+      if (!looked && failed >= 2) break; // the model cannot see, or cannot answer: no point asking for every picture
+    }
+  }
+  for (const o of out) o.use = defaultUse(o);
+  if (looked) notes.push(`The AI looked at ${looked} picture${looked > 1 ? 's' : ''}${out.some((o) => o.text) ? `; the words in ${out.filter((o) => o.text).length} of them were read with the text` : ''}.`);
+  if (failed) notes.push(looked ? `${failed} picture${failed > 1 ? 's' : ''} could not be looked at (${why}): say what they are below.` : `The AI could not look at the pictures (${why}). Say what each one is below.`);
+  return { pictures: out, notes };
+}
+const defaultUse = (o) => (o.kind === 'decoration' || o.kind === 'stat-block' || (o.kind === 'page' && o.text) ? 'skip' : 'keep');
+
+// The words the AI read in the pictures, put into the text after their page, so the readers and the
+// campaign writer see them where the book has them. A map leaves a line, so the campaign knows of it.
+export function addPictureWords(text, pics) {
+  const line = (p) => (p.text ? `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}]\n${p.text}\n` : `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}${p.place ? ` (${p.place})` : ''}]\n`);
+  const add = (pics || []).filter((p) => p.seen && (p.text || p.kind === 'map' || p.kind === 'travel' || p.kind === 'handout'));
+  if (!add.length) return text;
+  const marks = [...String(text).matchAll(/^--- Page (\d+) ---$/gm)].map((m) => ({ page: Number(m[1]), at: m.index }));
+  if (!marks.length) return `${text}\n\n${add.map(line).join('')}`;
+  let out = String(text);
+  const ends = marks.map((m, i) => ({ page: m.page, end: i + 1 < marks.length ? marks[i + 1].at : out.length }));
+  const lost = [];
+  for (const e of ends.slice().reverse()) {
+    const here = add.filter((p) => p.page === e.page);
+    if (here.length) out = `${out.slice(0, e.end).replace(/\s*$/, '')}\n${here.map(line).join('')}\n${out.slice(e.end)}`;
+  }
+  for (const p of add) if (!ends.some((e) => e.page === p.page)) lost.push(p);
+  return lost.length ? `${out}\n\n${lost.map(line).join('')}` : out;
+}
+
+// A campaign's maps to its places: a map whose place (or caption) shares most of a site's name goes to
+// that site, one map a site; the first travel map is the adventure's.
+const STOP = new Set(['the', 'and', 'map', 'of', 'a', 'an', 'to', 'in', 'at', 'on']);
+const sig = (t) => new Set(String(t || '').toLowerCase().replace(/[^a-z0-9\s-]/g, ' ').split(/[\s-]+/).filter((w) => w.length > 1 && !STOP.has(w)));
+export function matchMaps(adv, pics) {
+  const sites = (adv && adv.sites) || [];
+  const taken = new Set();
+  let travel = false;
+  const placed = [];
+  for (const p of pics) {
+    if (p.kind === 'travel' && !travel) { p.use = 'travel'; travel = true; continue; }
+    if (p.kind !== 'map') continue;
+    const want = sig(p.place || p.about);
+    let best = null;
+    let score = 0;
+    for (const s of sites) {
+      if (taken.has(s.id)) continue;
+      const have = sig(`${s.name} ${String(s.id).replace(/-/g, ' ')}`);
+      const hit = [...have].filter((w) => want.has(w)).length / Math.max(1, have.size);
+      if (hit > score) { score = hit; best = s; }
+    }
+    if (best && score >= 0.5) { p.use = `site:${best.id}`; taken.add(best.id); placed.push(`${p.place || p.about || `picture ${p.n}`} → ${best.name || best.id}`); }
+  }
+  return placed;
+}
+// What the DM may choose for one picture.
+export function pictureUses(result) {
+  const out = [['keep', result && result.adventure ? 'Keep with the adventure' : 'Keep with the book'], ['skip', 'Leave out']];
+  if (result && result.adventure) {
+    out.push(['travel', 'The travel map']);
+    for (const s of result.adventure.sites || []) out.push([`site:${s.id}`, `Map of ${s.name || s.id}`]);
+  }
+  return out;
+}
+// The pictures kept beside saved books and adventures, so they can be served again after the saves
+// folder is cleared: library/converted/<id>/pictures/ and library/adventures/<id>.pictures/.
+export function writePictures(dir, files) {
+  if (!files || !files.length) return;
+  mkdirSync(dir, { recursive: true });
+  for (const f of files) if (/^[a-f0-9]{16,64}\.(?:png|jpg|gif|webp)$/.test(f.name) && !existsSync(join(dir, f.name))) writeFileSync(join(dir, f.name), f.bytes);
+}
+export function libraryPictures(lib) {
+  const out = [];
+  const conv = join(lib, 'converted');
+  const advs = join(lib, 'adventures');
+  const files = (d) => (existsSync(d) ? readdirSync(d).filter((f) => /\.(?:png|jpg|gif|webp)$/.test(f)).map((f) => join(d, f)) : []);
+  if (existsSync(conv)) for (const d of readdirSync(conv)) if (!d.startsWith('_')) out.push(...files(join(conv, d, 'pictures')));
+  if (existsSync(advs)) for (const d of readdirSync(advs)) if (d.endsWith('.pictures')) out.push(...files(join(advs, d)));
+  return out;
+}
+
 // ---- the whole job ----------------------------------------------------------------------------------
-// text, kind ('auto' or one of KINDS), name, how ('reader' | 'ai' | 'both'), ask(system, user) -> reply
-// text (null without an AI), srd for ids and checks. Returns what the screen shows.
-export async function convertText({ text, kind = 'auto', name = '', how = 'both', ask = null, srd, onProgress = () => {} }) {
-  const words = clean(text);
-  if (!words.trim()) throw new Error('Paste some text first.');
+// text, kind ('auto' or one of KINDS), name, how ('reader' | 'ai' | 'both'), ask(system, user, images) ->
+// reply text (null without an AI), srd for ids and checks, a PDF's pictures (see seePictures) and whether
+// the AI can see them. Returns what the screen shows.
+export async function convertText({ text, kind = 'auto', name = '', how = 'both', ask = null, srd, pictures = [], canSee = null, onProgress = () => {} }) {
+  const notes = [];
+  let pics = [];
+  let words = clean(text);
+  if (pictures.length) {
+    const page = (n) => { const m = new RegExp(`^--- Page ${n} ---$([\\s\\S]*?)(?=^--- Page \\d+ ---$|(?![\\s\\S]))`, 'm').exec(words); return m ? m[1] : ''; };
+    const seen = await seePictures({ ask, pictures, near: page, canSee, onProgress });
+    pics = seen.pictures;
+    notes.push(...seen.notes);
+    words = addPictureWords(words, pics);
+  }
+  if (!words.trim()) throw new Error(pics.length ? 'There are no words to read: the PDF is all pictures, and the AI could not read words in them.' : 'Paste some text first.');
   const sniffed = sniffKind(words);
   const k = KIND_IDS.includes(kind) && kind !== 'auto' ? kind : sniffed.kind;
   const book = { name: name || 'Pasted text', spells: [], monsters: [], rules: [] };
-  const notes = [];
   const prefix = slug(book.name).split('-').map((w) => w[0]).join('').slice(0, 4) || 'x';
   const taken = new Set([...(srd.monsters || []), ...(srd.spells || [])].map((x) => x.id));
   if (k === 'campaign') {
     if (!ask) throw new Error('A campaign is converted by the AI: set it up on the Director tab first.');
     const r = await aiCampaign({ ask, text: words, name, srd, onProgress });
-    return { kind: k, sniffed, name: r.adventure.name, adventure: r.adventure, check: r.check, entries: [], notes };
+    const placed = matchMaps(r.adventure, pics);
+    if (placed.length) notes.push(`Maps given to their places: ${placed.join('; ')}.`);
+    return { kind: k, sniffed, name: r.adventure.name, adventure: r.adventure, check: r.check, entries: [], notes, pictures: pics, words: pics.length ? words : undefined };
   }
   if (k === 'json') {
     const j = readJson(words);
@@ -517,5 +664,5 @@ export async function convertText({ text, kind = 'auto', name = '', how = 'both'
     notes.push(`${book.rules.length} section${book.rules.length === 1 ? '' : 's'} of rules text, for the Director's rules look-ups.`);
   }
   const { entries, gaps } = summarise(book);
-  return { kind: k, sniffed, name: book.name, book, entries, gaps: gaps.length, notes };
+  return { kind: k, sniffed, name: book.name, book, entries, gaps: gaps.length, notes, pictures: pics, words: pics.length ? words : undefined };
 }

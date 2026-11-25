@@ -149,3 +149,118 @@ test('a converted book is saved beside its words, joins the rules, and is set as
   C.saveAdventure(adir, { id: 'Fen Ferry', name: 'The Fen Ferry', sites: [{ id: 'ferry', name: 'The Ferry', exits: [] }] }, 'the words');
   assert.deepEqual(C.loadAdventures(adir).map((x) => [x.id, x.sites.length, !!x.converted]), [['fen-ferry', 1, true]]);
 });
+
+// ---- a PDF's pictures ---------------------------------------------------------------------------
+const HOUND = `Mire Hound
+Medium beast, unaligned
+Armor Class 13 (natural armor)
+Hit Points 19 (3d8 + 6)
+Speed 40 ft., swim 30 ft.
+STR DEX CON INT WIS CHA
+14 (+2) 14 (+2) 15 (+2) 3 (-4) 12 (+1) 6 (-2)
+Senses passive Perception 13
+Languages -
+Challenge 1/2 (100 XP)
+Keen Smell. The hound has advantage on Wisdom (Perception) checks that rely on smell.
+Actions
+Bite. Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 7 (1d10 + 2) piercing damage.`;
+const PDF_TEXT = `--- Page 1 ---\nThe Fen Ferry\n\nThe Ferry. A rope ferry crosses the river.\n\n--- Page 2 ---\nThe Old Mill. The miller's ghost walks here.\nMap 1: The Old Mill\n\n--- Page 3 ---\n\n\n--- Page 4 ---\nThe end of the chapter.`;
+const PDF_PICS = [
+  { n: 1, page: 2, w: 749, h: 500, mime: 'image/jpeg', data: 'AAAA', scanned: false },
+  { n: 2, page: 3, w: 980, h: 1268, mime: 'image/jpeg', data: 'BBBB', scanned: true },
+  { n: 3, page: 1, w: 120, h: 90, mime: 'image/jpeg', data: 'CCCC', scanned: false },
+];
+const looks = (data) => (data === 'AAAA' ? '{"kind":"map","about":"A two-storey mill by a stream","place":"The Old Mill","grid":{"cols":0,"rows":0},"text":""}'
+  : data === 'BBBB' ? JSON.stringify({ kind: 'stat-block', about: 'The Mire Hound', place: '', grid: null, text: HOUND })
+  : '```json\n{"kind":"decoration","about":"a leaf ornament"}\n```');
+
+test('a PDF\'s pictures: the AI reads the words in a scanned stat block, and a map goes to its place', async () => {
+  const seen = [];
+  const ask = async (system, user, images = []) => {
+    if (system === C.SEE_GUIDE) { seen.push({ user, images }); return looks(images[0].data); }
+    assert.equal(images.length, 0, 'only the picture questions carry pictures');
+    if (/List what it holds/.test(user)) return '{"places":[{"name":"The Ferry"},{"name":"The Old Mill"}],"people":[],"monsters":[{"name":"Mire Hound","srd":""}],"quests":["Lay the ghost"]}';
+    if (/frame/.test(user)) return '{"id":"fen-ferry","name":"The Fen Ferry","levels":"1 to 2","party":{"size":[4,5],"level":1},"blurb":"A ghost at the mill.","intro":"The ferry bell rings.","quests":["Lay the ghost."],"sites":[{"id":"ferry","name":"The Ferry","level":1,"exits":[{"to":"old-mill","label":"up the stream"}]},{"id":"old-mill","name":"The Old Mill","level":1,"exits":[{"to":"ferry","label":"back down"}]}]}';
+    const site = /Write the whole site "([a-z-]+)"/.exec(user);
+    if (site && site[1] === 'ferry') return '{"read":"A rope ferry over brown water.","notes":"The ferryman is scared."}';
+    if (site) return `{"read":"A mill with a still wheel.","notes":"Hounds nose round it.","foes":[{"monster":"${/own monsters: ([a-z-]+)/.exec(user)[1]}","count":2,"name":"Mire hound"}]}`;
+    throw new Error(`unexpected request: ${user.slice(0, 80)}`);
+  };
+  const steps = [];
+  const c = await C.convertText({ text: PDF_TEXT, kind: 'campaign', name: 'The Fen Ferry', srd, ask, pictures: PDF_PICS, canSee: true, onProgress: (p) => steps.push(p.step) });
+  assert.ok(steps.includes('Looking at the pictures'));
+  assert.equal(seen.length, 3);
+  assert.match(seen[0].user, /page 2/);
+  assert.match(seen[0].user, /Map 1: The Old Mill/, 'the words on the picture\'s page help name it');
+  assert.deepEqual(seen[0].images, [{ mime: 'image/jpeg', data: 'AAAA' }]);
+  assert.match(seen[1].user, /scanned/);
+  assert.deepEqual(c.pictures.map((p) => [p.n, p.kind, p.use]), [[1, 'map', 'site:old-mill'], [2, 'stat-block', 'skip'], [3, 'decoration', 'skip']]);
+  assert.equal(c.adventure.monsters[0].name, 'Mire Hound', 'the scanned stat block was read with the text');
+  assert.equal(c.adventure.sites[1].foes[0].monster, c.adventure.monsters[0].id);
+  assert.ok(c.notes.some((n) => /Maps given to their places: The Old Mill → The Old Mill/.test(n)));
+  assert.ok(c.words.indexOf('Mire Hound') > c.words.indexOf('--- Page 3 ---') && c.words.indexOf('Mire Hound') < c.words.indexOf('--- Page 4 ---'), 'the picture\'s words sit on its own page');
+  assert.match(c.words, /\[Map of a place, picture 1: A two-storey mill by a stream \(The Old Mill\)\]/);
+  assert.deepEqual(C.pictureUses(c).map(([u]) => u), ['keep', 'skip', 'travel', 'site:ferry', 'site:old-mill']);
+});
+
+test('a scanned bestiary page is read by the book reader once the AI has read its words', async () => {
+  const ask = async (system, user, images) => (system === C.SEE_GUIDE ? looks(images[0].data) : '[]');
+  const r = await C.convertText({ text: '--- Page 1 ---\n\n', kind: 'auto', name: 'Scans', srd, ask, pictures: [{ ...PDF_PICS[1], page: 1 }] });
+  assert.deepEqual(r.entries.map((e) => [e.name, e.gaps.length]), [['Mire Hound', 0]]);
+  assert.ok(r.entries[0].facts.some((f) => /Bite/.test(f)));
+});
+
+test('without an AI that can see, the pictures are kept for the DM to say what they are', async () => {
+  const none = await C.convertText({ text: BLOCKS, kind: 'monsters', srd, pictures: PDF_PICS });
+  assert.deepEqual(none.pictures.map((p) => [p.kind, p.use, p.seen]), [['', 'keep', false], ['page', 'keep', false], ['', 'keep', false]]);
+  assert.ok(none.notes.some((n) => /not looked at: set up an AI/.test(n)));
+  let calls = 0;
+  const blind = await C.convertText({ text: BLOCKS, kind: 'monsters', srd, pictures: PDF_PICS, canSee: false, ask: async () => { calls++; return '[]'; } });
+  assert.equal(calls, 0, 'a model that cannot see is not asked');
+  assert.ok(blind.notes.some((n) => /cannot see pictures/.test(n)));
+  // A model that refuses pictures is asked twice, not once per picture.
+  let tries = 0;
+  const refuses = await C.convertText({ text: BLOCKS, kind: 'monsters', srd, pictures: PDF_PICS, ask: async (s) => { if (s === C.SEE_GUIDE) { tries++; throw new Error('this model does not support images'); } return '[]'; } });
+  assert.equal(tries, 2);
+  assert.ok(refuses.notes.some((n) => /could not look at the pictures \(this model does not support images\)/.test(n)));
+  assert.ok(refuses.entries.some((e) => e.name === 'Bog Hag'), 'the text is still read');
+});
+
+test('saved pictures sit beside the adventure, and a new game opens with its maps', async () => {
+  const { newSession } = await import('../engine/ledger.js');
+  const lib = mkdtempSync(join(tmpdir(), 'lib-'));
+  const name = '0123456789abcdef01234567.jpg';
+  const adv = C.saveAdventure(join(lib, 'adventures'), { id: 'fen', name: 'Fen', sites: [{ id: 'mill', name: 'Mill', picture: { url: `/maps/${name}`, w: 749, h: 500 } }, { id: 'ferry', name: 'Ferry' }], travelPicture: { url: '/maps/0123456789abcdef01234568.png', w: 300, h: 200 } }, 'words', [{ name, bytes: Buffer.from([0xff, 0xd8, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0]) }, { name: '../evil.jpg', bytes: Buffer.from('x') }]);
+  assert.deepEqual(readdirSync(join(lib, 'adventures', 'fen.pictures')), [name], 'only a picture\'s own name is written');
+  assert.deepEqual(C.libraryPictures(lib), [join(lib, 'adventures', 'fen.pictures', name)]);
+  const s = newSession(adv);
+  assert.deepEqual(s.map.sites.mill, { url: `/maps/${name}`, w: 749, h: 500, cols: 0, rows: 0, walls: [], doors: [] });
+  assert.equal(s.map.sites.ferry, undefined);
+  assert.equal(s.map.travel.url, '/maps/0123456789abcdef01234568.png');
+  assert.deepEqual(newSession({ id: 'x', sites: [{ id: 'a', picture: { url: 'https://example.com/x.jpg', w: 1, h: 1 } }] }).map.sites, {}, 'only the maps store\'s own pictures');
+  const book = C.saveBook(join(lib, 'converted'), { name: 'With art', kind: 'monsters', original: BLOCKS, book: { monsters: [], spells: [], rules: [] }, pictures: [{ url: `/maps/${name}`, w: 1, h: 1, kind: 'art', about: 'a hag', page: 2 }], files: [{ name, bytes: Buffer.from([0xff, 0xd8, 0xff]) }] });
+  assert.equal(JSON.parse(readFileSync(join(lib, 'converted', book.id, 'book.json'), 'utf8')).pictures[0].about, 'a hag');
+  assert.equal(C.libraryPictures(lib).length, 2);
+});
+
+test('each AI maker is sent the pictures in its own shape', async () => {
+  const bodies = [];
+  const fake = (reply) => async (url, opts) => { bodies.push(JSON.parse(opts.body)); return { ok: true, status: 200, json: async () => reply }; };
+  const img = [{ mime: 'image/jpeg', data: 'QUJD' }];
+  const { openaiLike } = await import('../brain/openai.js');
+  const { anthropic } = await import('../brain/anthropic.js');
+  const { ollama } = await import('../brain/ollama.js');
+  const { gemini } = await import('../brain/gemini.js');
+  await openaiLike({ baseUrl: 'http://x/v1', model: 'm', fetchImpl: fake({ choices: [{ message: { content: 'ok' } }] }) }).start({ system: 's', tools: [] }).send('look', img);
+  await anthropic({ apiKey: 'k', model: 'm', fetchImpl: fake({ content: [{ type: 'text', text: 'ok' }] }) }).start({ system: 's', tools: [] }).send('look', img);
+  await ollama({ baseUrl: 'http://x', model: 'm', fetchImpl: fake({ message: { content: 'ok' } }) }).start({ system: 's', tools: [] }).send('look', img);
+  await gemini({ apiKey: 'k', model: 'm', fetchImpl: fake({ candidates: [{ finishReason: 'STOP', content: { role: 'model', parts: [{ text: 'ok' }] } }] }) }).start({ system: 's', tools: [] }).send('look', img);
+  const last = (b) => (b.messages || b.contents).at(-1);
+  assert.deepEqual(last(bodies[0]).content, [{ type: 'text', text: 'look' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } }]);
+  assert.deepEqual(last(bodies[1]).content, [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD' } }, { type: 'text', text: 'look' }]);
+  assert.deepEqual(last(bodies[2]), { role: 'user', content: 'look', images: ['QUJD'] });
+  assert.deepEqual(last(bodies[3]).parts, [{ text: 'look' }, { inline_data: { mime_type: 'image/jpeg', data: 'QUJD' } }]);
+  // Without pictures, nothing changes.
+  await openaiLike({ baseUrl: 'http://x/v1', model: 'm', fetchImpl: fake({ choices: [{ message: { content: 'ok' } }] }) }).start({ system: 's', tools: [] }).send('words');
+  assert.equal(last(bodies[4]).content, 'words');
+});

@@ -70,6 +70,7 @@ export default {
         { id: 'scatter', when: 'down', who: 'Bell cultist', count: 2, do: 'flee', to: 'tower-base', say: 'The last cultist runs for the tower.' },
         { id: 'tolling', when: 'round', do: 'tick', clock: 'The bell tolls' },
       ],
+      objects: [{ name: 'Iron chest', note: 'Locked (DC 13); a poison needle in the lock.' }],  // things a character can use (rules: use <object>)
       treasure: 'What can be found, and when.',
       exits: [{ to: 'tower-base', label: 'across the square to the bell tower' }],
     },
@@ -89,6 +90,10 @@ DM's **Switch off** / **Undo**, can override any rule with a reason, because a r
 | `when` | sets it off |
 |---|---|
 | `enter` | the party arrives (the first place: when the game starts) |
+| `enter <zone>` | a character steps into that zone of this place (on the map, or the Director moving them there) |
+| `use <object>` | a character uses an object here: opens the chest, pulls the lever, reads the book (the Director's `use_object`, the DM's **Use** on the Adventure tab) |
+| `fight` | a fight starts here, before anyone acts: how the foes meet the party is decided |
+| `turn <who>` | that foe's turn begins (plain `turn`: any foe's). Every turn, unless the rule says `once: true` |
 | `attack` | someone attacks before a fight is on (a fight starts anyway; a rule adds surprise or more) |
 | `fail <skill>` / `succeed <skill>` | a check with that skill made here (a group check: half or more) |
 | `round <n>` / `round` | round n begins ("the end of round 2" is `round 3`) / the end of every round |
@@ -99,8 +104,10 @@ DM's **Switch off** / **Undo**, can override any rule with a reason, because a r
 | `quest <words>` | that quest is complete |
 
 `if` (one string or a list; "not " in front turns one round): `from <site>`, `visited <site>`,
-`down <who>`, `standing <who>`, `hurt <who>`, `quest <words>`, `has <item>`, `passed <skill>`,
-`failed <skill>`, `fight`, `no fight`.
+`down <who>`, `standing <who>`, `hurt <who>`, `quest <words>`, `has <item>` (anyone in the party, or the
+party's loot), `carries <item>` (the character who entered the zone or used the object; anyone in the party
+for other moments), `passed <skill>`, `failed <skill>`, `fight`, `no fight`. When a rule with `has` or
+`carries` happens, the Director is told who carries the item.
 
 | `do` | what happens |
 |---|---|
@@ -110,10 +117,26 @@ DM's **Switch off** / **Undo**, can override any rule with a reason, because a r
 | `quest` | the quest `quest` (id or a few of its words) is complete |
 | `xp` | each character earns `xp`, or `level: n` (what each still needs to reach level n) |
 | `reveal` | `target` (everyone hidden here if not given) is revealed |
+| `give` | `item` (with `qty`) and/or `gold` go to the character who used the object or entered the zone, else to the party's loot |
+| `calm` | `target` (everyone here if not given) stands down: out of the fight, not beaten, no XP. The fight ends when nobody in it is still fighting; attacking them starts a new one |
 | `say` | nothing but the line in `say`, for the Director |
 
 Any rule can also carry `xp` or `level` (a milestone, paid once per place) and `say` (a line the Director
 reads when it fires).
+
+**Items and objects.** A chest, a lever or an altar goes in the place's `objects`, so the Director knows it
+can be used and the DM gets a **Use** button for it. What happens is a rule:
+
+```js
+objects: [{ name: 'Iron chest', note: 'Locked (DC 13 thieves\' tools).' }, { name: 'Sun altar' }],
+rules: [
+  { id: 'chest', when: 'use iron chest', do: 'give', item: 'Silver key', gold: 40, say: 'Under the rags: a silver key.' },
+  { id: 'needle', when: 'use iron chest', if: 'not carries silver key', do: 'say', say: 'A needle in the lock: DC 13 Constitution save or 1d4 poison damage and poisoned for an hour.' },
+  { id: 'altar', when: 'enter Sanctum', if: 'carries sun disc', do: 'say', say: 'The altar flares; the door behind it grinds open.' },
+  { id: 'token', when: 'fight', if: 'has chieftain token', do: 'calm', target: 'Goblin', say: 'They know the token and lower their spears.' },
+  { id: 'recoil', when: 'turn Wraith', if: 'has sun disc', do: 'say', say: 'The wraith will not touch the bearer of the Sun Disc: it goes for someone else.' },
+]
+```
 
 **Two defaults hold everywhere.** An attack with no fight on starts one (including a player saying "I attack
 Grisk!" to the AI Director). A fight ends by itself when no foe in it is left standing.

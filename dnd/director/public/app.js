@@ -89,11 +89,12 @@ const ui = {
     quest: '', narrate: '', sayAs: '', note: null, best: { q: '', sel: null, type: '' },
   },
   newGame: { open: false, adv: '', keepChars: true },
+  useObj: { pc: '' },
   dir: { key: '', note: '', edit: '', editId: null, url: '', urlFor: null, narrate: '' },
   seeds: { idea: '', text: '', edit: null },
   saves: { slots: null, cloud: null, cloudSlots: null, name: '', url: '', key: '', busy: false },
   mem: { q: '' },
-  books: { text: '', name: '', kind: 'auto', how: 'both', file: '', list: null, job: null, sel: null, saveName: '', busy: false },
+  books: { text: '', name: '', kind: 'auto', how: 'both', file: '', list: null, job: null, sel: null, saveName: '', busy: false, pictures: [], pdf: null },
   seenReq: {}, lastRollId: null, freshId: null, keyTry: '',
   readAloud: store.get('dnd.read') == null ? role === 'table' : store.get('dnd.read') === 'on',
   talk: 'idle', talkAsk: false,
@@ -1301,6 +1302,7 @@ function adventureHtml() {
         <div class="small dim">${esc(s.region || '')}${state.scene.visited.includes(s.id) ? ' · visited' : ''}</div>
         <details class="feature"><summary>Read aloud</summary><p>${esc(s.read || '')}</p></details><details class="feature"><summary>Notes</summary><p>${esc(s.notes || '')}</p></details>
         ${(s.foes || []).length ? `<div class="small"><b>Monsters:</b> ${s.foes.map((f) => `${f.count} ${esc(f.name || f.monster)} (${esc((ix.monster[f.monster] || {}).name || f.monster)})`).join(', ')}</div>` : ''}
+        ${(s.objects || []).length ? `<div class="small"><b>Things to use:</b> ${s.objects.map((o) => (typeof o === 'string' ? esc(o) : `${esc(o.name)}${o.note ? ` <span class="faint">(${esc(o.note)})</span>` : ''}`)).join(', ')}</div>` : ''}
         ${s.treasure ? `<div class="small"><b>Treasure:</b> ${esc(s.treasure)}</div>` : ''}</section>`).join('')}</div>
     <div class="col scroll" data-scroll="ad2"><section class="card"><h3>New game</h3>
       <label class="fld"><span class="fl">Adventure</span><select data-bind="newGame.adv" data-live="1">${(adv.adventures || []).map((a) => `<option value="${a.id}" ${(N.adv || adv.id) === a.id ? 'selected' : ''}>${esc(a.name)} (levels ${esc(a.levels)})</option>`).join('')}</select></label>
@@ -1337,8 +1339,22 @@ function rulesCard() {
     <div class="small dim">Also by itself: an attack starts a fight, and a fight ends when no foe stands.</div>
     <label class="row nw">Fights <select data-autoscale="1" style="flex:1">${[['auto', 'fitted to the party'], ['down', 'only made easier'], ['off', 'as written']].map(([v, t]) => `<option value="${v}" ${auto.scale === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
     ${list.length ? list.map(row).join('') : '<div class="small dim">This place has no rules of its own.</div>'}
+    ${useRow(list)}
     ${fit && fit.text ? `<div class="small dim">${esc(fit.text)}</div>` : ''}
     ${recent.length ? `<details class="feature"><summary>What the Engine did</summary>${recent.map((l) => `<div class="small dim">${esc(l.text)}</div>`).join('')}</details>` : ''}</section>`;
+}
+
+// The things a character can use here (the place's objects, and any a rule waits on): who, then which.
+function useRow(list) {
+  const site = (adv.sites || []).find((x) => x.id === state.scene.siteId) || {};
+  const seen = new Set();
+  const objs = [...(site.objects || []).map((o) => (typeof o === 'string' ? { name: o } : o)), ...list.filter((r) => r.when.ev === 'use').map((r) => ({ name: r.when.arg }))]
+    .filter((o) => o.name && !seen.has(String(o.name).toLowerCase()) && seen.add(String(o.name).toLowerCase()));
+  const pcs = Object.values(state.pcs).filter((p) => !p.dead);
+  if (!objs.length || !pcs.length) return '';
+  if (!pcs.some((p) => p.id === ui.useObj.pc)) ui.useObj.pc = pcs[0].id;
+  return `<div class="use-row"><span class="fl">A character uses</span><div class="row nw small"><select data-bind="useObj.pc" title="Who does it">${pcs.map((p) => `<option value="${esc(p.id)}" ${ui.useObj.pc === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>
+    <span class="row small" style="flex:1">${objs.map((o) => `<button class="btn sm" data-act="obj.use" data-o="${esc(o.name)}" title="${esc(o.note || 'The place\'s rules on using it happen')}">${esc(o.name)}</button>`).join('')}</span></div></div>`;
 }
 
 function checkCard() {
@@ -1421,7 +1437,8 @@ function booksHtml() {
       <label class="fld"><span class="fl">Read it with</span><select data-bind="books.how">${BK_HOW.map(([id, nm]) => `<option value="${id}"${B.how === id ? ' selected' : ''}>${nm}</option>`).join('')}</select></label>
     </div>
     <textarea class="grow bk-paste" data-k="bk.text" data-bind="books.text" spellcheck="false" placeholder="Paste here: monster stat blocks, spells, a chapter of rules, or a whole campaign. Or add a file below.&#10;&#10;The book reader reads the usual 5e layout at once (a name, &quot;Medium fey, neutral evil&quot;, Armor Class, Hit Points... or a spell's Casting Time, Range, Components and Duration). The AI reads anything else, and turns a campaign into an adventure, place by place.">${esc(B.text)}</textarea>
-    <div class="row nw"><label class="btn">Add a file<input type="file" accept=".txt,.md,.json,text/plain" data-booksfile="1" hidden></label><span class="small faint grow">${B.file ? `${esc(B.file)} · ` : ''}${n ? `${n.toLocaleString()} characters` : 'Plain text, Markdown or JSON'}</span>${n ? '<button class="btn" data-act="bk.clear">Clear</button>' : ''}<button class="btn primary" data-act="bk.convert" ${!B.text.trim() || (J && J.busy) || B.busy ? 'disabled' : ''}>Convert</button></div>
+    <div class="row nw"><label class="btn">Add a file<input type="file" accept=".pdf,.txt,.md,.json,application/pdf,text/plain" data-booksfile="1" hidden></label><span class="small faint grow">${B.pdf ? `${esc(B.pdf.step)}${B.pdf.of ? ` (page ${B.pdf.at} of ${B.pdf.of})` : ''}…` : `${B.file ? `${esc(B.file)} · ` : ''}${n ? `${n.toLocaleString()} characters` : 'A PDF, plain text, Markdown or JSON'}`}</span>${n ? '<button class="btn" data-act="bk.clear">Clear</button>' : ''}<button class="btn primary" data-act="bk.convert" ${(!B.text.trim() && !(B.pictures || []).length) || (J && J.busy) || B.busy || B.pdf ? 'disabled' : ''}>Convert</button></div>
+    ${(B.pictures || []).length ? `<div class="bk-strip" title="The pictures from the PDF: the AI looks at each one when you convert.">${B.pictures.slice(0, 40).map((x) => `<img src="${x.data}" alt="" title="page ${x.page}${x.scanned ? ' (a scanned page)' : ''}">`).join('')}${B.pictures.length > 40 ? `<span class="small faint">+${B.pictures.length - 40}</span>` : ''}</div>` : ''}
     <p class="small dim bk-foot">Nothing is changed or saved until you choose to: you see what the Engine would get first. The words you paste are kept beside the converted version, on this computer only.</p></section>`;
   return `<div class="lay-two bk">${left}<section class="card fill bk-out">${J ? booksResultHtml(J) : booksListHtml(L)}</section></div>`;
 }
@@ -1433,12 +1450,13 @@ function booksResultHtml(J) {
   }
   if (J.error) return `<h3>That did not convert<span class="right"><button class="btn sm" data-act="bk.discard">Back</button></span></h3><div class="note hot">${esc(J.error)}</div>`;
   const R = J.result || {};
-  const saveRow = (label) => `<div class="row nw bk-save"><label class="fld grow"><span class="fl">Save as</span><input type="text" data-bind="books.saveName" value="${esc(B.saveName)}" maxlength="80"></label><button class="btn primary" data-act="bk.save">${label}</button><button class="btn" data-act="bk.discard">Discard</button></div>`;
+  const pics = booksPicturesHtml(R);
+  const saveRow = (label) => `${pics}<div class="row nw bk-save"><label class="fld grow"><span class="fl">Save as</span><input type="text" data-bind="books.saveName" value="${esc(B.saveName)}" maxlength="80"></label><button class="btn primary" data-act="books.save">${label}</button><button class="btn" data-act="bk.discard">Discard</button></div>`;
   if (R.adventure) {
     const A = R.adventure;
     const C = R.check || { errors: [], warnings: [] };
     return `<h3>${esc(A.name)}<span class="right"><span class="chip">${(A.sites || []).length} places</span><span class="chip ${C.errors.length ? 'no' : 'ok'}">${C.errors.length} errors</span><span class="chip ${C.warnings.length ? 'warn' : ''}">${C.warnings.length} warnings</span></span></h3>
-      <div class="small dim">${esc(A.blurb || '')}</div>
+      <div class="small dim">${esc(A.blurb || '')}${(R.notes || []).length ? ` ${R.notes.map(esc).join(' ')}` : ''}</div>
       <div class="scroll grow bk-list" data-scroll="bk-adv">${(A.sites || []).map((x) => `<div class="bk-row"><div class="grow"><b>${esc(x.name || x.id)}</b> <span class="faint small">${esc(x.id)} · level ${x.level || '?'}</span><div class="small dim">${esc(String(x.read || x.notes || '').slice(0, 180))}</div><div class="small">${(x.foes || []).map((f) => `<span class="chip">${f.count || 1} × ${esc(f.name || f.monster)}</span>`).join(' ')} ${(x.exits || []).map((e) => `<span class="chip">→ ${esc(e.to)}</span>`).join(' ')}</div></div></div>`).join('')}
         ${C.errors.map((e) => `<div class="note hot small"><b>${esc(e.where)}</b>: ${esc(e.text)}</div>`).join('')}${C.warnings.map((e) => `<div class="small" style="color:var(--warn-c)"><b>${esc(e.where)}</b>: ${esc(e.text)}</div>`).join('')}</div>
       ${C.errors.length ? '<p class="small dim">The adventure can still be saved: the Director plays round what the checker flags, and you can fix the file in library/adventures.</p>' : ''}${saveRow('Save as an adventure')}`;
@@ -1452,7 +1470,23 @@ function booksResultHtml(J) {
     ${(R.notes || []).length ? `<div class="small dim">${R.notes.map(esc).join(' ')}</div>` : ''}
     ${E.length ? `<div class="bk-split"><div class="scroll bk-list" data-scroll="bk-ent">${E.map((e, k) => `<button class="bk-row bk-pick${k === B.sel ? ' on' : ''}" data-act="bk.sel" data-n="${k}"><span class="grow">${esc(e.name)}</span><span class="faint small">${e.kind}</span>${e.gaps.length ? `<span class="chip warn">${e.gaps.length}</span>` : '<span class="ok-mark">✓</span>'}</button>`).join('')}</div>
       ${sel ? `<div class="bk-detail"><div class="bk-words"><div class="fl">The words</div><pre class="scroll" data-scroll="bk-w">${esc(sel.words || '(written by the AI from the text)')}</pre></div><div class="bk-eng"><div class="fl">For the Engine</div><div class="scroll receipt" data-scroll="bk-e">${sel.facts.map((f) => `<div class="ln"><span>${esc(f)}</span></div>`).join('')}${sel.gaps.map((g) => `<div class="note hot small">Not read: ${esc(g)}</div>`).join('')}</div></div></div>` : ''}</div>` : '<div class="empty">Nothing was read from that text. Try "What it is", or let the AI read it.</div>'}
-    ${E.length ? saveRow('Save to your books') : '<div class="row"><button class="btn" data-act="bk.discard">Back</button></div>'}`;
+    ${E.length || (R.pictures || []).length ? saveRow('Save to your books') : '<div class="row"><button class="btn" data-act="bk.discard">Back</button></div>'}`;
+}
+// A PDF's pictures, as the AI saw them (or not), each with what it is and what to do with it.
+const PIC_KINDS = [['', 'Not looked at'], ['map', 'Map of a place'], ['travel', 'Travel map'], ['stat-block', 'Stat block'], ['page', 'Scanned page'], ['handout', 'Handout'], ['art', 'Picture'], ['decoration', 'Decoration']];
+function booksPicturesHtml(R) {
+  const P = R.pictures || [];
+  if (!P.length) return '';
+  const uses = R.uses || [['keep', 'Keep'], ['skip', 'Leave out']];
+  const kept = P.filter((p) => p.use !== 'skip').length;
+  const card = (p) => `<div class="bk-pic${p.use === 'skip' ? ' off' : ''}">
+      <a href="/api/books/picture?n=${p.n}&${auth()}" target="_blank" rel="noopener" title="Open it full size"><img src="/api/books/picture?n=${p.n}&${auth()}" alt="" loading="lazy"></a>
+      <div class="bk-pic-f">
+        <div class="small bk-pic-t" title="${esc(p.about || '')}"><b>Page ${p.page}</b> ${p.seen ? esc(p.about || '') : '<span class="faint">not looked at</span>'}${p.text ? ` <span class="chip ok" title="${esc(p.text.slice(0, 400))}">words read</span>` : ''}</div>
+        <select data-bkkind="${p.n}" title="What it is">${PIC_KINDS.map(([k, t]) => `<option value="${k}" ${k === (p.kind || '') ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        <select data-bkuse="${p.n}" title="What to do with it">${uses.map(([u, t]) => `<option value="${esc(u)}" ${u === p.use ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+      </div></div>`;
+  return `<div class="bk-pics-h"><span class="fl">Pictures</span><span class="small faint">${kept} of ${P.length} kept${R.adventure ? ' · a map given to a place opens with a new game' : ''}</span></div><div class="bk-pics scroll" data-scroll="bk-pics">${P.map(card).join('')}</div>`;
 }
 function booksListHtml(L) {
   const num = (c) => [c.monsters ? `${c.monsters} monsters` : '', c.spells ? `${c.spells} spells` : '', c.rules ? `${c.rules} rules sections` : ''].filter(Boolean).join(' · ') || 'empty';
@@ -1506,15 +1540,21 @@ const ACT = {
   'bk.convert': async () => {
     const B = ui.books;
     B.busy = true; render();
-    const out = await booksApi('/convert', { text: B.text, kind: B.kind, name: B.name, how: B.how });
+    // The pictures go first, a few at a time; the conversion then looks at them.
+    const pics = B.pictures || [];
+    for (let k = 0; k < pics.length; k += 6) {
+      const up = await booksApi('/pictures', { reset: k === 0, pictures: pics.slice(k, k + 6) });
+      if (!up.ok) { B.busy = false; toast(up.error || 'The pictures could not be sent.'); render(); return; }
+    }
+    const out = await booksApi('/convert', { text: B.text, kind: B.kind, name: B.name, how: B.how, pictures: pics.length > 0 });
     B.busy = false;
     if (!out.ok) { toast(out.error || 'That did not convert.'); render(); return; }
     B.job = { busy: true, step: 'Reading', at: 0, of: 0 }; B.sel = null; B.saveName = '';
     booksWatch();
   },
-  'bk.clear': () => { ui.books.text = ''; ui.books.file = ''; },
+  'bk.clear': () => { ui.books.text = ''; ui.books.file = ''; ui.books.pictures = []; },
   'bk.sel': (d) => { ui.books.sel = Number(d.n); },
-  'bk.save': async () => {
+  'books.save': async () => { // not 'bk.save': that is the offline app's "Download a copy"
     const B = ui.books;
     const out = await booksApi('/save', { name: B.saveName || B.name });
     if (!out.ok) { toast(out.error || 'That was not saved.'); return; }
@@ -1571,6 +1611,7 @@ const ACT = {
   gold: async (d) => { const p = state.pcs[d.pc]; if (ui.goldSet === '' || ui.goldSet == null) return; if (await send({ type: 'item.edit', pcId: d.pc, name: (p.inventory[0] || { name: 'Pouch' }).name, qty: (p.inventory[0] || { qty: 1 }).qty, gold: Number(ui.goldSet) })) ui.goldSet = ''; },
   'xp.add': async (d) => { if (await send({ type: 'xp.add', pcId: d.pc, amount: Number(ui.xpAdd) })) ui.xpAdd = ''; },
   'loot.take': (d) => send({ type: 'loot.take', pcId: d.pc, index: Number(d.i) }),
+  'obj.use': (d) => send({ type: 'object.use', who: `pc:${ui.useObj.pc}`, object: d.o }),
   tgt: (d) => { const cur = ui.castTargets[d.key] || []; ui.castTargets[d.key] = d.multi ? (cur.includes(d.ref) ? cur.filter((x) => x !== d.ref) : [...cur, d.ref]) : (cur[0] === d.ref ? [] : [d.ref]); },
   cast: async (d) => {
     const s = spellOf(d.s);
@@ -1748,9 +1789,38 @@ function onField(e) {
   if (t.dataset.racecantrip) { if (e.type === 'change') { ui.build.spells = { ...(ui.build.spells || {}), raceCantrip: t.value }; saveDraft(); render(); } return; }
   if (t.dataset.notes) { if (e.type === 'change') send({ type: 'pc.notes', pcId: t.dataset.notes, text: t.value }); return; }
   if (t.dataset.hostnotes) { ui.host.note = t.value; return; }
+  if (t.dataset.bkuse || t.dataset.bkkind) {
+    if (e.type !== 'change') return;
+    const n = Number(t.dataset.bkuse || t.dataset.bkkind);
+    const R = (ui.books.job || {}).result || {};
+    const p = (R.pictures || []).find((x) => x.n === n);
+    if (!p) return;
+    const body = t.dataset.bkuse ? { n, use: t.value } : { n, use: p.use, kind: t.value };
+    booksApi('/use', body).then((out) => {
+      if (!out.ok) { toast(out.error || 'That could not be changed.'); render(); return; }
+      if (body.use === 'travel' || String(body.use).startsWith('site:')) for (const x of R.pictures) if (x !== p && x.use === body.use) x.use = 'keep';
+      p.use = body.use;
+      if (body.kind != null) p.kind = body.kind;
+      render();
+    });
+    return;
+  }
   if (t.dataset.booksfile) {
     const f = t.files && t.files[0];
-    if (f) f.text().then((txt) => { ui.books.text = txt; ui.books.file = f.name; if (!ui.books.name) ui.books.name = f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' '); render(); });
+    if (!f) return;
+    const B = ui.books;
+    if (!B.name) B.name = f.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
+    // A PDF is read here, in the browser (public/pdfread.js): its text, and the pictures on its pages.
+    if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+      B.pdf = { step: 'Opening the PDF', at: 0, of: 0 }; B.pictures = []; B.file = f.name; render();
+      Promise.all([import('/pdfread.js'), f.arrayBuffer()]).then(([P, buf]) => P.readPdf(buf, { onProgress: (p) => { B.pdf = p; if (ui.tab === 'books') render(); } }))
+        .then((r) => { B.text = r.text; B.pictures = r.pictures; B.pdf = null; B.file = `${f.name}: ${r.pages.length} pages, ${r.pictures.length} picture${r.pictures.length === 1 ? '' : 's'}${r.pages.some((x) => x.scanned) ? `, ${r.pages.filter((x) => x.scanned).length} scanned` : ''}`; render(); })
+        .catch((err) => { B.pdf = null; toast(`That PDF could not be read: ${err.message}`); render(); });
+      t.value = '';
+      return;
+    }
+    f.text().then((txt) => { B.text = txt; B.file = f.name; B.pictures = []; render(); });
+    t.value = '';
     return;
   }
   if (t.dataset.loadfile) {

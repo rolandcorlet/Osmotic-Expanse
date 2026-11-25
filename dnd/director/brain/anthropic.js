@@ -43,7 +43,7 @@ export function anthropic({ apiKey, model, baseUrl, fetchImpl = fetch, temperatu
     }
 
     return {
-      send(text) { messages.push({ role: 'user', content: text }); return turn(); },
+      send(text, images = []) { messages.push({ role: 'user', content: images.length ? [...images.map((i) => ({ type: 'image', source: { type: 'base64', media_type: i.mime, data: i.data } })), { type: 'text', text }] : text }); return turn(); },
       results(list) {
         messages.push({ role: 'user', content: list.map(({ call: c, result }) => ({ type: 'tool_result', tool_use_id: c.id, content: JSON.stringify(result) })) });
         return turn();

@@ -419,6 +419,17 @@ export const TOOLS = [
     },
   },
   {
+    name: 'use_object',
+    description: 'A character uses something at this place: opens a chest, pulls a lever, reads a book, touches an altar, searches a desk. Call it as they do it, before you say what happens: the place\'s rules may make something happen (a trap, a gift, a door, a fight), and what they did comes back as adventure_rules. Use the names in THINGS HERE when the place lists them.',
+    parameters: obj({ character: S('Who does it (a party member).'), object: S('What they use, as the place names it ("iron chest").'), how: S('Optional: the verb, such as opens, pulls, reads, searches (default: uses).') }, ['character', 'object']),
+    run(a, T) {
+      const pc = findPc(T.state, a.character);
+      if (!pc) return { refused: `There is nobody called "${a.character}" in the party. The party: ${party(T.state)}.` };
+      const no = T.do({ type: 'object.use', who: `pc:${pc.id}`, object: a.object, how: a.how });
+      return no ? { refused: no } : { ok: true };
+    },
+  },
+  {
     name: 'give_treasure',
     description: 'Give gold or an item the party finds or is given. With no character named, gold is split evenly and items go to the party\'s shared loot.',
     parameters: obj({ character: S('Optional: the party member who receives it (not the person giving it).'), gold: I('Gold pieces.'), item: S('An item\'s name (SRD names like "Potion of Healing" are recognised).'), qty: I('How many of the item.') }),

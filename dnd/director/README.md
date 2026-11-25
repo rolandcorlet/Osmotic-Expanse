@@ -147,7 +147,16 @@ Importing your books makes the library's engine version too. The SRD's engine ve
 
 ### The Books tab: paste a book or a campaign
 
-On the DM screen, **Books** converts what you paste or add as a file (text, Markdown or JSON):
+On the DM screen, **Books** converts what you paste or add as a file (a PDF, text, Markdown or JSON):
+- **A PDF** is read in the browser (pdf.js): the text in reading order (two columns one after the other,
+  words split across lines joined), and the pictures on its pages: maps, stat blocks set as pictures,
+  handouts, art, and whole scanned pages. A parchment background behind a page of text is left out.
+- **The pictures are looked at by the AI** when the model chosen on the Director tab can see (Gemini,
+  Claude, GPT-4o and the like, or an Ollama vision model such as gemma3 or qwen2.5vl). The words in a
+  stat block, a scanned page or a handout join the text where the book has them, so they are read like
+  the rest; a campaign's maps go to the places they show (by name), and a region map becomes the travel
+  map. Without a model that can see, the pictures are kept and you say what each one is. Either way, each
+  picture has **What it is** and **Use as** (keep, leave out, the travel map, or a place's map) before saving.
 - **Monster stat blocks and spells** in the usual 5e layout are read at once by the book reader, with no AI;
   anything in another layout is read by the AI chosen on the Director tab.
 - **Rules text** (a chapter of a core rulebook, house rules) is cut into sections by its headings, for the
@@ -159,7 +168,9 @@ On the DM screen, **Books** converts what you paste or add as a file (text, Mark
 Before anything is saved you see each entry with its words beside what the Engine will use, and what could
 not be read. Saving puts a book in `library/converted/<name>/` (the words you pasted, the book, its engine
 version and its gaps) and it joins the rules at once; a campaign goes to `library/adventures/` and joins
-the adventure list (start it from **Saves → New game**). **Your books** lists everything the Engine reads.
+the adventure list (start it from **Saves → New game**); a new game of it opens with its maps on the Map tab.
+Pictures are kept beside the book or adventure (`pictures/`, `<id>.pictures/`) and served from the maps
+store. **Your books** lists everything the Engine reads.
 Removing a converted book sets it aside in `library/converted/_removed/`. All of it stays on your computer.
 
 ## The book library (private)
@@ -262,12 +273,17 @@ rules: [
 ]
 ```
 
-- `when`: enter, attack, fail or succeed `<skill>`, round `<n>` (or plain round: the end of every round),
-  down, hurt (below half, or `hp`), cleared, full `<clock>`, quest `<words>`.
-- `if`: from, visited, down, standing, hurt, quest, has, passed or failed `<skill>`, fight, no fight;
-  "not" turns one round.
+- `when`: enter (the party arrives), enter `<zone>` (a character steps into that area), use `<object>` (a
+  character opens the chest, pulls the lever), fight (a fight starts: how the foes meet the party), turn
+  `<who>` (a foe's turn begins), attack, fail or succeed `<skill>`, round `<n>` (or plain round: the end of
+  every round), down, hurt (below half, or `hp`), cleared, full `<clock>`, quest `<words>`.
+- `if`: from, visited, down, standing, hurt, quest, has `<item>` (anyone in the party), carries `<item>`
+  (the character who entered or used it), passed or failed `<skill>`, fight, no fight; "not" turns one round.
 - `do`: fight (`surprise`), flee (`target`, `to`), tick (`clock`, `by`), quest, xp (`xp`, or `level`: what
-  each still needs to reach it), reveal, say. Any rule can also carry `xp`, `level` and `say`.
+  each still needs to reach it), reveal, give (`item`, `qty`, `gold`: to whoever used it or entered),
+  calm (`target` stands down: out of the fight, no XP), say. Any rule can also carry `xp`, `level` and `say`.
+- A place's `objects` (`[{ name, note }]`) are the things a character can use there: the Director calls
+  `use_object`, and the DM has a **Use** button for each on the Adventure tab.
 
 `engine/triggers.js` has the full list. Two defaults hold everywhere: an attack with no fight on starts
 one (a player's screen attack, a monster striking a character, or a player saying "I attack Grisk!" to

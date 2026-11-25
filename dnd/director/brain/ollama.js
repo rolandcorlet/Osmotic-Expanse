@@ -56,7 +56,7 @@ export function ollama({ baseUrl, model, apiKey = '', numCtx = 16384, fetchImpl 
     }
 
     return {
-      send(text) { messages.push({ role: 'user', content: text }); return turn(); },
+      send(text, images = []) { messages.push({ role: 'user', content: text, ...(images.length ? { images: images.map((i) => i.data) } : {}) }); return turn(); },
       results(list) {
         for (const { call: c, result } of list) messages.push({ role: 'tool', tool_name: c.name, content: JSON.stringify(result) });
         return turn();

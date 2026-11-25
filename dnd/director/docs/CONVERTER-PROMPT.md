@@ -64,7 +64,11 @@ HOW TO CONVERT
    - *"on a failed check…"*: `{ when: 'fail <skill>', do: 'fight', surprise: 'party' }`
    - *"at the end of round N"*: `round N+1`
    - *"each round"*: `round`
-   - *"when the party enters"*: `enter`
+   - *"when the party enters"*: `enter`; *"whoever steps into the chapel"*: `enter <zone>`
+   - *"if the chest is opened"*, *"pulling the lever"*: `use <object>`, with the thing in the site's `objects`
+     (`{ name, note }`); what is inside: `do: 'give'`; a trap: `do: 'say'` with the save and damage in `say`
+   - *"the goblins will not fight anyone wearing the chief's token"*: `{ when: 'fight', if: 'has chief\'s token', do: 'calm' }`
+   - *"the wraith will not attack the bearer of the sun disc"*: `{ when: 'turn Wraith', if: 'has sun disc', do: 'say', say: '…' }`
    - *"the quest ends when…"*: `cleared` or `enter`, with `do: 'quest'`
    - *"award N XP"*: `xp`
    - *"the party reaches level N"*: `level`
@@ -139,7 +143,10 @@ export default {
 
 RULES (`rules` on a site; each fires once unless `once: false`; a plain `round` fires every round)
 - **when:**
-  - `enter`
+  - `enter`; `enter <zone>` (a character steps into that zone of the site)
+  - `use <object>` (a character opens, pulls, reads or searches it; list it in the site's `objects`)
+  - `fight` (a fight starts here, before anyone acts)
+  - `turn <who>` (that foe's turn begins; every turn unless `once: true`)
   - `attack`
   - `fail <skill>`, `succeed <skill>`
   - `round <n>`; plain `round` (the end of every round)
@@ -151,7 +158,7 @@ RULES (`rules` on a site; each fires once unless `once: false`; a plain `round` 
 - **if:** one string or a list; "not " in front turns one round.
   - `from <site>`, `visited <site>`
   - `down <who>`, `standing <who>`, `hurt <who>`
-  - `quest <words>`, `has <item>`
+  - `quest <words>`, `has <item>` (anyone in the party), `carries <item>` (the character who entered or used it)
   - `passed <skill>`, `failed <skill>`
   - `fight`, `no fight`
 - **do:**
@@ -161,5 +168,7 @@ RULES (`rules` on a site; each fires once unless `once: false`; a plain `round` 
   - `quest` (`quest`)
   - `xp` (`xp: n`, or `level: n`)
   - `reveal` (`target`)
+  - `give` (`item`, `qty`, `gold`: to the character who used it or entered, else to the party)
+  - `calm` (`target`: they stand down, out of the fight, no XP; an attack starts a new one)
   - `say`
 - **Any rule may also carry** `xp` or `level` (a milestone, once per site) and `say` (a line for the Director).

@@ -470,3 +470,18 @@ button.bk-row.on{background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .bk-bar{height:10px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);overflow:hidden}
 .bk-bar i{display:block;height:100%;background:var(--accent);transition:width .4s}
 @media (max-width:1050px){.bk-detail{grid-template-columns:1fr}}
+.bk-strip{display:flex;gap:6px;overflow-x:auto;padding:2px 0;min-height:56px;align-items:center}
+.bk-strip img{height:52px;border-radius:6px;border:1px solid var(--line);flex:0 0 auto}
+.bk-pics-h{display:flex;align-items:baseline;gap:10px;flex:0 0 auto}
+.bk-pics{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;flex:0 0 auto;padding-bottom:4px}
+.bk-pic{flex:0 0 290px;display:flex;gap:8px;padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);min-width:0}
+.bk-pic.off{opacity:.55}
+.bk-pic a{flex:0 0 auto;display:block}
+.bk-pic img{width:86px;height:86px;object-fit:contain;border-radius:6px;background:color-mix(in srgb, var(--ink) 6%, transparent);display:block}
+.bk-pic-f{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.bk-pic-f select{width:100%;min-width:0;padding:3px 6px;font-size:12px;height:26px}
+.bk-pic-t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-height:800px) and (min-width:1051px){.bk-pic img{width:70px;height:70px}.bk-pic{flex-basis:260px}}
+.use-row{display:flex;flex-direction:column;gap:4px;padding:6px 0;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.use-row select{max-width:150px}
+.use-row .row{flex-wrap:wrap;gap:4px}

@@ -147,7 +147,10 @@ export default {
 
 RULES (`rules` on a site; each fires once unless `once: false`; a plain `round` fires every round)
 - **when:**
-  - `enter`
+  - `enter`; `enter <zone>` (a character steps into that zone of the site)
+  - `use <object>` (a character opens, pulls, reads or searches it; list it in the site's `objects`)
+  - `fight` (a fight starts here, before anyone acts)
+  - `turn <who>` (that foe's turn begins; every turn unless `once: true`)
   - `attack`
   - `fail <skill>`, `succeed <skill>`
   - `round <n>` (the end of round 2 is `round 3`); plain `round` (the end of every round)
@@ -159,7 +162,7 @@ RULES (`rules` on a site; each fires once unless `once: false`; a plain `round` 
 - **if:** one string or a list; "not " in front turns one round.
   - `from <site>`, `visited <site>`
   - `down <who>`, `standing <who>`, `hurt <who>`
-  - `quest <words>`, `has <item>`
+  - `quest <words>`, `has <item>` (anyone in the party), `carries <item>` (the character who entered or used it)
   - `passed <skill>`, `failed <skill>`
   - `fight`, `no fight`
 - **do:**
@@ -169,5 +172,7 @@ RULES (`rules` on a site; each fires once unless `once: false`; a plain `round` 
   - `quest` (`quest: <words>`)
   - `xp` (`xp: n`, or `level: n` for what each still needs)
   - `reveal` (`target`)
+  - `give` (`item`, `qty`, `gold`: to the character who used it or entered, else to the party)
+  - `calm` (`target`: they stand down, out of the fight, no XP; an attack starts a new one)
   - `say`
 - **Any rule may also carry** `xp` or `level` (a milestone, once per site) and `say` (a line for the Director).

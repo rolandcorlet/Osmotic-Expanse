@@ -235,10 +235,26 @@ export function createDirector({ getState, commit, act = null, memory = null, ad
     // running: the Books tab's converter (brain/convert.js).
     aiReady: () => usable() && !!modelOf(),
     aiName: () => (usable() && modelOf() ? `${info().name}: ${modelOf()}` : ''),
-    async ask(system, user) {
+    async ask(system, user, images = []) {
       const p = makeProvider({ provider: cfg.provider, apiKey: keyOf(), baseUrl: urlOf(), model: modelOf(), numCtx: cfg.numCtx, thinking: 'off' });
-      const reply = await p.start({ system, tools: [] }).send(user);
+      const reply = await p.start({ system, tools: [] }).send(user, images);
       return reply.text;
+    },
+    // Can the model set up here look at pictures? true, false, or null when it cannot be told (then the
+    // converter tries, and stops at the first refusal). Ollama says what a model can do; the cloud makers'
+    // chat models can all see; a local server speaking the OpenAI shape does not say.
+    async canSee() {
+      if (!(usable() && modelOf())) return false;
+      const k = info().kind;
+      if (k === 'ollama') {
+        try {
+          const r = await fetch(`${urlOf().replace(/\/+$/, '')}/api/show`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model: modelOf() }), signal: AbortSignal.timeout(8000) });
+          const j = await r.json();
+          return Array.isArray(j.capabilities) ? j.capabilities.includes('vision') : null;
+        } catch { return null; }
+      }
+      if (/^(?:deepseek|groq)$/.test(cfg.provider)) return null;
+      return info().group === 'cloud' ? true : null;
     },
     // Called by the server after a player does something the Director should answer.
     playerActed(reason) {

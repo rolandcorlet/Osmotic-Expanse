@@ -8,9 +8,18 @@
 //   { when: 'hurt', who: 'Grisk', if: 'down Goblin guard', do: 'flee', say: 'Grisk offers to sell the girl, then runs.' }
 //   { when: 'round', do: 'tick', clock: 'The burning bridge' }
 //   { when: 'cleared', do: 'quest', quest: 'vanished', xp: 300 }
+//   { when: 'use chest', do: 'give', item: 'Silver key', say: 'Under the rags: a silver key.' }
+//   { when: 'enter Sanctum', if: 'carries sun disc', do: 'say', say: 'The altar flares at the Sun Disc.' }
+//   { when: 'fight', if: 'has chieftain token', do: 'calm', target: 'Goblin', say: 'They know the token.' }
 //
 // when (what sets it off; each rule fires once unless it says `once: false`, and "round" fires every round):
 //   enter            the party arrives here (the first place: when the game starts)
+//   enter <zone>     a character moves into that zone of this place (an area on the map)
+//   use <object>     a character uses an object here: opens the chest, pulls the lever, reads the book
+//                    (the Director's use_object, the DM's "Use" on the Adventure tab); `objects` lists them
+//   fight            a fight starts here, before anyone acts: how the foes meet the party is decided
+//   turn <who>       `who`'s turn begins in a fight here (plain "turn": any foe's): what it does is decided.
+//                    Every turn, unless the rule says once: true
 //   attack           someone attacks before a fight is on here
 //   fail <skill>     a check with that skill made here fails (a group check: half or more fail)
 //   succeed <skill>  a check with that skill made here succeeds
@@ -23,7 +32,9 @@
 //   full <clock>     that clock fills
 //   quest <words>    that quest is complete
 // if (all must hold; one string or a list; "not " in front turns one round):
-//   from <place>, visited <place>, down <who>, standing <who>, hurt <who>, quest <words>, has <item>,
+//   from <place>, visited <place>, down <who>, standing <who>, hurt <who>, quest <words>,
+//   has <item> (anyone in the party, or the party's loot), carries <item> (the character who set the rule
+//   off: who entered the zone or used the object; anyone in the party for other moments),
 //   passed <skill>, failed <skill> (the last such check here), fight, no fight
 // do (what happens):
 //   fight    a fight starts here with everyone standing (surprise: 'party' or 'foes')
@@ -33,11 +44,15 @@
 //   xp       each character earns `xp`, or `level: n`: what each still needs to reach level n (any rule may
 //            also carry `xp` or `level`: a milestone paid with it, once per place)
 //   reveal   `target` or `who` (everyone hidden here if neither is given) is revealed
+//   give     `item` (and `qty`) and/or `gold` go to the character who set it off (who opened the chest),
+//            or to the party's loot
+//   calm     `target` or `who` (everyone here if neither) stands down: out of the fight, not beaten (no
+//            XP); the fight ends when no foe in it is still fighting. Attacking them starts a new one.
 //   say      nothing happens but the line in `say`, for the Director (any rule may carry `say`)
 
-export const EVENTS = ['enter', 'attack', 'fail', 'succeed', 'round', 'down', 'hurt', 'cleared', 'full', 'quest'];
-export const EFFECTS = ['fight', 'flee', 'tick', 'quest', 'xp', 'reveal', 'say'];
-export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'hurt', 'quest', 'has', 'passed', 'failed', 'fight', 'no fight'];
+export const EVENTS = ['enter', 'use', 'fight', 'turn', 'attack', 'fail', 'succeed', 'round', 'down', 'hurt', 'cleared', 'full', 'quest'];
+export const EFFECTS = ['fight', 'flee', 'tick', 'quest', 'xp', 'reveal', 'give', 'calm', 'say'];
+export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'hurt', 'quest', 'has', 'carries', 'passed', 'failed', 'fight', 'no fight'];
 // Set off by a state that holds (checked after every change), not by one moment.
 export const STATES = ['down', 'hurt', 'cleared', 'full', 'quest'];
 
@@ -49,9 +64,13 @@ const plain = (v) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
 export function parseWhen(v) {
   const w = words(v);
   const low = w.toLowerCase();
-  const ev = EVENTS.find((e) => low === e || low.startsWith(`${e} `)) || (/^(?:succeeds?|passe?s?|success)\b/.test(low) ? 'succeed' : /^fail(?:s|ed|ure)?\b/.test(low) ? 'fail' : /^(?:arrive|arrives|arrival|entering)\b/.test(low) ? 'enter' : '');
+  const ev = EVENTS.find((e) => low === e || low.startsWith(`${e} `)) || (/^(?:succeeds?|passe?s?|success)\b/.test(low) ? 'succeed' : /^fail(?:s|ed|ure)?\b/.test(low) ? 'fail' : /^(?:arrive|arrives|arrival|entering|enters)\b/.test(low) ? 'enter'
+    : /^(?:uses?|opens?|interacts?(?: with)?|touch(?:es)?|search(?:es)?)\b/.test(low) ? 'use' : /^(?:fight starts|combat|battle)\b/.test(low) ? 'fight' : '');
   if (!ev) return { ev: '', arg: '', raw: w };
   let arg = w.replace(/^\S+\s*/, '').trim();
+  if (ev === 'use') arg = w.replace(/^(?:uses?|opens?|interacts?(?:\s+with)?|touch(?:es)?|search(?:es)?)\s*/i, '').replace(/^(?:the|a|an)\s+/i, '').trim();
+  if (ev === 'enter') arg = arg.replace(/^(?:the\s+)?(?:zone|area)\s+/i, '').trim();
+  if (ev === 'fight') arg = '';
   if (ev === 'round') arg = arg ? Math.max(1, Math.trunc(Number(arg)) || 0) || '' : '';
   if (ev === 'fail' || ev === 'succeed') arg = arg.toLowerCase().replace(/\s+(?:check|save|saving throw)$/, '').replace(/\s+/g, '-');
   return { ev, arg, raw: w };
@@ -83,8 +102,10 @@ export function normRule(r, site, n) {
     do: String(r.do || (r.say ? 'say' : '')).toLowerCase().trim(),
     surprise: /^(?:the )?(?:party|heroes|characters|players|pcs)$/i.test(String(r.surprise || '')) ? 'party' : /^(?:the )?(?:foes|monsters|enemies|them)$/i.test(String(r.surprise || '')) ? 'foes' : '',
     to: plain(r.to), clock: plain(r.clock), by: Math.trunc(Number(r.by)) || 1, quest: plain(r.quest),
+    item: plain(r.item), qty: Number(r.qty) > 1 ? Math.min(999, Math.trunc(Number(r.qty))) : 1, gold: Number(r.gold) > 0 ? Math.min(1e6, Math.trunc(Number(r.gold))) : 0,
     xp: Number(r.xp) > 0 ? Math.trunc(Number(r.xp)) : 0, level: Number(r.level) >= 2 ? Math.min(20, Math.trunc(Number(r.level))) : 0, say: plain(r.say),
-    once: r.once === false ? false : when.ev === 'round' && !when.arg ? false : true,
+    // "round" alone and "turn" happen every time unless the rule says once: true.
+    once: r.once === false ? false : r.once === true ? true : !((when.ev === 'round' && !when.arg) || when.ev === 'turn'),
   };
 }
 
@@ -113,7 +134,10 @@ export function whenWords(r) {
   const { ev, arg } = r.when;
   const who = r.who || 'the foes here';
   switch (ev) {
-    case 'enter': return 'When the party arrives';
+    case 'enter': return arg ? `When a character enters ${arg}` : 'When the party arrives';
+    case 'use': return `When a character uses ${/^(?:the|a|an) /i.test(arg) ? arg : `the ${arg}`}`;
+    case 'fight': return 'When a fight starts here (before anyone acts)';
+    case 'turn': return arg ? `When ${arg}'s turn begins` : 'When a foe\'s turn begins here';
     case 'attack': return 'When anyone attacks before a fight is on';
     case 'fail': return `When a ${skillName(arg)} check here fails`;
     case 'succeed': return `When a ${skillName(arg)} check here succeeds`;
@@ -136,6 +160,7 @@ function ifWords(c, adv) {
     case 'hurt': return `${c.arg} is${n} below half hit points`;
     case 'quest': return `the quest "${c.arg}" is${n} complete`;
     case 'has': return `the party has${n ? ' not' : ''} got ${c.arg}`;
+    case 'carries': return `that character ${c.not ? 'does not carry' : 'carries'} ${c.arg}`;
     case 'passed': return `the last ${skillName(c.arg)} check here ${c.not ? 'did not succeed' : 'succeeded'}`;
     case 'failed': return `the last ${skillName(c.arg)} check here ${c.not ? 'did not fail' : 'failed'}`;
     case 'fight': return c.not ? 'no fight is on' : 'a fight is on';
@@ -151,6 +176,8 @@ export function doWords(r, adv) {
     case 'tick': parts.push(`the clock "${r.clock}" fills by ${r.by}`); break;
     case 'quest': parts.push(`the quest "${r.quest}" is complete`); break;
     case 'reveal': parts.push(`${r.target || 'everyone hidden here'} ${r.target && !/s$/.test(r.target) ? 'is' : 'are'} revealed`); break;
+    case 'give': parts.push(`${[r.item ? `${r.qty > 1 ? `${r.qty} × ` : ''}${r.item}` : '', r.gold ? `${r.gold} gp` : ''].filter(Boolean).join(' and ') || 'nothing'} ${r.when.ev === 'use' || r.when.ev === 'enter' ? 'goes to that character' : 'goes to the party'}`); break;
+    case 'calm': parts.push(`${who} ${/s$/.test(who) ? 'stand' : 'stands'} down (no fight with ${/s$/.test(who) || !r.target ? 'them' : 'it'})`); break;
     case 'xp': break;
     case 'say': break;
     default: parts.push(`(${r.do || 'nothing'})`);
@@ -195,7 +222,16 @@ export function checkRules(adv, { skills = [] } = {}) {
     if ((r.when.ev === 'fail' || r.when.ev === 'succeed') && !r.when.arg) errors.push(`${at}: name the skill ("${r.when.ev} perception").`);
     if ((r.when.ev === 'fail' || r.when.ev === 'succeed') && r.when.arg && !knownSkill(r.when.arg)) errors.push(`${at}: "${r.when.arg}" is not a skill.`);
     if (['down', 'hurt'].includes(r.when.ev) && !r.who) errors.push(`${at}: say who (who: 'Grisk').`);
-    if (r.who && !knownFoe(r.site, r.who)) warnings.push(`${at}: no foe here is called "${r.who}".`);
+    if (r.when.ev === 'use' && !r.when.arg) errors.push(`${at}: say what is used ("use chest").`);
+    const place = sites.find((x) => x.id === r.site);
+    const objects = ((place && place.objects) || []).map((o) => String(typeof o === 'string' ? o : o.name || '').toLowerCase()).filter(Boolean);
+    if (r.when.ev === 'use' && r.when.arg && objects.length && !objects.some((o) => o.includes(r.when.arg.toLowerCase()) || r.when.arg.toLowerCase().includes(o))) warnings.push(`${at}: no object here is called "${r.when.arg}" (objects: ${objects.join(', ')}).`);
+    const zones = ((place && place.zones) || []).flatMap((z) => [z.id, z.name].filter(Boolean).map((x) => String(x).toLowerCase()));
+    if (r.when.ev === 'enter' && r.when.arg && zones.length && !zones.includes(r.when.arg.toLowerCase())) errors.push(`${at}: there is no zone "${r.when.arg}" here (zones: ${place.zones.map((z) => z.name || z.id).join(', ')}).`);
+    if (r.when.ev === 'enter' && r.when.arg && !r.site) errors.push(`${at}: a zone belongs to a place: put this rule in that place's rules.`);
+    if (r.when.ev === 'turn' && r.when.arg && !knownFoe(r.site, r.when.arg)) warnings.push(`${at}: no foe here is called "${r.when.arg}".`);
+    if (r.do === 'give' && !r.item && !r.gold) errors.push(`${at}: say what is given (item: 'Silver key', or gold: 50).`);
+    if (r.who && r.do !== 'give' && !knownFoe(r.site, r.who)) warnings.push(`${at}: no foe here is called "${r.who}".`);
     if (r.target && r.target !== r.who && !knownFoe(r.site, r.target)) warnings.push(`${at}: no foe here is called "${r.target}".`);
     if (r.when.ev === 'full' && !clockNames.includes(String(r.when.arg).toLowerCase())) errors.push(`${at}: no clock is called "${r.when.arg}".`);
     if (r.when.ev === 'quest' && !knownQuest(r.when.arg)) warnings.push(`${at}: no quest has the words "${r.when.arg}" (fine if the Director adds it later).`);
@@ -210,8 +246,9 @@ export function checkRules(adv, { skills = [] } = {}) {
       if ((c.k === 'from' || c.k === 'visited') && !ids.has(c.arg)) errors.push(`${at}: there is no place "${c.arg}".`);
       if (['down', 'standing', 'hurt'].includes(c.k) && !knownFoe(r.site, c.arg)) warnings.push(`${at}: no foe here is called "${c.arg}".`);
       if (c.k === 'quest' && !knownQuest(c.arg)) warnings.push(`${at}: no quest has the words "${c.arg}".`);
+      if ((c.k === 'has' || c.k === 'carries') && !c.arg) errors.push(`${at}: name the item ("${c.k} silver key").`);
     }
-    if (!r.site && ['enter', 'attack', 'fail', 'succeed', 'round', 'cleared'].includes(r.when.ev)) warnings.push(`${at}: an adventure-wide rule on "${r.when.ev}" fires at the first place it happens. Put it in a place's rules if it belongs to one.`);
+    if (!r.site && ['enter', 'use', 'fight', 'turn', 'attack', 'fail', 'succeed', 'round', 'cleared'].includes(r.when.ev) && !(r.when.ev === 'enter' && r.when.arg)) warnings.push(`${at}: an adventure-wide rule on "${r.when.ev}" fires at the first place it happens. Put it in a place's rules if it belongs to one.`);
   }
   return { errors, warnings };
 }

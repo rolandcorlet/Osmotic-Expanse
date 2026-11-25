@@ -78,6 +78,8 @@ const slots = createSlots({
 const rng = systemRng();
 // The maps' pictures, kept with the saved games (mapfiles.js).
 const pictures = createMapStore(join(SAVE_DIR, 'maps'));
+// The converted books' and adventures' own pictures, back into the store (the same picture is kept once).
+if (!flag('--no-library')) for (const f of CV.libraryPictures(LIB_DIR)) { try { pictures.put(readFileSync(f)); } catch { /* not a picture */ } }
 
 // ---------------------------------------------------------------- the session
 let hostKey = opt('--host-key', '');
@@ -195,6 +197,9 @@ const FILES = {
   '/engine/scale.js': ['engine/scale.js', 'text/javascript'],
   '/engine/book.js': ['engine/book.js', 'text/javascript'],
   '/map.js': ['public/map.js', 'text/javascript'],
+  '/pdfread.js': ['public/pdfread.js', 'text/javascript'],
+  '/vendor/pdfjs/pdf.min.mjs': ['public/vendor/pdfjs/pdf.min.mjs', 'text/javascript'],
+  '/vendor/pdfjs/pdf.worker.min.mjs': ['public/vendor/pdfjs/pdf.worker.min.mjs', 'text/javascript'],
   // The three screens as their own pages (the same app, its role fixed by the page).
   '/player.html': ['public/player.html', 'text/html'],
   '/table.html': ['public/table.html', 'text/html'],
@@ -219,7 +224,11 @@ function json(res, code, body) {
 }
 
 // ---- the Books tab ----------------------------------------------------------------------------
-let convertJob = null; // { busy, step, at, of, error, result, original, startedAt }
+let convertJob = null; // { busy, step, at, of, error, result, original, startedAt, staged }
+// A PDF's pictures, sent a few at a time before a conversion: [{ n, page, w, h, mime, data, scanned }].
+let stagedPictures = [];
+const MAX_STAGED = 200;
+const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/;
 async function booksApi(path, method, body) {
   if (path === '/' && method === 'GET') {
     const lib = srd.library || null;
@@ -236,15 +245,43 @@ async function booksApi(path, method, body) {
     };
   }
   if (path === '/job') return { job: jobView(true) };
+  if (path === '/pictures' && method === 'POST') {
+    if (convertJob && convertJob.busy) return { ok: false, error: 'A conversion is already running.' };
+    if (body.reset) stagedPictures = [];
+    for (const p of Array.isArray(body.pictures) ? body.pictures.slice(0, 12) : []) {
+      const m = DATA_URL.exec(String((p && p.data) || ''));
+      if (!m) continue;
+      if (stagedPictures.length >= MAX_STAGED) return { ok: false, error: `That is more than ${MAX_STAGED} pictures: split the PDF into parts.` };
+      const w = Math.trunc(Number(p.w)); const h = Math.trunc(Number(p.h));
+      if (!(w > 0 && h > 0 && w <= 10000 && h <= 10000)) continue;
+      stagedPictures.push({ n: stagedPictures.length + 1, page: Math.max(1, Math.trunc(Number(p.page) || 1)), w, h, mime: m[1], data: m[2], scanned: !!p.scanned });
+    }
+    return { ok: true, count: stagedPictures.length };
+  }
+  // The DM says what one picture is for: kept, left out, the travel map, or a place's map.
+  if (path === '/use' && method === 'POST') {
+    const r = convertJob && convertJob.result;
+    const pic = r && (r.pictures || []).find((p) => p.n === Number(body.n));
+    if (!pic) return { ok: false, error: 'There is no such picture.' };
+    const use = String(body.use || '');
+    if (!CV.pictureUses(r).some(([u]) => u === use)) return { ok: false, error: 'That is not something a picture can be used for here.' };
+    if (use === 'travel' || use.startsWith('site:')) for (const p of r.pictures) if (p !== pic && p.use === use) p.use = 'keep';
+    pic.use = use;
+    if (typeof body.kind === 'string' && (body.kind === '' || CV.PICTURE_KINDS.some(([k]) => k === body.kind))) pic.kind = body.kind;
+    return { ok: true };
+  }
   if (path === '/convert' && method === 'POST') {
     if (convertJob && convertJob.busy) return { ok: false, error: 'A conversion is already running.' };
     const text = String(body.text || '');
-    if (!text.trim()) return { ok: false, error: 'Paste some text first.' };
+    if (!text.trim() && !(body.pictures && stagedPictures.length)) return { ok: false, error: 'Paste some text first.' };
     if (text.length > CV.MAX_PASTE) return { ok: false, error: 'That is more than one go can take: split it into parts.' };
-    const ai = director.aiReady && director.aiReady() ? (system, user) => director.ask(system, user) : null;
-    convertJob = { busy: true, step: 'Reading', at: 0, of: 0, error: '', result: null, original: text, startedAt: Date.now() };
-    CV.convertText({ text, kind: body.kind, name: String(body.name || '').slice(0, 80), how: body.how || 'both', ask: ai, srd, onProgress: (p) => { Object.assign(convertJob, p); } })
-      .then((r) => { convertJob.result = r; })
+    const ai = director.aiReady && director.aiReady() ? (system, user, images) => director.ask(system, user, images) : null;
+    const staged = body.pictures ? stagedPictures : [];
+    stagedPictures = [];
+    convertJob = { busy: true, step: 'Reading', at: 0, of: 0, error: '', result: null, original: text, startedAt: Date.now(), staged };
+    const canSee = staged.length && ai && director.canSee ? await director.canSee() : null;
+    CV.convertText({ text, kind: body.kind, name: String(body.name || '').slice(0, 80), how: body.how || 'both', ask: ai, srd, pictures: staged, canSee, onProgress: (p) => { Object.assign(convertJob, p); } })
+      .then((r) => { if (r.words) { convertJob.original = r.words; delete r.words; } r.uses = CV.pictureUses(r); convertJob.result = r; })
       .catch((e) => { convertJob.error = e.message || String(e); })
       .finally(() => { convertJob.busy = false; convertJob.step = ''; });
     return { ok: true };
@@ -253,17 +290,37 @@ async function booksApi(path, method, body) {
     const r = convertJob && convertJob.result;
     if (!r) return { ok: false, error: 'There is nothing converted to save.' };
     const name = String(body.name || r.name || 'Converted').slice(0, 80);
-    if (r.adventure) {
-      const adv = CV.saveAdventure(ADVENTURES_DIR, { ...r.adventure, name }, convertJob.original);
+    // The pictures go into the maps' store (served at /maps/...) and beside the book or adventure.
+    const files = [];
+    const kept = [];
+    const adventure = r.adventure ? { ...r.adventure, sites: (r.adventure.sites || []).map((s) => ({ ...s })) } : null;
+    for (const p of r.pictures || []) {
+      if (p.use === 'skip') continue;
+      const src = (convertJob.staged || []).find((x) => x.n === p.n);
+      if (!src) continue;
+      const bytes = Buffer.from(src.data, 'base64');
+      let url;
+      try { url = pictures.put(bytes); } catch { continue; }
+      files.push({ name: url.slice('/maps/'.length), bytes });
+      const pic = { url, w: src.w, h: src.h };
+      const site = adventure && p.use.startsWith('site:') ? adventure.sites.find((s) => `site:${s.id}` === p.use) : null;
+      if (adventure && p.use === 'travel') adventure.travelPicture = pic;
+      else if (site) site.picture = { ...pic, about: p.about || '' };
+      else kept.push({ ...pic, kind: p.kind || '', about: p.about || '', page: p.page });
+    }
+    if (adventure) {
+      if (kept.length) adventure.pictures = kept;
+      const adv = CV.saveAdventure(ADVENTURES_DIR, { ...adventure, name }, convertJob.original, files);
       const at = ADVENTURES.findIndex((x) => x.id === adv.id);
       if (at >= 0 && !ADVENTURES[at].converted) return { ok: false, error: `An adventure called "${adv.id}" is built in: give this one another name.` };
       if (at >= 0) ADVENTURES[at] = adv; else ADVENTURES.push(adv);
       mergeAdventureMonsters(srd, [adv]);
       refreshSrd();
       convertJob = null;
-      return { ok: true, saved: `"${adv.name}" is in the adventure list.` };
+      const maps = (adv.travelPicture ? 1 : 0) + adv.sites.filter((s) => s.picture).length;
+      return { ok: true, saved: `"${adv.name}" is in the adventure list${maps ? `, with ${maps} map${maps > 1 ? 's' : ''} that a new game opens with` : ''}.` };
     }
-    const meta = CV.saveBook(CONVERTED_DIR, { name, kind: r.kind, original: convertJob.original, book: r.book });
+    const meta = CV.saveBook(CONVERTED_DIR, { name, kind: r.kind, original: convertJob.original, book: r.book, pictures: kept, files });
     const eng = CV.loadBooks(CONVERTED_DIR).find((b) => b.id === meta.id);
     const added = eng ? CV.mergeBook(srd, eng) : { monsters: 0, spells: 0, rules: 0 };
     refreshSrd();
@@ -534,6 +591,15 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     // The Books tab: convert pasted text (brain/convert.js), see it, save it, list what the Engine has.
+    // One of the pictures being converted, to show on the Books tab.
+    if (req.method === 'GET' && url.pathname === '/api/books/picture') {
+      if (access(req, { ...q, role: 'host' }).role !== 'host') { json(res, 403, { error: 'Only the DM can see this.' }); return; }
+      const src = ((convertJob && convertJob.staged) || stagedPictures).find((p) => p.n === Number(q.n));
+      if (!src) { json(res, 404, { error: 'No such picture.' }); return; }
+      res.writeHead(200, { 'content-type': src.mime, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+      res.end(Buffer.from(src.data, 'base64'));
+      return;
+    }
     if (url.pathname.startsWith('/api/books')) {
       const body = req.method === 'POST' ? await readBody(req, 12 * 1024 * 1024).catch(() => null) : {};
       if (!body) { json(res, 200, { ok: false, error: 'That is too much to paste at once (about 10 MB at most): split it into parts.' }); return; }
