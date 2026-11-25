@@ -252,7 +252,7 @@ export const TOOLS = [
   },
   {
     name: 'monster_action',
-    description: 'A monster uses one action from its stat block: an attack (the Engine rolls to hit against the target\'s AC and applies damage) or an ability with a saving throw (the targets roll on their screens), or a spell from its Spellcasting trait (give the spell\'s name as the action; the Engine uses the stat block\'s save DC and attack bonus and counts its slots). For Multiattack, call once per attack.',
+    description: 'A monster uses one action from its stat block: an attack (the Engine rolls to hit against the target\'s AC and applies damage) or an ability with a saving throw (the targets roll on their screens), or a spell from its Spellcasting trait (give the spell\'s name as the action; the Engine uses the stat block\'s save DC and attack bonus and counts its slots). For Multiattack, call once with action "Multiattack" and the target: the Engine makes every attack it lists (its usual choice; "Multiattack: longbow" picks another), and says if it also lists an ability such as Frightful Presence, which is its own call.',
     parameters: obj({
       monster: S('The monster\'s id or name.'),
       action: S('The action\'s name exactly as the stat block lists it (Scimitar, Bite, Fire Breath), a spell it can cast (Hold Person), or one every creature has: Dash, Disengage, Dodge, Hide, Help, Ready.'),

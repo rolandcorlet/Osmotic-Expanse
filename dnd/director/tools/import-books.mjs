@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sniff, parseSpellList, parseCharGen, parseMonsters, parseRulesBook } from './books.js';
+import { compileFile } from './compile-book.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -36,3 +37,7 @@ mkdirSync(dirname(outFile), { recursive: true });
 writeFileSync(outFile, JSON.stringify(lib));
 const subs = (k) => lib[k].reduce((n, x) => n + (x.subraces || x.subclasses || []).length, 0);
 console.log(`Library: ${lib.spells.length} spells, ${lib.monsters.length} monsters, ${subs('races')} subraces, ${subs('classes')} subclasses, ${lib.backgrounds.length} backgrounds, ${lib.rules.length} rules sections → ${outFile}`);
+// Its engine version beside it: the rules as fields, and what could not be read (compile-book.mjs).
+const eng = compileFile(outFile);
+writeFileSync(outFile.replace(/\.json$/, '.engine.json'), eng.text);
+console.log(`Engine version: ${outFile.replace(/\.json$/, '.engine.json')} (${eng.gaps.length} things to read by hand: run node tools/compile-book.mjs --library for the list).`);

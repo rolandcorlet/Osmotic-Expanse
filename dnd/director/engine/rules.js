@@ -3,7 +3,9 @@
 // No Node imports: the browser loads this same file, so the character builder on a player's screen
 // and the server that checks it can never disagree.
 //
-// Everything is read from the SRD 5.1 data (data/srd.json) passed in as `srd`.
+// Everything is read from the SRD 5.1 data passed in as `srd`: the engine version of the book
+// (data/srd.engine.json, made by tools/compile-book.mjs), whose rules are fields beside the words.
+import * as BOOK from './book.js';
 
 export const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
 export const ABILITY_NAMES = { str: 'Strength', dex: 'Dexterity', con: 'Constitution', int: 'Intelligence', wis: 'Wisdom', cha: 'Charisma' };
@@ -43,37 +45,23 @@ export const subclassLevel = (cls) => ({ cleric: 1, sorcerer: 1, warlock: 1, dru
 export function index(srd) {
   if (srd._ix) return srd._ix;
   const by = (list) => Object.fromEntries((list || []).map((x) => [x.id, x]));
+  // Anything the book compiler has not read yet (a book loaded straight, a monster or spell added later)
+  // is read now, by the same code: an entry already read is marked and skipped.
+  for (const sp of srd.spells || []) BOOK.compileSpell(sp);
+  for (const m of srd.monsters || []) BOOK.compileMonster(m);
+  for (const c of srd.conditions || []) BOOK.compileCondition(c);
+  BOOK.addConditionRules(srd.conditions);
   const ix = {
     race: by(srd.races), cls: by(srd.classes), spell: by(srd.spells), monster: by(srd.monsters),
     weapon: by(srd.weapons), armor: by(srd.armor), gear: by(srd.gear), skill: by(srd.skills),
     cond: by(srd.conditions), magic: by(srd.magicItems), bg: by(srd.backgrounds),
   };
-  for (const sp of srd.spells || []) spellDamage(sp);
   Object.defineProperty(srd, '_ix', { value: ix, enumerable: false, configurable: true });
   return ix;
 }
 
-// A spell's damage, read from its own words when the data has none (the SRD file carries no damage
-// fields: found by the fight simulation, 26 Nov, when no hero's Fire Bolt or Fireball ever did harm).
-// Cantrips grow at 5th, 11th and 17th level; a slot spell by the dice its "At Higher Levels" names.
-const DMG_TYPES = 'acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder';
-export function spellDamage(sp) {
-  if (!sp || sp.dmgSlot || sp.dmgLevel || sp._dmgRead) return sp;
-  Object.defineProperty(sp, '_dmgRead', { value: true, enumerable: false });
-  const m = new RegExp(`(\\d+)d(\\d+)(?:\\s*\\+\\s*(\\d+))?\\s+(${DMG_TYPES}) damage`, 'i').exec(String(sp.desc || ''));
-  if (!m || !(sp.attack || sp.save)) return sp;
-  const [n, d, flat] = [Number(m[1]), Number(m[2]), m[3] ? `+${m[3]}` : ''];
-  sp.dmgType = sp.dmgType || m[4].toLowerCase();
-  if (sp.level === 0) {
-    const grows = /5th level/i.test(sp.desc);
-    sp.dmgLevel = grows ? { 1: `${n}d${d}${flat}`, 5: `${2 * n}d${d}${flat}`, 11: `${3 * n}d${d}${flat}`, 17: `${4 * n}d${d}${flat}` } : { 1: `${n}d${d}${flat}` };
-  } else {
-    const up = /increases by (\d+)d(\d+) for each (?:slot )?level above (\d)/i.exec(String(sp.higher || ''));
-    sp.dmgSlot = {};
-    for (let l = sp.level; l <= 9; l++) sp.dmgSlot[l] = `${n + (up && Number(up[2]) === d ? Number(up[1]) * (l - sp.level) : 0)}d${d}${flat}`;
-  }
-  return sp;
-}
+// A spell's damage and how it lands, read from its words when the book has none (book.js).
+export const spellDamage = (sp) => BOOK.compileSpell(sp);
 export const item = (srd, id) => { const ix = index(srd); return ix.weapon[id] || ix.armor[id] || ix.gear[id] || ix.magic[id] || null; };
 
 // Items a starting-equipment choice leaves open ("any martial weapon").
@@ -385,47 +373,44 @@ export const saveBonus = (pc, a) => pc.mods[a] + (pc.saves.includes(a) ? pc.prof
 export const monsterSave = (m, a) => (m.saves && m.saves[a] != null ? m.saves[a] : mod(m.ab[ABILITIES.indexOf(a)]));
 export const monsterMod = (m, a) => mod(m.ab[ABILITIES.indexOf(a)]);
 
-// What conditions, exhaustion and rage do to a creature's own d20.
+// What conditions, exhaustion and rage do to a creature's own d20, read from the condition rules
+// (book.js CONDITION_RULES, which a book's own conditions can add to).
 // kind: 'attack' | 'check' | 'save'.  Returns { adv, dis, fail, why: [] }.
+const fxOf = (c) => BOOK.CONDITION_RULES[c] || {};
 export function selfEffects({ conds = [], exhaustion = 0, raging = false }, kind, ability) {
-  const c = new Set(conds);
   const out = { adv: false, dis: false, fail: false, why: [] };
   const dis = (w) => { out.dis = true; out.why.push(w); };
   const adv = (w) => { out.adv = true; out.why.push(w); };
-  if (kind === 'attack') {
-    if (c.has('poisoned')) dis('poisoned');
-    if (c.has('frightened')) dis('frightened');
-    if (c.has('blinded')) dis('blinded');
-    if (c.has('prone')) dis('prone');
-    if (c.has('restrained')) dis('restrained');
-    if (c.has('invisible')) adv('invisible');
-    if (exhaustion >= 3) dis('exhaustion');
+  let cannotMove = false;
+  for (const c of new Set(conds)) {
+    const fx = fxOf(c);
+    if (kind === 'attack') { if (fx.attack === 'dis') dis(c); if (fx.attack === 'adv') adv(c); }
+    if (kind === 'check' && fx.check === 'dis') dis(c);
+    if (kind === 'save' && fx.save && fx.save[ability] === 'fail') cannotMove = true;
+    if (kind === 'save' && fx.save && fx.save[ability] === 'dis') dis(c);
   }
-  if (kind === 'check') {
-    if (c.has('poisoned')) dis('poisoned');
-    if (c.has('frightened')) dis('frightened');
-    if (exhaustion >= 1) dis('exhaustion');
-    if (raging && ability === 'str') adv('rage');
-  }
-  if (kind === 'save') {
-    if (['str', 'dex'].includes(ability) && ['paralyzed', 'stunned', 'unconscious', 'petrified'].some((x) => c.has(x))) { out.fail = true; out.why.push('cannot move to save'); }
-    if (ability === 'dex' && c.has('restrained')) dis('restrained');
-    if (exhaustion >= 3) dis('exhaustion');
-    if (raging && ability === 'str') adv('rage');
-  }
+  if (cannotMove) { out.fail = true; out.why.push('cannot move to save'); }
+  if (kind === 'attack' && exhaustion >= 3) dis('exhaustion');
+  if (kind === 'check' && exhaustion >= 1) dis('exhaustion');
+  if (kind === 'check' && raging && ability === 'str') adv('rage');
+  if (kind === 'save' && exhaustion >= 3) dis('exhaustion');
+  if (kind === 'save' && raging && ability === 'str') adv('rage');
   return out;
 }
 // What the target's conditions do to an attack made against it.
 export function targetEffects(conds = [], { melee = true } = {}) {
-  const c = new Set(conds);
   const out = { adv: false, dis: false, autoCrit: false, why: [] };
-  for (const x of ['blinded', 'paralyzed', 'petrified', 'restrained', 'stunned', 'unconscious']) if (c.has(x)) { out.adv = true; out.why.push(`target ${x}`); }
-  if (c.has('prone')) { if (melee) { out.adv = true; out.why.push('target prone'); } else { out.dis = true; out.why.push('target prone at range'); } }
-  if (c.has('invisible')) { out.dis = true; out.why.push('target unseen'); }
-  if (melee && (c.has('paralyzed') || c.has('unconscious'))) out.autoCrit = true;
+  for (const c of new Set(conds)) {
+    const fx = fxOf(c);
+    if (fx.attacked === 'adv') { out.adv = true; out.why.push(`target ${c}`); }
+    if (fx.attacked === 'dis') { out.dis = true; out.why.push(c === 'invisible' ? 'target unseen' : `target ${c}`); }
+    if (melee && fx.attackedNear === 'adv') { out.adv = true; out.why.push(`target ${c}`); }
+    if (!melee && fx.attackedFar === 'dis') { out.dis = true; out.why.push(`target ${c} at range`); }
+    if (melee && fx.crit) out.autoCrit = true;
+  }
   return out;
 }
-export const incapacitated = (conds = []) => ['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious'].some((x) => conds.includes(x));
+export const incapacitated = (conds = []) => conds.some((c) => fxOf(c).act === 'none');
 
 // Resistance, vulnerability and immunity, read from a stat block's plain-text lists.
 export function adjustDamage(amount, type, { res = [], vuln = [], imm = [] } = {}, { magical = false } = {}) {

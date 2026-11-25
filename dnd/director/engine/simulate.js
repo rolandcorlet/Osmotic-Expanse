@@ -27,7 +27,7 @@ export function partyOf(text, level = 1) {
   if (!t) return null;
   const many = /^(\d+)\s*x\s*(\d+)$/i.exec(t);
   if (many) return Array.from({ length: Number(many[2]) }, (_, n) => ({ cls: CLASSES[n % CLASSES.length], level: Number(many[1]) }));
-  if (/^\d+$/.test(t)) return Array.from({ length: Number(t) }, (_, n) => ({ cls: CLASSES[n % CLASSES.length], level }));
+  if (/^\d+$/.test(t)) return Array.from({ length: Number(t) }, (_, n) => ({ cls: CLASSES[n % CLASSES.length], level: null }));
   return t.split(',').map((x) => x.trim()).filter(Boolean).map((x) => { const [cls, lv] = x.split(':'); return { cls: cls.toLowerCase(), level: Number(lv) || level }; });
 }
 
@@ -152,7 +152,7 @@ export function simulatePlace({ adventure, srd, siteId, party, runs = 50, seed =
 export function simulateAdventure({ adventure, srd, party = null, runs = 50, seed = 1, scale = 'auto' }) {
   return (adventure.sites || []).filter((x) => (x.foes || []).length).map((site) => {
     const d = SCALE.designedParty(adventure, site.id);
-    const p = party || Array.from({ length: d.size[0] }, (_, n) => ({ cls: CLASSES[n % CLASSES.length], level: d.level }));
+    const p = party ? party.map((x) => ({ ...x, level: x.level || d.level })) : Array.from({ length: d.size[0] }, (_, n) => ({ cls: CLASSES[n % CLASSES.length], level: d.level }));
     return simulatePlace({ adventure, srd, siteId: site.id, party: p, runs, seed, scale });
   });
 }

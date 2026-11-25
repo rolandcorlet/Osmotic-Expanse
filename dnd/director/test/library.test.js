@@ -119,7 +119,7 @@ Feature - Ship's Passage: You can secure free passage on a sailing ship.
 });
 
 test('the merge adds only what the SRD lacks, keeps rules text off the wire, and look-ups cite the book', () => {
-  const srd = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
+  const srd = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
   const n = srd.monsters.length;
   const lib = { spells: parseSpellList(SPELLS), monsters: [...parseMonsters(MONSTERS), { ...srd.monsters[0], name: 'Copy' }], races: [{ id: 'elf', subraces: [{ id: 'high-elf', name: 'High Elf' }, { id: 'wood-elf', name: 'Wood Elf', bonus: { wis: 1 }, traits: [] }] }], classes: [], backgrounds: [], rules: [{ id: 'phb-1', name: 'Falling Into Bogs', book: 'PHB', page: 9, text: 'A creature that falls into a bog sinks slowly.' }] };
   const added = mergeLibrary(srd, lib);

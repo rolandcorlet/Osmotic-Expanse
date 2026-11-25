@@ -3,7 +3,7 @@ import { makeRng } from '../engine/dice.js';
 import { newSession, apply } from '../engine/ledger.js';
 import { adventureById } from '../data/adventures/index.js';
 
-export const srd = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
+export const srd = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
 export const adventure = adventureById('lantern');
 export const BASE = { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 };
 // Fights are kept as written here (the fitting has its own tests); the adventure's rules run as in play.

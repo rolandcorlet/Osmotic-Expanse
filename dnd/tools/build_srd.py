@@ -95,6 +95,9 @@ for s in load('Spells'):
          'desc': para(s.get('desc')), 'higher': para(s.get('higher_level'))}
     if s.get('attack_type'): x['attack'] = s['attack_type']
     if s.get('dc'): x['save'] = {'ability': s['dc']['dc_type']['index'], 'success': s['dc'].get('dc_success', 'none')}
+    # The source lists damage as a list, so this never matched and the book has no spell damage fields:
+    # the engine version (director/tools/compile-book.mjs) reads each spell's damage from its words,
+    # checked on 26 Nov against every one of these source tables. Kept as it was, so the book stays as built.
     for dmg in (s.get('damage') or {},) if isinstance(s.get('damage'), dict) else []:
         if dmg.get('damage_type'): x['dmgType'] = dmg['damage_type']['index']
         if dmg.get('damage_at_slot_level'): x['dmgSlot'] = dmg['damage_at_slot_level']

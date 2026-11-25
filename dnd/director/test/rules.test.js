@@ -15,7 +15,7 @@ import { toolbox } from '../brain/tools.js';
 import { briefing, directorTurn, declaresAttack } from '../brain/director.js';
 import { srd, adventure, table, hero } from './helpers.js';
 
-const srdAll = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
+const srdAll = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
 prepareSrd(srdAll, { adventures: ADVENTURES });
 const ashen = adventureById('ashen-crown');
 

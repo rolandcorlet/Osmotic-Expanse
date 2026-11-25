@@ -12,10 +12,12 @@
 //   node tools/bench.mjs --part 3              part 3: the Greyfen, the drowned chapel, the crypt, Brother Aldane, the lantern rehung
 //   node tools/bench.mjs --part 4              part 4: The Ashen Crown, session 1: the ambush at Highbridge Gorge, Oakhurst, Blackreed Mill
 //   --no-library                               play on the SRD alone, without your private book library
-//   --level <n>                                the heroes' level (default: part 1 at 3, part 2 at 4, part 3 at 5, part 4 at 3)
+//   --level <n>                                the heroes' starting level (default: the story's: parts 1, 2 and 4 at 1st,
+//                                              part 3 at 2nd; they level up as the XP comes)
 //   --script gen --adventure <id> [--places 6]  a script written from the adventure itself (any campaign):
 //                                              its places along the exits, a probe per check, a word with
-//                                              someone, its fights, and the quests that end there (level 3)
+//                                              someone, its fights, and the quests that end there (the
+//                                              adventure's own starting level)
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
 // With --log, the bench also keeps <log name>.status.json up to date (see tools/bench-watch.mjs): what it is
@@ -86,11 +88,14 @@ const runs = Math.max(1, Number(opt('--runs', 1)));
 // --script gen: a script written from the adventure itself (engine/script-gen.js), for any campaign.
 const gen = opt('--script', '') === 'gen';
 const part = gen ? 5 : ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
-// The heroes' level in each part. Raised by two (25 Nov) after boss fights (Grisk, Brother Aldane) killed
-// the two-hero party in 3 of 5 runs and the endings went untested: a party of two needs about two levels
-// more than the party of four an adventure is written for. --level overrides.
-const LEVELS = { 1: 3, 2: 4, 3: 5, 4: 3, 5: 3 };
-const level = Math.min(20, Math.max(1, Math.round(Number(opt('--level', LEVELS[part]))) || LEVELS[part]));
+// The heroes' level in each part: the level the story has reached by then (26 Nov), not one raised for
+// safety. The Lantern is 1st level to the watchtower and 2nd after it (its milestone rule), 3rd after the
+// chapel; The Ashen Crown's first session is 1st level; a generated script starts at the adventure's own
+// level. On the way the players level up whenever the XP is there (levelUps below), as a table would.
+// Fights are fitted to the small party (engine/scale.js). --level overrides.
+const LEVELS = { 1: 1, 2: 1, 3: 2, 4: 1, 5: 0 };
+const startLevel = LEVELS[part] || 0;
+let level = Math.min(20, Math.max(1, Math.round(Number(opt('--level', startLevel))) || startLevel || 1));
 const logFile = opt('--log', '');
 // The model's tool calls, with the game before each turn, for replaying after code changes (tools/replay.mjs).
 const callsFile = logFile ? `${logFile.replace(/\.log$/i, '')}.calls.jsonl` : '';
@@ -202,11 +207,12 @@ function speedLine(list, label) {
 }
 const makeProvider = () => timed(fake ? fakeProvider() : build({ provider, apiKey, baseUrl, model, numCtx, thinking }));
 
-const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.json'), 'utf8'));
+const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.engine.json'), 'utf8'));
 // As the server does: the private book library (if built) and every adventure's own monsters.
 const libFile = join(here, '..', 'library', 'library.json');
 const prep = prepareSrd(srd, { libraryFile: flag('--no-library') ? null : libFile, adventures: ADVENTURES });
 const adventure = adventureById(gen ? opt('--adventure', 'lantern') : part === 4 ? 'ashen-crown' : 'lantern');
+if (gen && !opt('--level', '')) level = Math.min(20, Math.max(1, Number((adventure.party || {}).level) || 1));
 if (!adventure) { console.log(`There is no adventure "${opt('--adventure', '')}". Adventures: ${ADVENTURES.map((a) => a.id).join(', ')}.`); process.exit(2); }
 const rng = systemRng();
 const ctx = (role, pid) => ({ role, pid, rng, now: Date.now(), adventure, srd });
@@ -223,6 +229,8 @@ const HEROES4 = [['p1', 'Roly', 'bram'], ['p2', 'Keith', 'hilde'], ['p3', 'Sam',
   .map(([pid, name, id]) => [pid, name, pregenBuild(id, srd, level, adventure.pregens || [])]);
 // A generated script plays the adventure's first three ready-made heroes, or Bryn and Ila when it has none.
 const PREGEN_RUN = part === 4 || (gen && (adventure.pregens || []).length >= 3);
+// Which ready-made hero each seat plays, so a level-up rebuilds the same one (levelUps).
+const PREGEN_IDS = part === 4 ? ['bram', 'hilde', 'pell'] : gen && PREGEN_RUN ? adventure.pregens.slice(0, 3).map((p) => p.id) : [];
 const HEROES_RUN = part === 4 ? HEROES4 : gen && PREGEN_RUN ? [['p1', 'Roly'], ['p2', 'Keith'], ['p3', 'Sam']].map(([pid, name], n) => [pid, name, pregenBuild(adventure.pregens[n].id, srd, level, adventure.pregens)]) : HEROES;
 
 // What the players say, in order. `expect` names a tool the stage should use (reported, not gated).
@@ -326,6 +334,18 @@ async function runOnce(n) {
     s.started = true;
   }
   const pcOf = (pid) => s.pcs[s.players[pid].pcId];
+  // Level-ups, as players take them when the XP is there (fights and the adventure's milestone rules give
+  // it), between fights: each part is played at the level the story has reached.
+  const levelUps = () => {
+    if (s.fight && s.fight.phase === 'turns') return;
+    HEROES_RUN.forEach(([pid], n) => {
+      const pc = s.players[pid] && pcOf(pid);
+      if (!pc || pc.dead || pc.level >= 20 || (pc.xp || 0) < (srd.xpTable[pc.level] || Infinity)) return;
+      const next = pc.level + 1;
+      const input = PREGEN_IDS[n] ? pregenBuild(PREGEN_IDS[n], srd, next, adventure.pregens || []) : { level: next };
+      try { act('player', pid, { type: 'pc.rebuild', pcId: pc.id, input }); console.log(`  ${pc.name} reaches level ${next}.`); } catch (e) { notes.push(`${pc.name} could not level up: ${e.message}`); }
+    });
+  };
   const actingPc = () => { const f = s.fight; const k = f && f.phase === 'turns' ? f.order[f.turn].key : ''; return k.startsWith('pc:') ? s.pcs[k.slice(3)] : null; };
 
   async function turn(reason, label, expect = []) {
@@ -540,6 +560,7 @@ async function runOnce(n) {
       console.log(`  The whole party is dead: run ${n} ends at step ${k}.`);
       break;
     }
+    levelUps();
     if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); missedFight = false; continue; }
     if (step.start) { const a = snap(); stepTools = new Set(); await turn('the game begins: open the adventure', 'opening', step.expect); outcomes('opening', step.expect, a); continue; }
     // A line written for a place the Director never took the party to: the bench takes them there, as a

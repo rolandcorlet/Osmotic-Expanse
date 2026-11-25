@@ -118,6 +118,33 @@ village inn to a drowned chapel, with read-aloud text, DM notes, people with voi
 checks and what they reveal, treasure, SRD encounters and XP milestones. A blank **Your own campaign**
 start is there too; write your own side quests on the **Seeds** tab and the AI weaves them in.
 
+## The rules books: as written, and the engine version
+
+A rules book is written for people: "Hit: 7 (1d8 + 3) slashing damage, and the target must succeed on a
+DC 11 Constitution saving throw or be poisoned". The Engine needs numbers. So each book is kept twice:
+
+- **the book itself**, words unchanged: `data/srd.json` (the SRD 5.1), and your private library;
+- **its engine version**, made by the book compiler (`engine/book.js`, run by `tools/compile-book.mjs`):
+  the same book with every rule the words state also written as fields: a spell's damage at each slot
+  or character level, its darts, rays or beams, attack or save, and when its damage lands; a monster
+  attack's bonus, damage (and a versatile weapon's other damage), reach or range, the save after a hit
+  and what failing it does, the conditions a hit causes, Multiattack as the attacks it makes, a
+  Spellcasting trait as its slots and spell list; what each condition does to rolls; a potion's healing
+  and a +1 item's bonus. `data/srd.engine.json` is what the Engine, the server and the bench load.
+
+```
+node tools/compile-book.mjs              # data/srd.json -> data/srd.engine.json + data/srd.engine-gaps.md
+node tools/compile-book.mjs --library    # your library -> library/library.engine.json (+ its gaps)
+node tools/compile-book.mjs --check      # is the engine version up to date? (the preflight asks too)
+```
+
+What the words do not say plainly is listed in `<book>.engine-gaps.md`; a hand reading for it goes in
+`<book>.engine-fixes.json` (the SRD's: when Wish or Teleport deals damage, that Web's fire damage is a side
+effect), and the compiler applies it first. Anything never compiled (a monster an adventure adds) is read
+by the same code when the Engine loads it, and the adventure checker warns about what it cannot read.
+Importing your books makes the library's engine version too. The SRD's engine version reads all of it:
+81 damaging spells, 148 multiattacks, 72 saves after a hit, 36 spellcasters, nothing left over.
+
 ## The book library (private)
 
 If you own the Player's Handbook, Monster Manual and Dungeon Master's Guide as text files, the
@@ -150,6 +177,13 @@ machinery), a living character called dead, a roll asked for in words, a closing
 wrong player in a fight, a stalled fight, or an error. Style notes are reported but not gated.
 `--fake` runs it with a stand-in that only narrates, to check the bench.
 
+The heroes play at the level the story has reached, not a level raised for safety: 1st in parts 1, 2
+and 4, 2nd in part 3 (after the watchtower's milestone), a generated script at the adventure's own
+starting level. Whenever a fight or a milestone rule gives a hero enough XP, the player levels up before
+the next line, as at a real table (the log says "Bryn reaches level 3."). Fights are fitted to the
+small party: for a party smaller than written, a lesser foe can go altogether (the goblin guard beside
+Grisk), the toughest always stays.
+
 Each scripted step checks an **outcome in the game**, not which tool was used: the party moved on, a
 fight started, XP was paid, a quest was finished. Any way the Director gets there counts. An outcome
 the game has made impossible is not checked (no monsters left here to fight, no quest still open), a
@@ -165,7 +199,8 @@ watchtower"); anything still unclear is refused with the choices listed.
 
 ## Checking an adventure
 
-**Before any GPU time:** `node tools/preflight.mjs` (or one adventure: `... lantern --party 3x2`) runs four
+**Before any GPU time:** `node tools/preflight.mjs` (or one adventure: `... lantern --party 3x2`; by default the bench's party is two heroes at each
+place's own level) runs four
 checks in under a minute, with no model:
 - **The checker.** It finds wrong ids, missing monsters, places no exit reaches, clocks, quests, the
   adventure's rules and ready-made heroes.
@@ -256,7 +291,8 @@ is kept on that device (the **Backup** tab downloads and loads a copy).
 ## Rebuilding
 
 ```
-python3 dnd/tools/build_srd.py /path/to/5e-database/src/2014/en   # the rules data
+python3 dnd/tools/build_srd.py /path/to/5e-database/src/2014/en   # the rules data (the book)
+cd dnd/director && node tools/compile-book.mjs && cd ../..         # its engine version
 npm i --no-save esbuild && node dnd/assistants/build.mjs           # the two Assistants
 cd dnd/director && npm test                                       # the Engine's tests
 ```

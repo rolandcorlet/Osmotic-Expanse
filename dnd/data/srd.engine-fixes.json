@@ -1,0 +1,52 @@
+{
+  "about": "Hand readings for the SRD where its words do not say a rule plainly. The book compiler (director/tools/compile-book.mjs) applies these before it reads the book; a field set to null stays empty. 'how' says when a spell's damage happens: attack, save and auto are dealt by the Engine when the spell is cast; the rest are left to the Director: mishap (only when the spell goes wrong), retort (to a creature that strikes the caster), later (on later turns), trap (when the warding is set off), option (one of the spell's choices), incidental (a side effect, such as burning webs).",
+  "spells": {
+    "meld-into-stone": {
+      "how": "mishap"
+    },
+    "dimension-door": {
+      "how": "mishap"
+    },
+    "teleport": {
+      "how": "mishap"
+    },
+    "wish": {
+      "how": "mishap"
+    },
+    "fire-shield": {
+      "how": "retort",
+      "dmgTypes": [
+        "fire",
+        "cold"
+      ]
+    },
+    "web": {
+      "how": "incidental"
+    },
+    "bestow-curse": {
+      "how": "option"
+    },
+    "glyph-of-warding": {
+      "how": "trap"
+    },
+    "contact-other-plane": {
+      "how": "mishap"
+    },
+    "geas": {
+      "how": "option"
+    },
+    "earthquake": {
+      "how": "incidental"
+    },
+    "prismatic-wall": {
+      "how": "incidental"
+    },
+    "weird": {
+      "how": "later"
+    },
+    "holy-aura": {
+      "save": null
+    }
+  },
+  "monsters": {}
+}

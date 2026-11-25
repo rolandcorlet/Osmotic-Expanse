@@ -15,7 +15,7 @@ import { simulateAdventure, partyOf, simText } from '../engine/simulate.js';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const srd = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
+const srd = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
 const lib = new URL('../library/library.json', import.meta.url);
 prepareSrd(srd, { adventures: ADVENTURES, libraryFile: !args.includes('--no-library') && existsSync(lib) ? lib.pathname : null });
 const which = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));

@@ -118,6 +118,18 @@ reads when it fires).
 **Two defaults hold everywhere.** An attack with no fight on starts one (including a player saying "I attack
 Grisk!" to the AI Director). A fight ends by itself when no foe in it is left standing.
 
+## Monsters
+
+An adventure's own monsters use the SRD's shape (see `ashen-crown.js`): `n` and `d` for each action, in
+the stat block's own words. Write the words the way the books do and the Engine reads them itself
+(`engine/book.js`): "Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 7 (1d8 + 3) slashing
+damage" gives the bonus, the damage and the reach; "the target must succeed on a DC 13 Constitution saving
+throw or be poisoned" gives the save after the hit; "The hag makes two claw attacks and one bite attack"
+gives the Multiattack; "Cantrips (at will): ..." and "1st level (4 slots): ..." give the spells. The
+checker warns about anything it cannot read. Where the words cannot say it, give the fields yourself
+(they win over the reading): `hit`, `dmg: [['1d8+3', 'slashing']]`, `dc: ['dex', 13, 'half']`,
+`rider: { ability: 'con', dc: 13, cond: 'poisoned', dmg: [], half: false }`, `multi: [{ Claw: 2, Bite: 1 }]`.
+
 ## Fights and the party
 
 Write each fight for the party in `party`, at the site's `level`. In play the Engine fits it to the party

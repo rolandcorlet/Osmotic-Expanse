@@ -14,7 +14,7 @@ import { prepareSrd } from '../engine/library.js';
 import { ADVENTURES } from '../data/adventures/index.js';
 import { srd, adventure, table, hero } from './helpers.js';
 
-const srdAll = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
+const srdAll = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
 prepareSrd(srdAll, { adventures: ADVENTURES });
 
 test('the simulation plays a place\'s fight through the Engine and counts wins, wipes and downs', () => {

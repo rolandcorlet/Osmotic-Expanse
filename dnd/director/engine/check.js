@@ -13,6 +13,7 @@ import * as MAP from './map.js';
 import { completeBuild } from './pregen.js';
 import * as TRIG from './triggers.js';
 import * as SCALE from './scale.js';
+import * as BOOK from './book.js';
 
 const lower = (s) => String(s == null ? '' : s).toLowerCase();
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -107,6 +108,10 @@ export function checkAdventure(adv, srd) {
     if (!(Number(m.ac) > 0)) E(at, 'It needs an Armor Class (ac).');
     if (!Array.isArray(m.ab) || m.ab.length !== 6) E(at, 'It needs six ability scores (ab).');
     if (m.xp == null) W(at, 'It has no XP value: fights with it pay nothing.');
+    // What the book compiler cannot turn into numbers: the Engine would have to leave it to the Director.
+    const gaps = [];
+    BOOK.compileMonster(JSON.parse(JSON.stringify(m)), gaps);
+    for (const g of gaps) W(at, `The Engine cannot read ${g.name.replace(/^[^:]*: /, '')}: ${g.what}. Give it as fields (docs/AUTHORING.md, "Monsters").`);
     for (const a of m.actions || []) {
       if (!a.n) E(at, 'An action has no name (n).');
       if (!a.d) W(at, `${a.n || 'An action'} has no description (d).`);

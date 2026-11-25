@@ -33,7 +33,9 @@ const opt = (name, dflt) => { const i = args.indexOf(name); return i >= 0 && arg
 const PORT = Number(opt('--port', process.env.PORT || 8788));
 const SAVE_DIR = opt('--saves', join(here, 'saves'));
 const SAVE = join(SAVE_DIR, 'session.json');
-const SRD_FILE = join(here, '..', 'data', 'srd.json');
+// The engine version of the SRD (rules as fields beside the words: tools/compile-book.mjs), or the
+// book itself if it has not been compiled; the Engine reads anything uncompiled when it loads.
+const SRD_FILE = [join(here, '..', 'data', 'srd.engine.json'), join(here, '..', 'data', 'srd.json')].find((f) => existsSync(f));
 const srd = JSON.parse(readFileSync(SRD_FILE, 'utf8'));
 // Your private book library (library/library.json, built by tools/import-books.mjs) and every
 // adventure's own monsters join the SRD before anything indexes it. --no-library plays SRD-only.
@@ -175,6 +177,7 @@ const FILES = {
   '/engine/names.js': ['engine/names.js', 'text/javascript'],
   '/engine/triggers.js': ['engine/triggers.js', 'text/javascript'],
   '/engine/scale.js': ['engine/scale.js', 'text/javascript'],
+  '/engine/book.js': ['engine/book.js', 'text/javascript'],
   '/map.js': ['public/map.js', 'text/javascript'],
   // The three screens as their own pages (the same app, its role fixed by the page).
   '/player.html': ['public/player.html', 'text/html'],

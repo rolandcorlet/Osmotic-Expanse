@@ -971,7 +971,7 @@ H['spell.cast'] = (s, a, ctx) => {
   // A near name: their own spells first ("cure wound", "guiding bolt"), then any spell.
   if (!sp) { sp = NAMES.pick(own, a.spell, (x) => [x.id, x.name]) || NAMES.pick(ctx.srd.spells, a.spell, (x) => [x.id, x.name]); if (sp) assume(ctx, `"${a.spell}" is ${sp.name}.`); }
   if (!sp) refuse(`There is no spell called "${a.spell}".`, own.map((x) => x.name));
-  R.spellDamage(sp); // its damage, read from its words when the data has none (a library spell added later)
+  R.spellDamage(sp); // its numbers, read from its words if the book compiler has not (a library spell added later)
   const can = sp.level === 0 ? [...c.cantrips, c.raceCantrip].includes(sp.id) : (c.kind === 'prepared' ? c.prepared : c.known).includes(sp.id);
   if (!can && !(c.spellbook && a.ritual && sp.ritual && c.known.includes(sp.id))) refuse(`${pc.name} does not have ${sp.name} ${c.kind === 'prepared' ? 'prepared' : 'known'}.`, own.map((x) => x.name));
   const ritual = !!a.ritual && sp.ritual;
@@ -994,21 +994,31 @@ H['spell.cast'] = (s, a, ctx) => {
   if (sp.conc) { if (pc.conc) dropConcentration(s, ctx, pc, `cast ${sp.name}`); pc.conc = { id: sp.id, name: sp.name, since: s.seq }; }
   const lines = [`${pc.name} casts ${sp.name}${lvl > sp.level ? ` at ${R.ordinal(lvl)} level` : ''}${ritual ? ' as a ritual' : ''}.`];
   const targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x, ctx)).filter(Boolean).slice(0, 12);
-  const dmgExpr = sp.dmgSlot ? sp.dmgSlot[lvl] || sp.dmgSlot[sp.level] : sp.dmgLevel ? sp.dmgLevel[Object.keys(sp.dmgLevel).map(Number).filter((n) => n <= pc.level).sort((x, y) => y - x)[0]] : '';
   const am = pc.mods[c.ability] || 0;
-  // Magic Missile never misses: three darts, one more per slot level above 1st.
-  if (sp.id === 'magic-missile' && targets.length) {
-    const darts = 2 + lvl;
+  // The book's numbers (book.js): dice per hit by slot or character level, how many darts, rays or
+  // beams, and how the harm lands. Only an attack, a save or a sure hit is dealt here; damage that
+  // comes later, by choice or by mishap is the Director's.
+  const atLevel = (tab) => tab[Object.keys(tab).map(Number).filter((n) => n <= pc.level).sort((x, y) => y - x)[0]];
+  const harms = !sp.how || ['attack', 'save', 'auto'].includes(sp.how);
+  const dmgExpr = !harms ? '' : String((sp.dmgSlot ? sp.dmgSlot[lvl] || sp.dmgSlot[sp.level] : sp.dmgLevel ? atLevel(sp.dmgLevel) : '') || '').replace(/\+MOD$/, `+${Math.max(0, am)}`);
+  const hits = sp.count ? sp.count[lvl] || sp.count[sp.level] || 1 : sp.countLevel ? atLevel(sp.countLevel) || 1 : 1;
+  // A sure hit (Magic Missile): every dart strikes, shared out over the targets named.
+  if (sp.how === 'auto' && dmgExpr && targets.length) {
+    const darts = hits;
     const each = targets.map(() => 0);
     for (let n = 0; n < darts; n++) each[n % targets.length] += 1;
     targets.forEach((t, n) => {
       if (!each[n]) return;
-      const d = rollDice(`${each[n]}d4+${each[n]}`, ctx.rng);
-      if (t.kind === 'foe') { const r = damageFoe(s, ctx, t.o, d.total, 'force', { magical: true }); lines.push(`${each[n]} dart${each[n] > 1 ? 's' : ''} strike${each[n] > 1 ? '' : 's'} ${t.o.name} for ${r.taken} force damage${r.notes.length ? `, ${r.notes.join(', ')}` : ''}.`); }
-      else { const r = damagePc(s, ctx, t.o, d.total, 'force'); lines.push(`${t.o.name} takes ${r.taken} force damage.`); }
+      const one = /^(\d+)d(\d+)(?:\+(\d+))?$/.exec(dmgExpr);
+      const d = rollDice(one ? `${Number(one[1]) * each[n]}d${one[2]}${one[3] ? `+${Number(one[3]) * each[n]}` : ''}` : dmgExpr, ctx.rng);
+      if (t.kind === 'foe') { const r = damageFoe(s, ctx, t.o, d.total, sp.dmgType, { magical: true }); lines.push(`${each[n]} dart${each[n] > 1 ? 's' : ''} strike${each[n] > 1 ? '' : 's'} ${t.o.name} for ${r.taken} ${sp.dmgType} damage${r.notes.length ? `, ${r.notes.join(', ')}` : ''}.`); }
+      else { const r = damagePc(s, ctx, t.o, d.total, sp.dmgType); lines.push(`${t.o.name} takes ${r.taken} ${sp.dmgType} damage.`); }
     });
   } else if (sp.attack && dmgExpr && targets.length) {
-    for (const t of targets.slice(0, 1)) {
+    // One attack roll per ray or beam (Scorching Ray, Eldritch Blast), shared out over the targets named.
+    const shots = Array.from({ length: hits }, (_, n) => targets[n % targets.length]);
+    for (const t of shots) {
+      if (t.kind === 'foe' && t.o.dead) continue;
       const ac = t.kind === 'foe' ? t.o.ac : t.o.ac;
       const tfx = R.targetEffects(t.o.conds || [], { melee: sp.attack === 'melee' });
       const self = R.selfEffects(pc, 'attack');
@@ -1021,6 +1031,8 @@ H['spell.cast'] = (s, a, ctx) => {
         dmg = { dice: d.dice, total: d.total };
         const res = t.kind === 'foe' ? damageFoe(s, ctx, t.o, d.total, sp.dmgType, { magical: true }) : damagePc(s, ctx, t.o, d.total, sp.dmgType);
         lines.push(`It ${r.kept === 20 ? 'strikes true, a critical hit,' : 'hits'} ${t.o.name} for ${res.taken} ${sp.dmgType} damage${res.notes.length ? `, ${res.notes.join(', ')}` : ''}.`);
+        // Life drained (Vampiric Touch): the caster regains half the damage dealt.
+        if (sp.drain === 'half' && res.taken > 0 && pc.hp > 0) { const back = Math.min(Math.floor(res.taken / 2), pc.maxHp - pc.hp); if (back > 0) { pc.hp += back; lines.push(`${pc.name} regains ${back} hit points.`); } }
       } else lines.push(`It misses ${t.o.name}.`);
       addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'attack', label: `${sp.name} vs ${t.o.name}`, dice: r.rolls, mod: c.atk, total, at: ac, success: hit, crit: hit && r.kept === 20, mode: r.mode, dmg, hideAt: true });
     }
@@ -1073,7 +1085,7 @@ H['spell.cast'] = (s, a, ctx) => {
   }
   story(s, ctx, 'event', lines.join(' '), 'Engine', { roll: true });
   // A harmful spell at a monster with no fight on starts one: the caster struck first.
-  if (!s.fight && targets.some((t) => t.kind === 'foe') && (sp.attack || sp.save || dmgExpr || sp.id === 'magic-missile')) hostileAct(s, ctx, keyOf('pc', pc.id));
+  if (!s.fight && targets.some((t) => t.kind === 'foe') && (sp.attack || sp.save || dmgExpr)) hostileAct(s, ctx, keyOf('pc', pc.id));
 };
 
 H['slot.set'] = (s, a, ctx) => {
@@ -1217,6 +1229,41 @@ H['foe.act'] = (s, a, ctx) => {
   const struck = s.rolls.slice(rolls).some((r) => r.kind === 'attack') || s.requests.slice(asks).some((q) => q.kind === 'save');
   if (calm && !s.fight && struck) { const f = s.foes[a.foeId] || (target(s, a.foeId) || {}).o; hostileAct(s, ctx, f ? keyOf('foe', f.id) : ''); }
 };
+// Multiattack, as the book compiler read it (book.js: act.multi, its choices, the first the usual one).
+// The Engine makes each attack in turn at the named target, or spread over several named; a call can
+// pick another choice by naming one of its attacks ("Multiattack: longbow"). Uses of abilities in the
+// list (Frightful Presence) are left to the Director, and so is pressing on once a target falls.
+function multiattack(s, a, ctx, foe, m, act) {
+  const choices = act.multi || [];
+  if (!choices.length) { story(s, ctx, 'event', `${foe.name} attacks several times.`, 'Engine'); assume(ctx, `${foe.name}'s Multiattack: ${act.d} Call monster_action for each attack.`); return; }
+  const want = String(a.action || '').replace(/^Multiattack\s*[:(-]?\s*/i, '').replace(/\)\s*$/, '').trim().toLowerCase();
+  const choice = (want && choices.find((c) => Object.keys(c).some((k) => k.toLowerCase().includes(want)))) || choices[0];
+  const pool = [...(m.actions || []), ...(m.traits || [])];
+  let targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x, ctx)).filter((t) => t && t.kind === 'pc' && !t.o.dead);
+  const living = Object.values(s.pcs).filter((p) => !p.dead && p.hp > 0);
+  if (!targets.length && living.length === 1) { targets = [{ kind: 'pc', id: living[0].id, o: living[0] }]; assume(ctx, `No target was named: ${foe.name} goes for ${living[0].name}, the only one it can.`); }
+  if (!targets.length) refuse(`Name the character ${foe.name} attacks: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
+  const plan = Object.entries(choice).map(([k, v]) => `${typeof v === 'number' && v > 1 ? `${v} × ` : ''}${k}`).join(', ');
+  story(s, ctx, 'event', `${foe.name} makes its attacks (${plan}).`, 'Engine');
+  const others = [];
+  let n = 0;
+  let left = 0;
+  for (const [name, count] of Object.entries(choice)) {
+    const sub = pool.find((x) => x.n === name);
+    if (!sub || sub.hit == null) { others.push(name); continue; }
+    const times = typeof count === 'number' ? count : /\dd\d/.test(count) ? rollDice(count, ctx.rng).total : 1;
+    for (let i = 0; i < times; i++) {
+      const up = targets.filter((t) => !t.o.dead && t.o.hp > 0);
+      if (!up.length || foe.dead || R.incapacitated(foe.conds)) { left += times - i; break; }
+      const t = up[n++ % up.length];
+      const before = s.rolls.length;
+      try { foeAct(s, { ...a, action: name, target: t.id, targets: undefined, _sub: true }, ctx); } catch (e) { if (e instanceof RuleError) { left += times - i; break; } throw e; }
+      if (s.rolls.length === before) return; // it had to close in first (a Dash), or could not strike
+    }
+  }
+  if (left) assume(ctx, `${foe.name} has ${left} attack${left > 1 ? 's' : ''} left after its target fell: call monster_action for another target if it presses on.`);
+  if (others.length) assume(ctx, `${foe.name}'s Multiattack also lets it use ${others.join(' and ')}: call monster_action for ${others.length > 1 ? 'them' : 'it'} if it does.`);
+}
 function foeAct(s, a, ctx) {
   hostOnly(ctx);
   const foe = s.foes[a.foeId] || (target(s, a.foeId, ctx) || {}).o;
@@ -1268,7 +1315,10 @@ function foeAct(s, a, ctx) {
   const others = () => pool.filter((x) => x !== act && !(x.use && foe.spent[x.n])).map((x) => x.n);
   if (act.use && /^Recharge/.test(act.use)) { if (foe.spent[act.n]) refuse(`${foe.name}'s ${act.n} has not recharged.`, others(), 'Use another action.'); foe.spent[act.n] = true; }
   if (/^\d+\/day/.test(act.use || '')) { const max = Number(act.use.split('/')[0]); foe.uses = foe.uses || {}; if ((foe.uses[act.n] || 0) >= max) refuse(`${foe.name} has used ${act.n} as often as it can today.`, others(), 'Use another action.'); foe.uses[act.n] = (foe.uses[act.n] || 0) + 1; }
-  if (act.n === 'Multiattack') { story(s, ctx, 'event', `${foe.name} attacks several times.`, 'Engine'); return; }
+  // Its turn's attacks are spent once its Multiattack is made: a further attack this turn would be twice.
+  const myTurn = s.fight && s.fight.phase === 'turns' && currentKey(s) === keyOf('foe', foe.id) && !legendary && !(m.reactions || []).includes(act);
+  if (myTurn && s.fight.used.multi && !a._sub && (act.hit != null || /^Multiattack/.test(act.n))) nop(`${foe.name} has made all its attacks this turn (its Multiattack).`, { hint: 'End its turn, or use an ability it has not used.' });
+  if (/^Multiattack/.test(act.n)) { if (myTurn) s.fight.used.multi = true; multiattack(s, a, ctx, foe, m, act); return; }
   let targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x, ctx)).filter((t) => t && t.kind === 'pc');
   // No one named, and only one character it could mean: them.
   const living = Object.values(s.pcs).filter((p) => !p.dead && p.hp > 0);
@@ -1278,11 +1328,11 @@ function foeAct(s, a, ctx) {
     if (!t) refuse(`Name the character ${foe.name} attacks: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const pc = t.o;
     if (pc.dead) nop(`${pc.name} is dead.`, { options: partyNames(s), hint: 'Name a living target, or end the monster\'s turn.' });
-    const melee = /Melee/.test(act.d);
+    const melee = act.kind ? act.kind !== 'ranged' : /Melee/.test(act.d);
     // On the map: a melee attack steps up to its target; a ranged one may be spoilt by distance or a close enemy.
     let mfx = { dis: false, why: [], far: '' };
-    if (/^Melee (?:Weapon|Spell) Attack/i.test(act.d)) {
-      try { stepUp(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), Number((/reach (\d+) ft/i.exec(act.d) || [0, 5])[1])); } catch (e) {
+    if (act.kind ? act.kind === 'melee' : /^Melee (?:Weapon|Spell) Attack/i.test(act.d)) {
+      try { stepUp(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), act.reach || Number((/reach (\d+) ft/i.exec(act.d) || [0, 5])[1])); } catch (e) {
         // Too far to strike this turn (the map's reach rules): it closes in instead, as a Dash.
         if (!(e instanceof RuleError) || !ctx.ai || !/too far/.test(e.message)) throw e;
         let moved = true;
@@ -1290,7 +1340,7 @@ function foeAct(s, a, ctx) {
         assume(ctx, `${foe.name} was too far from ${pc.name} to attack this turn, so ${moved ? 'it closed in as far as it could instead (a Dash)' : 'it could not get closer'}. Narrate it, then end_turn.`);
         return;
       }
-    } else if (!melee) mfx = rangedFx(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), (/range (\d+\/\d+) ft/i.exec(act.d) || [0, ''])[1]);
+    } else if (!melee) mfx = rangedFx(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), act.range || (/range (\d+\/\d+) ft/i.exec(act.d) || [0, ''])[1]);
     if (mfx.far && ctx.ai) nop(mfx.far, { hint: `Move ${foe.name} closer with move_creature first, or pick a nearer target.` });
     const self = R.selfEffects({ conds: foe.conds }, 'attack');
     const tfx = R.targetEffects(pc.conds, { melee });
@@ -1311,14 +1361,24 @@ function foeAct(s, a, ctx) {
       }
       dmgRow = { total: sum };
       text += `${crit ? ': a critical hit' : ': a hit'} for ${parts.join(' and ') || 'no'} damage.`;
-      // A rider with a saving throw ("must succeed on a DC 11 Strength saving throw or be knocked prone").
-      const rider = /DC (\d+) (Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma) saving throw or be(?:come)? (?:knocked )?(\w+)/i.exec(act.d);
-      if (rider && !pc.dead) {
-        const ab = rider[2].slice(0, 3).toLowerCase();
-        const cond = rider[3].toLowerCase();
-        if (R.index(ctx.srd).cond[cond]) {
-          s.requests.push({ id: nextId(s, 'q'), pcId: pc.id, kind: 'save', ability: ab, skill: '', dc: Number(rider[1]), adv: '', reason: `${foe.name}'s ${act.n}: resist being ${cond}.`, by: 'engine', t: ctx.now || 0, effect: { dmg: '', type: '', half: false, cond } });
-          text += ` ${pc.name} must save or be ${cond}.`;
+      // What the hit does besides damage (book.js): conditions with no save ("the target is grappled
+      // (escape DC 13)"), and a save after the hit ("DC 11 Strength saving throw or be knocked prone",
+      // "DC 11 Constitution saving throw, taking 10 (3d6) poison damage on a failed save, or half as much").
+      const conds = R.index(ctx.srd).cond;
+      if (!pc.dead) {
+        for (const c of act.onHit || []) {
+          if (conds[c] && !pc.conds.includes(c)) { pc.conds.push(c); text += ` ${pc.name} is ${c}${c === 'grappled' && act.escape ? ` (escape DC ${act.escape})` : ''}.`; }
+        }
+      }
+      const rd = act.rider;
+      if (rd && !pc.dead) {
+        const cond = rd.cond && conds[rd.cond] ? rd.cond : '';
+        const d = rd.dmg && rd.dmg.length ? rollDice(rd.dmg[0][0], ctx.rng) : null;
+        if (cond || d || rd.fail) {
+          const what = cond ? `resist being ${cond}` : d ? `take less ${rd.dmg[0][1]} damage` : rd.fail;
+          s.requests.push({ id: nextId(s, 'q'), pcId: pc.id, kind: 'save', ability: rd.ability, skill: '', dc: rd.dc, adv: '', reason: `${foe.name}'s ${act.n}: ${what}.`, by: 'engine', t: ctx.now || 0,
+            effect: cond || d ? { dmg: d ? String(d.total) : '', type: d ? rd.dmg[0][1] : '', half: !!rd.half, cond } : null });
+          text += cond ? ` ${pc.name} must save or be ${cond}.` : d ? ` ${pc.name} must make a ${R.ABILITY_NAMES[rd.ability]} saving throw against the ${rd.dmg[0][1]}.` : ` ${pc.name} must make a DC ${rd.dc} ${R.ABILITY_NAMES[rd.ability]} saving throw: on a failure, ${rd.fail}.`;
         }
       }
     } else text += r.kept === 1 ? ' and fumbles.' : ' and misses.';
@@ -1330,10 +1390,10 @@ function foeAct(s, a, ctx) {
     if (!targets.length) refuse(`Name who ${act.n} catches: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const [ab, dc, success] = act.dc;
     const d = act.dmg && act.dmg.length ? rollDice(act.dmg[0][0], ctx.rng) : null;
-    const condM = /\b(?:be|become|is) (?:knocked )?(blinded|charmed|deafened|frightened|grappled|paralyzed|petrified|poisoned|prone|restrained|stunned|unconscious)\b/i.exec(act.d);
+    const cond = act.cond || '';
     for (const t of targets) {
       s.requests.push({ id: nextId(s, 'q'), pcId: t.id, kind: 'save', ability: ab, skill: '', dc, adv: '', reason: `${foe.name}'s ${act.n}`, by: 'engine', t: ctx.now || 0,
-        effect: { dmg: d ? String(d.total) : '', type: d ? act.dmg[0][1] : '', half: success === 'half', cond: condM ? condM[1].toLowerCase() : '' } });
+        effect: { dmg: d ? String(d.total) : '', type: d ? act.dmg[0][1] : '', half: success === 'half', cond } });
     }
     story(s, ctx, 'event', `${foe.name} uses ${act.n}! ${targets.map((t) => t.o.name).join(', ')} must make a ${R.ABILITY_NAMES[ab]} saving throw.`, 'Engine');
     return;
@@ -1346,30 +1406,26 @@ const CONDS = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'inca
 export function monsterSpells(m, srd) {
   const tr = (m.traits || []).find((t) => /^(Innate )?Spellcasting/i.test(t.n));
   if (!tr) return null;
-  const dc = Number((/spell save DC (\d+)/i.exec(tr.d) || [])[1]) || 10;
-  const hit = Number((/([+-]\d+) to hit with spell attacks/i.exec(tr.d) || [])[1]) || 0;
-  const lvl = Number((/(\d+)(?:st|nd|rd|th)-level spellcaster/i.exec(tr.d) || [])[1]) || 1;
-  const ix = R.index(srd).spell;
-  const spells = [];
-  const slots = {};
-  for (const line of tr.d.split(/\n/)) {
-    const head = /^-?\s*(Cantrips|(\d)(?:st|nd|rd|th) level)\s*(?:\((\d+) slots?\)|\(at will\))?\s*:\s*(.+)$/i.exec(line.trim());
-    if (!head) continue;
-    const level = /cantrip/i.test(head[1]) ? 0 : Number(head[2]);
-    if (level && head[3]) slots[level] = Number(head[3]);
-    for (const name of head[4].split(',').map((x) => x.replace(/\*/g, '').trim()).filter(Boolean)) {
-      const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const sp = ix[id];
-      spells.push({ id, name: sp ? sp.name : name.replace(/\b\w/g, (c) => c.toUpperCase()), level: sp ? sp.level : level, data: sp || null });
-    }
-  }
-  return spells.length ? { dc, hit, casterLevel: lvl, slots, spells, mod: hit - (m.pb || 2) } : null;
+  const ix = R.index(srd).spell; // reads the book first, so tr.spells is there (book.js)
+  const book = tr.spells;
+  if (!book || !book.list.length) return null;
+  const spells = book.list.map((x) => {
+    const sp = ix[x.id];
+    return { id: x.id, name: sp ? sp.name : x.name.replace(/\b\w/g, (c) => c.toUpperCase()), level: sp ? sp.level : x.level || 0, use: x.use, data: sp || null };
+  });
+  const hit = book.hit || 0;
+  return { dc: book.dc || 10, hit, casterLevel: book.level || 1, slots: book.slots || {}, spells, mod: hit ? hit - (m.pb || 2) : 0 };
 }
 function castMonsterSpell(s, ctx, foe, book, sp, a) {
   if (R.incapacitated(foe.conds)) nop(`${foe.name} cannot act right now.`);
   if (ctx.ai && s.fight && s.fight.phase === 'turns') inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
   const d = sp.data || {};
-  if (sp.level > 0) {
+  const perDay = /^(\d+)\/day/.exec(sp.use || '');
+  if (perDay) {
+    foe.uses = foe.uses || {};
+    if ((foe.uses[sp.name] || 0) >= Number(perDay[1])) nop(`${foe.name} has cast ${sp.name} as often as it can today.`, { options: book.spells.filter((x) => x !== sp).map((x) => x.name), hint: 'Use another spell or action.' });
+    foe.uses[sp.name] = (foe.uses[sp.name] || 0) + 1;
+  } else if (sp.level > 0 && sp.use !== 'at will') {
     foe.slotsUsed = foe.slotsUsed || {};
     const have = book.slots[sp.level] || 0;
     if ((foe.slotsUsed[sp.level] || 0) >= have) {
@@ -1383,15 +1439,13 @@ function castMonsterSpell(s, ctx, foe, book, sp, a) {
   const living = Object.values(s.pcs).filter((p) => !p.dead && p.hp > 0);
   if (!targets.length && living.length === 1 && !/\bself\b/i.test(String(d.range || ''))) { targets = [{ kind: 'pc', id: living[0].id, o: living[0] }]; assume(ctx, `No target was named: ${foe.name}'s ${sp.name} is aimed at ${living[0].name}, the only one it can be.`); }
   const desc = String(d.desc || '');
-  // Damage: the first "XdY type damage" the spell describes; a cantrip grows at caster levels 5, 11, 17.
-  const dm = /(\d+)d(\d+)(?:\s*\+\s*your spellcasting ability modifier)?\s+(\w+) damage/i.exec(desc);
-  let dmgExpr = '';
-  let dtype = '';
-  if (dm) {
-    const n = Number(dm[1]) * (sp.level === 0 ? 1 + [5, 11, 17].filter((x) => book.casterLevel >= x).length : 1);
-    dmgExpr = `${n}d${dm[2]}${/spellcasting ability modifier/i.test(dm[0]) ? `+${Math.max(0, book.mod)}` : ''}`;
-    dtype = dm[3].toLowerCase();
-  }
+  // Damage from the book's numbers (book.js): a cantrip by caster level, a slot spell by its level.
+  R.spellDamage(d);
+  const harms = !d.how || ['attack', 'save', 'auto'].includes(d.how);
+  const lv = Math.max(1, book.casterLevel || 1);
+  const byLevel = (tab) => tab[Object.keys(tab).map(Number).filter((n) => n <= lv).sort((x, y) => y - x)[0]];
+  const dmgExpr = !harms ? '' : String((d.dmgLevel ? byLevel(d.dmgLevel) : d.dmgSlot ? d.dmgSlot[sp.level] || d.dmgSlot[d.level] : '') || '').replace(/\+MOD$/, `+${Math.max(0, book.mod)}`);
+  const dtype = d.dmgType || '';
   if (d.attack) {
     const t = targets[0];
     if (!t) refuse(`Name the character ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
@@ -2291,7 +2345,7 @@ function fitFoes(s, ctx, siteId) {
   const groups = place.foes.map((g, n) => {
     const mine = placed.filter((f) => f.group === `${siteId}#${n}`);
     const m = mine[0] ? monsterOf(ctx, mine[0]) : ix.monster[g.monster];
-    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: (m && m.xp) || 0, count: mine.length, scalable: mine.length > 1 && g.scale !== false };
+    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: (m && m.xp) || 0, count: mine.length, scalable: mine.length > 1 && g.scale !== false, fixed: g.scale === false };
   }).filter((g) => g.count > 0);
   const designed = SCALE.designedParty(ctx.adventure, siteId);
   const plan = SCALE.planFight({ groups, designed, actual: levels, srd: ctx.srd, mode });

@@ -12,7 +12,7 @@ import { prepareSrd } from '../engine/library.js';
 import { toolbox, lookUp } from '../brain/tools.js';
 import { briefing } from '../brain/director.js';
 
-const srd = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
+const srd = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
 prepareSrd(srd, { adventures: ADVENTURES }); // no library: the adventure must play on the SRD alone
 const adv = adventureById('ashen-crown');
 const ix = R.index(srd);

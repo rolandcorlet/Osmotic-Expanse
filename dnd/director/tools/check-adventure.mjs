@@ -19,7 +19,7 @@ import { checkAdventure, reportText } from '../engine/check.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
 const quiet = args.includes('--quiet');
-const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.json'), 'utf8'));
+const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.engine.json'), 'utf8'));
 const wanted = args.filter((a) => !a.startsWith('--'));
 const list = [];
 for (const w of wanted) {

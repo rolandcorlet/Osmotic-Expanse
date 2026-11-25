@@ -75,6 +75,9 @@ export function planFight({ groups, designed, actual, srd, mode = 'auto' }) {
   if (actual.length < lo) target = Math.min(target, (forUs.thresholds[1] + forUs.thresholds[2]) / 2);
   if (mode === 'down') target = Math.min(target, forUs.adjusted);
   // Numbers first: every group that may change is scaled by the same factor, so the mix stays.
+  // For a party smaller than written, a lesser group may go altogether (the goblin guard beside Grisk:
+  // two 1st-level heroes wiped a third of the time against both, 26 Nov); the toughest foe always stays.
+  const top = groups.reduce((a, b) => ((Number(b.xp) || 0) > (Number(a.xp) || 0) ? b : a));
   const seen = new Map();
   for (let k = 0.1; k <= 3.001; k += 0.05) {
     const c = {};
@@ -82,7 +85,8 @@ export function planFight({ groups, designed, actual, srd, mode = 'auto' }) {
       // A party smaller than written never gets more foes (more attacks than it can answer: the simulation
       // wiped two 5th-level heroes against six drowned villagers half the time); it gets tougher ones.
       const most = mode === 'down' || actual.length < lo ? g.count : Math.min(12, g.count * 2);
-      c[g.key] = g.scalable ? Math.max(1, Math.min(most, Math.round(g.count * k))) : g.count;
+      const canGo = actual.length < lo && g !== top && groups.length > 1 && !g.fixed;
+      c[g.key] = g.scalable || canGo ? Math.max(canGo ? 0 : 1, Math.min(most, Math.round(g.count * k))) : g.count;
     }
     const total = Object.values(c).reduce((a, b) => a + b, 0);
     const sig = JSON.stringify(c);

@@ -19,7 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const args = process.argv.slice(2);
 const verbose = args.includes('-v');
-const srd = JSON.parse(readFileSync(join(root, '..', 'data', 'srd.json'), 'utf8'));
+const srd = JSON.parse(readFileSync(join(root, '..', 'data', 'srd.engine.json'), 'utf8'));
 const lib = join(root, 'library', 'library.json');
 prepareSrd(srd, { adventures: ADVENTURES, libraryFile: existsSync(lib) ? lib : null });
 

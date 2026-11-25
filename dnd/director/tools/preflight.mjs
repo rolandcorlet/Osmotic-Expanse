@@ -1,4 +1,5 @@
 // Everything that can be checked before a bench spends GPU time, in about a minute, with no model:
+//   0. the engine version of the rules book is up to date (tools/compile-book.mjs);
 //   1. the adventure checker (engine/check.js): ids, exits, monsters, zones, clocks, quests, rules, heroes;
 //   2. the fight simulation (engine/simulate.js): every fight played 40 times through the real Engine, for
 //      the party it is written for and for the bench's party, to catch wipes;
@@ -13,6 +14,7 @@
 // Wipes in the simulation are reported, not gated: a hard fight may be meant (the checker says when
 // one is deadly as written), and the simulation plays both sides simply.
 
+import { compileFile } from './compile-book.mjs';
 import { readFileSync, existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -27,16 +29,26 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const srd = JSON.parse(readFileSync(join(root, '..', 'data', 'srd.json'), 'utf8'));
+const srd = JSON.parse(readFileSync(join(root, '..', 'data', 'srd.engine.json'), 'utf8'));
 const lib = join(root, 'library', 'library.json');
 prepareSrd(srd, { adventures: ADVENTURES, libraryFile: existsSync(lib) ? lib : null });
 const which = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
 const list = which ? [adventureById(which)].filter(Boolean) : ADVENTURES.filter((a) => (a.sites || []).length > 1);
 if (!list.length) { console.log(`No adventure "${which}". Adventures: ${ADVENTURES.map((a) => a.id).join(', ')}.`); process.exit(2); }
 const runs = Number(opt('--runs', 40)) || 40;
-const benchParty = partyOf(opt('--party', '3x2'));
+// The bench's party: two heroes at each place's own level, the level the story has reached there (the
+// bench plays the story's levels since 26 Nov).
+const benchParty = partyOf(opt('--party', '2'));
 let fail = 0;
 const t0 = Date.now();
+
+// 0. The engine version of the rules book is made from today's book and compiler (compile-book.mjs).
+{
+  const { text, gaps } = compileFile(join(root, '..', 'data', 'srd.json'));
+  const fresh = readFileSync(join(root, '..', 'data', 'srd.engine.json'), 'utf8') === text;
+  console.log(`0. Rules book: data/srd.engine.json ${fresh ? 'is up to date' : 'is OUT OF DATE: run node tools/compile-book.mjs'}; ${gaps.length} rule${gaps.length === 1 ? '' : 's'} not read.`);
+  if (!fresh) fail++;
+}
 
 for (const adv of list) {
   console.log(`\n=== ${adv.name} (${adv.id}) ===`);
@@ -47,7 +59,7 @@ for (const adv of list) {
   fail += c.errors.length;
   // 2. The simulation, for the party it is written for and for the bench's.
   if ((adv.sites || []).some((x) => (x.foes || []).length)) {
-    for (const [label, party] of [['the party it is written for', null], [`the bench's party (${opt('--party', '3x2')})`, benchParty]]) {
+    for (const [label, party] of [['the party it is written for', null], [`the bench's party (${opt('--party', '2') === '2' ? 'two at each place\'s level' : opt('--party', '2')})`, benchParty]]) {
       const t = simText(simulateAdventure({ adventure: adv, srd, party, runs }));
       console.log(`2. Simulation, ${label}: ${t.problems} place${t.problems === 1 ? '' : 's'} with wipes, ${t.warnings} risky.`);
       console.log(t.text);
