@@ -5,6 +5,8 @@
 import * as R from '/engine/rules.js';
 import * as PG from '/engine/pregen.js';
 import { initMap, mapTabHtml, MAP_ACT, mapField, mapChip, mapFeet } from './map.js';
+import { checkAdventure } from '/engine/check.js';
+import * as TRIG from '/engine/triggers.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -135,7 +137,8 @@ document.addEventListener('click', (e) => { if (e.target.closest('#fx')) { $('#f
 async function send(action) {
   if (local) {
     const out = local.act(action, pid);
-    if (!out.ok) toast(out.error || 'That did not work.');
+    if (!out.ok) toast(out.error || 'That did not work.', !!out.nochange);
+    else if (out.note) toast(out.note, true);
     // Drawn on the next tick: a change event fired while a field loses focus must not have its
     // field replaced under it.
     else setTimeout(() => onState(local.view(pid)), 0);
@@ -144,7 +147,8 @@ async function send(action) {
   try {
     const res = await fetch('/api/action', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role, pid, key, t: tcode, action }) });
     const out = await res.json();
-    if (!out.ok) toast(out.error || 'That did not work.');
+    if (!out.ok) toast(out.error || 'That did not work.', !!out.nochange);
+    else if (out.note) toast(out.note, true);
     return !!out.ok;
   } catch (e) { toast('Cannot reach the Director host. Is it still running?'); return false; }
 }
@@ -1302,8 +1306,46 @@ function adventureHtml() {
       <label class="row"><input type="checkbox" data-bind="newGame.keepChars" ${N.keepChars ? 'checked' : ''}> Keep the characters (healed and rested)</label>
       ${N.open ? '<div class="row"><button class="btn danger" data-act="newgame.go">Yes, start the new game</button><button class="btn" data-act="newgame.no">Cancel</button></div>' : '<button class="btn" data-act="newgame">Start a new game…</button>'}
       <div class="note">${LOCAL ? 'Undo brings the old game back while this page stays open. Download a copy on the Backup tab first to keep it.' : 'Undo brings the old game back. Save it first on the Saves tab to keep it.'}</div></section>
+      ${rulesCard()}
+      ${checkCard()}
       <section class="card"><h3>Undo</h3><button class="btn" data-act="undo">Undo the last change</button></section>
       <section class="card"><h3>DM notes</h3><textarea rows="10" data-k="h.notes" data-hostnotes="1">${esc(ui.host.note ?? state.notes ?? '')}</textarea><button class="btn sm" data-act="notes.save">Save notes</button></section></div></div>`;
+}
+
+// The adventure checker (engine/check.js): wrong ids, missing monsters, places that cannot be reached,
+// broken zones and how hard each fight is, before anyone plays it.
+// The adventure's rules at the party's place (engine/triggers.js): what the Engine will do by itself, what it
+// did, and the DM's switches. A rule can be switched off before it happens, or undone after.
+function rulesCard() {
+  if (!state || !adv) return '';
+  const auto = { rules: true, scale: 'auto', ...(state.auto || {}) };
+  const RS = state.rules || { fired: {}, off: {} };
+  const list = TRIG.rulesAt(adv, state.scene.siteId);
+  const fit = (state.fits || {})[state.scene.siteId];
+  const recent = (state.log || []).filter((l) => l.kind === 'rule').slice(-6).reverse();
+  const row = (r) => {
+    const off = RS.off[r.key]; const did = RS.fired[r.key] && RS.fired[r.key].text;
+    const chip = off ? '<span class="chip">off</span>' : did ? '<span class="chip ok">done</span>' : '<span class="chip on">waiting</span>';
+    const btn = off ? `<button class="btn sm" data-act="rule.on" data-id="${esc(r.key)}">Switch on</button>`
+      : `<button class="btn sm ghost" data-act="rule.off" data-id="${esc(r.key)}">${did ? 'Undo' : 'Switch off'}</button>`;
+    return `<div class="row nw small"><span>${chip}</span><span style="flex:1">${esc(TRIG.ruleWords(r, adv))}</span>${btn}</div>`;
+  };
+  return `<section class="card"><h3>The adventure's rules here</h3>
+    <label class="row"><input type="checkbox" data-autorules="1" ${auto.rules ? 'checked' : ''}> The Engine carries them out by itself</label>
+    <div class="small dim">Also by itself: an attack starts a fight, and a fight ends when no foe stands.</div>
+    <label class="row nw">Fights <select data-autoscale="1" style="flex:1">${[['auto', 'fitted to the party'], ['down', 'only made easier'], ['off', 'as written']].map(([v, t]) => `<option value="${v}" ${auto.scale === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    ${list.length ? list.map(row).join('') : '<div class="small dim">This place has no rules of its own.</div>'}
+    ${fit && fit.text ? `<div class="small dim">${esc(fit.text)}</div>` : ''}
+    ${recent.length ? `<details class="feature"><summary>What the Engine did</summary>${recent.map((l) => `<div class="small dim">${esc(l.text)}</div>`).join('')}</details>` : ''}</section>`;
+}
+
+function checkCard() {
+  const r = ui.check && ui.check.id === adv.id ? ui.check : null;
+  const list = (xs, cls) => xs.map((x) => `<div class="small ${cls}"><b>${esc(x.where)}</b>: ${esc(x.text)}</div>`).join('');
+  return `<section class="card"><h3>Check this adventure<span class="right"><button class="btn sm" data-act="adv.check">${r ? 'Check again' : 'Check'}</button></span></h3>
+    ${r ? `<div class="row"><span class="chip ${r.errors.length ? 'no' : 'ok'}">${r.errors.length} error${r.errors.length === 1 ? '' : 's'}</span><span class="chip ${r.warnings.length ? 'warn' : 'ok'}">${r.warnings.length} warning${r.warnings.length === 1 ? '' : 's'}</span></div>
+      ${list(r.errors, 'bad')}${list(r.warnings, 'warnline')}${r.notes.length ? `<details class="feature"><summary>${r.notes.length} notes (fights, rules in the notes)</summary>${list(r.notes, 'dim')}</details>` : ''}`
+      : '<div class="small dim">Finds mistakes in the adventure file before anyone plays it: wrong ids, missing monsters, places no exit reaches, broken zones, quests that cannot finish, and how hard each fight is.</div>'}</section>`;
 }
 
 const SEED_TEMPLATE_TEXT = `# Seed: A title for your story
@@ -1557,6 +1599,9 @@ const ACT = {
 };
 
 Object.assign(ACT, MAP_ACT);
+ACT['rule.off'] = (d) => send({ type: 'rule.override', id: d.id, reason: 'the DM' });
+ACT['rule.on'] = (d) => send({ type: 'rule.on', id: d.id });
+ACT['adv.check'] = () => { try { ui.check = checkAdventure(adv, srd); } catch (e) { toast(`The check could not run: ${e.message}`); } };
 // The Map tab (public/map.js): it draws from the live state and posts moves like any other action.
 async function uploadPicture(blob) {
   const res = await fetch(`/api/map/upload?key=${encodeURIComponent(key)}`, { method: 'POST', headers: { 'content-type': blob.type || 'application/octet-stream' }, body: blob });
@@ -1599,6 +1644,8 @@ function onField(e) {
     return;
   }
   if (t.dataset.assign) { if (e.type === 'change') { const pcId = t.value; if (pcId) send({ type: 'pc.assign', pcId, pid: t.dataset.assign }); else { const p = state.players[t.dataset.assign]; if (p && p.pcId) send({ type: 'pc.assign', pcId: p.pcId, pid: '' }); } } return; }
+  if (t.dataset.autorules) { if (e.type === 'change') send({ type: 'auto.set', rules: t.checked }); return; }
+  if (t.dataset.autoscale) { if (e.type === 'change') send({ type: 'auto.set', scale: t.value }); return; }
   if (t.dataset.dmodel) { if (e.type === 'change' && t.value) sendDirector({ op: 'config', model: t.value }); return; }
   if (t.dataset.dprov) { if (e.type === 'change') sendDirector({ op: 'config', provider: t.value }); return; }
   if (t.dataset.dctx) { if (e.type === 'change') sendDirector({ op: 'config', numCtx: Number(t.value) }); return; }

@@ -147,8 +147,70 @@ node tools/bench.mjs --runs 3 --log bench.log
 
 A model passes the gate when no run has an Engine refusal, a leak (a DC, AC or hit points, or the
 machinery), a living character called dead, a roll asked for in words, a closing question to the
-wrong player in a fight, a stalled fight, or an error. Style notes and an expected tool not used are
-reported but not gated. `--fake` runs it with a stand-in that only narrates, to check the bench.
+wrong player in a fight, a stalled fight, or an error. Style notes are reported but not gated.
+`--fake` runs it with a stand-in that only narrates, to check the bench.
+
+Each scripted step checks an **outcome in the game**, not which tool was used: the party moved on, a
+fight started, XP was paid, a quest was finished. Any way the Director gets there counts. An outcome
+the game has made impossible is not checked (no monsters left here to fight, no quest still open), a
+check answered from a passive score is counted apart as "no roll asked", and a missed fight or move is
+counted once even when the bench then has to step in. These are reported, not gated. The bench also
+runs the adventure checker first and prints what it finds.
+
+"Nothing to change" is never a refusal: ending a fight that is over, revealing monsters when none are
+hidden, acting out of turn and the like come back to the Director as a note saying what is true
+(the Engine marks those refusals, and the tools turn them into notes in one place). Names, conditions,
+skills and places are matched forgivingly ("Grisk the bugbear", "knocked prone", "perceive", "the old
+watchtower"); anything still unclear is refused with the choices listed.
+
+## Checking an adventure
+
+`node tools/check-adventure.mjs` (or one adventure: `... lantern`, or a file: `... my-quest.js`) checks
+an adventure file without playing it: ids, exits and whether every place can be reached, monsters that
+are not in the SRD, checks with skills that do not exist, broken zones and monster zones, clocks,
+quests that cannot finish, people with missing voices or wants, names shared with ready-made heroes,
+ready-made heroes that do not build, the adventure's rules (below), and how hard each fight is for the
+party it is written for (`party: { size: [4, 5], level: 1 }`, and a place's own `level: 4`). It also
+notes the rules that live only in a place's notes with no rules field to match. Errors set the exit code to 1. The same check is on the DM's Adventure tab
+(**Check this adventure**) and at the top of every bench log.
+
+## The adventure's rules, fights fitted to the party, and the Engine's answers
+
+**Rules.** A place can list `rules`: "when this happens here, that happens", which the Engine carries out by
+itself after every change, so the Director only narrates them. For example (from the Lantern):
+
+```js
+rules: [
+  { id: 'ambush', when: 'fail perception', do: 'fight', surprise: 'party' },
+  { id: 'scouts-run', when: 'down', who: 'Goblin scout', count: 2, do: 'flee', to: 'tower-gate' },
+  { id: 'milestone', when: 'cleared', do: 'xp', xp: 300 },
+]
+```
+
+- `when`: enter, attack, fail or succeed `<skill>`, round `<n>` (or plain round: the end of every round),
+  down, hurt (below half, or `hp`), cleared, full `<clock>`, quest `<words>`.
+- `if`: from, visited, down, standing, hurt, quest, has, passed or failed `<skill>`, fight, no fight;
+  "not" turns one round.
+- `do`: fight (`surprise`), flee (`target`, `to`), tick (`clock`, `by`), quest, xp (`xp`, or `level`: what
+  each still needs to reach it), reveal, say. Any rule can also carry `xp`, `level` and `say`.
+
+`engine/triggers.js` has the full list. Two defaults hold everywhere: an attack with no fight on starts
+one (a player's screen attack, a monster striking a character, or a player saying "I attack Grisk!" to
+the AI Director), and a fight ends by itself when no foe in it is left standing.
+
+Every rule is a default, not a rail. The Director's `override_rule` tool, or **Switch off** / **Undo** on
+the DM's Adventure tab, switches a rule off before it happens or undoes it after (the fight called off,
+the foe back, the quest reopened, the XP taken back). The same card turns the rules off altogether.
+
+**Fitting fights.** Each place's fight is fitted once to the party at the table (`engine/scale.js`, the
+5e encounter budget): the number of foes in each group first, then their hit points. A lone named foe
+stays one. The DM chooses *fitted to the party*, *only made easier* or *as written*; the Director's
+briefing says what changed ("Drowned villager: 5 (written 3)").
+
+**The Engine's answers.** Every action, from any screen or tool, goes through `attempt()` and comes back
+one of three ways: done (with anything it assumed to make it work, "Assumed: "Goblin scot 2" is Goblin
+scout 2"), nothing changed (a note: the fight is already on, it is not their turn), or a real no that
+lists the valid choices.
 
 `--part 4` plays **The Ashen Crown, session 1** with three of its ready-made heroes: the opening turn
 must start the fight on the burning bridge, then the clues in the wreckage, Oakhurst, Father Lucan, an

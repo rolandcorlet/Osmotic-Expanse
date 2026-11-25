@@ -47,7 +47,7 @@ test('a fight: initiative, turns, attacks that hit by AC, and XP at the end', ()
       assert.equal(r.success, r.dice[0] === 20 || (r.dice[0] !== 1 && r.total >= foe.ac));
       const still = Object.values(T.s.foes).find((f) => !f.dead);
       if (still) assert.throws(() => T.as('p1', { type: 'attack', pcId: pc.id, attack: T.s.pcs[pc.id].attacks[0].id, target: `foe:${still.id}` }), /used their action/);
-      T.as('p1', { type: 'fight.next' });
+      if (T.s.fight) T.as('p1', { type: 'fight.next' });
     } else {
       const foeId = cur.split(':')[1];
       assert.throws(() => T.as('p1', { type: 'fight.next' }), RuleError);
@@ -56,8 +56,9 @@ test('a fight: initiative, turns, attacks that hit by AC, and XP at the end', ()
     }
     if (T.s.pcs[pc.id].hp <= 0) T.host({ type: 'heal', target: `pc:${pc.id}`, amount: 20 });
   }
-  T.ai({ type: 'fight.end' });
+  // The fight ends by itself when the last goblin falls, and pays its XP.
   assert.equal(T.s.fight, null);
+  assert.match(T.s.log.at(-1).text, /No foe is left standing: the fight is over/);
   assert.equal(T.s.pcs[pc.id].xp, 100);
 });
 
@@ -261,7 +262,9 @@ test('hold person: the held character saves at the end of each turn, and the hol
   T.host({ type: 'damage', target: `foe:${foe.id}`, amount: 999, dmgType: 'force' });
   assert.ok(!T.s.pcs[pc.id].conds.includes('paralyzed'), 'the hold ends when the caster falls');
   T.s = snap;
-  T.host({ type: 'fight.start', autoRoll: true });
+  // A monster's spell at a character with no fight on starts one (the monster struck first).
+  assert.ok(T.s.fight, 'the hold started a fight');
+  T.host({ type: 'fight.begin' });
   // End turns until Bryn's turn has ended once: a repeat save is rolled for him.
   const before = T.s.rolls.length;
   for (let i = 0; i < 3 && !T.s.rolls.slice(before).some((r) => /end of turn/.test(r.reason || '')); i++) T.host({ type: 'fight.next' });

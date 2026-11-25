@@ -29,7 +29,7 @@ function table(seed = 3) {
   let now = 1000;
   const ctx = (role, pid, extra = {}) => ({ role, pid, rng, now: (now += 1000), adventure: ADV, srd, ...extra });
   const T = {
-    s: openAdventure(newSession(ADV), ADV, ctx('host', null)),
+    s: openAdventure({ ...newSession(ADV), auto: { rules: true, scale: 'off' } }, ADV, ctx('host', null)), // fights as written
     host(action) { T.s = apply(T.s, action, ctx('host', null)); return T.s; },
     ai(action) { T.s = apply(T.s, action, ctx('host', null, { ai: true })); return T.s; },
     as(pid, action) { T.s = apply(T.s, action, ctx('player', pid)); return T.s; },
@@ -206,7 +206,12 @@ test('with the reach rules on, a target too far to reach this turn is refused, a
   const s2 = Object.values(T.s.foes).find((f) => f.name === 'Sentry 2');
   assert.throws(() => T.as('p1', { type: 'attack', pcId: bram.id, attack: bram.attacks.find((x) => x.melee).id, target: `foe:${s2.id}` }), /out of reach.*feet of movement/);
   for (let i = 0; i < 6 && T.s.fight.order[T.s.fight.turn].key !== `foe:${s2.id}`; i++) T.host({ type: 'fight.next' });
-  assert.throws(() => T.ai({ type: 'foe.act', foeId: s2.id, action: 'Scimitar', targets: [bram.id] }), /too far from Bram to attack this turn/);
+  // The AI Director's monster too far to strike closes in instead (the Engine fixes the call and says so).
+  const rollsBefore = T.s.rolls.length;
+  const zoneBefore = T.s.map.at[`foe:${s2.id}`].zone;
+  T.ai({ type: 'foe.act', foeId: s2.id, action: 'Scimitar', targets: [bram.id] });
+  assert.equal(T.s.rolls.length, rollsBefore, 'no attack roll from so far away');
+  assert.notEqual(T.s.map.at[`foe:${s2.id}`].zone, zoneBefore, 'it moved toward Bram');
   // Its shortbow reaches, but not at its best from so far.
   T.ai({ type: 'foe.act', foeId: s2.id, action: 'Shortbow', targets: [bram.id] });
   assert.equal(T.s.rolls.at(-1).kind, 'attack');
@@ -244,7 +249,8 @@ test('the AI Director: with the reach rules on, a monster too far to strike char
   for (let i = 0; i < 6 && T.s.fight.order[T.s.fight.turn].key !== `foe:${s1.id}`; i++) T.host({ type: 'fight.next' });
   const tb = toolbox({ state: T.s, adventure: ADV, srd, rng: makeRng(1), now: 1 });
   const r = tb.run('monster_action', { monster: 'Sentry 1', action: 'Scimitar', targets: ['Bram'] });
-  assert.match(r.note, /could not reach its target to attack, so it moves up as far as it can/);
+  assert.ok(!r.refused, r.refused);
+  assert.match(r.assumed, /too far from Bram to attack this turn, so it closed in/);
   assert.notEqual(tb.state.map.at[`foe:${s1.id}`].zone, 'far-tower');
   void bram;
 });

@@ -176,8 +176,10 @@ test('the bridge fight: custom monsters attack, breathe and fall through the Eng
   const pc = Object.values(T.s.pcs)[0];
   T.host({ type: 'foe.reveal' });
   const cap = Object.values(T.s.foes).find((f) => f.mid === 'ac-iron-brand-captain');
+  const n0 = T.s.rolls.length;
   T.host({ type: 'foe.act', foeId: cap.id, action: 'Scimitar', target: `pc:${pc.id}` });
-  assert.equal(T.s.rolls.at(-1).kind, 'attack');
+  assert.ok(T.s.rolls.slice(n0).some((r) => r.kind === 'attack' && /Scimitar/.test(r.label)));
+  assert.ok(T.s.fight, 'the captain struck first: a fight starts');
   // Malakor's breath asks for Dexterity saves; his Ash Wing knocks prone.
   T.host({ type: 'foe.add', monster: 'ac-malakor', name: 'Lord Malakor Vane' });
   const mal = Object.values(T.s.foes).find((f) => f.mid === 'ac-malakor');
@@ -266,10 +268,12 @@ test('a caster out of spell slots is a note that names its cantrips, not a refus
   const foe = Object.values(T.s.foes).find((f) => f.mid === 'cult-fanatic');
   // Spend all three level-2 slots through the Engine, then ask for another through the Director's tool.
   for (let i = 0; i < 3; i++) T.host({ type: 'foe.act', foeId: foe.id, action: 'Spiritual Weapon', target: `pc:${pc.id}` });
+  // The first spell started a fight (the monster struck first); the DM calls it off to test the slots alone.
+  if (T.s.fight) T.host({ type: 'fight.end', award: false });
   const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(3), now: 3 });
   const out = tb.run('monster_action', { monster: 'Brother Aldane', action: 'Spiritual Weapon', targets: [`pc:${pc.id}`] });
   assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
-  assert.match(out.note, /spell slots left.*cantrips/);
+  assert.match(out.note, /^Nothing changed: .*spell slots left.*Sacred Flame/);
 });
 
 test('a monster acting on a character who has died is a note, not a refusal (bench part 3, 24 Nov)', () => {

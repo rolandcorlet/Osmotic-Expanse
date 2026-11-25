@@ -2,7 +2,7 @@
 // kept in this browser's storage, so the DM's Assistant and the Players' Assistant work offline
 // from a single web page.
 
-import { newSession, restart, apply, viewFor, RuleError, openAdventure } from '../engine/ledger.js';
+import { newSession, restart, attempt, viewFor, RuleError, openAdventure } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
 import { mergeAdventureMonsters } from '../engine/merge.js';
 
@@ -34,10 +34,14 @@ export function createLocal({ role, srd, adventures, storeKey }) {
           state = placeFirst(restart(state, adv, { keepPlayers: true, keepCharacters: action.keepCharacters !== false }), adv);
           state.seq = seq + 1;
         } else {
-          const next = apply(state, action, ctx(pid));
+          // The Engine's three kinds: done (with what it assumed), nothing changed, or a real no.
+          const r = attempt(state, action, ctx(pid));
+          if (r.status !== 'done') return { ok: false, error: r.text, nochange: r.status === 'nochange' };
           history.push(state);
           if (history.length > 60) history.shift();
-          state = next;
+          state = r.state;
+          write();
+          return { ok: true, note: r.text };
         }
         write();
         return { ok: true };

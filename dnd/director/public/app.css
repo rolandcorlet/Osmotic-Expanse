@@ -442,3 +442,5 @@ details>summary:hover{color:var(--ink)}
 .mapexits{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px}
 .mapexits .btn.far{color:var(--faint)}
 @media (max-width:640px){ .mapsvgbox{height:auto;flex-direction:column;align-items:stretch} .mapsvg.battle{width:100%;height:auto;max-height:64vh} }
+.small.bad{color:var(--no)}
+.small.warnline{color:var(--warn-c)}

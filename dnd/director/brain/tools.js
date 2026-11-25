@@ -1,8 +1,11 @@
 // The Director's tools. Each is a thin, checked doorway into the Ledger: the model asks, the Engine
-// decides, and a refusal comes back in plain words so the next call can be the right one.
+// decides, and the answer comes back in plain words so the next call can be the right one. Every answer
+// is sorted the same way, by the Engine's own attempt() (see run() at the bottom): done (with anything the
+// Engine assumed to make it work), nothing changed (a note), or a real refusal with the valid choices.
 
-import { apply, RuleError } from '../engine/ledger.js';
+import { attempt } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
+import * as NAMES from '../engine/names.js';
 
 const COND_LIST = ['blinded', 'charmed', 'deafened', 'exhaustion', 'frightened', 'grappled', 'incapacitated', 'invisible', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'];
 const S = (description, extra = {}) => ({ type: 'string', description, ...extra });
@@ -23,12 +26,14 @@ const listOf = (v) => {
 export function findPc(s, ref) {
   const k = lower(ref).replace(/^pc:/, '');
   const list = Object.values(s.pcs);
-  return list.find((p) => p.id === k) || list.find((p) => lower(p.name) === k) || list.find((p) => k && lower(p.name).split(/\s+/)[0] === k.split(/\s+/)[0]) || null;
+  return list.find((p) => p.id === k) || list.find((p) => lower(p.name) === k) || list.find((p) => k && lower(p.name).split(/\s+/)[0] === k.split(/\s+/)[0])
+    || NAMES.pick(list, k, (p) => [p.id, p.name]) || null;
 }
 export function findFoe(s, ref, { all = false } = {}) {
   const k = lower(ref).replace(/^foe:/, '');
   const list = Object.values(s.foes).filter((f) => (all || f.siteId === s.scene.siteId));
-  return list.find((f) => f.id === k) || list.find((f) => lower(f.name) === k) || list.find((f) => !f.dead && k && lower(f.name).startsWith(k)) || list.find((f) => !f.dead && k && lower(f.base) === k) || null;
+  return list.find((f) => f.id === k) || list.find((f) => lower(f.name) === k) || list.find((f) => !f.dead && k && lower(f.name).startsWith(k)) || list.find((f) => !f.dead && k && lower(f.base) === k)
+    || NAMES.pick(list.filter((f) => !f.dead), k, (f) => [f.id, f.name]) || NAMES.pick(list, k, (f) => [f.id, f.name]) || null;
 }
 const party = (s) => Object.values(s.pcs).map((p) => `${p.id} (${p.name})`).join(', ') || 'nobody yet';
 const here = (s) => Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).map((f) => `${f.id} (${f.name})`).join(', ') || 'no monsters';
@@ -117,7 +122,7 @@ export const TOOLS = [
         const why = lower(`${a.reason} ${a.ability} ${a.skill}`);
         const sk = lower(a.kind) === 'save' ? null : (T.srd.skills || []).find((x) => why.includes(x.name.toLowerCase()));
         const ab = Object.entries({ str: 'strength', dex: 'dexterity', con: 'constitution', int: 'intelligence', wis: 'wisdom', cha: 'charisma' }).find(([, n]) => why.includes(n));
-        if (sk) skill = sk.id; else if (ab) ability = ab[0];
+        if (sk) { skill = sk.id; T.assume(`No skill was named: ${sk.name}, from the reason's words.`); } else if (ab) { ability = ab[0]; T.assume(`No ability was named: ${R.ABILITY_NAMES[ability]}, from the reason's words.`); }
       }
       // A save with no ability named (bench part 3, 24 Nov: "Keep your footing"): read the kind of save from the
       // reason's words, and otherwise use dexterity, the usual "get out of the way" save. Never a refusal.
@@ -129,6 +134,7 @@ export const TOOLS = [
           ['dex', /footing|slip|balance|dodge|fall|leap|dive|duck|catch|jump|ledge|plank|causeway|avoid|blast|trap|dart|bolt|breath weapon/],
         ];
         ability = (SAVE_WORDS.find(([, re]) => re.test(why)) || ['dex'])[0];
+        T.assume(`No ability was named for the save: ${R.ABILITY_NAMES[ability]}${SAVE_WORDS.some(([, re]) => re.test(why)) ? ', from the reason\'s words' : ', the usual one for getting out of the way'}.`);
       }
       // A check with no ability or skill named (bench part 3, 24 Nov: "Steady yourself and get back onto your feet"):
       // read the kind of check from the reason's words, and otherwise use dexterity. Never a refusal.
@@ -140,6 +146,7 @@ export const TOOLS = [
           ['dex', /steady|footing|balance|slip|stealth|sneak|quiet|pick|catch|dodge|feet|agile|nimble/],
         ];
         ability = (CHECK_WORDS.find(([, re]) => re.test(why)) || ['dex'])[0];
+        T.assume(`No skill or ability was named: a ${R.ABILITY_NAMES[ability]} check${CHECK_WORDS.some(([, re]) => re.test(why)) ? ', from the reason\'s words' : ''}.`);
       }
       // No DC, or one off the scale (bench part 3, 25 Nov: "Speak a holy word to drive the rats back"): the
       // reason's words decide, and otherwise medium (13), on the scale this tool gives. Never a refusal.
@@ -147,6 +154,7 @@ export const TOOLS = [
       if (!Number.isFinite(dc) || dc <= 0) {
         const why = lower(a.reason);
         dc = /very easy|trivial/.test(why) ? 5 : /very hard|nearly impossible|almost impossible/.test(why) ? 20 : /\bhard\b|difficult|tough/.test(why) ? 15 : /\beasy\b|simple/.test(why) ? 10 : 13;
+        T.assume(`No DC was given: DC ${dc}.`);
       }
       dc = Math.min(35, Math.max(1, Math.round(dc)));
       const no = T.do({ type: 'roll.ask', pcIds: ids, kind: lower(a.kind) === 'save' ? 'save' : 'check', skill, ability, dc, reason: a.reason, adv: lower(a.advantage), effect });
@@ -159,9 +167,8 @@ export const TOOLS = [
     description: 'Move the party to another place when they choose to go there. Only an exit the briefing lists can be taken, and never during a fight (end_combat first if they flee). Monsters placed at the new place stay hidden until revealed or a fight starts.',
     parameters: obj({ place: S('The id of the place (from the exits list).') }, ['place']),
     run(a, T) {
-      if (T.state.fight) return { note: 'Nothing changed: the party cannot travel during a fight. If they flee, end_combat first (award_xp false), then move_party.', ...T.fightBrief() };
       const before = T.state.seq;
-      const no = T.do({ type: 'site.move', siteId: lower(a.place) });
+      const no = T.do({ type: 'site.move', siteId: String(a.place || '').trim() });
       if (no) return { refused: no };
       const site = T.site();
       const hidden = Object.values(T.state.foes).filter((f) => f.siteId === site.id && !f.dead && f.hidden).map((f) => `${f.id} (${f.name})`);
@@ -229,8 +236,6 @@ export const TOOLS = [
     parameters: obj({ surprised: A('Optional: names of anyone surprised (they lose their first turn).') }),
     run(a, T) {
       const before = T.state.seq;
-      // Already fighting (part 2 bench, 20 Nov): nothing to start. Say where the fight stands instead.
-      if (T.state.fight) return { note: 'Nothing changed: the fight is already on. Carry on with it.', ...T.fightBrief() };
       const no = T.do({ type: 'fight.start', surprised: listOf(a.surprised) });
       if (no) return { refused: no };
       return { ...T.fightBrief(), ...since(T, before) };
@@ -241,7 +246,6 @@ export const TOOLS = [
     description: 'Stop waiting for initiative rolls: the Engine rolls for anyone who has not, and turns begin.',
     parameters: obj({}),
     run(a, T) {
-      if (!T.state.fight || T.state.fight.phase !== 'initiative') return { note: 'Nothing changed: no one is waiting to roll initiative.', ...T.fightBrief() };
       const no = T.do({ type: 'fight.begin' });
       return no ? { refused: no } : T.fightBrief();
     },
@@ -264,7 +268,7 @@ export const TOOLS = [
         const pcRef = lower(a.monster).replace(/^pc:/, '');
         const isPc = Object.values(T.state.pcs).some((p) => p.id === pcRef || lower(p.name) === pcRef);
         const swapped = isPc && tl.length === 1 ? findFoe(T.state, tl[0]) : null;
-        if (swapped && !swapped.dead) { foe = swapped; a = { ...a, monster: swapped.id, targets: [a.monster] }; }
+        if (swapped && !swapped.dead) { T.assume(`Monster and target were the wrong way round: ${swapped.name} acts on ${a.monster}.`); foe = swapped; a = { ...a, monster: swapped.id, targets: [a.monster] }; }
       }
       // A character of the party named as the monster (bench part 3, 24 Nov: "Ila" readying an action): the party
       // acts on its own turn, so this is a note, not a refusal.
@@ -273,44 +277,16 @@ export const TOOLS = [
         const ownPc = Object.values(T.state.pcs).find((p) => p.id === ownRef || lower(p.name) === ownRef);
         if (ownPc) return { note: `Nothing changed: ${ownPc.name} is one of the party and acts on their own turn. monster_action is for the monsters here (${here(T.state)}).`, ...T.fightBrief() };
       }
-      if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
-      // A monster that has already fallen does nothing: a note, not a broken rule (bench 21 Nov, the chapel).
-      if (foe.dead || foe.hp <= 0) return { note: `Nothing changed: ${foe.name} has already fallen and cannot act. Still standing: ${here(T.state)}.`, ...T.fightBrief() };
       // Talking, taunting or waiting is not an action in the stat block: just say it (bench 21 Nov: Aldane "Talk").
       if (/^(talk|speak|say|says|taunt|threaten|parley|laugh|wait|watch|pray|chant|gloat)\b/i.test(String(a.action || '').trim()))
         return { note: `Nothing changed: ${foe.name} speaking or waiting needs no tool. Say it in the narration, then use monster_action for what it actually does (${here(T.state)}), or end_turn.`, ...T.fightBrief() };
       const targets = pcTargets(T.state, a);
       const before = T.state.seq;
-      let no = T.do({ type: 'foe.act', foeId: foe.id, action: a.action, targets, adv: lower(a.advantage) });
-      // A weapon the stat block does not have (bench part 3, 24 Nov: "Scimitar" on a skeleton with a Shortsword):
-      // the monster swings its first listed weapon instead. With no weapon listed, a note names what it has.
-      const listed = no && /has no action called .*Its actions: ([^.]*)\./.exec(no);
-      if (listed) {
-        const names = listed[1].split(',').map((x) => x.trim()).filter(Boolean);
-        const WEAPON = /sword|scimitar|axe|bow|dagger|spear|mace|club|hammer|bite|claw|slam|fist|hook|talon|tail|whip|flail|pick|rapier|glaive|halberd|javelin|sling|crossbow|blade|strike|smash|stab/i;
-        const pick = names.find((n) => WEAPON.test(n) && new RegExp(`\\b${String(a.action || '').split(/\s+/)[0].replace(/[^a-z]/gi, '')}`, 'i').test(n)) || names.find((n) => WEAPON.test(n));
-        if (pick) {
-          const again = T.do({ type: 'foe.act', foeId: foe.id, action: pick, targets, adv: lower(a.advantage) });
-          if (!again) return { ...since(T, before), party: T.partyBrief() };
-          no = again;
-        }
-        if (no) return { note: `Nothing changed: ${foe.name} has no action called "${a.action}". Its actions: ${names.join(', ')}. Use one of those.`, ...T.fightBrief() };
-      }
-      // Acting out of turn changes nothing: a note that says who is up, not a rule broken (as in the v3 Director).
-      if (no && /\bnot .*\bturn\b/i.test(no)) return { note: `Nothing changed: ${no}`, ...T.fightBrief() };
-      // A caster out of slots (bench part 3, 24 Nov: Brother Aldane's Spiritual Weapon) is a note listing its cantrips.
-      if (no && /spell slots left/.test(no)) return { note: `Nothing changed: ${no} Use a cantrip or another action.`, ...T.fightBrief() };
-      // A dead character is no target (bench part 3, 24 Nov: a Slam on a dead Bryn): a note, and the monster picks another.
-      if (no && /is dead\.$/.test(no)) return { note: `Nothing changed: ${no} Name a living target, or end the monster's turn.`, ...T.fightBrief() };
-      // Too far to strike this turn (the map's reach rules): it closes in instead, as a Dash.
-      if (no && /too far from .* to attack this turn/.test(no)) {
-        const pcRef = targets[0] ? `pc:${targets[0]}` : '';
-        const moved = pcRef ? T.do({ type: 'map.move', who: `foe:${foe.id}`, engage: pcRef }) : 'no target';
-        return { note: `${foe.name} could not reach its target to attack${moved ? '' : ', so it moves up as far as it can instead (a Dash)'}. Narrate the charge, then end_turn.`, map: mapLine(T), ...since(T, before), ...T.fightBrief() };
-      }
-      if (no && /out of range/.test(no)) return { note: `Nothing changed: ${no}`, map: mapLine(T), ...T.fightBrief() };
-      if (no) return { refused: no };
-      return { ...since(T, before), party: T.partyBrief() };
+      // A near name, a weapon the stat block calls something else, a spell out of slots, a target too far to
+      // reach this turn, someone already dead: the Engine sorts them (fixed, or nothing changed).
+      const no = T.do({ type: 'foe.act', foeId: foe ? foe.id : a.monster, action: a.action, targets, adv: lower(a.advantage) });
+      if (no) return { refused: no, ...(T.state.map && T.state.map.show && T.state.map.show.reach ? { map: mapLine(T) } : {}) };
+      return { ...since(T, before), party: T.partyBrief(), ...(T.state.map && T.state.map.show && T.state.map.show.reach ? { map: mapLine(T) } : {}) };
     },
   },
   {
@@ -319,9 +295,8 @@ export const TOOLS = [
     parameters: obj({ monster: S('Id or name.'), ability: S('str, dex, con, int, wis or cha.'), dc: I('The DC.') }, ['monster', 'ability', 'dc']),
     run(a, T) {
       const foe = findFoe(T.state, a.monster);
-      if (!foe) return { refused: `No monster called "${a.monster}" is here. Here: ${here(T.state)}.` };
       const before = T.state.seq;
-      const no = T.do({ type: 'foe.save', foeId: foe.id, ability: lower(a.ability), dc: a.dc });
+      const no = T.do({ type: 'foe.save', foeId: foe ? foe.id : a.monster, ability: lower(a.ability).slice(0, 3), dc: a.dc });
       return no ? { refused: no } : since(T, before);
     },
   },
@@ -351,8 +326,6 @@ export const TOOLS = [
     parameters: obj({ award_xp: B('False if no XP should be given (the party fled). Default true.') }),
     run(a, T) {
       const before = T.state.seq;
-      // Ending a fight that is already over changes nothing: a note (bench 21 Nov).
-      if (!T.state.fight) return { note: 'Nothing changed: no fight is on. Carry on with the story.' };
       const no = T.do({ type: 'fight.end', award: a.award_xp === undefined ? true : truthy(a.award_xp) });
       return no ? { refused: no } : since(T, before);
     },
@@ -363,9 +336,8 @@ export const TOOLS = [
     parameters: obj({ monster: S('Id or name.') }, ['monster']),
     run(a, T) {
       const foe = findFoe(T.state, a.monster, { all: true });
-      if (!foe || foe.dead) return { note: `Nothing changed: ${foe ? `${foe.name} is already down or gone` : `no monster called "${a.monster}"`}. Still standing: ${here(T.state)}.` };
-      const no = T.do({ type: 'foe.flee', foeId: foe.id });
-      return no ? { refused: no } : { gone: foe.name };
+      const no = T.do({ type: 'foe.flee', foeId: foe ? foe.id : a.monster });
+      return no ? { refused: no } : { gone: foe ? foe.name : a.monster, here: here(T.state) };
     },
   },
   {
@@ -412,8 +384,10 @@ export const TOOLS = [
       const ref = targetRef(T.state, a.target);
       // Naming nobody, or no condition at all, changes nothing: a note, not a refusal (ten-run bench).
       if (!ref) return { note: `Nothing changed: nobody here is called "${a.target}". Party: ${party(T.state)}. Monsters: ${here(T.state)}.` };
-      if (!COND_LIST.includes(lower(a.condition))) return { note: `Nothing changed: "${a.condition}" is not a condition. Conditions: ${COND_LIST.join(', ')}.` };
-      const no = T.do({ type: 'cond.add', target: ref, cond: lower(a.condition) });
+      const cond = NAMES.condition(a.condition, COND_LIST);
+      if (!cond) return { note: `Nothing changed: "${a.condition}" is not a condition. Conditions: ${COND_LIST.join(', ')}.` };
+      if (cond !== lower(a.condition)) T.assume(`"${a.condition}" is the condition ${cond}.`);
+      const no = T.do({ type: 'cond.add', target: ref, cond });
       return no ? { refused: no } : { ok: true };
     },
   },
@@ -424,10 +398,11 @@ export const TOOLS = [
     run(a, T) {
       const ref = targetRef(T.state, a.target);
       if (!ref) return { note: `Nothing changed: nobody here is called "${a.target}". Party: ${party(T.state)}. Monsters: ${here(T.state)}.` };
-      if (!COND_LIST.includes(lower(a.condition))) return { note: `Nothing changed: "${a.condition}" is not a condition.` };
+      const cond = NAMES.condition(a.condition, COND_LIST);
+      if (!cond) return { note: `Nothing changed: "${a.condition}" is not a condition.` };
       const p = ref.startsWith('pc:') ? T.state.pcs[ref.slice(3)] : null;
-      if (p && p.hp <= 0 && lower(a.condition) === 'unconscious') return { note: `Nothing changed: ${p.name} is at 0 hit points. Heal them to wake them, or stabilize_character after a successful Medicine check (DC 10).` };
-      const no = T.do({ type: 'cond.remove', target: ref, cond: lower(a.condition) });
+      if (p && p.hp <= 0 && cond === 'unconscious') return { note: `Nothing changed: ${p.name} is at 0 hit points. Heal them to wake them, or stabilize_character after a successful Medicine check (DC 10).` };
+      const no = T.do({ type: 'cond.remove', target: ref, cond });
       return no ? { refused: no } : { ok: true };
     },
   },
@@ -453,7 +428,8 @@ export const TOOLS = [
       if (!(Number(a.gold) > 0) && !String(a.item || '').trim()) return { note: 'Nothing was given: name gold or an item to give.' };
       const no = T.do({ type: 'loot.give', pcId: pc ? pc.id : undefined, gold: a.gold, item: a.item, qty: a.qty });
       if (no) return { refused: no };
-      return a.character && !pc ? { ok: true, note: `"${a.character}" is not in the party, so it went to the party: gold split, items to the shared loot. Party: ${party(T.state)}.` } : { ok: true };
+      if (a.character && !pc) T.assume(`"${a.character}" is not in the party, so it went to the party: gold split, items to the shared loot.`);
+      return { ok: true };
     },
   },
   {
@@ -534,12 +510,23 @@ export const TOOLS = [
       // "clear" of a cleared one were refused). Nothing in the Ledger changes.
       if (type === 'clock.add' && c && !c.done) return { ok: true, note: `Already running: ${c.name}, ${c.filled} of ${c.size}. Tick it instead of starting it again.` };
       if (type === 'clock.remove' && !c) return { note: `Nothing to clear: no clock called "${a.name}" is running. Running: ${running().map((x) => x.name).join(', ') || 'none'}.` };
-      if (type === 'clock.tick' && !c) return { note: `No clock called "${a.name}" is running here. Running: ${running().map((x) => x.name).join(', ') || 'none'}.` };
       const no = T.do({ type, name: a.name, id: a.name, size: a.size, by: a.by, note: a.note, siteId: T.state.scene.siteId });
       if (no) return { refused: no };
       if (type === 'clock.remove') return { ok: true };
       const after = find();
       return { ok: true, clock: after ? `${after.name}: ${after.filled} of ${after.size}${after.done ? `. FULL: ${after.note || 'it happens now'}` : ''}` : undefined };
+    },
+  },
+  {
+    name: 'override_rule',
+    description: 'The adventure\'s rules (listed in your briefing with their ids) happen by themselves: a fight starts, a foe flees, a clock ticks, a quest is done, a milestone is paid. If the story has gone another way (they talked Grisk down; it was never meant to come to blows), override the rule with the reason: one still waiting is switched off, one that has happened is undone as far as it can be. "*/attack" calls off a fight that an attack started.',
+    parameters: obj({ rule: S('The rule\'s id from the briefing, such as mill-road/ambush.'), reason: S('Why, in a few words.') }, ['rule', 'reason']),
+    run(a, T) {
+      const before = T.state.seq;
+      const no = T.do({ type: 'rule.override', id: String(a.rule || '').replace(/^\[|\]$/g, '').trim(), reason: a.reason });
+      void before;
+      if (no) return { refused: no };
+      return { ok: true, ...(T.state.fight ? T.fightBrief() : {}) }; // what it did comes back as adventure_rules
     },
   },
   {
@@ -617,12 +604,15 @@ export function toolbox({ state, adventure, srd, rng, now, memory = null }) {
   const ctx = { role: 'host', pid: null, rng, now, adventure, srd, ai: true };
   const T = {
     state, adventure, srd, rng, memory, refusals: 0,
+    lastNo: null, // the Engine's last "no" in this tool call: its words, its kind (rule or noop), the choices
+    assumed: [], // what the Engine (or a tool) assumed to make this tool call work
     do(action) {
-      try { T.state = apply(T.state, action, ctx); return null; } catch (e) {
-        if (e instanceof RuleError || /dice|d20|not a dice/i.test(e.message)) return e.message;
-        throw e;
-      }
+      const r = attempt(T.state, action, ctx);
+      if (r.status === 'done') { T.state = r.state; for (const x of r.assumed) T.assume(x); return null; }
+      T.lastNo = { msg: r.message, kind: r.status === 'nochange' ? 'noop' : 'rule', options: r.options, hint: r.hint, text: r.text };
+      return r.message;
     },
+    assume(text) { if (text && !T.assumed.includes(text)) T.assumed.push(text); },
     site: () => (adventure.sites || []).find((x) => x.id === T.state.scene.siteId) || (adventure.sites || [])[0] || {},
     fightBrief() {
       const f = T.state.fight;
@@ -641,12 +631,31 @@ export function toolbox({ state, adventure, srd, rng, now, memory = null }) {
     },
     run(name, args) {
       const tool = TOOLS.find((t) => t.name === name);
-      if (!tool) { T.refusals += 1; return { refused: `There is no tool called "${name}".` }; }
+      if (!tool) { T.refusals += 1; return { refused: `There is no tool called "${name}". Tools: ${TOOLS.map((t) => t.name).join(', ')}.` }; }
       let out;
+      T.lastNo = null;
+      T.assumed = [];
+      const before = T.state.seq;
       try { out = tool.run(args || {}, T); } catch (e) { out = { refused: `That could not be done: ${e.message}` }; }
+      // One sorting for every tool, by the Engine's own kinds (in place of a fix per refusal):
+      //   nothing to change -> a note that says what is true; a real no -> refused, with the valid choices;
+      //   done -> the result, with what was assumed to make it work.
+      if (out && out.refused && T.lastNo && out.refused === T.lastNo.msg) {
+        const { refused, ...rest } = out;
+        out = T.lastNo.kind === 'noop' ? { note: T.lastNo.text, ...rest, ...(T.state.fight ? T.fightBrief() : {}) } : { refused: T.lastNo.text, ...rest };
+      }
+      if (out && !out.refused && T.assumed.length) out = { ...out, assumed: T.assumed.join(' ') };
+      // What the adventure's own rules did during this call (a fight started, a foe fled, a quest finished).
+      const fired = rulesSince(T.state, before);
+      if (out && fired.length) out = { ...out, adventure_rules: fired };
       if (out && out.refused) T.refusals += 1;
       return out;
     },
   };
   return T;
+}
+
+// The adventure rules the Engine carried out after `seq`, in words (the DM's log).
+export function rulesSince(s, seq) {
+  return (s.log || []).filter((l) => l.seq > seq && l.kind === 'rule').map((l) => l.text);
 }

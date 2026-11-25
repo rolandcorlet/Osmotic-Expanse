@@ -15,7 +15,7 @@ import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { gzipSync } from 'node:zlib';
 
-import { newSession, newGameId, restart, apply, viewFor, RuleError, openAdventure } from './engine/ledger.js';
+import { newSession, newGameId, restart, attempt, viewFor, RuleError, openAdventure } from './engine/ledger.js';
 import { prepareSrd } from './engine/library.js';
 import { createMemory } from './brain/memory.js';
 import { systemRng } from './engine/dice.js';
@@ -171,6 +171,10 @@ const FILES = {
   '/engine/dice.js': ['engine/dice.js', 'text/javascript'],
   '/engine/pregen.js': ['engine/pregen.js', 'text/javascript'],
   '/engine/map.js': ['engine/map.js', 'text/javascript'],
+  '/engine/check.js': ['engine/check.js', 'text/javascript'],
+  '/engine/names.js': ['engine/names.js', 'text/javascript'],
+  '/engine/triggers.js': ['engine/triggers.js', 'text/javascript'],
+  '/engine/scale.js': ['engine/scale.js', 'text/javascript'],
   '/map.js': ['public/map.js', 'text/javascript'],
   // The three screens as their own pages (the same app, its role fixed by the page).
   '/player.html': ['public/player.html', 'text/html'],
@@ -253,12 +257,15 @@ function act(role, pid, action) {
     changed(old, state);
     return;
   }
-  const next = apply(state, action, { role, pid, rng, now: Date.now(), adventure, srd });
+  // The Engine's three kinds: done (with what it assumed), nothing changed, or a real no.
+  const r = attempt(state, action, { role, pid, rng, now: Date.now(), adventure, srd });
+  if (r.status !== 'done') { const e = new RuleError(r.text); e.kind = r.status === 'nochange' ? 'noop' : 'rule'; throw e; }
   history.push(state);
   if (history.length > 60) history.shift();
   const prev = state;
-  state = next;
+  state = r.state;
   changed(prev, state);
+  return r.text;
 }
 
 // Load a saved game in place of this one. Undo brings this one back.
@@ -383,17 +390,18 @@ const server = http.createServer(async (req, res) => {
       const who = access(req, body);
       if (!who.role) { json(res, 403, who); return; }
       const role = who.role;
+      let note = '';
       try {
-        act(role, body.pid || null, body.action || {});
+        note = act(role, body.pid || null, body.action || {}) || '';
       } catch (e) {
-        if (e instanceof RuleError || /dice|die/i.test(e.message)) { json(res, 200, { ok: false, error: e.message }); return; }
+        if (e instanceof RuleError || /dice|die/i.test(e.message)) { json(res, 200, { ok: false, error: e.message, nochange: e.kind === 'noop' }); return; }
         throw e;
       }
       save();
       broadcast();
       const type = (body.action || {}).type;
       if (director && ANSWERED[type] && (role === 'player' || type === 'say')) director.playerActed(ANSWERED[type]);
-      json(res, 200, { ok: true, seq: state.seq });
+      json(res, 200, { ok: true, seq: state.seq, ...(note ? { note } : {}) });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/voice/say') {

@@ -194,7 +194,7 @@ test('bench 4: treasure named for its giver goes to the party, and a downed char
   const pc = hero(T, 'p1', 'Bryn');
   const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 1 });
   const r = B.run('give_treasure', { character: 'Marta Hale', item: 'Potion of Healing' });
-  assert.ok(r.ok && /not in the party/.test(r.note));
+  assert.ok(r.ok && /not in the party/.test(r.assumed));
   assert.equal(B.state.loot[0].name, 'Potion of Healing');
   T.host({ type: 'damage', target: pc.id, amount: pc.maxHp });
   assert.ok(checkNarration('Bryn is sitting up now, pale. Ila, what do you do?', T.s).some((f) => f.kind === 'rule'));

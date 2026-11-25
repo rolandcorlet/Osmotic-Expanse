@@ -8,9 +8,46 @@
 import * as R from './rules.js';
 import { d20, rollDice, die, average } from './dice.js';
 import * as MAP from './map.js';
+import * as NAMES from './names.js';
+import * as TRIG from './triggers.js';
+import * as SCALE from './scale.js';
 
 export class RuleError extends Error {}
-const no = (msg) => { throw new RuleError(msg); };
+// Every "no" the Engine could say is one of three kinds, sorted here once for every screen and every tool
+// (attempt() below hands back which):
+//   1. Nothing to change (kind "noop"): the table is already as asked (the fight is already on, nothing is
+//      hidden, it is not their turn). Nothing happens, and the words say what is true instead.
+//   2. Fixed: not a "no" at all. A near name, a missing DC, a weapon the stat block calls something else:
+//      the Engine goes on with its best reading and says what it assumed (assume()).
+//   3. A real no (kind "rule"): the rules do not allow it. Refused, with the valid choices (options), so
+//      the next try can be right.
+const no = (msg, kind = 'rule', more = {}) => { const e = new RuleError(msg); e.kind = kind; e.options = more.options || []; e.hint = more.hint || ''; throw e; };
+const nop = (msg, more) => no(msg, 'noop', more);
+const refuse = (msg, options, hint = '') => no(msg, 'rule', { options, hint });
+function assume(ctx, text) {
+  if (ctx && Array.isArray(ctx.assumed) && text && !ctx.assumed.includes(text)) ctx.assumed.push(text);
+}
+
+// The one doorway every screen and tool goes through: apply() with the "no" sorted into its kind.
+//   attempt(state, action, ctx) -> { status: 'done'|'nochange'|'refused', state, assumed, message, options, hint, text }
+export function attempt(state, action, ctx) {
+  const assumed = [];
+  try {
+    const next = apply(state, action, { ...ctx, assumed });
+    return { status: 'done', state: next, assumed, message: '', options: [], hint: '', text: assumed.length ? `Assumed: ${assumed.join(' ')}` : '' };
+  } catch (e) {
+    if (!(e instanceof RuleError) && !/\bdice\b|\bd20\b|not a dice/i.test(e.message || '')) throw e;
+    const kind = e instanceof RuleError ? e.kind || 'rule' : 'rule';
+    const out = { status: kind === 'noop' ? 'nochange' : 'refused', state, assumed: [], message: e.message, options: (e.options || []).slice(0, 30), hint: e.hint || '' };
+    return { ...out, text: explain(out) };
+  }
+}
+// The words for a "no" of either kind: what is true, what to do instead, and the valid choices.
+export function explain({ status, message, options = [], hint = '' }) {
+  const listed = options.length && !options.slice(0, 2).every((o) => String(message).includes(String(o)));
+  const tail = `${hint ? ` ${hint}` : ''}${listed ? ` Choose from: ${options.join(', ')}.` : ''}`;
+  return status === 'nochange' ? `Nothing changed: ${message}${tail}` : `${message}${tail}`;
+}
 
 export const VERSION = 1;
 export function newGameId() {
@@ -35,7 +72,7 @@ export function openAdventure(state, adventure, ctx) {
   const first = ((adventure || {}).sites || [])[0];
   let out = state;
   const host = { ...ctx, role: 'host', pid: null, ai: false, adventure };
-  for (const enc of (first && first.foes) || []) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, zone: enc.zone }, host);
+  for (const [n, enc] of ((first && first.foes) || []).entries()) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, zone: enc.zone, group: `${first.id}#${n}` }, host);
   for (const c of (first && first.clocks) || []) out = apply(out, { type: 'clock.add', ...c, siteId: first.id, quiet: true }, host);
   return out;
 }
@@ -87,7 +124,7 @@ function addRoll(s, ctx, r) {
 const isHost = (ctx) => ctx.role === 'host';
 function ownPc(s, ctx, pcId) {
   const pc = s.pcs[pcId];
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   if (isHost(ctx)) return pc;
   const p = s.players[ctx.pid];
   if (!p || p.pcId !== pcId) no('That is not your character.');
@@ -95,8 +132,8 @@ function ownPc(s, ctx, pcId) {
 }
 const hostOnly = (ctx) => { if (!isHost(ctx)) no('Only the Dungeon Master can do that.'); };
 
-// A target written "pc:id" or "foe:id", or just a name.
-function target(s, ref) {
+// A target written "pc:id" or "foe:id", or just a name. A near miss is taken (and said, with ctx).
+function target(s, ref, ctx = null) {
   const r = String(ref || '').trim();
   const [k, id] = r.split(':');
   if (k === 'pc' && s.pcs[id]) return { kind: 'pc', id, o: s.pcs[id] };
@@ -106,8 +143,17 @@ function target(s, ref) {
   if (pc) return { kind: 'pc', id: pc.id, o: pc };
   const foe = Object.values(s.foes).find((x) => x.id === r || x.name.toLowerCase() === low);
   if (foe) return { kind: 'foe', id: foe.id, o: foe };
+  // A near miss ("Grisk the bugbear", "Goblin scout1"): the party first, then the monsters here.
+  const pc2 = NAMES.pick(Object.values(s.pcs), r, (x) => [x.id, x.name]);
+  if (pc2) { assume(ctx, `"${r}" is ${pc2.name}.`); return { kind: 'pc', id: pc2.id, o: pc2 }; }
+  const here = Object.values(s.foes).filter((x) => x.siteId === s.scene.siteId);
+  const foe2 = NAMES.pick(here.filter((x) => !x.dead), r, (x) => [x.id, x.name]) || NAMES.pick(here, r, (x) => [x.id, x.name]);
+  if (foe2) { assume(ctx, `"${r}" is ${foe2.name}.`); return { kind: 'foe', id: foe2.id, o: foe2 }; }
   return null;
 }
+// The valid choices, for a refusal.
+const partyNames = (s) => Object.values(s.pcs).filter((p) => !p.dead).map((p) => p.name);
+const foeNamesHere = (s) => Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).map((f) => f.name);
 
 // ---- the fight ----------------------------------------------------------------------------
 const keyOf = (kind, id) => `${kind}:${id}`;
@@ -116,7 +162,7 @@ function freshTurn() { return { action: false, bonus: false, reaction: false, at
 function inTurnCheck(s, ctx, key, what) {
   if (!s.fight || s.fight.phase !== 'turns') return;
   if (isHost(ctx) && !ctx.ai) return; // the human DM may always step in
-  if (currentKey(s) !== key) no(`It is not ${nameOf(s, key)}'s turn. Acting now: ${nameOf(s, currentKey(s)) || 'nobody'}.`);
+  if (currentKey(s) !== key) nop(`It is not ${nameOf(s, key)}'s turn. Acting now: ${nameOf(s, currentKey(s)) || 'nobody'}.`);
   void what;
 }
 function beginTurn(s, ctx) {
@@ -150,14 +196,16 @@ function advance(s, ctx) {
   if (!n) return;
   for (let step = 0; step < n; step++) {
     f.turn += 1;
-    if (f.turn >= n) { f.turn = 0; f.round += 1; }
+    if (f.turn >= n) { f.turn = 0; f.round += 1; emit(ctx, { ev: 'round', n: f.round, site: s.scene.siteId }); }
     const k = f.order[f.turn].key;
     const [kind, id] = k.split(':');
     const alive = kind === 'pc' ? s.pcs[id] && !s.pcs[id].dead : s.foes[id] && !s.foes[id].dead;
-    if (alive) break;
+    if (alive && !surprisedNow(f, k)) break;
   }
   beginTurn(s, ctx);
 }
+// Surprised creatures lose their turn in the first round.
+const surprisedNow = (f, k) => f.round === 1 && (f.surprised || []).includes(k);
 function sortOrder(s) {
   const f = s.fight;
   const dexOf = (k) => { const [kind, id] = k.split(':'); return kind === 'pc' ? (s.pcs[id] || {}).mods?.dex || 0 : (s.foes[id] || {}).dexMod || 0; };
@@ -177,11 +225,12 @@ function startTurns(s, ctx) {
   f.phase = 'turns';
   f.turn = 0;
   f.round = 1;
+  emit(ctx, { ev: 'round', n: 1, site: s.scene.siteId });
   story(s, ctx, 'event', `Initiative: ${f.order.map((o) => nameOf(s, o.key)).join(', ')}.`, 'Engine');
   beginTurn(s, ctx);
-  // Someone dead or gone at the top of the order is passed over at once.
+  // Someone dead, gone or surprised at the top of the order is passed over at once.
   const [kind, id] = f.order[0].key.split(':');
-  if ((kind === 'pc' && s.pcs[id].dead) || (kind === 'foe' && s.foes[id].dead)) advance(s, ctx);
+  if ((kind === 'pc' && s.pcs[id].dead) || (kind === 'foe' && s.foes[id].dead) || surprisedNow(f, f.order[0].key)) advance(s, ctx);
 }
 function joinFight(s, ctx, kind, id, { roll = false } = {}) {
   const f = s.fight;
@@ -264,7 +313,7 @@ function damageFoe(s, ctx, foe, amount, type, { magical = false, crit = false } 
   return { taken: n, notes };
 }
 function healPc(s, ctx, pc, amount) {
-  if (pc.dead) no(`${pc.name} is dead; healing cannot help.`);
+  if (pc.dead) nop(`${pc.name} is dead; healing cannot help.`);
   const n = Math.max(0, Math.trunc(amount));
   const was = pc.hp;
   pc.hp = Math.min(pc.maxHp, pc.hp + n);
@@ -383,7 +432,7 @@ H['pc.rebuild'] = (s, a, ctx) => {
 H['pc.retire'] = (s, a, ctx) => {
   hostOnly(ctx);
   const pc = s.pcs[a.pcId];
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   for (const p of Object.values(s.players)) if (p.pcId === pc.id) p.pcId = null;
   delete s.pcs[pc.id];
   if (s.fight) { const cur = currentKey(s); s.fight.order = s.fight.order.filter((o) => o.key !== keyOf('pc', pc.id)); s.fight.turn = Math.max(0, s.fight.order.findIndex((o) => o.key === cur)); }
@@ -393,7 +442,7 @@ H['pc.retire'] = (s, a, ctx) => {
 H['pc.assign'] = (s, a, ctx) => {
   hostOnly(ctx);
   const pc = s.pcs[a.pcId];
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   for (const p of Object.values(s.players)) if (p.pcId === pc.id) p.pcId = null;
   pc.playerId = null;
   if (a.pid) { const p = s.players[a.pid]; if (!p) no('That player is not at the table.'); p.pcId = pc.id; pc.playerId = p.id; }
@@ -407,7 +456,7 @@ H['pc.assign'] = (s, a, ctx) => {
 const livingPcOf = (s, ctx) => { const p = s.players[ctx.pid]; return p && p.pcId && s.pcs[p.pcId] && !s.pcs[p.pcId].dead ? s.pcs[p.pcId] : null; };
 H['pc.open'] = (s, a, ctx) => {
   const pc = s.pcs[a.pcId] || (!isHost(ctx) && livingPcOf(s, ctx));
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   if (!isHost(ctx) && pc.playerId !== ctx.pid) no('You can only offer your own character.');
   pc.open = a.open !== false;
   if (pc.open && a.leave) {
@@ -423,7 +472,7 @@ H['pc.take'] = (s, a, ctx) => {
   if (!me) no('Join the table first.');
   if (livingPcOf(s, ctx)) no('You already play a living character. Offer it or step back from it first.');
   const pc = s.pcs[a.pcId];
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   if (pc.dead) no(`${pc.name} is dead.`);
   if (pc.playerId === ctx.pid) no(`You already play ${pc.name}.`);
   if (pc.playerId && !pc.open) no(`${pc.name} is played by ${(s.players[pc.playerId] || {}).name || 'someone else'}, who has not offered them.`);
@@ -437,7 +486,7 @@ H['pc.take'] = (s, a, ctx) => {
 };
 H['pc.return'] = (s, a, ctx) => {
   const pc = s.pcs[a.pcId] || (!isHost(ctx) && livingPcOf(s, ctx));
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   if (!isHost(ctx) && pc.playerId !== ctx.pid) no('You can only hand back the character you play.');
   const cur = s.players[pc.playerId];
   if (cur) cur.pcId = null;
@@ -448,18 +497,27 @@ H['pc.return'] = (s, a, ctx) => {
 };
 
 // Clocks: a danger or a plan that fills up (the burning bridge, the invasion of Brindol).
-const findClock = (s, k) => {
+const findClock = (s, k, ctx = null) => {
   const list = s.clocks || [];
   const c = list.find((x) => x.id === k) || list.find((x) => x.name.toLowerCase() === String(k || '').toLowerCase()) || list.find((x) => k && x.name.toLowerCase().includes(String(k).toLowerCase()));
-  if (!c) no(`There is no clock called "${k}". Clocks: ${list.map((x) => `${x.id} (${x.name})`).join(', ') || 'none'}.`);
-  return c;
+  if (c) return c;
+  const near = NAMES.pick(list, k, (x) => [x.id, x.name]);
+  if (near) { assume(ctx, `"${k}" is the clock ${near.name}.`); return near; }
+  refuse(`There is no clock called "${k}". Clocks: ${list.map((x) => `${x.id} (${x.name})`).join(', ') || 'none'}.`, list.map((x) => x.name));
 };
+// A clock this place (or the adventure) sets out but that is not running yet: started when first ticked.
+function declaredClock(s, ctx, k) {
+  const sites = (ctx.adventure || {}).sites || [];
+  const here = sites.find((x) => x.id === s.scene.siteId) || {};
+  const all = [...(here.clocks || []).map((c) => ({ ...c, siteId: here.id })), ...sites.flatMap((x) => (x.clocks || []).filter((c) => c.global).map((c) => ({ ...c, siteId: x.id })))];
+  return all.find((c) => c.name.toLowerCase() === String(k || '').toLowerCase()) || NAMES.pick(all, k, (c) => [c.name]);
+}
 H['clock.add'] = (s, a, ctx) => {
   hostOnly(ctx);
   const name = str(a.name, 60);
   if (!name) no('Name the clock.');
   s.clocks = s.clocks || [];
-  if (s.clocks.some((c) => c.name.toLowerCase() === name.toLowerCase() && !c.done)) no(`There is already a clock called "${name}".`);
+  if (s.clocks.some((c) => c.name.toLowerCase() === name.toLowerCase() && !c.done)) nop(`There is already a clock called "${name}".`);
   const size = Math.max(2, Math.min(12, Math.trunc(Number(a.size) || 4)));
   const c = { id: nextId(s, 'k'), name, size, filled: Math.max(0, Math.min(size, Math.trunc(Number(a.filled) || 0))), note: str(a.note, 300), hidden: !!a.hidden, done: false, siteId: a.global ? '' : str(a.siteId, 40) };
   s.clocks.push(c);
@@ -468,8 +526,21 @@ H['clock.add'] = (s, a, ctx) => {
 };
 H['clock.tick'] = (s, a, ctx) => {
   hostOnly(ctx);
-  const c = findClock(s, a.id || a.name);
-  if (c.done && (Number(a.by) || 1) > 0) no(`${c.name} is already full.`);
+  const k = a.id || a.name;
+  const running = (s.clocks || []).some((x) => x.id === k || x.name.toLowerCase() === String(k || '').toLowerCase());
+  const plan = !running && declaredClock(s, ctx, k);
+  if (plan && !(s.clocks || []).some((x) => x.name === plan.name)) {
+    H['clock.add'](s, { ...plan, quiet: true }, ctx);
+    assume(ctx, `The clock "${plan.name}" was not running yet, so it started (${plan.size} segments).`);
+  }
+  // A clock that is running nowhere and that nothing here sets out: nothing to tick.
+  const list = s.clocks || [];
+  if (!plan && !list.some((x) => x.id === k || x.name.toLowerCase() === String(k || '').toLowerCase() || (k && x.name.toLowerCase().includes(String(k).toLowerCase()))) && !NAMES.pick(list, k, (x) => [x.id, x.name])) {
+    const here = list.filter((x) => !x.done && (!x.siteId || x.siteId === s.scene.siteId)).map((x) => x.name);
+    nop(`No clock called "${k}" is running here. Running: ${here.join(', ') || 'none'}.`, { options: here, hint: 'Start it first (the clock tool\'s start), or tick one that is running.' });
+  }
+  const c = findClock(s, plan ? plan.name : k, ctx);
+  if (c.done && (Number(a.by) || 1) > 0) nop(`${c.name} is already full.`);
   const by = Math.trunc(Number(a.by ?? 1)) || 1;
   c.filled = Math.max(0, Math.min(c.size, c.filled + by));
   if (c.filled >= c.size) { c.done = true; story(s, ctx, 'event', `${c.name}: the clock is full. ${c.note}`, 'Engine'); }
@@ -478,7 +549,7 @@ H['clock.tick'] = (s, a, ctx) => {
 };
 H['clock.remove'] = (s, a, ctx) => {
   hostOnly(ctx);
-  const c = findClock(s, a.id || a.name);
+  const c = findClock(s, a.id || a.name, ctx);
   s.clocks = s.clocks.filter((x) => x !== c);
   log(s, ctx, `Clock removed: ${c.name}.`);
 };
@@ -505,14 +576,30 @@ H['note.host'] = (s, a, ctx) => { hostOnly(ctx); s.notes = String(a.text || '').
 H['roll.ask'] = (s, a, ctx) => {
   hostOnly(ctx);
   const kind = a.kind === 'save' ? 'save' : 'check';
-  const ids = (a.pcIds && a.pcIds.length ? a.pcIds : [a.pcId]).map((x) => (target(s, x) || {}).id).filter((x) => x && s.pcs[x]);
-  if (!ids.length) no(`Name a character to roll. In the party: ${Object.values(s.pcs).map((p) => `${p.id} (${p.name})`).join(', ') || 'nobody yet'}.`);
+  const ids = (a.pcIds && a.pcIds.length ? a.pcIds : [a.pcId]).map((x) => (target(s, x, ctx) || {}).id).filter((x) => x && s.pcs[x]);
+  if (!ids.length) refuse(`Name a character to roll. In the party: ${Object.values(s.pcs).map((p) => `${p.id} (${p.name})`).join(', ') || 'nobody yet'}.`, partyNames(s));
   let ability = String(a.ability || '').toLowerCase().slice(0, 3);
-  const skill = String(a.skill || '').toLowerCase().replace(/\s+/g, '-');
-  if (skill) { const sk = R.index(ctx.srd).skill[skill]; if (!sk) no(`There is no skill called "${a.skill}". Skills: ${ctx.srd.skills.map((x) => x.id).join(', ')}.`); if (kind === 'save') no('A saving throw uses an ability, not a skill.'); ability = sk.ability; }
-  if (!R.ABILITIES.includes(ability)) no('Say which ability the roll uses (str, dex, con, int, wis or cha), or a skill.');
-  const dc = Math.trunc(Number(a.dc));
-  if (!(dc >= 1 && dc <= 35)) no('Give a DC between 1 and 35 (5 very easy, 10 easy, 15 medium, 20 hard, 25 very hard).');
+  let skill = a.skill ? (NAMES.skill(a.skill, ctx.srd.skills) || String(a.skill).toLowerCase().replace(/\s+/g, '-')) : '';
+  if (skill && R.index(ctx.srd).skill[skill] && String(a.skill).toLowerCase().replace(/\s+/g, '-') !== skill) assume(ctx, `"${a.skill}" is the ${R.index(ctx.srd).skill[skill].name} skill.`);
+  if (skill && !R.index(ctx.srd).skill[skill]) {
+    // An ability named as the skill ("strength"): a plain ability check.
+    const ab = R.ABILITIES.find((x) => skill.startsWith(x));
+    if (!ab) refuse(`There is no skill called "${a.skill}". Skills: ${ctx.srd.skills.map((x) => x.id).join(', ')}.`, ctx.srd.skills.map((x) => x.id));
+    assume(ctx, `"${a.skill}" is not a skill: a plain ${R.ABILITY_NAMES[ab]} ${kind === 'save' ? 'save' : 'check'}.`);
+    ability = ab; skill = '';
+  }
+  if (skill) {
+    const sk = R.index(ctx.srd).skill[skill];
+    ability = sk.ability;
+    // A save names an ability, not a skill: the skill's own ability ("an Acrobatics save" is a Dexterity save).
+    if (kind === 'save') { assume(ctx, `A save uses an ability, not a skill: a ${R.ABILITY_NAMES[ability]} save (${sk.name} uses ${R.ABILITY_NAMES[ability]}).`); skill = ''; }
+  }
+  if (!R.ABILITIES.includes(ability)) refuse('Say which ability the roll uses (str, dex, con, int, wis or cha), or a skill.', R.ABILITIES);
+  let dc = Math.trunc(Number(a.dc));
+  if (!Number.isFinite(dc) || dc <= 0) { dc = 13; assume(ctx, 'No DC was given: DC 13 (medium).'); }
+  if (dc > 35) { dc = 35; assume(ctx, 'A DC is at most 35: DC 35.'); }
+  // A batch: the rolls asked together, so the adventure's rules can read the group's result.
+  const batch = nextId(s, 'b');
   for (const id of ids) {
     if (s.pcs[id].dead) continue;
     s.requests = s.requests.filter((q) => !(q.pcId === id && q.kind === kind && q.ability === ability && q.skill === skill));
@@ -531,14 +618,14 @@ H['roll.ask'] = (s, a, ctx) => {
         if (sp && /at the end of each of its turns/i.test(String((sp.data || {}).desc || ''))) effect.repeat = { foeId: f.id, spell: sp.name };
       }
     }
-    s.requests.push({ id: nextId(s, 'q'), pcId: id, kind, ability, skill, dc, adv: a.adv === 'adv' || a.adv === 'dis' ? a.adv : '', reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, group: ids.length > 1 ? true : undefined, effect });
+    s.requests.push({ id: nextId(s, 'q'), pcId: id, kind, ability, skill, dc, adv: a.adv === 'adv' || a.adv === 'dis' ? a.adv : '', reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, group: ids.length > 1 ? true : undefined, effect, batch, site: s.scene.siteId });
   }
 };
 H['roll.cancel'] = (s, a, ctx) => { hostOnly(ctx); s.requests = s.requests.filter((q) => q.id !== a.id); };
 
 H['roll.make'] = (s, a, ctx) => {
   const q = s.requests.find((x) => x.id === a.id);
-  if (!q) no('That roll is no longer asked for.');
+  if (!q) nop('That roll is no longer asked for.');
   const pc = ownPc(s, ctx, q.pcId);
   if (pc.dead) no(`${pc.name} is dead.`);
   const own = Array.isArray(a.own) && a.own.length ? a.own : null;
@@ -569,6 +656,20 @@ H['roll.make'] = (s, a, ctx) => {
   const success = q.kind === 'save' && r.fx.fail ? false : r.total >= q.dc;
   const what = q.kind === 'save' ? `${R.ABILITY_NAMES[q.ability]} saving throw` : q.skill ? `${R.index(ctx.srd).skill[q.skill].name} check` : `${R.ABILITY_NAMES[q.ability]} check`;
   addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: q.kind, label: what, dice: r.rolls, mod: r.bonus, total: r.total, at: q.dc, success, mode: r.mode, why: r.fx.why, lucky: r.lucky, reason: q.reason });
+  // The group's result, once every roll of the batch is in (half or more succeed, as a group check):
+  // the adventure's rules read it ("on a failed Perception check, the goblins get surprise").
+  if (q.batch) {
+    const b = (s.batches = s.batches || {});
+    const row = b[q.batch] || (b[q.batch] = { site: q.site || s.scene.siteId, kind: q.kind, skill: q.skill, ability: q.ability, ok: 0, n: 0 });
+    row.n += 1; if (success) row.ok += 1;
+    if (!s.requests.some((x) => x.batch === q.batch)) {
+      s.outcomes = s.outcomes || [];
+      s.outcomes.push({ seq: s.seq, site: row.site, kind: row.kind, skill: row.skill, ability: row.ability, ok: row.ok * 2 >= row.n });
+      if (s.outcomes.length > 200) s.outcomes.splice(0, s.outcomes.length - 200);
+      if (row.kind === 'check') emit(ctx, { ev: row.ok * 2 >= row.n ? 'succeed' : 'fail', skill: row.skill || String(R.ABILITY_NAMES[row.ability] || row.ability).toLowerCase(), site: row.site });
+      delete b[q.batch];
+    }
+  }
   let text = `${pc.name} ${success ? 'succeeds on' : 'fails'} a ${what}${advWord(r)}${r.fx.fail ? ' (automatically)' : ''}.`;
   if (q.effect && q.effect.concentration) {
     if (!success) dropConcentration(s, ctx, pc, 'failed the concentration save');
@@ -608,32 +709,47 @@ H['roll.free'] = (s, a, ctx) => {
 // ---- combat ----------------------------------------------------------------------------------
 H['fight.start'] = (s, a, ctx) => {
   hostOnly(ctx);
-  if (s.fight) no('A fight is already on.');
+  if (s.fight) nop('A fight is already on.');
+  fitFoes(s, ctx, s.scene.siteId);
   const foes = Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead && (a.foeIds ? a.foeIds.includes(f.id) : true));
-  if (!foes.length) no('There is nothing here to fight. Add monsters first.');
+  if (!foes.length) refuse('There is nothing here to fight.', [], 'Add monsters first (add_monsters), or narrate the danger without a fight.');
   const pcs = Object.values(s.pcs).filter((p) => !p.dead);
   if (!pcs.length) no('Nobody in the party can fight.');
-  s.fight = { phase: 'initiative', round: 0, turn: 0, order: [], used: freshTurn(), xp: 0, surprised: (a.surprised || []).slice(0, 20) };
+  s.fight = { phase: 'initiative', round: 0, turn: 0, order: [], used: freshTurn(), xp: 0, surprised: [] };
+  s.fight.surprised = surprisedKeys(s, ctx, [].concat(a.surprised || [], a.surprise ? [a.surprise] : []), foes, pcs);
   for (const f of foes) { f.hidden = false; joinFight(s, ctx, 'foe', f.id); }
   for (const p of pcs) {
     joinFight(s, ctx, 'pc', p.id, { roll: !!a.autoRoll || !p.playerId });
     if (!a.autoRoll && p.playerId) s.requests.push({ id: nextId(s, 'q'), pcId: p.id, kind: 'initiative', ability: 'dex', skill: '', dc: 0, adv: '', reason: 'Roll initiative!', by: 'engine', t: ctx.now || 0 });
   }
   story(s, ctx, 'event', `Battle! ${foes.map((f) => f.name).join(', ')}. Roll initiative.`, 'Engine');
+  if (s.fight.surprised.length) story(s, ctx, 'event', `Surprised: ${s.fight.surprised.map((k) => nameOf(s, k)).join(', ')} (no turn in the first round).`, 'Engine');
   if (s.fight.order.every((o) => o.init != null)) startTurns(s, ctx);
 };
+// Who is surprised: names, or "party" / "foes" for a whole side.
+function surprisedKeys(s, ctx, list, foes, pcs) {
+  const out = [];
+  for (const x of list.slice(0, 20)) {
+    const w = String(x || '').toLowerCase().trim();
+    if (!w) continue;
+    if (/^(the )?(party|heroes|characters|players|pcs)$/.test(w)) out.push(...pcs.map((p) => keyOf('pc', p.id)));
+    else if (/^(the )?(foes|monsters|enemies|them|enemy)$/.test(w)) out.push(...foes.map((f) => keyOf('foe', f.id)));
+    else { const t = target(s, x, ctx); if (t) out.push(keyOf(t.kind, t.id)); }
+  }
+  return [...new Set(out)];
+}
 // Start without waiting for slow initiative rolls: the Engine rolls for whoever has not.
 H['fight.begin'] = (s, a, ctx) => {
   hostOnly(ctx);
-  if (!s.fight || s.fight.phase !== 'initiative') no('There is no initiative being rolled.');
+  if (!s.fight || s.fight.phase !== 'initiative') nop('There is no initiative being rolled.');
   startTurns(s, ctx);
 };
 // The DM types in an initiative rolled at the table.
 H['fight.init'] = (s, a, ctx) => {
   hostOnly(ctx);
-  if (!s.fight) no('There is no fight.');
+  if (!s.fight) nop('There is no fight.');
   const o = s.fight.order.find((x) => x.key === a.key);
-  if (!o) no('They are not in the fight.');
+  if (!o) refuse('They are not in the fight.', s.fight.order.map((x) => nameOf(s, x.key)));
   const n = Math.trunc(Number(a.init));
   if (!(n >= -5 && n <= 40)) no('Initiative is a number such as 14.');
   const cur = currentKey(s);
@@ -644,9 +760,9 @@ H['fight.init'] = (s, a, ctx) => {
 };
 H['fight.add'] = (s, a, ctx) => {
   hostOnly(ctx);
-  if (!s.fight) no('There is no fight to join.');
-  const t = target(s, a.target);
-  if (!t) no('Name a character or monster to add.');
+  if (!s.fight) nop('There is no fight to join.');
+  const t = target(s, a.target, ctx);
+  if (!t) refuse(`Nobody called "${a.target}" is here to add.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe') t.o.hidden = false;
   joinFight(s, ctx, t.kind, t.id, { roll: true });
 };
@@ -677,13 +793,13 @@ function endOfTurnSaves(s, ctx, key) {
 }
 
 H['fight.next'] = (s, a, ctx) => {
-  if (!s.fight || s.fight.phase !== 'turns') no('No turns are being taken.');
+  if (!s.fight || s.fight.phase !== 'turns') nop('No turns are being taken.');
   const cur = currentKey(s);
   if (!isHost(ctx)) {
     const p = s.players[ctx.pid];
     if (!p || keyOf('pc', p.pcId) !== cur) no('Only the one whose turn it is can end it.');
   }
-  if (ctx.ai && a.expect && a.expect !== cur) no(`It is ${nameOf(s, cur)}'s turn, not ${nameOf(s, a.expect) || a.expect}'s.`);
+  if (ctx.ai && a.expect && a.expect !== cur) nop(`It is ${nameOf(s, cur)}'s turn, not ${nameOf(s, a.expect) || a.expect}'s.`);
   releaseHolds(s, ctx);
   endOfTurnSaves(s, ctx, cur);
   advance(s, ctx);
@@ -692,7 +808,7 @@ H['fight.next'] = (s, a, ctx) => {
 };
 H['fight.end'] = (s, a, ctx) => {
   hostOnly(ctx);
-  if (!s.fight) no('There is no fight to end.');
+  if (!s.fight) nop('There is no fight to end.');
   const xp = (s.fight.xp || 0) + (s.unspentXp || 0);
   s.unspentXp = 0;
   const alive = Object.values(s.pcs).filter((p) => !p.dead);
@@ -723,14 +839,13 @@ H.attack = (s, a, ctx) => {
   const pc = ownPc(s, ctx, a.pcId);
   if (pc.dead || pc.hp <= 0) no(`${pc.name} cannot attack while down.`);
   if (R.incapacitated(pc.conds)) no(`${pc.name} is ${pc.conds.find((c) => ['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious'].includes(c))} and cannot act.`);
-  const atk = (pc.attacks || []).find((x) => x.id === a.attack || x.name.toLowerCase() === String(a.attack || '').toLowerCase());
-  if (!atk) no(`${pc.name} has no attack called "${a.attack}". Attacks: ${(pc.attacks || []).map((x) => x.name).join(', ')}.`);
-  const t = target(s, a.target);
+  const atk = pickAttack(pc, a.attack, ctx);
+  const t = target(s, a.target, ctx);
   if (!a.target) return freeAttack(s, a, ctx, pc, atk);
-  if (!t || t.kind !== 'foe') no('Choose a monster to attack.');
+  if (!t || t.kind !== 'foe') refuse(`Choose a monster to attack${t ? `: ${t.o.name} is one of the party` : ''}.`, foeNamesHere(s));
   const foe = t.o;
-  if (foe.dead) no(`${foe.name} is already down.`);
-  if (foe.siteId !== s.scene.siteId) no(`${foe.name} is not here.`);
+  if (foe.dead) nop(`${foe.name} is already down.`, { options: foeNamesHere(s) });
+  if (foe.siteId !== s.scene.siteId) refuse(`${foe.name} is not here.`, foeNamesHere(s));
   inTurnCheck(s, ctx, keyOf('pc', pc.id), 'attack');
   const f = s.fight;
   const bonusAction = !!a.bonus;
@@ -796,7 +911,20 @@ H.attack = (s, a, ctx) => {
   } else text += r.kept === 1 ? ': a natural 1, a miss.' : ': a miss.';
   addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'attack', label: `${atk.name} vs ${foe.name}`, dice: r.rolls, mod: atk.hit, total, at: foe.ac, success: hit, crit: critHit, mode: r.mode, why: [...self.why, ...tfx.why, ...mfx.why], dmg: dmgRow, hideAt: true });
   story(s, ctx, 'event', text, 'Engine', { roll: true });
+  // An attack with no fight on starts one: the attacker struck first.
+  if (!f) hostileAct(s, ctx, keyOf('pc', pc.id));
 };
+// The attack a character means: its id or name, a near name, or their only (or first) weapon when none is named.
+function pickAttack(pc, ref, ctx) {
+  const list = pc.attacks || [];
+  const k = String(ref || '').toLowerCase().trim();
+  const exact = list.find((x) => x.id === ref || x.name.toLowerCase() === k);
+  if (exact) return exact;
+  const near = k && NAMES.pick(list, ref, (x) => [x.id, x.name, x.id.replace(/^w:/, '')]);
+  if (near) { assume(ctx, `"${ref}" is ${pc.name}'s ${near.name}.`); return near; }
+  if (!k && list.length) { assume(ctx, `No attack was named: ${pc.name} uses their ${list[0].name}.`); return list[0]; }
+  refuse(`${pc.name} has no attack called "${ref}". Attacks: ${list.map((x) => x.name).join(', ') || 'none'}.`, list.map((x) => x.name));
+}
 
 // An attack with no monster on the table (a game run on paper, or the Assistant): the Engine rolls
 // to hit and the damage, and the DM says whether it lands.
@@ -823,12 +951,16 @@ H['spell.cast'] = (s, a, ctx) => {
   if (pc.dead || pc.hp <= 0) no(`${pc.name} cannot cast while down.`);
   if (R.incapacitated(pc.conds)) no(`${pc.name} cannot act right now.`);
   if (pc.raging) no('A raging barbarian cannot cast spells.');
-  const sp = R.index(ctx.srd).spell[a.spell];
-  if (!sp) no(`There is no spell called "${a.spell}".`);
   const c = pc.cast;
-  if (!c) no(`${pc.name} does not cast spells.`);
+  if (!c) refuse(`${pc.name} does not cast spells.`, (pc.attacks || []).map((x) => x.name), 'Attack instead, or act another way.');
+  const ix = R.index(ctx.srd);
+  const own = [...new Set([...c.cantrips, c.raceCantrip, ...(c.kind === 'prepared' ? c.prepared : c.known)].filter(Boolean))].map((id) => ix.spell[id]).filter(Boolean);
+  let sp = ix.spell[a.spell] || ctx.srd.spells.find((x) => x.name.toLowerCase() === String(a.spell || '').toLowerCase().trim());
+  // A near name: their own spells first ("cure wound", "guiding bolt"), then any spell.
+  if (!sp) { sp = NAMES.pick(own, a.spell, (x) => [x.id, x.name]) || NAMES.pick(ctx.srd.spells, a.spell, (x) => [x.id, x.name]); if (sp) assume(ctx, `"${a.spell}" is ${sp.name}.`); }
+  if (!sp) refuse(`There is no spell called "${a.spell}".`, own.map((x) => x.name));
   const can = sp.level === 0 ? [...c.cantrips, c.raceCantrip].includes(sp.id) : (c.kind === 'prepared' ? c.prepared : c.known).includes(sp.id);
-  if (!can && !(c.spellbook && a.ritual && sp.ritual && c.known.includes(sp.id))) no(`${pc.name} does not have ${sp.name} ${c.kind === 'prepared' ? 'prepared' : 'known'}.`);
+  if (!can && !(c.spellbook && a.ritual && sp.ritual && c.known.includes(sp.id))) refuse(`${pc.name} does not have ${sp.name} ${c.kind === 'prepared' ? 'prepared' : 'known'}.`, own.map((x) => x.name));
   const ritual = !!a.ritual && sp.ritual;
   const lvl = sp.level === 0 ? 0 : Math.max(sp.level, Math.trunc(Number(a.level) || sp.level));
   inTurnCheck(s, ctx, keyOf('pc', pc.id), 'cast');
@@ -841,13 +973,14 @@ H['spell.cast'] = (s, a, ctx) => {
   }
   if (lvl > 0 && !ritual) {
     const slot = c.slots[lvl - 1];
-    if (!slot || !slot[0]) no(`${pc.name} has no ${R.ordinal(lvl)}-level spell slots.`);
-    if (slot[1] >= slot[0]) no(`${pc.name} has no ${R.ordinal(lvl)}-level spell slots left.`);
+    const left = c.slots.map(([m, u], n) => (m > u && n + 1 >= sp.level ? `${R.ordinal(n + 1)} level (${m - u} left)` : '')).filter(Boolean);
+    if (!slot || !slot[0]) refuse(`${pc.name} has no ${R.ordinal(lvl)}-level spell slots.`, left, left.length ? 'Cast it with a slot they still have.' : 'They have no slot for it: a cantrip or an attack instead.');
+    if (slot[1] >= slot[0]) refuse(`${pc.name} has no ${R.ordinal(lvl)}-level spell slots left.`, left, left.length ? 'Cast it with a higher slot they still have.' : 'They have no slot for it: a cantrip or an attack instead.');
     slot[1] += 1;
   }
   if (sp.conc) { if (pc.conc) dropConcentration(s, ctx, pc, `cast ${sp.name}`); pc.conc = { id: sp.id, name: sp.name, since: s.seq }; }
   const lines = [`${pc.name} casts ${sp.name}${lvl > sp.level ? ` at ${R.ordinal(lvl)} level` : ''}${ritual ? ' as a ritual' : ''}.`];
-  const targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x)).filter(Boolean).slice(0, 12);
+  const targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x, ctx)).filter(Boolean).slice(0, 12);
   const dmgExpr = sp.dmgSlot ? sp.dmgSlot[lvl] || sp.dmgSlot[sp.level] : sp.dmgLevel ? sp.dmgLevel[Object.keys(sp.dmgLevel).map(Number).filter((n) => n <= pc.level).sort((x, y) => y - x)[0]] : '';
   const am = pc.mods[c.ability] || 0;
   // Magic Missile never misses: three darts, one more per slot level above 1st.
@@ -926,6 +1059,8 @@ H['spell.cast'] = (s, a, ctx) => {
     lines.push(`It restores ${d.total} hit points.`);
   }
   story(s, ctx, 'event', lines.join(' '), 'Engine', { roll: true });
+  // A harmful spell at a monster with no fight on starts one: the caster struck first.
+  if (!s.fight && targets.some((t) => t.kind === 'foe') && (sp.attack || sp.save || dmgExpr || sp.id === 'magic-missile')) hostileAct(s, ctx, keyOf('pc', pc.id));
 };
 
 H['slot.set'] = (s, a, ctx) => {
@@ -940,7 +1075,7 @@ H['conc.end'] = (s, a, ctx) => { const pc = ownPc(s, ctx, a.pcId); dropConcentra
 H['resource.use'] = (s, a, ctx) => {
   const pc = ownPc(s, ctx, a.pcId);
   const r = (pc.resources || []).find((x) => x.id === a.id);
-  if (!r) no(`${pc.name} has no ${a.id}.`);
+  if (!r) refuse(`${pc.name} has no ${a.id}.`, (pc.resources || []).map((x) => x.name));
   const n = Math.max(1, Math.trunc(Number(a.amount) || 1));
   if (r.used + n > r.max) no(`${pc.name} has no ${r.name} left${r.pool ? ` (${r.max - r.used} points)` : ''}.`);
   if (r.id === 'rage') {
@@ -960,14 +1095,14 @@ H['resource.use'] = (s, a, ctx) => {
     return;
   }
   if (r.id === 'layonhands') {
-    const t = target(s, a.target) || { kind: 'pc', o: pc };
+    const t = target(s, a.target, ctx) || { kind: 'pc', o: pc };
     if (t.kind !== 'pc') no('Lay on Hands heals a character.');
     const got = healPc(s, ctx, t.o, n);
     story(s, ctx, 'event', `${pc.name} lays healing hands on ${t.o.name}: ${got} hit points restored.`, 'Engine');
     return;
   }
   if (r.id === 'breath') {
-    const targets = (a.targets || []).map((x) => target(s, x)).filter((t) => t && t.kind === 'foe');
+    const targets = (a.targets || []).map((x) => target(s, x, ctx)).filter((t) => t && t.kind === 'foe');
     const d = rollDice(r.dmg, ctx.rng);
     const lines = [`${pc.name} breathes ${r.type}!`];
     for (const t of targets) {
@@ -1001,10 +1136,22 @@ H['foe.add'] = (s, a, ctx) => {
   hostOnly(ctx);
   const ix = R.index(ctx.srd);
   const key = String(a.monster || '').toLowerCase().trim();
-  const m = ix.monster[key] || ix.monster[key.replace(/\s+/g, '-')] || ctx.srd.monsters.find((x) => x.name.toLowerCase() === key);
-  if (!m) no(`There is no monster called "${a.monster}" in the SRD. Try one of: ${ctx.srd.monsters.filter((x) => x.name.toLowerCase().includes(key.split(/\s+/)[0] || '')).slice(0, 8).map((x) => x.id).join(', ') || 'goblin, wolf, skeleton, zombie, orc'}.`);
-  const count = Math.max(1, Math.min(12, Math.trunc(Number(a.count) || 1)));
-  if (ctx.ai && Object.values(s.foes).filter((f) => !f.dead && f.siteId === s.scene.siteId).length + count > 12) no('That is too many monsters in one place.');
+  let m = ix.monster[key] || ix.monster[key.replace(/\s+/g, '-')] || ctx.srd.monsters.find((x) => x.name.toLowerCase() === key);
+  // A near name ("goblins", "giant rats", "Skeleton warrior"): one monster it can only mean.
+  if (!m && key) {
+    const sing = key.replace(/(?<=[a-z])(?:es|s)$/, '');
+    m = ix.monster[sing] || ix.monster[sing.replace(/\s+/g, '-')] || NAMES.pick(ctx.srd.monsters, key, (x) => [x.id, x.name]) || NAMES.pick(ctx.srd.monsters, sing, (x) => [x.id, x.name]);
+    if (m) assume(ctx, `"${a.monster}" is the ${m.name}.`);
+  }
+  const like = ctx.srd.monsters.filter((x) => x.name.toLowerCase().includes(key.split(/\s+/)[0] || '')).slice(0, 8).map((x) => x.id);
+  if (!m) refuse(`There is no monster called "${a.monster}" in the SRD. Try one of: ${like.join(', ') || 'goblin, wolf, skeleton, zombie, orc'}.`, like);
+  let count = Math.max(1, Math.min(12, Math.trunc(Number(a.count) || 1)));
+  const standing = Object.values(s.foes).filter((f) => !f.dead && f.siteId === (a.siteId || s.scene.siteId)).length;
+  if (ctx.ai && standing + count > 12) {
+    if (standing >= 12) refuse('That is too many monsters in one place: twelve are already standing here.', foeNamesHere(s));
+    assume(ctx, `Only ${12 - standing} more could be placed (twelve monsters at most in one place).`);
+    count = 12 - standing;
+  }
   const base = str(a.name, 30) || m.name;
   const same = Object.values(s.foes).filter((f) => f.base === base).length;
   const out = [];
@@ -1014,6 +1161,7 @@ H['foe.add'] = (s, a, ctx) => {
     const hp = a.rollHp ? rollDice(m.hd, ctx.rng).total || m.hp : m.hp;
     s.foes[id] = { id, mid: m.id, base, name: label, siteId: a.siteId || s.scene.siteId, hp, maxHp: hp, ac: m.ac, dexMod: R.mod(m.ab[1]), xp: m.xp, cr: m.cr, conds: [], dead: false, hidden: !!a.hidden, spent: {}, note: str(a.note, 200), legendary: m.legendary ? 3 : null };
     if (a.zone) s.foes[id].zone0 = str(a.zone, 40); // where on the map it starts (the adventure's zone for it)
+    if (a.group != null) s.foes[id].group = String(a.group); // which of the place's foe groups (for fitting fights)
     out.push(s.foes[id]);
     if (s.fight && !a.hidden && (a.siteId || s.scene.siteId) === s.scene.siteId) joinFight(s, ctx, 'foe', id);
   }
@@ -1024,32 +1172,43 @@ H['foe.add'] = (s, a, ctx) => {
 H['foe.reveal'] = (s, a, ctx) => {
   hostOnly(ctx);
   const list = Object.values(s.foes).filter((f) => f.hidden && f.siteId === s.scene.siteId && (!a.foeIds || a.foeIds.includes(f.id)));
-  if (!list.length) no('Nothing is hidden here.');
+  if (!list.length) nop('Nothing is hidden here.');
   for (const f of list) f.hidden = false;
   story(s, ctx, 'event', `${list.map((f) => f.name).join(', ')} ${list.length > 1 ? 'are' : 'is'} revealed.`, 'Engine');
 };
 H['foe.remove'] = (s, a, ctx) => {
   hostOnly(ctx);
-  const f = s.foes[a.foeId];
-  if (!f) no('There is no such monster.');
+  const f = s.foes[a.foeId] || (target(s, a.foeId, ctx) || {}).o;
+  if (!f || !s.foes[f.id]) refuse('There is no such monster.', foeNamesHere(s));
   delete s.foes[f.id];
   if (s.fight) { const cur = currentKey(s); s.fight.order = s.fight.order.filter((o) => o.key !== keyOf('foe', f.id)); s.fight.turn = Math.max(0, s.fight.order.findIndex((o) => o.key === cur)); if (!s.fight.order.length) s.fight = null; }
   log(s, ctx, `${f.name} was removed.`);
 };
 H['foe.flee'] = (s, a, ctx) => {
   hostOnly(ctx);
-  const f = s.foes[a.foeId];
-  if (!f || f.dead) no('There is no such monster standing.');
+  const t = s.foes[a.foeId] ? { o: s.foes[a.foeId] } : target(s, a.foeId, ctx);
+  const f = t && s.foes[t.o.id] ? t.o : null;
+  if (f && f.dead) nop(`${f.name} is already ${f.fled ? 'gone' : 'down'}.`, { options: foeNamesHere(s) });
+  if (!f) refuse('There is no such monster standing.', foeNamesHere(s));
   f.dead = true; f.fled = true;
   if (s.fight) s.fight.xp = (s.fight.xp || 0) + (f.xp || 0);
   story(s, ctx, 'event', `${f.name} flees.`, 'Engine');
 };
 
-// A monster's action from its stat block, against a character.
+// A monster's action from its stat block, against a character. One that strikes or catches a character
+// with no fight on starts one (the monster struck first).
 H['foe.act'] = (s, a, ctx) => {
+  const calm = !s.fight;
+  const rolls = s.rolls.length; const asks = s.requests.length;
+  foeAct(s, a, ctx);
+  const struck = s.rolls.slice(rolls).some((r) => r.kind === 'attack') || s.requests.slice(asks).some((q) => q.kind === 'save');
+  if (calm && !s.fight && struck) { const f = s.foes[a.foeId] || (target(s, a.foeId) || {}).o; hostileAct(s, ctx, f ? keyOf('foe', f.id) : ''); }
+};
+function foeAct(s, a, ctx) {
   hostOnly(ctx);
-  const foe = s.foes[a.foeId] || (target(s, a.foeId) || {}).o;
-  if (!foe || foe.dead) no('Name a monster that is still standing.');
+  const foe = s.foes[a.foeId] || (target(s, a.foeId, ctx) || {}).o;
+  if (foe && foe.dead) nop(`${foe.name} has already fallen and cannot act.`, { options: foeNamesHere(s), hint: 'Act for a monster still standing, or end its turn.' });
+  if (!foe || !s.foes[foe.id]) refuse(`No monster called "${a.foeId}" is here.`, foeNamesHere(s));
   const m = monsterOf(ctx, foe);
   const pool = [...(m.actions || []), ...(m.reactions || []), ...(m.legendary || [])];
   // The actions every creature has (PHB/SRD "Actions in Combat"), whatever its stat block lists.
@@ -1057,41 +1216,69 @@ H['foe.act'] = (s, a, ctx) => {
   const STD = { dash: 'Dash', disengage: 'Disengage', dodge: 'Dodge', hide: 'Hide', help: 'Help', ready: 'Ready', search: 'Search', 'use an object': 'Use an Object' };
   const stdKey = String(a.action || '').toLowerCase().trim();
   if (STD[stdKey]) {
-    if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
+    if (R.incapacitated(foe.conds)) nop(`${foe.name} cannot act right now.`);
     if (ctx.ai && s.fight && s.fight.phase === 'turns') inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
     story(s, ctx, 'event', `${foe.name} takes the ${STD[stdKey]} action.`, 'Engine');
     return;
   }
-  const act = pool.find((x) => x.n.toLowerCase() === String(a.action || '').toLowerCase()) || pool.find((x) => x.n.toLowerCase().startsWith(String(a.action || '').toLowerCase().slice(0, 5)) && a.action);
+  let act = pool.find((x) => x.n.toLowerCase() === String(a.action || '').toLowerCase()) || pool.find((x) => x.n.toLowerCase().startsWith(String(a.action || '').toLowerCase().slice(0, 5)) && a.action);
   // A spell from the stat block's Spellcasting trait (bench 21 Nov: Brother Aldane's hold person and
   // spiritual weapon were refused three runs out of three).
+  const book = monsterSpells(m, ctx.srd);
+  const spellWord = String(a.action || '').toLowerCase().replace(/^cast(?:s|ing)?\s+/, '').trim();
   if (!act) {
-    const book = monsterSpells(m, ctx.srd);
-    const sp = book && book.spells.find((x) => x.name.toLowerCase() === String(a.action || '').toLowerCase().replace(/^cast(?:s|ing)?\s+/, '').trim());
+    const sp = book && book.spells.find((x) => x.name.toLowerCase() === spellWord);
     if (sp) { castMonsterSpell(s, ctx, foe, book, sp, a); return; }
   }
-  if (!act) {
-    const book = monsterSpells(m, ctx.srd);
-    no(`${foe.name} has no action called "${a.action}". Its actions: ${pool.map((x) => x.n).join(', ')}${book ? `. Spells it can cast: ${book.spells.map((x) => x.name).join(', ')}` : ''}.`);
+  // A near name ("Morning star", "bite attack"), then a near spell name.
+  if (!act && a.action) { act = NAMES.pick(pool, a.action, (x) => [x.n]); if (act) assume(ctx, `"${a.action}" is ${foe.name}'s ${act.n}.`); }
+  if (!act && book) {
+    const sp = NAMES.pick(book.spells, spellWord, (x) => [x.name]);
+    if (sp) { assume(ctx, `"${a.action}" is ${sp.name}.`); castMonsterSpell(s, ctx, foe, book, sp, a); return; }
   }
-  if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
+  // A weapon the stat block calls something else (bench part 3, 24 Nov: "Scimitar" on a skeleton with a
+  // Shortsword): it attacks with the weapon it has, the ranged one for a shot.
+  const isSpell = ctx.srd.spells.some((x) => x.name.toLowerCase() === spellWord);
+  if (!act && !isSpell && ATTACK_WORDS.test(String(a.action || ''))) {
+    const attacks = pool.filter((x) => x.hit != null);
+    const ranged = /bow|sling|javelin|dart|shoot|fire|throw|ranged|crossbow/i.test(a.action);
+    act = attacks.find((x) => ranged === !/Melee/.test(x.d)) || attacks[0] || null;
+    if (act) assume(ctx, `${foe.name} has no ${a.action}: it attacks with its ${act.n}.`);
+  }
+  if (!act) {
+    nop(`${foe.name} has no action called "${a.action}". Its actions: ${pool.map((x) => x.n).join(', ')}${book ? `. Spells it can cast: ${book.spells.map((x) => x.name).join(', ')}` : ''}.`,
+      { options: [...pool.map((x) => x.n), ...(book ? book.spells.map((x) => x.name) : [])], hint: 'Use one of those.' });
+  }
+  if (R.incapacitated(foe.conds)) nop(`${foe.name} cannot act right now.`);
   const legendary = (m.legendary || []).includes(act);
   if (ctx.ai && s.fight && s.fight.phase === 'turns' && !legendary && !(m.reactions || []).includes(act)) inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
-  if (act.use && /^Recharge/.test(act.use)) { if (foe.spent[act.n]) no(`${foe.name}'s ${act.n} has not recharged.`); foe.spent[act.n] = true; }
-  if (/^\d+\/day/.test(act.use || '')) { const max = Number(act.use.split('/')[0]); foe.uses = foe.uses || {}; if ((foe.uses[act.n] || 0) >= max) no(`${foe.name} has used ${act.n} as often as it can today.`); foe.uses[act.n] = (foe.uses[act.n] || 0) + 1; }
+  const others = () => pool.filter((x) => x !== act && !(x.use && foe.spent[x.n])).map((x) => x.n);
+  if (act.use && /^Recharge/.test(act.use)) { if (foe.spent[act.n]) refuse(`${foe.name}'s ${act.n} has not recharged.`, others(), 'Use another action.'); foe.spent[act.n] = true; }
+  if (/^\d+\/day/.test(act.use || '')) { const max = Number(act.use.split('/')[0]); foe.uses = foe.uses || {}; if ((foe.uses[act.n] || 0) >= max) refuse(`${foe.name} has used ${act.n} as often as it can today.`, others(), 'Use another action.'); foe.uses[act.n] = (foe.uses[act.n] || 0) + 1; }
   if (act.n === 'Multiattack') { story(s, ctx, 'event', `${foe.name} attacks several times.`, 'Engine'); return; }
-  const targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x)).filter((t) => t && t.kind === 'pc');
+  let targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x, ctx)).filter((t) => t && t.kind === 'pc');
+  // No one named, and only one character it could mean: them.
+  const living = Object.values(s.pcs).filter((p) => !p.dead && p.hp > 0);
+  if (!targets.length && (act.hit != null || act.dc) && living.length === 1) { targets = [{ kind: 'pc', id: living[0].id, o: living[0] }]; assume(ctx, `No target was named: ${foe.name} goes for ${living[0].name}, the only one it can.`); }
   if (act.hit != null) {
     const t = targets[0];
-    if (!t) no(`Name the character ${foe.name} attacks: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`);
+    if (!t) refuse(`Name the character ${foe.name} attacks: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const pc = t.o;
-    if (pc.dead) no(`${pc.name} is dead.`);
+    if (pc.dead) nop(`${pc.name} is dead.`, { options: partyNames(s), hint: 'Name a living target, or end the monster\'s turn.' });
     const melee = /Melee/.test(act.d);
     // On the map: a melee attack steps up to its target; a ranged one may be spoilt by distance or a close enemy.
     let mfx = { dis: false, why: [], far: '' };
-    if (/^Melee (?:Weapon|Spell) Attack/i.test(act.d)) stepUp(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), Number((/reach (\d+) ft/i.exec(act.d) || [0, 5])[1]));
-    else if (!melee) mfx = rangedFx(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), (/range (\d+\/\d+) ft/i.exec(act.d) || [0, ''])[1]);
-    if (mfx.far && ctx.ai) no(`${mfx.far} Move ${foe.name} closer with move_creature first.`);
+    if (/^Melee (?:Weapon|Spell) Attack/i.test(act.d)) {
+      try { stepUp(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), Number((/reach (\d+) ft/i.exec(act.d) || [0, 5])[1])); } catch (e) {
+        // Too far to strike this turn (the map's reach rules): it closes in instead, as a Dash.
+        if (!(e instanceof RuleError) || !ctx.ai || !/too far/.test(e.message)) throw e;
+        let moved = true;
+        try { H['map.move'](s, { who: keyOf('foe', foe.id), engage: keyOf('pc', pc.id) }, ctx); } catch (e2) { moved = false; }
+        assume(ctx, `${foe.name} was too far from ${pc.name} to attack this turn, so ${moved ? 'it closed in as far as it could instead (a Dash)' : 'it could not get closer'}. Narrate it, then end_turn.`);
+        return;
+      }
+    } else if (!melee) mfx = rangedFx(s, ctx, keyOf('foe', foe.id), keyOf('pc', pc.id), (/range (\d+\/\d+) ft/i.exec(act.d) || [0, ''])[1]);
+    if (mfx.far && ctx.ai) nop(mfx.far, { hint: `Move ${foe.name} closer with move_creature first, or pick a nearer target.` });
     const self = R.selfEffects({ conds: foe.conds }, 'attack');
     const tfx = R.targetEffects(pc.conds, { melee });
     const r = d20(ctx.rng, { adv: a.adv === 'adv' || self.adv || tfx.adv, dis: a.adv === 'dis' || self.dis || tfx.dis || mfx.dis });
@@ -1127,7 +1314,7 @@ H['foe.act'] = (s, a, ctx) => {
     return;
   }
   if (act.dc) {
-    if (!targets.length) no(`Name who ${act.n} catches: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`);
+    if (!targets.length) refuse(`Name who ${act.n} catches: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const [ab, dc, success] = act.dc;
     const d = act.dmg && act.dmg.length ? rollDice(act.dmg[0][0], ctx.rng) : null;
     const condM = /\b(?:be|become|is) (?:knocked )?(blinded|charmed|deafened|frightened|grappled|paralyzed|petrified|poisoned|prone|restrained|stunned|unconscious)\b/i.exec(act.d);
@@ -1139,7 +1326,8 @@ H['foe.act'] = (s, a, ctx) => {
     return;
   }
   story(s, ctx, 'event', `${foe.name} uses ${act.n}.`, 'Engine');
-};
+}
+const ATTACK_WORDS = /sword|scimitar|axe|bow|dagger|spear|mace|club|hammer|bite|claw|slam|fist|hook|talon|tail|whip|flail|pick|rapier|glaive|halberd|javelin|sling|crossbow|blade|strike|smash|stab|attack|hit|swing|lunge|shoot|fire|thrust|slash|punch|gore|horn|tusk|sting|morning ?star|star|weapon|melee|ranged/i;
 // ---- monsters that cast spells (the Spellcasting trait of the SRD stat block) ----
 const CONDS = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'];
 export function monsterSpells(m, srd) {
@@ -1165,16 +1353,22 @@ export function monsterSpells(m, srd) {
   return spells.length ? { dc, hit, casterLevel: lvl, slots, spells, mod: hit - (m.pb || 2) } : null;
 }
 function castMonsterSpell(s, ctx, foe, book, sp, a) {
-  if (R.incapacitated(foe.conds)) no(`${foe.name} cannot act right now.`);
+  if (R.incapacitated(foe.conds)) nop(`${foe.name} cannot act right now.`);
   if (ctx.ai && s.fight && s.fight.phase === 'turns') inTurnCheck(s, ctx, keyOf('foe', foe.id), 'act');
   const d = sp.data || {};
   if (sp.level > 0) {
     foe.slotsUsed = foe.slotsUsed || {};
     const have = book.slots[sp.level] || 0;
-    if ((foe.slotsUsed[sp.level] || 0) >= have) no(`${foe.name} has no ${R.ordinal(sp.level)}-level spell slots left. ${book.spells.filter((x) => x.level === 0).length ? `Its cantrips: ${book.spells.filter((x) => x.level === 0).map((x) => x.name).join(', ')}.` : ''}`);
+    if ((foe.slotsUsed[sp.level] || 0) >= have) {
+      const cantrips = book.spells.filter((x) => x.level === 0).map((x) => x.name);
+      const left = book.spells.filter((x) => x.level > 0 && (foe.slotsUsed[x.level] || 0) < (book.slots[x.level] || 0)).map((x) => x.name);
+      nop(`${foe.name} has no ${R.ordinal(sp.level)}-level spell slots left.`, { options: [...cantrips, ...left, ...((monsterOf(ctx, foe) || {}).actions || []).filter((x) => x.hit != null).map((x) => x.n)], hint: 'Use a cantrip or another action.' });
+    }
     foe.slotsUsed[sp.level] = (foe.slotsUsed[sp.level] || 0) + 1;
   }
-  const targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x)).filter((t) => t && t.kind === 'pc' && !t.o.dead);
+  let targets = (a.targets || (a.target ? [a.target] : [])).map((x) => target(s, x, ctx)).filter((t) => t && t.kind === 'pc' && !t.o.dead);
+  const living = Object.values(s.pcs).filter((p) => !p.dead && p.hp > 0);
+  if (!targets.length && living.length === 1 && !/\bself\b/i.test(String(d.range || ''))) { targets = [{ kind: 'pc', id: living[0].id, o: living[0] }]; assume(ctx, `No target was named: ${foe.name}'s ${sp.name} is aimed at ${living[0].name}, the only one it can be.`); }
   const desc = String(d.desc || '');
   // Damage: the first "XdY type damage" the spell describes; a cantrip grows at caster levels 5, 11, 17.
   const dm = /(\d+)d(\d+)(?:\s*\+\s*your spellcasting ability modifier)?\s+(\w+) damage/i.exec(desc);
@@ -1187,7 +1381,7 @@ function castMonsterSpell(s, ctx, foe, book, sp, a) {
   }
   if (d.attack) {
     const t = targets[0];
-    if (!t) no(`Name the character ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`);
+    if (!t) refuse(`Name the character ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const pc = t.o;
     const r = d20(ctx.rng, { adv: a.adv === 'adv', dis: a.adv === 'dis' });
     const total = r.kept + book.hit;
@@ -1201,7 +1395,7 @@ function castMonsterSpell(s, ctx, foe, book, sp, a) {
     return;
   }
   if (d.save) {
-    if (!targets.length) no(`Name who ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`);
+    if (!targets.length) refuse(`Name who ${foe.name}'s ${sp.name} is aimed at: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const cond = (CONDS.find((c) => new RegExp(`\\b${c}\\b`, 'i').test(desc)) || '');
     const amount = dmgExpr ? String(rollDice(dmgExpr, ctx.rng).total) : '';
     for (const t of targets) {
@@ -1218,9 +1412,9 @@ function castMonsterSpell(s, ctx, foe, book, sp, a) {
 H['foe.save'] = (s, a, ctx) => {
   hostOnly(ctx);
   const foe = s.foes[a.foeId];
-  if (!foe) no('There is no such monster.');
+  if (!foe) refuse('There is no such monster.', foeNamesHere(s));
   const ab = String(a.ability || '').slice(0, 3).toLowerCase();
-  if (!R.ABILITIES.includes(ab)) no('Choose an ability.');
+  if (!R.ABILITIES.includes(ab)) refuse('Choose an ability for the save.', R.ABILITIES);
   const m = monsterOf(ctx, foe);
   const fx = R.selfEffects({ conds: foe.conds }, 'save', ab);
   const r = d20(ctx.rng, { adv: a.adv === 'adv', dis: a.adv === 'dis' || fx.dis });
@@ -1233,8 +1427,8 @@ H['foe.save'] = (s, a, ctx) => {
 
 // ---- hit points and conditions for anyone ------------------------------------------------------
 H.damage = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t) no('Name who takes the damage.');
+  const t = target(s, a.target, ctx);
+  if (!t) refuse(`Nobody called "${a.target}" is here to take the damage.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'pc' && !isHost(ctx)) ownPc(s, ctx, t.id);
   if (t.kind === 'foe') hostOnly(ctx);
   let amount = Math.trunc(Number(a.amount));
@@ -1245,8 +1439,8 @@ H.damage = (s, a, ctx) => {
   story(s, ctx, 'event', `${t.o.name} takes ${r.taken}${type ? ` ${type}` : ''} damage${a.why ? ` from ${str(a.why, 80)}` : ''}${r.notes.length ? ` (${r.notes.join(', ')})` : ''}.`, 'Engine');
 };
 H.heal = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t) no('Name who is healed.');
+  const t = target(s, a.target, ctx);
+  if (!t) refuse(`Nobody called "${a.target}" is here to heal.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe') { hostOnly(ctx); const n = Math.max(0, Math.trunc(Number(a.amount) || 0)); t.o.hp = Math.min(t.o.maxHp, t.o.hp + n); if (t.o.hp > 0) t.o.dead = false; log(s, ctx, `${t.o.name} regains ${n} hit points.`, 'note-host'); return; }
   if (!isHost(ctx)) ownPc(s, ctx, t.id);
   let amount = Math.trunc(Number(a.amount));
@@ -1256,24 +1450,29 @@ H.heal = (s, a, ctx) => {
   story(s, ctx, 'event', `${t.o.name} regains ${got} hit points${a.why ? ` (${str(a.why, 80)})` : ''}.`, 'Engine');
 };
 H['hp.temp'] = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t || t.kind !== 'pc') no('Temporary hit points go to a character.');
+  const t = target(s, a.target, ctx);
+  if (!t || t.kind !== 'pc') refuse('Temporary hit points go to a character.', partyNames(s));
   if (!isHost(ctx)) ownPc(s, ctx, t.id);
   t.o.tempHp = Math.max(t.o.tempHp, Math.max(0, Math.trunc(Number(a.amount) || 0)));
 };
 H['hp.set'] = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t) no('Name who.');
+  const t = target(s, a.target, ctx);
+  if (!t) refuse(`Nobody called "${a.target}" is here.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe' || !isHost(ctx)) { if (t.kind === 'foe') hostOnly(ctx); else ownPc(s, ctx, t.id); }
   const n = Math.max(0, Math.min(t.o.maxHp, Math.trunc(Number(a.hp))));
   if (t.kind === 'pc') { if (n > 0 && t.o.hp <= 0) healPc(s, ctx, t.o, n); else t.o.hp = n; }
   else { t.o.hp = n; t.o.dead = n <= 0; }
 };
+const condOf = (ctx, word) => {
+  const c = NAMES.condition(word, [...ctx.srd.conditions.map((x) => x.id), 'exhaustion']);
+  if (c && c !== String(word || '').toLowerCase().trim()) assume(ctx, `"${word}" is the condition ${c}.`);
+  return c || String(word || '').toLowerCase();
+};
 H['cond.add'] = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t) no('Name who.');
+  const t = target(s, a.target, ctx);
+  if (!t) refuse(`Nobody called "${a.target}" is here.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe' || !isHost(ctx)) { if (t.kind === 'foe') hostOnly(ctx); else ownPc(s, ctx, t.id); }
-  const c = String(a.cond || '').toLowerCase();
+  const c = condOf(ctx, a.cond);
   if (c === 'exhaustion') {
     if (t.kind !== 'pc') no('Exhaustion is tracked for characters.');
     t.o.exhaustion = Math.min(6, (t.o.exhaustion || 0) + 1);
@@ -1281,26 +1480,26 @@ H['cond.add'] = (s, a, ctx) => {
     story(s, ctx, 'event', `${t.o.name} gains a level of exhaustion (${t.o.exhaustion}).${t.o.dead ? ' It is fatal.' : ''}`, 'Engine');
     return;
   }
-  if (!R.index(ctx.srd).cond[c]) no(`There is no condition called "${a.cond}". Conditions: ${ctx.srd.conditions.map((x) => x.id).join(', ')}.`);
-  if (t.kind === 'foe') { const m = monsterOf(ctx, t.o); if (m && (m.cimm || []).includes(c)) no(`${t.o.name} cannot be ${c}.`); }
+  if (!R.index(ctx.srd).cond[c]) refuse(`There is no condition called "${a.cond}". Conditions: ${ctx.srd.conditions.map((x) => x.id).join(', ')}.`, ctx.srd.conditions.map((x) => x.id));
+  if (t.kind === 'foe') { const m = monsterOf(ctx, t.o); if (m && (m.cimm || []).includes(c)) nop(`${t.o.name} cannot be ${c}.`); }
   if (!t.o.conds.includes(c)) t.o.conds.push(c);
   if (t.kind === 'pc' && R.incapacitated(t.o.conds)) dropConcentration(s, ctx, t.o, c);
   story(s, ctx, 'event', `${t.o.name} is ${c}.`, 'Engine');
 };
 H['cond.remove'] = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t) no('Name who.');
+  const t = target(s, a.target, ctx);
+  if (!t) refuse(`Nobody called "${a.target}" is here.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe' || !isHost(ctx)) { if (t.kind === 'foe') hostOnly(ctx); else ownPc(s, ctx, t.id); }
-  const c = String(a.cond || '').toLowerCase();
+  const c = condOf(ctx, a.cond);
   if (c === 'exhaustion') { t.o.exhaustion = Math.max(0, (t.o.exhaustion || 0) - 1); return; }
-  if (c === 'unconscious' && t.kind === 'pc' && t.o.hp <= 0) no(`${t.o.name} is at 0 hit points: heal them to wake them.`);
+  if (c === 'unconscious' && t.kind === 'pc' && t.o.hp <= 0) nop(`${t.o.name} is at 0 hit points: heal them to wake them.`);
   t.o.conds = t.o.conds.filter((x) => x !== c);
   story(s, ctx, 'event', `${t.o.name} is no longer ${c}.`, 'Engine');
 };
 H.stabilize = (s, a, ctx) => {
-  const t = target(s, a.target);
-  if (!t || t.kind !== 'pc') no('Name a dying character.');
-  if (t.o.hp > 0 || t.o.dead) no(`${t.o.name} is not dying.`);
+  const t = target(s, a.target, ctx);
+  if (!t || t.kind !== 'pc') refuse('Name a dying character.', Object.values(s.pcs).filter((p) => p.hp <= 0 && !p.dead && !p.stable).map((p) => p.name));
+  if (t.o.hp > 0 || t.o.dead) nop(`${t.o.name} is not dying.`);
   if (!isHost(ctx)) { const p = s.players[ctx.pid]; if (!p || !p.pcId) no('Join with a character first.'); }
   t.o.stable = true; t.o.death = { s: 0, f: 0 };
   s.requests = s.requests.filter((q) => !(q.pcId === t.id && q.kind === 'death'));
@@ -1308,7 +1507,7 @@ H.stabilize = (s, a, ctx) => {
 };
 H.inspiration = (s, a, ctx) => {
   const pc = s.pcs[a.pcId];
-  if (!pc) no('There is no such character.');
+  if (!pc) refuse('There is no such character.', Object.values(s.pcs).map((x) => x.name));
   if (a.give !== false) hostOnly(ctx); else ownPc(s, ctx, pc.id);
   pc.inspiration = a.give !== false;
   story(s, ctx, 'event', a.give !== false ? `${pc.name} gains inspiration.` : `${pc.name} spends inspiration.`, 'Engine');
@@ -1317,7 +1516,7 @@ H.inspiration = (s, a, ctx) => {
 // ---- rests, time, treasure and the story's threads -------------------------------------------
 H['rest.short'] = (s, a, ctx) => {
   const pc = ownPc(s, ctx, a.pcId);
-  if (s.fight) no('You cannot rest during a fight.');
+  if (s.fight) refuse('You cannot rest during a fight.', [], 'End the fight first (end_combat) when it is over.');
   if (pc.dead) no(`${pc.name} is dead.`);
   const n = Math.max(0, Math.min(pc.level - (pc.hitDiceUsed || 0), Math.trunc(Number(a.dice) || 0)));
   if (Number(a.dice) > 0 && n === 0) no(`${pc.name} has no hit dice left to spend.`);
@@ -1330,7 +1529,7 @@ H['rest.short'] = (s, a, ctx) => {
   story(s, ctx, 'event', `${pc.name} takes a short rest${n ? `, spends ${n} hit ${n > 1 ? 'dice' : 'die'} and regains ${healed} hit points` : ''}.`, 'Engine');
 };
 H['rest.long'] = (s, a, ctx) => {
-  if (s.fight) no('You cannot rest during a fight.');
+  if (s.fight) refuse('You cannot rest during a fight.', [], 'End the fight first (end_combat) when it is over.');
   const who = a.pcId ? [ownPc(s, ctx, a.pcId)] : (hostOnly(ctx), Object.values(s.pcs));
   for (const pc of who) {
     if (pc.dead) continue;
@@ -1357,37 +1556,56 @@ H['time.pass'] = (s, a, ctx) => {
 H['site.move'] = (s, a, ctx) => {
   hostOnly(ctx);
   const sites = (ctx.adventure || {}).sites || [];
-  const to = sites.find((x) => x.id === a.siteId) || sites.find((x) => x.name.toLowerCase() === String(a.siteId || '').toLowerCase());
-  if (!to) no(`There is no place called "${a.siteId}". Places: ${sites.map((x) => x.id).join(', ')}.`);
-  if (s.fight) no('Finish the fight before the party moves on (or end it if they flee).');
   const here = site(s, ctx);
-  if (ctx.ai && to.id !== here.id && !(here.exits || []).some((e) => e.to === to.id)) no(`${to.name} cannot be reached from ${here.name}. Exits: ${(here.exits || []).map((e) => `${e.to} (${e.label})`).join(', ')}.`);
+  const exits = (here.exits || []).filter((e) => sites.some((x) => x.id === e.to));
+  const exitList = exits.map((e) => `${e.to} (${e.label})`);
+  let to = sites.find((x) => x.id === a.siteId) || sites.find((x) => x.name.toLowerCase() === String(a.siteId || '').toLowerCase());
+  if (!to) { to = NAMES.pick(sites, a.siteId, (x) => [x.id, x.name]); if (to) assume(ctx, `"${a.siteId}" is ${to.name}.`); }
+  // Not a way out of here, or no such place: the one exit whose words name it ("the watchtower" from the
+  // Mill Road is the switchback path up to the Tumbledown Gate).
+  if (ctx.ai && (!to || (to.id !== here.id && !exits.some((e) => e.to === to.id)))) {
+    const words = String(a.siteId || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter((w) => w.length > 3 && !['the', 'with', 'into', 'back', 'road', 'path', 'place'].includes(w));
+    const hits = exits.filter((e) => words.length && words.every((w) => `${e.label} ${(sites.find((x) => x.id === e.to) || {}).name}`.toLowerCase().includes(w)));
+    if (hits.length === 1) { const via = sites.find((x) => x.id === hits[0].to); assume(ctx, `The way to "${a.siteId}" from here is ${hits[0].label}: the party goes to ${via.name}.`); to = via; }
+  }
+  if (!to) refuse(`There is no place called "${a.siteId}". Places: ${sites.map((x) => x.id).join(', ')}.`, ctx.ai ? exits.map((e) => e.to) : sites.map((x) => x.id), ctx.ai ? `Exits from here: ${exitList.join('; ') || 'none'}.` : '');
+  if (s.fight) nop('The party cannot travel during a fight.', { hint: 'If they flee, end the fight first (end_combat with award_xp false), then move the party.' });
+  if (ctx.ai && to.id !== here.id && !exits.some((e) => e.to === to.id)) refuse(`${to.name} cannot be reached from ${here.name}. Exits: ${exitList.join(', ')}.`, exits.map((e) => e.to));
   if (!s.scene.visited.includes(here.id)) s.scene.visited.push(here.id);
   s.scene.siteId = to.id;
+  if (to.id !== here.id) s.scene.from = here.id;
   // The party arrives together on the map, by the way they came in (placed after this action).
   const m = mapUp(s);
   if (to.id !== here.id) { m.cameFrom = here.id; for (const k of Object.keys(m.at)) if (k.startsWith('pc:')) delete m.at[k]; }
   const first = !s.scene.visited.includes(to.id);
-  if (first) for (const enc of to.foes || []) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id, zone: enc.zone }, { ...ctx, ai: false });
+  if (first) for (const [n, enc] of (to.foes || []).entries()) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id, zone: enc.zone, group: `${to.id}#${n}` }, { ...ctx, ai: false });
   if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, siteId: to.id, quiet: true }, { ...ctx, ai: false });
   if (to.travelHours) H['time.pass'](s, { hours: to.travelHours }, ctx);
   story(s, ctx, 'event', `The party arrives at ${to.name}.`, 'Engine', { move: true });
+  if (to.id !== here.id) emit(ctx, { ev: 'enter', site: to.id, from: here.id });
 };
 
 H['quest.add'] = (s, a, ctx) => { hostOnly(ctx); const text = str(a.text, 200); if (!text) no('Write the quest.'); s.quests.push({ id: nextId(s, 'q'), text, done: false }); story(s, ctx, 'event', `New quest: ${text}`, 'Engine'); };
 H['quest.done'] = (s, a, ctx) => {
   hostOnly(ctx);
-  const q = s.quests.find((x) => x.id === a.id) || s.quests.find((x) => x.text.toLowerCase().includes(String(a.id || '').toLowerCase()) && a.id);
-  if (!q) no(`There is no such quest. Quests: ${s.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.`);
+  let q = s.quests.find((x) => x.id === a.id) || s.quests.find((x) => x.text.toLowerCase().includes(String(a.id || '').toLowerCase()) && a.id);
+  if (!q && a.id) {
+    // A few of its words, not in order ("the vanished villagers"): the one quest that has them all.
+    const words = String(a.id).toLowerCase().replace(/[^a-z0-9]+/g, ' ').split(' ').filter((w) => w.length > 3);
+    const hits = s.quests.filter((x) => words.length && words.filter((w) => x.text.toLowerCase().includes(w.replace(/s$/, ''))).length >= Math.max(1, Math.ceil(words.length / 2)));
+    if (hits.length === 1) { q = hits[0]; assume(ctx, `"${a.id}" is the quest "${q.text}".`); }
+  }
+  if (!q) refuse(`There is no such quest. Quests: ${s.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.`, s.quests.filter((x) => !x.done).map((x) => x.id));
+  if (q.done && a.done !== false) nop(`"${q.text}" is already complete.`);
   q.done = a.done !== false;
-  if (q.done) story(s, ctx, 'event', `Quest complete: ${q.text}`, 'Engine');
+  if (q.done) { q.doneAt = s.scene.siteId; q.doneSeq = s.seq; story(s, ctx, 'event', `Quest complete: ${q.text}`, 'Engine'); }
 };
 H['xp.award'] = (s, a, ctx) => {
   hostOnly(ctx);
   const n = Math.max(0, Math.min(100000, Math.trunc(Number(a.amount) || 0)));
-  if (!n) no('Give an amount of XP.');
+  if (!n) nop('No XP was given.', { hint: 'Give an amount of XP.' });
   const who = (a.pcIds && a.pcIds.length ? a.pcIds.map((x) => s.pcs[x]).filter(Boolean) : Object.values(s.pcs)).filter((p) => !p.dead);
-  if (!who.length) no('Nobody to award.');
+  if (!who.length) nop('Nobody to award.');
   const each = a.each ? n : Math.floor(n / who.length);
   for (const p of who) p.xp = (p.xp || 0) + each;
   if (a.site) (s.xpPaid = s.xpPaid || []).push(`${s.scene.siteId}:${n}`); // the AI Director pays a milestone once
@@ -1407,10 +1625,10 @@ H['xp.add'] = (s, a, ctx) => {
 H['loot.give'] = (s, a, ctx) => {
   hostOnly(ctx);
   const pc = a.pcId ? s.pcs[a.pcId] : null;
-  if (a.pcId && !pc) no('There is no such character.');
+  if (a.pcId && !pc) assume(ctx, `"${a.pcId}" is not in the party: it goes to the party.`);
   const gold = Math.max(0, Math.min(1e6, Math.trunc(Number(a.gold) || 0)));
   const name = str(a.item, 60);
-  if (!gold && !name) no('Give gold or an item.');
+  if (!gold && !name) nop('Nothing was given.', { hint: 'Name gold or an item to give.' });
   const it = name ? (R.item(ctx.srd, name.toLowerCase().replace(/\s+/g, '-')) || ctx.srd.magicItems.find((x) => x.name.toLowerCase() === name.toLowerCase()) || null) : null;
   const qty = Math.max(1, Math.min(999, Math.trunc(Number(a.qty) || 1)));
   if (pc) {
@@ -1608,21 +1826,22 @@ function rangedFx(s, ctx, fk, tk, range) {
 // Move a character or monster: to another zone, to a square, or up to someone to fight them.
 H['map.move'] = (s, a, ctx) => {
   const m = mapUp(s);
-  const t = target(s, a.who);
-  if (!t) no(`Name who moves. Here: ${[...Object.values(s.pcs).map((p) => p.name), ...Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).map((f) => f.name)].join(', ')}.`);
+  const t = target(s, a.who, ctx);
+  if (!t) refuse(`Name who moves. Here: ${[...Object.values(s.pcs).map((p) => p.name), ...Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).map((f) => f.name)].join(', ')}.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe') { hostOnly(ctx); if (t.o.siteId !== s.scene.siteId) no(`${t.o.name} is not at this place.`); } else ownPc(s, ctx, t.id);
-  if (t.o.dead) no(`${t.o.name} cannot move: ${t.kind === 'pc' ? 'they are dead' : 'it is down'}.`);
+  if (t.o.dead) nop(`${t.o.name} cannot move: ${t.kind === 'pc' ? 'they are dead' : 'it is down'}.`);
   placeEveryone(s, ctx);
   const key = keyOf(t.kind, t.id);
   const siteId = s.scene.siteId;
   const zones = siteZones(s, ctx, siteId);
   const from = { ...m.at[key] };
   let zone = a.zone ? MAP.findZone(zones, a.zone) : MAP.zoneOf(zones, from.zone);
-  if (a.zone && !zone) no(`There is no zone called "${a.zone}" here. Zones: ${zones.map((z) => z.name).join(', ')}.`);
+  if (a.zone && !zone) { zone = NAMES.pick(zones, a.zone, (z) => [z.id, z.name]); if (zone) assume(ctx, `"${a.zone}" is the zone ${zone.name}.`); }
+  if (a.zone && !zone) refuse(`There is no zone called "${a.zone}" here. Zones: ${zones.map((z) => z.name).join(', ')}.`, zones.map((z) => z.name));
   let engage = null;
   if (a.engage) {
-    engage = target(s, a.engage);
-    if (!engage || (engage.kind === 'foe' && engage.o.siteId !== siteId)) no(`There is nobody called "${a.engage}" here to move up to.`);
+    engage = target(s, a.engage, ctx);
+    if (!engage || (engage.kind === 'foe' && engage.o.siteId !== siteId)) refuse(`There is nobody called "${a.engage}" here to move up to.`, [...partyNames(s), ...foeNamesHere(s)]);
     if (engage.kind === t.kind && engage.id === t.id) no('They cannot move up to themselves.');
     zone = MAP.zoneOf(zones, m.at[keyOf(engage.kind, engage.id)].zone);
   }
@@ -1720,13 +1939,13 @@ H['map.move'] = (s, a, ctx) => {
 };
 // Dash (double movement) or Disengage (no opportunity attacks), each taking the action.
 H['map.dash'] = (s, a, ctx) => {
-  const t = target(s, a.who);
-  if (!t) no('Name who dashes.');
+  const t = target(s, a.who, ctx);
+  if (!t) refuse(`Nobody called "${a.who}" is here to dash.`, [...partyNames(s), ...foeNamesHere(s)]);
   if (t.kind === 'foe') hostOnly(ctx); else ownPc(s, ctx, t.id);
   const f = s.fight;
-  if (!f || f.phase !== 'turns') no('Dash and Disengage are for fights: outside one, move freely.');
+  if (!f || f.phase !== 'turns') nop('Dash and Disengage are for fights: outside one, move freely.', { hint: 'Use move_creature to move them.' });
   const key = keyOf(t.kind, t.id);
-  if (currentKey(s) !== key) no(`It is not ${t.o.name}'s turn.`);
+  if (currentKey(s) !== key) nop(`It is not ${t.o.name}'s turn.`);
   if (f.used.action && !(isHost(ctx) && !ctx.ai)) no(`${t.o.name} has already used their action this turn.`);
   f.used.action = true;
   if (a.kind === 'disengage') { f.used.disengaged = true; story(s, ctx, 'event', `${t.o.name} disengages.`, 'Engine'); } else { f.used.dash = true; story(s, ctx, 'event', `${t.o.name} dashes.`, 'Engine'); }
@@ -1783,7 +2002,7 @@ H['map.grid'] = (s, a, ctx) => {
   const m = mapUp(s);
   const id = siteRef(s, ctx, a.siteId);
   const z = MAP.zoneOf(siteZones(s, ctx, id), a.zoneId);
-  if (!z) no('There is no such zone here.');
+  if (!z) refuse('There is no such zone here.', siteZones(s, ctx, s.scene.siteId).map((x) => x.name));
   const k = `${id}/${z.id}`;
   if (a.clear) { delete m.grids[k]; return; }
   const cols = Math.trunc(Number(a.cols) || 6); const rows = Math.trunc(Number(a.rows) || 6);
@@ -1814,6 +2033,359 @@ H['map.reset'] = (s, a, ctx) => {
   for (const k of Object.keys(m.at)) if (m.at[k].site === s.scene.siteId) delete m.at[k];
 };
 
+
+// ---- the adventure's own rules, and the Engine's defaults ----------------------------------------
+// An adventure can write "when X happens here, Y happens" as data (engine/triggers.js says how). The
+// Engine carries those rules out by itself after every change, so the Director only narrates them: a
+// fight starts, a foe flees, a clock ticks, a quest is done, a milestone is paid. Two defaults hold for
+// every adventure: an attack with no fight on starts one, and a fight ends when no foe in it is left
+// standing. Every rule is a default, not a rail: the Director or the DM can switch one off before it
+// fires, or undo it after, with a reason (rule.override). The DM can turn them all off (auto.set).
+const emit = (ctx, ev) => { if (ctx && Array.isArray(ctx.events)) ctx.events.push(ev); };
+const rulesOf = (s) => (s.rules = s.rules || { fired: {}, off: {}, entered: {}, n: 0 });
+const autoOf = (s) => ({ rules: true, scale: 'auto', ...(s.auto || {}) });
+// Someone struck first with no fight on.
+function hostileAct(s, ctx, by) { emit(ctx, { ev: 'attack', site: s.scene.siteId, by }); }
+
+// The foes a rule means: by name, by group ("Goblin scout" for Goblin scout 1 to 3, also "Goblin scouts"),
+// or by monster ("goblin"). At one place, or anywhere for the adventure's own rules.
+function foesNamed(s, siteId, who) {
+  const w = String(who || '').toLowerCase().trim();
+  const all = Object.values(s.foes).filter((f) => !siteId || f.siteId === siteId);
+  if (!w) return all;
+  const sing = w.replace(/(?<=[a-z])(?:es|s)$/, '');
+  const hit = (f) => [f.name, f.base, f.mid].filter(Boolean).map((x) => String(x).toLowerCase());
+  const exact = all.filter((f) => hit(f).some((x) => x === w || x === sing || x.replace(/-/g, ' ') === w || x.replace(/-/g, ' ') === sing));
+  return exact.length ? exact : all.filter((f) => hit(f).some((x) => x.startsWith(w) || x.startsWith(sing)));
+}
+const standingFoe = (f) => !f.dead && f.hp > 0;
+const questByWords = (s, w) => {
+  const k = String(w || '').toLowerCase().trim();
+  if (!k) return null;
+  return s.quests.find((q) => q.id === k) || s.quests.find((q) => q.text.toLowerCase().includes(k))
+    || s.quests.find((q) => { const ws = k.split(/\s+/).filter((x) => x.length > 3); return ws.length && ws.every((x) => q.text.toLowerCase().includes(x)); }) || null;
+};
+
+// Does one "if" hold now?
+function holds(s, ctx, rule, c) {
+  const site = rule.site || s.scene.siteId;
+  let v = false;
+  switch (c.k) {
+    case 'from': v = s.scene.from === c.arg; break;
+    case 'visited': v = s.scene.siteId === c.arg || (s.scene.visited || []).includes(c.arg); break;
+    case 'down': { const l = foesNamed(s, rule.site, c.arg); v = l.length > 0 && l.every((f) => !standingFoe(f)); break; }
+    case 'standing': v = foesNamed(s, rule.site, c.arg).some(standingFoe); break;
+    case 'hurt': v = foesNamed(s, rule.site, c.arg).some((f) => standingFoe(f) && f.hp < f.maxHp / 2); break;
+    case 'quest': { const q = questByWords(s, c.arg); v = !!(q && q.done); break; }
+    case 'has': { const k = c.arg.toLowerCase(); v = [...(s.loot || []), ...Object.values(s.pcs).flatMap((p) => p.inventory || [])].some((x) => String(x.name || '').toLowerCase().includes(k)); break; }
+    case 'passed': case 'failed': {
+      const last = [...(s.outcomes || [])].reverse().find((o) => o.site === site && (o.skill || String(R.ABILITY_NAMES[o.ability] || '').toLowerCase()) === c.arg);
+      v = !!last && (c.k === 'passed' ? last.ok : !last.ok); break;
+    }
+    case 'fight': v = !!s.fight; break;
+    default: v = false;
+  }
+  return c.not ? !v : v;
+}
+
+// "When two of the three scouts are down", for a group the fight fitting made bigger or smaller: in proportion.
+function fittedCount(ctx, list, count) {
+  const g = list[0] && list[0].group;
+  if (!g || !list.every((f) => f.group === g)) return count;
+  const [siteId, n] = g.split('#');
+  const place = ((ctx.adventure || {}).sites || []).find((x) => x.id === siteId);
+  const written = Number((((place && place.foes) || [])[Number(n)] || {}).count) || 1;
+  return written === list.length ? count : Math.max(1, Math.min(list.length, Math.round((count * list.length) / written)));
+}
+// Is a rule's moment here? `ev` is the event of this change (edge rules) or null (state rules).
+function setOff(s, ctx, rule, ev) {
+  const w = rule.when;
+  if (ev) {
+    if (w.ev !== ev.ev) return false;
+    if (rule.site && ev.site && ev.site !== rule.site) return false;
+    if (w.ev === 'fail' || w.ev === 'succeed') return ev.skill === w.arg;
+    if (w.ev === 'round') return w.arg ? ev.n === w.arg : ev.n > 1;
+    return true;
+  }
+  switch (w.ev) {
+    case 'down': { const l = foesNamed(s, rule.site, rule.who); const down = l.filter((f) => !standingFoe(f)).length; return l.length > 0 && (rule.count ? down >= fittedCount(ctx, l, rule.count) : down === l.length); }
+    case 'hurt': return foesNamed(s, rule.site, rule.who).some((f) => standingFoe(f) && f.hp < (rule.hp || f.maxHp / 2));
+    case 'cleared': { const l = Object.values(s.foes).filter((f) => f.siteId === (rule.site || s.scene.siteId)); return l.length > 0 && !l.some(standingFoe); }
+    case 'full': return (s.clocks || []).some((c) => c.done && c.name.toLowerCase() === String(w.arg).toLowerCase());
+    case 'quest': { const q = questByWords(s, w.arg); return !!(q && q.done); }
+    default: return false;
+  }
+}
+
+// What a rule does. Returns the words for what happened ('' if nothing could) and how to undo it.
+function carryOut(s, ctx, rule, ev) {
+  const host = { ...ctx, role: 'host', pid: null, ai: false, assumed: null };
+  const where = rule.site || s.scene.siteId;
+  const said = [];
+  const undo = {};
+  switch (rule.do) {
+    case 'fight': {
+      if (s.fight || where !== s.scene.siteId) break;
+      fitFoes(s, host, where);
+      const foes = Object.values(s.foes).filter((f) => f.siteId === where && standingFoe(f));
+      if (!foes.length || !Object.values(s.pcs).some((p) => !p.dead)) break;
+      H['fight.start'](s, { surprise: rule.surprise }, host);
+      undo.fight = true;
+      said.push(`A fight starts here${rule.surprise === 'party' ? ', and the party is surprised' : rule.surprise === 'foes' ? ', and the foes are surprised' : ''}${ev && ev.by ? ` (${nameOf(s, ev.by) || 'someone'} struck first)` : ''}.`);
+      break;
+    }
+    case 'flee': {
+      const who = foesNamed(s, rule.site, rule.target).filter(standingFoe);
+      const to = rule.to && ((ctx.adventure || {}).sites || []).find((x) => x.id === rule.to);
+      undo.fled = []; undo.moved = []; undo.fightXp = 0;
+      for (const f of who) {
+        const xpBefore = s.fight ? s.fight.xp || 0 : 0;
+        H['foe.flee'](s, { foeId: f.id }, host);
+        undo.fled.push(f.id); undo.fightXp += (s.fight ? s.fight.xp || 0 : 0) - xpBefore;
+        if (to) {
+          // It turns up again at the place it ran to, as it was (out of sight until found).
+          const id = nextId(s, 'f');
+          s.foes[id] = { ...clone(f), id, siteId: to.id, dead: false, fled: false, hidden: true, conds: [], note: str(`fled here from ${site(s, ctx).name}${f.note ? `; ${f.note}` : ''}`, 200) };
+          delete s.foes[id].zone0;
+          undo.moved.push(id);
+        }
+      }
+      if (who.length) said.push(`${who.map((f) => f.name).join(', ')} ${who.length > 1 ? 'flee' : 'flees'}${to ? ` toward ${to.name}` : ''}.`);
+      break;
+    }
+    case 'tick': {
+      const before = ((s.clocks || []).find((c) => c.name.toLowerCase() === rule.clock.toLowerCase()) || {}).filled || 0;
+      H['clock.tick'](s, { name: rule.clock, by: rule.by }, host);
+      const c = (s.clocks || []).find((x) => x.name.toLowerCase() === rule.clock.toLowerCase());
+      if (c) { undo.clock = c.name; undo.by = c.filled - before; said.push(`The clock "${c.name}" fills to ${c.filled} of ${c.size}${c.done ? `: FULL. ${c.note || ''}` : '.'}`); }
+      break;
+    }
+    case 'quest': {
+      const q = questByWords(s, rule.quest);
+      if (!q || q.done) break;
+      H['quest.done'](s, { id: q.id }, host);
+      undo.quest = q.id;
+      said.push(`Quest complete: ${q.text}`);
+      break;
+    }
+    case 'reveal': {
+      const l = foesNamed(s, where, rule.target).filter((f) => standingFoe(f) && f.hidden);
+      if (!l.length) break;
+      H['foe.reveal'](s, { foeIds: l.map((f) => f.id) }, host);
+      undo.revealed = l.map((f) => f.id);
+      said.push(`${l.map((f) => f.name).join(', ')} ${l.length > 1 ? 'are' : 'is'} revealed.`);
+      break;
+    }
+    default: break;
+  }
+  // A milestone: so much XP each, or what each still needs to reach a level. Paid once per place.
+  if (rule.xp || rule.level) {
+    const key = rule.level ? `${where}:L${rule.level}` : `${where}:${rule.xp}`;
+    const who = Object.values(s.pcs).filter((p) => !p.dead);
+    if (who.length && !(s.xpPaid || []).includes(key)) {
+      const need = (p) => (rule.level ? Math.max(0, (ctx.srd.xpTable[rule.level - 1] || 0) - (p.xp || 0)) : rule.xp);
+      const paid = {};
+      for (const p of who) { const n = need(p); if (n > 0) { p.xp = (p.xp || 0) + n; paid[p.id] = n; } }
+      (s.xpPaid = s.xpPaid || []).push(key);
+      if (Object.keys(paid).length) {
+        undo.xp = paid; undo.xpKey = key;
+        const words = rule.level ? `every character has the XP for level ${rule.level}` : `each character earns ${rule.xp} XP`;
+        story(s, ctx, 'event', `A milestone: ${words}.`, 'Engine');
+        levelReady(s, ctx);
+        said.push(`A milestone: ${words}.`);
+      }
+    }
+  }
+  if (rule.say && (said.length || rule.do === 'say' || rule.do === 'xp')) said.push(rule.say);
+  return { text: said.join(' '), undo };
+}
+
+function fireRule(s, ctx, rule, ev) {
+  const RS = rulesOf(s);
+  const { text, undo } = carryOut(s, ctx, rule, ev);
+  if (!text) return false;
+  RS.fired[rule.key] = { seq: s.seq, text, undo };
+  log(s, ctx, `${text} [rule ${rule.key}]`, 'rule');
+  return true;
+}
+
+// The Engine's own defaults, as rules (they can be overridden like any other).
+const ATTACK_RULE = { key: '*/attack', id: 'attack', site: '', when: { ev: 'attack', arg: '' }, who: '', if: [], do: 'fight', surprise: '', once: false, xp: 0, say: '' };
+
+function runRules(s, ctx, action) {
+  const auto = autoOf(s);
+  if (!auto.rules || !ctx.adventure) { ctx.events.length = 0; return; }
+  const RS = rulesOf(s);
+  const party = Object.values(s.pcs).filter((p) => !p.dead);
+  // The first place is "entered" when the game starts (its first narration, or the Director's first turn).
+  if (!RS.entered[s.scene.siteId] && party.length && (s.started || ctx.starting) && !ctx.events.some((e) => e.ev === 'enter')) ctx.events.unshift({ ev: 'enter', site: s.scene.siteId, from: s.scene.from || '' });
+  try {
+    if (party.length && (s.started || ctx.starting)) fitFoes(s, ctx, s.scene.siteId);
+  } catch (e) { log(s, ctx, `Could not fit the fight here to the party: ${e.message}`, 'note-host'); }
+  for (let pass = 0; pass < 6; pass++) {
+    const events = ctx.events.splice(0);
+    let fired = false;
+    const rules = TRIG.rulesAt(ctx.adventure, s.scene.siteId).filter((r) => r.when.ev && !RS.off[r.key]);
+    const ready = (r) => r.if.every((c) => holds(s, ctx, r, c)) && (!r.once || !RS.fired[r.key]);
+    for (const ev of events) {
+      if (ev.ev === 'enter') RS.entered[ev.site] = s.seq;
+      if (ev.site && ev.site !== s.scene.siteId) continue;
+      let fight = false;
+      for (const r of rules) {
+        if (!setOff(s, ctx, r, ev) || !ready(r)) continue;
+        try { if (fireRule(s, ctx, r, ev)) { fired = true; if (r.do === 'fight') fight = true; } } catch (e) { log(s, ctx, `The rule ${r.key} could not be carried out: ${e.message}`, 'note-host'); }
+      }
+      // The default: an attack with no fight on starts one, unless the place's own rules already did.
+      if (ev.ev === 'attack' && !fight && !s.fight && !RS.off[ATTACK_RULE.key]) {
+        try { if (fireRule(s, ctx, ATTACK_RULE, ev)) fired = true; } catch (e) { log(s, ctx, `Could not start the fight: ${e.message}`, 'note-host'); }
+      }
+    }
+    for (const r of rules) {
+      if (!TRIG.STATES.includes(r.when.ev) || RS.fired[r.key]) continue;
+      if (!setOff(s, ctx, r, null) || !r.if.every((c) => holds(s, ctx, r, c))) continue;
+      try { if (fireRule(s, ctx, { ...r, once: true }, null)) fired = true; else RS.fired[r.key] = { seq: s.seq, text: '', undo: {} }; } catch (e) { log(s, ctx, `The rule ${r.key} could not be carried out: ${e.message}`, 'note-host'); }
+    }
+    // The default: a fight ends when nobody on the monsters' side is left standing.
+    if (s.fight && s.fight.order.length && !RS.off['*/fight-ends']) {
+      const foes = s.fight.order.filter((o) => o.key.startsWith('foe:')).map((o) => s.foes[o.key.slice(4)]).filter(Boolean);
+      if (foes.length && !foes.some(standingFoe)) {
+        H['fight.end'](s, {}, { ...ctx, role: 'host', pid: null, ai: false, assumed: null });
+        RS.fired['*/fight-ends'] = { seq: s.seq, text: 'No foe is left standing: the fight is over.', undo: {} };
+        log(s, ctx, 'No foe is left standing: the fight is over. [rule */fight-ends]', 'rule');
+        fired = true;
+      }
+    }
+    if (!fired && !ctx.events.length) break;
+  }
+  void action;
+}
+
+// Fit the fights a place was written for to the party at the table (engine/scale.js): the number of foes
+// in each group first, then their hit points. Once per place, before anyone is hurt.
+function fitFoes(s, ctx, siteId) {
+  const mode = autoOf(s).scale;
+  s.fits = s.fits || {};
+  if (mode === 'off' || s.fits[siteId]) return;
+  const place = ((ctx.adventure || {}).sites || []).find((x) => x.id === siteId);
+  if (!place || !(place.foes || []).length) return;
+  const levels = Object.values(s.pcs).filter((p) => !p.dead).map((p) => p.level || 1);
+  if (!levels.length) return;
+  const placed = Object.values(s.foes).filter((f) => f.siteId === siteId && f.group && f.group.startsWith(`${siteId}#`));
+  if (!placed.length) return;
+  // Only a place nobody has fought at yet.
+  if (placed.some((f) => f.dead || f.hp < f.maxHp)) { s.fits[siteId] = { text: '' }; return; }
+  const ix = R.index(ctx.srd);
+  const groups = place.foes.map((g, n) => {
+    const mine = placed.filter((f) => f.group === `${siteId}#${n}`);
+    const m = mine[0] ? monsterOf(ctx, mine[0]) : ix.monster[g.monster];
+    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: (m && m.xp) || 0, count: mine.length, scalable: mine.length > 1 && g.scale !== false };
+  }).filter((g) => g.count > 0);
+  const designed = SCALE.designedParty(ctx.adventure, siteId);
+  const plan = SCALE.planFight({ groups, designed, actual: levels, srd: ctx.srd, mode });
+  if (!plan) { s.fits[siteId] = { text: '' }; return; }
+  const host = { ...ctx, role: 'host', pid: null, ai: false, assumed: null };
+  const lines = [];
+  for (const g of groups) {
+    const want = plan.counts[g.key];
+    const mine = placed.filter((f) => f.group === g.key).sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
+    if (want < mine.length) for (const f of mine.slice(want)) delete s.foes[f.id];
+    if (want > mine.length) {
+      const one = mine[0];
+      const spec = place.foes[Number(g.key.split('#')[1])] || {};
+      const prev = s.fight; s.fight = null; // placed quietly, never straight into a fight
+      try { H['foe.add'](s, { monster: one.mid, count: want - mine.length, name: one.base, hidden: one.hidden, note: one.note, siteId, zone: spec.zone, group: g.key }, host); } finally { s.fight = prev; }
+    }
+    if (want !== mine.length) lines.push(`${g.name}: ${want} (written ${mine.length})`);
+  }
+  if (plan.hp !== 1) {
+    for (const f of Object.values(s.foes).filter((x) => x.siteId === siteId && x.group && x.group.startsWith(`${siteId}#`))) { f.maxHp = Math.max(1, Math.round(f.maxHp * plan.hp)); f.hp = f.maxHp; }
+    lines.push(`hit points ×${plan.hp}`);
+  }
+  const text = `Fitted to this party: written for ${SCALE.partyWords(designed)}, the party here is ${SCALE.tableWords(levels)}. ${lines.join('; ')}. (${plan.ratingBefore} as written for them; ${plan.rating} now.)`;
+  s.fits[siteId] = { text, plan };
+  log(s, ctx, `${text} [fit ${siteId}]`, 'rule');
+}
+
+// The rules at the party's place, for the screens and the Director: words, and whether each is waiting,
+// done or switched off.
+export function rulesHere(state, adventure) {
+  const RS = state.rules || { fired: {}, off: {} };
+  const out = TRIG.rulesAt(adventure, state.scene.siteId).map((r) => ({
+    key: r.key, id: r.id, words: TRIG.ruleWords(r, adventure),
+    status: RS.off[r.key] ? 'off' : RS.fired[r.key] && (r.once || TRIG.STATES.includes(r.when.ev)) ? (RS.fired[r.key].text ? 'done' : 'passed') : 'waiting',
+    did: (RS.fired[r.key] || {}).text || '', why: RS.off[r.key] || '',
+  }));
+  return out;
+}
+
+// Switch a rule off before it fires, or undo it after, with a reason. Also the Engine's own defaults:
+// "*/attack" (the fight an attack started) and "*/fight-ends".
+H['rule.override'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const RS = rulesOf(s);
+  const reason = str(a.reason, 200);
+  const here = [...TRIG.rulesAt(ctx.adventure || {}, s.scene.siteId), ATTACK_RULE, { key: '*/fight-ends', id: 'fight-ends', site: '' }];
+  const ref = String(a.id || a.rule || '').trim();
+  let r = here.find((x) => x.key === ref || x.id === ref || `${x.site}/${x.id}` === ref);
+  if (!r && ref) {
+    const w = (x) => (x.when ? TRIG.ruleWords(x, ctx.adventure) : 'the fight ends when no foe is left standing');
+    r = NAMES.pick(here, ref, (x) => [x.key, x.id]) || here.find((x) => w(x).toLowerCase().includes(ref.toLowerCase()));
+    if (r) assume(ctx, `"${ref}" is the rule ${r.key}.`);
+  }
+  if (!r) refuse(`There is no rule "${ref}" here.`, here.map((x) => x.key), 'Name one of the rules listed for this place.');
+  const done = RS.fired[r.key];
+  if (!done || !done.text) {
+    if (RS.off[r.key]) nop(`The rule ${r.key} is already switched off.`);
+    RS.off[r.key] = reason || 'switched off';
+    log(s, ctx, `Rule ${r.key} switched off${reason ? `: ${reason}` : ''}. It will not happen.`, 'rule');
+    return;
+  }
+  const u = done.undo || {};
+  const host = { ...ctx, role: 'host', pid: null, ai: false, assumed: null };
+  const said = [];
+  if (u.fight && s.fight) { H['fight.end'](s, { award: false }, host); said.push('the fight is called off'); }
+  for (const id of u.fled || []) { const f = s.foes[id]; if (f && f.fled) { f.dead = false; f.fled = false; if (s.fight) joinFight(s, host, 'foe', id, { roll: true }); said.push(`${f.name} stays`); } }
+  if (u.fightXp && s.fight) s.fight.xp = Math.max(0, (s.fight.xp || 0) - u.fightXp);
+  for (const id of u.moved || []) delete s.foes[id];
+  if (u.clock && u.by) { const c = (s.clocks || []).find((x) => x.name === u.clock); if (c) { c.filled = Math.max(0, c.filled - u.by); c.done = c.filled >= c.size; said.push(`the clock "${c.name}" goes back to ${c.filled}`); } }
+  if (u.quest) { const q = s.quests.find((x) => x.id === u.quest); if (q) { q.done = false; said.push(`the quest "${q.text}" is open again`); } }
+  if (u.revealed) for (const id of u.revealed) if (s.foes[id]) s.foes[id].hidden = true;
+  if (u.xp) { for (const [id, n] of Object.entries(u.xp)) if (s.pcs[id]) s.pcs[id].xp = Math.max(0, (s.pcs[id].xp || 0) - n); s.xpPaid = (s.xpPaid || []).filter((k) => k !== u.xpKey); said.push('the milestone XP is taken back'); }
+  delete RS.fired[r.key];
+  if (r.key !== ATTACK_RULE.key) RS.off[r.key] = reason || 'undone';
+  log(s, ctx, `Rule ${r.key} undone${reason ? ` (${reason})` : ''}: ${said.join(', ') || 'nothing left to take back'}.`, 'rule');
+  if (said.length) story(s, ctx, 'event', `${cap1(said.join(', '))}.`, 'Engine');
+};
+H['rule.on'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const RS = rulesOf(s);
+  const k = String(a.id || '');
+  if (!RS.off[k]) nop(`The rule ${k} is not switched off.`);
+  delete RS.off[k];
+  log(s, ctx, `Rule ${k} switched back on.`, 'rule');
+};
+// Let the Engine look at the rules now (the Director's first turn starts the game's first place).
+H['rules.run'] = (s, a, ctx) => { hostOnly(ctx); if (a.starting && ctx.events) ctx.starting = true; };
+// Something happened that only words showed (a player said they attack): the rules hear it.
+H['rule.event'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const ev = String(a.event || '');
+  if (ev !== 'attack') refuse(`The Engine cannot be told "${ev}".`, ['attack']);
+  if (s.fight) nop('A fight is already on.');
+  if (!Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && standingFoe(f))) nop('Nobody here to fight.');
+  const t = a.by ? target(s, a.by) : null;
+  hostileAct(s, ctx, t ? keyOf(t.kind, t.id) : '');
+};
+// The DM's switches: the adventure's rules on or off; fights fitted to the party both ways, only made easier, or as written.
+H['auto.set'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  s.auto = autoOf(s);
+  if (a.rules != null) s.auto.rules = !!a.rules;
+  if (a.scale != null) { if (!['auto', 'down', 'off'].includes(a.scale)) refuse('Fit fights "auto", "down" or "off".', ['auto', 'down', 'off']); s.auto.scale = a.scale; }
+  log(s, ctx, `The Engine ${s.auto.rules ? 'runs' : 'does not run'} the adventure's rules; fights are ${s.auto.scale === 'auto' ? 'fitted to the party' : s.auto.scale === 'down' ? 'only ever made easier for the party' : 'as written'}.`, 'note-host');
+};
+const cap1 = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+
 export const ACTIONS = Object.keys(H);
 
 export function apply(state, action, ctx) {
@@ -1822,7 +2394,11 @@ export function apply(state, action, ctx) {
   const s = clone(state);
   s.seq += 1;
   s.t = ctx.now || 0;
-  h(s, action, ctx);
+  const c = { ...ctx, events: [] };
+  h(s, action, c);
+  // The adventure's own rules and the Engine's defaults (a fight starts, a foe flees, a clock ticks, a
+  // quest is done), after every change. They must never stop the game.
+  runRules(s, c, action);
   // Everyone at the party's place has a square on the map. The map must never stop the game.
   try { placeEveryone(s, ctx); } catch (e) { /* a broken map is redrawn next time */ }
   return s;

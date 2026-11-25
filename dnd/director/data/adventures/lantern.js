@@ -6,6 +6,8 @@ export default {
   id: 'lantern',
   name: 'The Lantern of Thornwick Ford',
   levels: '1 to 3',
+  // The party it is written for. Fights are fitted to the party at the table (engine/scale.js).
+  party: { size: [4, 5], level: 1 },
   blurb: 'Fog has crept up from the Greyfen and people are vanishing into it. The old lantern that kept the marsh at bay has been stolen, and someone in the drowned chapel wants it lit for a darker purpose.',
   intro: 'Rain drums on the roof of the Ford Inn at Thornwick Ford, a village of forty roofs where the north road crosses the river Wend. Tonight the common room is crowded and quiet. For three nights a grey fog has rolled up from the Greyfen marsh, and on each of those nights someone has walked into it and not come back. The great brass lantern that has hung above the ford for a hundred years, the one the old folk swear keeps the marsh-lights away, is gone from its hook.',
   quests: ['Find out who stole the Lantern of the Ford and bring it home.', 'Find the people who vanished into the fog.'],
@@ -17,7 +19,7 @@ export default {
   ],
   sites: [
     {
-      id: 'thornwick', name: 'The Ford Inn, Thornwick Ford', region: 'Thornwick Ford',
+      id: 'thornwick', name: 'The Ford Inn, Thornwick Ford', region: 'Thornwick Ford', level: 1,
       map: { x: 0.30, y: 0.55 },
       zones: [
         { name: 'Common room', x: 0.06, y: 0.3, w: 0.34, h: 0.4, entry: true },
@@ -39,9 +41,13 @@ export default {
       ],
       treasure: 'Marta gives the party a healing potion (potion of healing) "for Nell, if she is hurt".',
       exits: [{ to: 'mill-road', label: 'the Mill Road north, toward the hills and the old watchtower' }, { to: 'causeway', label: 'the causeway path south-east into the Greyfen' }],
+      // The adventure's own rules: the Engine carries them out by itself (engine/triggers.js).
+      rules: [
+        { id: 'lantern-home', when: 'enter', if: ['visited watchtower', 'visited sanctum'], do: 'quest', quest: 'lantern', say: 'The party is home with the lantern: it hangs on its hook over the ford again, and the fog drains back into the marsh.' },
+      ],
     },
     {
-      id: 'mill-road', name: 'The Mill Road', region: 'The hills', travelHours: 2,
+      id: 'mill-road', name: 'The Mill Road', region: 'The hills', travelHours: 2, level: 1,
       map: { x: 0.30, y: 0.33 },
       zones: [
         { name: 'The road', x: 0.04, y: 0.55, w: 0.34, h: 0.38, entry: true, from: ['thornwick'] },
@@ -59,9 +65,14 @@ export default {
       ],
       treasure: 'The goblins carry 9 sp and a crude map scratched on bark showing the tower and a path down to "the wet church".',
       exits: [{ to: 'thornwick', label: 'back down to Thornwick Ford' }, { to: 'tower-gate', label: 'up the switchback path to the watchtower' }],
+      rules: [
+        { id: 'ambush', when: 'fail perception', do: 'fight', surprise: 'party', say: 'Nobody spotted the scouts: they burst out of the mill with surprise.' },
+        { id: 'spotted', when: 'succeed perception', do: 'reveal', target: 'Goblin scout', say: 'The party spots the scouts in the mill before they can spring their ambush.' },
+        { id: 'scouts-run', when: 'down', who: 'Goblin scout', count: 2, do: 'flee', to: 'tower-gate', say: 'The last scout runs for the watchtower to warn Grisk.' },
+      ],
     },
     {
-      id: 'tower-gate', name: 'The Tumbledown Gate', region: 'The old watchtower', travelHours: 1,
+      id: 'tower-gate', name: 'The Tumbledown Gate', region: 'The old watchtower', travelHours: 1, level: 1,
       map: { x: 0.37, y: 0.14 },
       zones: [
         { name: 'Switchback path', x: 0.04, y: 0.56, w: 0.28, h: 0.38, entry: true, from: ['mill-road'], links: ['gate-arch', 'east-wall-breach'] },
@@ -78,9 +89,12 @@ export default {
         { skill: 'athletics', dc: 12, find: 'You climb the east wall and reach the tower door unseen.' },
       ],
       exits: [{ to: 'mill-road', label: 'back down the switchback path' }, { to: 'watchtower', label: 'into the tower itself' }],
+      rules: [
+        { id: 'sneak-attack', when: 'attack', if: 'passed stealth', do: 'fight', surprise: 'foes', say: 'The sentries never saw the party coming.' },
+      ],
     },
     {
-      id: 'watchtower', name: 'The Old Watchtower', region: 'The old watchtower',
+      id: 'watchtower', name: 'The Old Watchtower', region: 'The old watchtower', level: 1,
       map: { x: 0.52, y: 0.10 },
       zones: [
         { name: 'Doorway', x: 0.04, y: 0.32, w: 0.26, h: 0.36, entry: true, from: ['tower-gate'], links: ['tower-floor'] },
@@ -95,9 +109,13 @@ export default {
       checks: [{ skill: 'investigation', dc: 10, find: 'A loose stone behind the throne hides Grisk\'s hoard.' }],
       treasure: 'Grisk\'s hoard: 35 gp, a silver locket (10 gp), and a potion of healing. The Lantern of the Ford.',
       exits: [{ to: 'tower-gate', label: 'out to the yard' }, { to: 'causeway', label: 'the goat path down the far side of the crag to the Greyfen (the goblins\' route to the chapel)' }],
+      rules: [
+        { id: 'grisk-sells', when: 'hurt', who: 'Grisk', if: 'down Goblin guard', do: 'flee', say: 'Below half his hit points with his goblin down, Grisk offers to "sell" the lantern and the girl, drops the key and runs.' },
+        { id: 'milestone', when: 'cleared', do: 'xp', xp: 300, say: 'Nell can be freed (the key was Grisk\'s) and the lantern is here: the party reaches 2nd level.' },
+      ],
     },
     {
-      id: 'causeway', name: 'The Greyfen Causeway', region: 'The Greyfen marsh', travelHours: 2,
+      id: 'causeway', name: 'The Greyfen Causeway', region: 'The Greyfen marsh', travelHours: 2, level: 2,
       map: { x: 0.55, y: 0.62 },
       zones: [
         { name: 'Causeway start', x: 0.04, y: 0.36, w: 0.26, h: 0.3, entry: true, from: ['thornwick'], tags: ['dim'], links: ['mid-causeway'] },
@@ -116,7 +134,7 @@ export default {
       exits: [{ to: 'thornwick', label: 'back along the causeway to Thornwick Ford' }, { to: 'chapel', label: 'onward to the drowned chapel, a dark shape in the fog' }],
     },
     {
-      id: 'chapel', name: 'The Drowned Chapel', region: 'The Greyfen marsh', travelHours: 1,
+      id: 'chapel', name: 'The Drowned Chapel', region: 'The Greyfen marsh', travelHours: 1, level: 2,
       map: { x: 0.76, y: 0.72 },
       zones: [
         { name: 'Chapel door', x: 0.04, y: 0.36, w: 0.24, h: 0.3, entry: true, from: ['causeway'], links: ['flooded-nave'] },
@@ -132,9 +150,12 @@ export default {
         { skill: 'religion', dc: 12, find: 'The altar\'s symbol, a wave over an open eye, belongs to the old river god. Someone has painted over it with a pale hand.' },
       ],
       exits: [{ to: 'causeway', label: 'back out onto the causeway' }, { to: 'crypt', label: 'down the stair into the crypt' }],
+      rules: [
+        { id: 'milestone', when: 'cleared', do: 'xp', xp: 150 },
+      ],
     },
     {
-      id: 'crypt', name: 'The Flooded Crypt', region: 'Under the drowned chapel',
+      id: 'crypt', name: 'The Flooded Crypt', region: 'Under the drowned chapel', level: 3,
       map: { x: 0.88, y: 0.86 },
       zones: [
         { name: 'Foot of the stair', x: 0.02, y: 0.3, w: 0.18, h: 0.4, entry: true, from: ['chapel'] },
@@ -154,7 +175,7 @@ export default {
       exits: [{ to: 'chapel', label: 'back up the stair' }, { to: 'sanctum', label: 'through the iron door toward the chanting' }],
     },
     {
-      id: 'sanctum', name: 'The Pale Brother\'s Sanctum', region: 'Under the drowned chapel',
+      id: 'sanctum', name: 'The Pale Brother\'s Sanctum', region: 'Under the drowned chapel', level: 3,
       map: { x: 0.68, y: 0.92 },
       zones: [
         { name: 'Iron door', x: 0.03, y: 0.37, w: 0.22, h: 0.26, entry: true, from: ['crypt'], links: ['candlelit-floor'] },
@@ -164,12 +185,16 @@ export default {
         { name: 'Far side', x: 0.78, y: 0.3, w: 0.19, h: 0.4, note: 'Aldane kneels by the pool; his skeletons stand behind him' },
       ],
       read: 'A round chamber, dry, lit by green candles. In the centre a pool of still black water reflects nothing. Before it kneels a gaunt man in a grey robe painted with white hands, chanting. Two skeletons stand guard behind him, and along the walls, bound and gagged, are the last of the missing villagers. He stops, rises, and smiles at you without warmth. "You brought it," he says, looking at the lantern. "Good. The drowned have waited a long time for the light."',
-      notes: 'Brother Aldane, the Pale Brother (a cult fanatic), with two skeletons. He wants the lantern: lit over the pool by his hand, its flame would raise every body ever drowned in the Greyfen. He will bargain ("give me the lantern and your friends walk free") and lie. He fights from behind the skeletons, opening with hold person on the strongest-looking character and then spiritual weapon. If brought below 10 hit points he tries to leap into the pool, which is only 6 feet deep. Freeing the four villagers (Cobb the miller, Ada, Jory and Tam) ends the fog for good once the lantern is lit and rehung over the ford. Milestone: award 300 XP each for defeating him and freeing the villagers. The party should be 3rd level by now; if they are still 2nd, leave out one skeleton.',
+      notes: 'Brother Aldane, the Pale Brother (a cult fanatic), with two skeletons. He wants the lantern: lit over the pool by his hand, its flame would raise every body ever drowned in the Greyfen. He will bargain ("give me the lantern and your friends walk free") and lie. He fights from behind the skeletons, opening with hold person on the strongest-looking character and then spiritual weapon. If brought below 10 hit points he tries to leap into the pool, which is only 6 feet deep. Freeing the four villagers (Cobb the miller, Ada, Jory and Tam) ends the fog for good once the lantern is lit and rehung over the ford. Milestone: award 300 XP each for defeating him and freeing the villagers. The party should be 3rd level by now (the Engine fits the fight to the party there is).',
       foes: [{ monster: 'cult-fanatic', count: 1, name: 'Brother Aldane', note: 'the Pale Brother, kneeling by the pool', zone: 'far-side' }, { monster: 'skeleton', count: 2, name: 'Sanctum skeleton', zone: 'far-side' }],
       npcs: [{ name: 'Brother Aldane', who: 'the Pale Brother, a cult fanatic of a nameless drowned power', voice: 'soft, patient, never raises his voice, calls everyone "child"', wants: 'the lantern lit over his pool to raise the drowned dead' }],
       checks: [{ skill: 'arcana', dc: 13, find: 'The pool is a gate for necromantic power, sealed only while the lantern burns over running water.' }],
       treasure: 'Aldane carries 22 gp, a dagger, and a journal naming the "A." of the letter (himself) and hinting at others of his order. A ring of keys frees the villagers.',
       exits: [{ to: 'crypt', label: 'back through the iron door' }, { to: 'thornwick', label: 'the long walk home with the lantern, to rehang it over the ford (the ending)' }],
+      rules: [
+        { id: 'aldane-leaps', when: 'hurt', who: 'Brother Aldane', hp: 10, do: 'flee', say: 'Brought below 10 hit points, Aldane leaps into the black pool (only 6 feet deep: he can be dragged out alive).' },
+        { id: 'captives-freed', when: 'cleared', do: 'quest', quest: 'vanished', xp: 300, say: 'Aldane is beaten: his ring of keys frees the four villagers (Cobb the miller, Ada, Jory and Tam).' },
+      ],
     },
   ],
   ending: 'When the lantern is lit and hung again over the ford, the fog drains back into the marsh and does not return. The village throws a feast; Reeve Wren pays what he promised; Marta Hale never charges the party for a room again. Brother Aldane\'s journal hints that his order has other pools in other marshes, a thread for the next adventure.',

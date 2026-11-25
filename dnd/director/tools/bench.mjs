@@ -38,7 +38,14 @@
 //   wrong-seat  on a player's turn in the fight, the closing question went to someone else
 //   stall       a fight round in which the Director did not move the turn on, or a fight that never ended
 //   error       the model or the connection failed
-// Reported but not gated: style flags (long, no closing question), and a stage's expected tool not used.
+// Reported but not gated: style flags (long, no closing question), and a step's expected outcome missing.
+// A step names the tool its moment calls for (expect), but what is checked is the outcome in the game,
+// however the Director got there: the party moved on, a fight started, XP was paid, a quest was finished.
+// An outcome the world has made impossible is not checked (no monsters left to fight, no quest open), and
+// a check answered without a roll (a passive score) is counted apart, as "no roll asked". An outcome the
+// adventure's own rules brought about by themselves (a milestone at a fight's end, a quest done when a place
+// is cleared) counts for the later step that expects it ("done by the adventure's rules").
+// The adventure checker (engine/check.js) runs first and prints what it finds about the adventure file.
 
 import { readFileSync, existsSync, openSync, writeSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -49,6 +56,8 @@ import { ADVENTURES, adventureById } from '../data/adventures/index.js';
 import { prepareSrd } from '../engine/library.js';
 import { pregenBuild } from '../engine/pregen.js';
 import { directorTurn } from '../brain/director.js';
+import { checkAdventure } from '../engine/check.js';
+import { allRules } from '../engine/triggers.js';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 import { statusPaths, createStatus, gpuReader, HEARTBEAT_SECS } from './bench-watch.mjs';
 
@@ -272,8 +281,11 @@ const SCRIPT4 = [
 async function runOnce(n) {
   const t0 = Date.now();
   const callsAt = calls.length;
-  const tally = { turns: 0, refusal: 0, leak: 0, rule: 0, 'roll-words': 0, 'wrong-seat': 0, stall: 0, error: 0, style: 0, missing: 0 };
+  const tally = { turns: 0, refusal: 0, leak: 0, rule: 0, 'roll-words': 0, 'wrong-seat': 0, stall: 0, error: 0, style: 0, missing: 0, noRoll: 0, skipped: 0, nochange: 0, byRules: 0 };
   const notes = [];
+  let stepTools = new Set(); // the tools the Director used (and the Engine allowed) during the current step
+  let missedFight = false; // the step before a fight already counted "no fight started"
+  let missedMove = false; // the step before already counted "the party did not move on"
   let s = part === 4 ? openAdventure(newSession(adventure), adventure, ctx('host', null)) : newSession(adventure);
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
   for (const [pid, name, input] of (part === 4 ? HEROES4 : HEROES)) {
@@ -319,8 +331,11 @@ async function runOnce(n) {
       if (f.kind === 'style') tally.style += 1;
     }
     for (const c of out.calls) if (c.result && c.result.refused) notes.push(`${label}: refused ${c.name}: ${c.result.refused}`);
-    const used = new Set(out.calls.map((c) => c.name));
-    for (const e of expect) if (!used.has(e)) { tally.missing += 1; notes.push(`${label}: did not use ${e}`); }
+    for (const c of out.calls) {
+      if (!(c.result && c.result.refused)) stepTools.add(c.name);
+      if (c.result && typeof c.result.note === 'string' && /^Nothing changed/.test(c.result.note)) tally.nochange += 1;
+    }
+    void expect;
     // On a player's turn in a fight, the closing question goes to that player.
     const who = actingPc();
     const otherRoll = (s.requests || []).some((q) => !who || q.pcId !== who.id);
@@ -335,6 +350,7 @@ async function runOnce(n) {
     }
     if (verbose) {
       console.log(`  [${label}] ${out.calls.map((c) => `${c.name}${c.result && c.result.refused ? '(refused)' : ''}`).join(', ') || 'narration only'}`);
+      showRules();
       console.log(`    DM: ${out.narration.replace(/\s+/g, ' ')}`);
       const bad = out.flags.filter((f) => f.kind !== 'note');
       if (bad.length) console.log(`    flags: ${bad.map((f) => `${f.kind}: ${f.text}`).join(' | ')}`);
@@ -342,6 +358,63 @@ async function runOnce(n) {
     }
     void asked;
     return true;
+  }
+  // What the Engine did by itself (the adventure's rules, fitting a fight), in the transcript.
+  let shownRule = 0;
+  function showRules() {
+    for (const l of s.log || []) if (l.kind === 'rule' && l.seq > shownRule) console.log(`    Engine: ${l.text}`);
+    shownRule = Math.max(shownRule, s.seq);
+  }
+  // Where the game stands before a step, to see afterwards what the step changed.
+  const xpNow = () => Object.values(s.pcs).reduce((t, p) => t + (p.xp || 0), 0);
+  const snap = () => ({ seq: s.seq, site: s.scene.siteId, xp: xpNow(), asked: s.requests.length, done: s.quests.filter((q) => q.done).length, open: s.quests.filter((q) => !q.done).length,
+    foes: Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead).length });
+  // What each expected tool is for, checked in the game: any way there counts.
+  const OUTCOMES = {
+    move_party: { what: 'the party moved on', met: (a) => s.scene.siteId !== a.site },
+    start_combat: {
+      what: 'a fight started',
+      met: (a) => !!s.fight || s.story.some((e) => e.seq > a.seq && /^Battle!/.test(e.text)),
+      needs: (a) => a.foes > 0 || Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead),
+      skip: 'no monsters are here to fight',
+    },
+    ask_for_roll: { what: 'a roll was asked for', soft: true, met: (a) => stepTools.has('ask_for_roll') || s.requests.length > a.asked || s.rolls.some((r) => r.seq > a.seq && ['check', 'save'].includes(r.kind)) },
+    award_xp: { what: 'XP was paid', met: (a) => xpNow() > a.xp },
+    complete_quest: { what: 'a quest was finished', met: (a) => s.quests.filter((q) => q.done).length > a.done, needs: (a) => a.open > 0, skip: 'no quest is left open' },
+  };
+  // What the adventure's own rules did by themselves (a milestone paid, a quest finished at a fight's end):
+  // a later step that expects it finds it already done, and that counts.
+  const RULES = new Map(allRules(adventure).map((r) => [r.key, r]));
+  const credits = [];
+  let ruleSeen = 0;
+  const KIND = { award_xp: 'xp', complete_quest: 'quest' };
+  function scanRules() {
+    for (const l of s.log || []) {
+      if (l.kind !== 'rule' || l.seq <= ruleSeen) continue;
+      const r = RULES.get((/\[rule ([^\]]+)\]$/.exec(l.text) || [])[1]);
+      if (r && (r.xp || r.level)) credits.push({ kind: 'xp', seq: l.seq, used: false });
+      if (r && r.do === 'quest') credits.push({ kind: 'quest', seq: l.seq, used: false });
+    }
+    ruleSeen = Math.max(ruleSeen, ...(s.log || []).map((l) => l.seq));
+  }
+  function outcomes(label, expect, a) {
+    missedFight = false; missedMove = false;
+    scanRules();
+    for (const e of expect || []) {
+      const o = OUTCOMES[e];
+      if (!o) { if (!stepTools.has(e)) { tally.missing += 1; notes.push(`${label}: did not use ${e}`); } continue; }
+      const k = KIND[e];
+      if (o.needs && !o.needs(a) && !(k && credits.some((c) => c.kind === k && !c.used))) { tally.skipped += 1; if (verbose) console.log(`    (${label}: "${o.what}" not checked: ${o.skip})`); continue; }
+      if (o.met(a)) { if (k) for (const c of credits) if (c.kind === k && c.seq > a.seq) c.used = true; continue; }
+      const earlier = k && credits.find((c) => c.kind === k && !c.used);
+      if (earlier) { earlier.used = true; tally.byRules += 1; if (verbose) console.log(`    (${label}: "${o.what}": already done by the adventure's own rule)`); continue; }
+      if (o.soft) { tally.noRoll += 1; notes.push(`${label}: no roll asked (a passive score, or none needed)`); continue; }
+      tally.missing += 1;
+      notes.push(`${label}: expected outcome missing: ${o.what} (${e})`);
+      if (e === 'start_combat') missedFight = true;
+      if (e === 'move_party') missedMove = true;
+    }
+    stepTools = new Set();
   }
   // The players roll whatever is asked of them, then the Director answers the result.
   async function answerRolls(label) {
@@ -359,7 +432,7 @@ async function runOnce(n) {
   async function fight(where = 'mill-road') {
     if (!s.fight) {
       notes.push(`fight at ${where}: no fight was started, so the bench starts one`);
-      tally.missing += 1;
+      if (!missedFight) tally.missing += 1; // counted once: the step before may have counted it already
       if (s.scene.siteId !== where) { notes.push(`fight: the party never reached ${where}, so the bench moves it there`); act('host', null, { type: 'site.move', siteId: where }); }
       if (!Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead)) act('host', null, { type: 'foe.add', monster: 'goblin', count: 2 });
       if (Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && f.hidden)) act('host', null, { type: 'foe.reveal' });
@@ -398,9 +471,11 @@ async function runOnce(n) {
           try {
             act('player', pid, { type: 'attack', pcId: pc.id, attack: pc.attacks.some((a) => a.id === atk) ? atk : pc.attacks[0].id, target: `foe:${foe.id}` });
             const r = s.rolls[s.rolls.length - 1];
-            if (verbose) console.log(`    ${pc.name} attacks ${foe.name}: ${r.success ? `hit, ${r.dmg ? r.dmg.total : 0} damage` : 'miss'}${s.foes[foe.id].dead ? ` (${foe.name} falls)` : ''}`);
+            if (verbose) { console.log(`    ${pc.name} attacks ${foe.name}: ${r.success ? `hit, ${r.dmg ? r.dmg.total : 0} damage` : 'miss'}${s.foes[foe.id].dead ? ` (${foe.name} falls)` : ''}`); showRules(); }
           } catch (e) { if (verbose) console.log(`    (${pc.name} could not attack: ${e.message})`); }
         }
+        // The last foe falling ends the fight by itself (the Engine's default): the Director then narrates the end.
+        if (!s.fight) { await turn('the last enemy has fallen', `after the last foe at ${where}`); break; }
         act('player', pid, { type: 'fight.next' });
         await turn('a player ended their turn', `R${s.fight ? s.fight.round : '-'} after ${pc.name}`);
       } else {
@@ -444,28 +519,23 @@ async function runOnce(n) {
       console.log(`  The whole party is dead: run ${n} ends at step ${k}.`);
       break;
     }
-    // Blackreed Mill is written for a level 2 party of four: for three 1st-level heroes (--level 1), two
-    // of the five River Rats are out on the river (taken away as the party arrives).
-    if (part === 4 && level < 2 && step.pid === 'p3' && /roof shingles/.test(step.say || '')) {
-      const rats = Object.values(s.foes).filter((f) => f.siteId === 'blackreed' && f.base === 'River Rat' && !f.dead);
-      for (const f of rats.slice(0, 2)) act('host', null, { type: 'foe.remove', foeId: f.id });
-    }
-    if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); continue; }
-    if (step.start) { await turn('the game begins: open the adventure', 'opening', step.expect); continue; }
+    if (step.fight) { await fight(typeof step.fight === 'string' ? step.fight : 'mill-road'); missedFight = false; continue; }
+    if (step.start) { const a = snap(); stepTools = new Set(); await turn('the game begins: open the adventure', 'opening', step.expect); outcomes('opening', step.expect, a); continue; }
     // A line written for a place the Director never took the party to: the bench takes them there, as a
     // player would walk on, and notes it (reported, not gated), so one missed move does not spoil the rest.
     if (step.at && s.scene.siteId !== step.at && !s.fight) {
-      tally.missing += 1;
+      if (!missedMove) tally.missing += 1; // counted once: the step before may have counted it already
       notes.push(`step ${k}: the party was at ${s.scene.siteId}, not ${step.at}, so the bench moved it`);
       act('host', null, { type: 'site.move', siteId: step.at });
     }
+    const a = snap();
+    stepTools = new Set();
     act('player', step.pid, { type: 'say', text: step.say });
     if (verbose) console.log(`  ${pcOf(step.pid).name}: ${step.say}`);
-    const before = s.requests.length;
     await turn('a player spoke', `step ${k}`, step.expect);
     // Initiative is rolled by the fight step that follows, so the battle opens with one Director turn.
     if (s.requests.length && !s.fight) await answerRolls(`step ${k}`);
-    void before;
+    outcomes(`step ${k}`, step.expect, a);
   }
   } catch (e) {
     tally.error += 1;
@@ -478,6 +548,12 @@ async function runOnce(n) {
 }
 
 const GATED = ['refusal', 'leak', 'rule', 'roll-words', 'wrong-seat', 'stall', 'error'];
+// The adventure file first: what the checker finds (reported, not gated).
+{
+  const r = checkAdventure(adventure, srd);
+  console.log(`Adventure check: ${adventure.name}: ${r.errors.length} error${r.errors.length === 1 ? '' : 's'}, ${r.warnings.length} warning${r.warnings.length === 1 ? '' : 's'}.`);
+  for (const x of [...r.errors, ...r.warnings]) console.log(`  - ${x.where}: ${x.text}`);
+}
 const results = [];
 for (let r = 1; r <= runs; r++) results.push(await runOnce(r));
 if (crashAt === 'summary') throw new Error('--crash-at summary: a test crash');
@@ -486,7 +562,7 @@ console.log(`Part ${part}${part === 4 ? ` (The Ashen Crown, ${prep.library ? 'wi
 results.forEach((x, i) => {
   const t = x.tally;
   const bad = GATED.filter((k) => t[k]);
-  console.log(`Run ${i + 1}: ${t.turns} turns in ${Math.round(x.secs / 60)} min ${Math.round(x.secs % 60)} s (${(x.secs / Math.max(1, t.turns)).toFixed(1)} s a Director turn) · ${bad.length ? `FAIL (${bad.map((k) => `${k} ${t[k]}`).join(', ')})` : 'PASS'} · style ${t.style} · expected tool missing ${t.missing}`);
+  console.log(`Run ${i + 1}: ${t.turns} turns in ${Math.round(x.secs / 60)} min ${Math.round(x.secs % 60)} s (${(x.secs / Math.max(1, t.turns)).toFixed(1)} s a Director turn) · ${bad.length ? `FAIL (${bad.map((k) => `${k} ${t[k]}`).join(', ')})` : 'PASS'} · style ${t.style} · expected outcome missing ${t.missing} · no roll asked ${t.noRoll}${t.skipped ? ` · ${t.skipped} not checkable` : ''}${t.byRules ? ` · ${t.byRules} done by the adventure's rules` : ''} · nothing-changed notes ${t.nochange}`);
   for (const nline of x.notes) console.log(`   - ${nline}`);
 });
 if (calls.length && !fake) {

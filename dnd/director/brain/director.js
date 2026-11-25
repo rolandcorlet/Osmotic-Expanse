@@ -3,6 +3,7 @@
 
 import { readFileSync } from 'node:fs';
 import { TOOLS, toolbox, statLine } from './tools.js';
+import { rulesHere } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 import * as MAP from '../engine/map.js';
 import { ProviderError } from './net.js';
@@ -25,11 +26,11 @@ const pcLine = (s, p, srd) => {
   return `- ${bits.filter(Boolean).join('; ')}.`;
 };
 
-export function briefing(state, adventure, srd, { reason = '', hostNote = '', chapters = [] } = {}) {
+const lastNarrSeq = (s) => { const n = [...(s.story || [])].reverse().find((e) => e.kind === 'narration'); return n ? n.seq : 0; };
+export function briefing(state, adventure, srd, { reason = '', hostNote = '', chapters = [], lastSeq: since = null } = {}) {
   const s = state;
   const site = (adventure.sites || []).find((x) => x.id === s.scene.siteId) || (adventure.sites || [])[0] || {};
-  const lastNarr = [...s.story].reverse().find((e) => e.kind === 'narration');
-  const lastSeq = lastNarr ? lastNarr.seq : 0;
+  const lastSeq = since != null ? since : lastNarrSeq(s);
   const narrHere = s.story.filter((e) => e.kind === 'narration' && e.site === site.id).length;
   const out = [];
   out.push(`WHY YOU ARE TAKING A TURN: ${reason || 'the table is waiting for the DM'}.`);
@@ -46,6 +47,8 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   if ((site.checks || []).length) out.push(`WHAT A SUCCESSFUL CHECK REVEALS HERE:\n${site.checks.map((c) => `- ${(R.index(srd).skill[c.skill] || {}).name || c.skill} DC ${c.dc}: ${c.find}`).join('\n')}`);
   if (site.treasure) out.push(`TREASURE HERE (give it when found): ${site.treasure}`);
   out.push(`EXITS: ${(site.exits || []).map((e) => `${e.to} (${e.label})`).join('; ') || 'none'}`);
+  const rulesText = rulesBrief(s, adventure, lastSeq);
+  if (rulesText) out.push(`\n${rulesText}`);
 
   const foes = Object.values(s.foes).filter((f) => f.siteId === site.id);
   if (foes.length) {
@@ -125,6 +128,62 @@ export function mapBrief(s, site) {
   ].filter(Boolean).join('\n');
 }
 
+// The adventure's rules here and what the Engine did by itself since the last narration (engine/triggers.js).
+export function rulesBrief(s, adventure, lastSeq = 0) {
+  if (s.auto && s.auto.rules === false) return '';
+  const lines = [];
+  const list = rulesHere(s, adventure);
+  const fit = (s.fits || {})[s.scene.siteId];
+  const did = (s.log || []).filter((l) => l.kind === 'rule' && l.seq > lastSeq).map((l) => l.text);
+  lines.push('THE ADVENTURE\'S RULES HERE (the Engine carries them out by itself when they happen: you narrate them, you do not call tools for them; if the story has gone another way, override_rule with the rule\'s id and why):');
+  for (const r of list) lines.push(`- [${r.key}] ${r.words}${r.status === 'waiting' ? '' : r.status === 'off' ? ` (SWITCHED OFF${r.why ? `: ${r.why}` : ''})` : r.status === 'done' ? ' (DONE)' : ' (passed)'}`);
+  lines.push('- [*/attack] An attack on anyone here with no fight on starts the fight. The fight ends by itself when no foe in it is left standing (it pays its XP).');
+  if (fit && fit.text) lines.push(`FITTED TO THIS PARTY: ${fit.text} Describe the numbers as they are here, not as the notes give them.`);
+  if (did.length) lines.push(`THE ENGINE DID THIS BY ITSELF SINCE YOUR LAST NARRATION (narrate it): ${did.join(' ')}`);
+  return lines.join('\n');
+}
+
+// A player's line that says they attack someone here: "I attack Grisk!", "I swing at the nearest rat!",
+// "I kick in the door and attack the nearest smuggler!", "I charge the gate!". Not a question, not "I
+// don't attack". Strong words (attack, charge) need no target; the others must name a foe here or say
+// "the nearest", "them" and the like. The Engine starts the fight; the Director can call it off.
+const STRONG = /\b(?:attacks?|attacking|charges?|charging)\b/i;
+const OTHER = /\b(?:swing(?:s)? (?:at|my|his|her)|strikes? (?:at|the|him|her|it|them)|stabs?|smash(?:es)? (?:the|him|her|it|them|into)|slash(?:es)? (?:at|the)|shoots?|fires? (?:at|on)|loose (?:an? (?:arrow|bolt)|at)|lunges? (?:at|for)|hacks? (?:at|into)|cuts? down|bash(?:es)? (?:the|him|her|it|them)|punch(?:es)?|cast \w+(?: \w+)? at)\b/i;
+const CALM = /\b(?:don['’]?t|do not|won['’]?t|will not|never|not|without|instead of|refuse to|hold off|hold back|stop|sheathe|put away|lower my|ready|readies|if|unless|should|could|would|might|maybe|wait)\b/i;
+export function declaresAttack(text, state) {
+  const here = Object.values(state.foes || {}).filter((f) => f.siteId === state.scene.siteId && !f.dead);
+  if (!here.length || state.fight) return false;
+  const foeWords = new Set(here.flatMap((f) => [f.name, f.base, f.mid].filter(Boolean).flatMap((x) => String(x).toLowerCase().replace(/-/g, ' ').split(/\s+/))).filter((w) => w.length > 3 && !/^\d+$/.test(w)));
+  const generic = /\b(?:nearest|closest|enemy|enemies|foes?|monsters?|them|him|her|it|leader|captain|guards?|sentr(?:y|ies))\b/i;
+  for (const sent of String(text || '').split(/(?<=[.!?])\s+/)) {
+    if (/\?\s*["”]?$/.test(sent.trim()) || !/\b(?:I|[Ww]e)\b/.test(sent) || CALM.test(sent)) continue;
+    const words = sent.toLowerCase().replace(/[^a-z\s'-]/g, ' ').split(/\s+/).map((w) => w.replace(/(?:es|s)$/, ''));
+    const named = words.some((w) => [...foeWords].some((f) => f.replace(/(?:es|s)$/, '') === w)) || generic.test(sent);
+    if (STRONG.test(sent) || (OTHER.test(sent) && named)) return true;
+  }
+  return false;
+}
+
+// Before the model's turn: the Engine starts the game's first place (its rules on arrival, such as an
+// ambush) on the Director's first turn, and hears a player's declared attack. What it did goes in `calls`.
+function beforeTurn(T, state) {
+  const out = [];
+  const did = (name, action) => {
+    const before = T.state.seq;
+    const no = T.do(action);
+    const fired = (T.state.log || []).filter((l) => l.seq > before && l.kind === 'rule').map((l) => l.text);
+    out.push({ name, args: action, result: no ? { note: no } : fired.length ? { adventure_rules: fired } : { ok: true } });
+  };
+  if (!state.started && Object.values(state.pcs || {}).some((p) => !p.dead)) did('(the game begins)', { type: 'rules.run', starting: true });
+  if (!T.state.fight) {
+    const lastNarr = [...(state.story || [])].reverse().find((e) => e.kind === 'narration');
+    const fresh = (state.story || []).filter((e) => e.kind === 'say' && e.pcId && (!lastNarr || e.seq > lastNarr.seq));
+    const line = fresh.find((e) => declaresAttack(e.text, T.state));
+    if (line) did('(a player attacks)', { type: 'rule.event', event: 'attack', by: `pc:${line.pcId}` });
+  }
+  return out;
+}
+
 // ---- checking what the model wants to say -------------------------------------------------------
 export const LEAK = /\bno tools? (?:needed|called|required|used)\b|\b(?:tool|function) calls?\b|\bthe notes\b|\bbriefing\b|\bthe Engine\b|\bthe Ledger\b|\bthe tools?\b|\bread-aloud\b|\bfor you only\b|\bstat block\b|\bDM only\b/i;
 // Bench, 20 Nov: "only two hit-points of spite left in him" (a goblin's hit points, in words) got through.
@@ -198,9 +257,10 @@ export async function directorTurn(args) {
 async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reason = '', hostNote = '', memory = null }) {
   const T = toolbox({ state, adventure, srd, rng, now, memory });
   const chat = provider.start({ system: INSTRUCTIONS, tools: TOOLS });
-  const calls = [];
+  const calls = beforeTurn(T, state);
+  T.refusals = 0;
   const usage = { in: 0, out: 0 };
-  let reply = await chat.send(briefing(state, adventure, srd, { reason, hostNote, chapters: memory ? memory.chapters : [] }));
+  let reply = await chat.send(briefing(T.state, adventure, srd, { reason, hostNote, chapters: memory ? memory.chapters : [], lastSeq: lastNarrSeq(state) }));
   let narration = '';
   let nudged = false;
   let rollNudged = false;

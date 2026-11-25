@@ -6,12 +6,13 @@ import { adventureById } from '../data/adventures/index.js';
 export const srd = JSON.parse(readFileSync(new URL('../../data/srd.json', import.meta.url), 'utf8'));
 export const adventure = adventureById('lantern');
 export const BASE = { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 };
-export function table(seed = 7) {
+// Fights are kept as written here (the fitting has its own tests); the adventure's rules run as in play.
+export function table(seed = 7, { auto = { rules: true, scale: 'off' }, adv = adventure } = {}) {
   const rng = makeRng(seed);
   let now = 1000;
-  const ctx = (role, pid, extra = {}) => ({ role, pid, rng, now: (now += 1000), adventure, srd, ...extra });
+  const ctx = (role, pid, extra = {}) => ({ role, pid, rng, now: (now += 1000), adventure: adv, srd, ...extra });
   const T = {
-    s: newSession(adventure),
+    s: { ...newSession(adv), auto: { ...auto } },
     host(action) { T.s = apply(T.s, action, ctx('host', null)); return T.s; },
     ai(action) { T.s = apply(T.s, action, ctx('host', null, { ai: true })); return T.s; },
     as(pid, action) { T.s = apply(T.s, action, ctx('player', pid)); return T.s; },
