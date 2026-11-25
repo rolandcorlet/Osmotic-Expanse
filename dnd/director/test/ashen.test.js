@@ -311,3 +311,14 @@ test('a roll with no DC is asked at a DC the reason suggests, medium by default,
   tb3.run('ask_for_roll', { characters: [pc.name], kind: 'check', skill: 'athletics', dc: 50, reason: 'Lift the portcullis' });
   assert.equal(tb3.state.requests.find((q) => q.pcId === pc.id && /portcullis/.test(q.reason)).dc, 35);
 });
+
+test('initiative asked for as a check is a note, not a refusal (bench part 4, 25 Nov)', () => {
+  const T = table();
+  T.host({ type: 'pc.create', input: PG.pregenBuild(adv.pregens[0], srd, 1) });
+  const pc = Object.values(T.s.pcs)[0];
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(9), now: 9 });
+  const out = tb.run('ask_for_roll', { characters: [pc.name], kind: 'check', skill: 'initiative', reason: 'React to the ambush' });
+  assert.ok(!out.refused, 'no refusal: ' + (out.refused || ''));
+  assert.match(out.note, /start_combat/);
+  assert.equal(tb.state.requests.filter((q) => q.pcId === pc.id).length, 0, 'nothing asked');
+});

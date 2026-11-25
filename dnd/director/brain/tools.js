@@ -91,6 +91,12 @@ export const TOOLS = [
       if (effect && effect.dmg && !/^\s*\d*d\d+(\s*[+-]\s*\d+)?\s*$/i.test(effect.dmg)) return { refused: `"${effect.dmg}" is not a dice amount like 2d6 or 3d8+2.` };
       // No skill or ability named (ten-run bench): read one from the words of the reason, if they name one.
       let skill = lower(a.skill).replace(/\s+/g, '-');
+      // Initiative is not a check to ask for (bench part 4, 25 Nov: asked again right after start_combat had
+      // asked for it). A note that says where it comes from.
+      if ([skill, lower(a.ability), lower(a.kind)].includes('initiative')) {
+        const f = T.state.fight;
+        return { note: `Nothing changed: ${f && f.phase === 'initiative' ? 'initiative is already on their screens (start_combat asked for it). Wait for the rolls' : f ? 'initiative was rolled when this fight started' : 'initiative is rolled when a fight starts: use start_combat, which asks everyone for it'}.` };
+      }
       let ability = lower(a.ability).slice(0, 3);
       if (!skill && !['str', 'dex', 'con', 'int', 'wis', 'cha'].includes(ability)) {
         const why = lower(`${a.reason} ${a.ability} ${a.skill}`);
