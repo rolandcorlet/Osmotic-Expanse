@@ -165,6 +165,29 @@ watchtower"); anything still unclear is refused with the choices listed.
 
 ## Checking an adventure
 
+**Before any GPU time:** `node tools/preflight.mjs` (or one adventure: `... lantern --party 3x2`) runs four
+checks in under a minute, with no model:
+- **The checker.** It finds wrong ids, missing monsters, places no exit reaches, clocks, quests, the
+  adventure's rules and ready-made heroes.
+- **The fight simulation** (`tools/simulate.mjs`). Every fight is played 40 times through the real Engine,
+  by simple heroes and simple monsters, for the party the adventure is written for and for the bench's
+  party. It reports wins, wipes, downs and rounds.
+- **Replay and fuzz** (`tools/replay.mjs`).
+  - Replay plays the tool calls real models made in earlier benches back through today's code. A bench
+    with `--log` writes `<log>.calls.jsonl`. A call that worked and is now refused is a regression.
+  - Fuzz throws bad arguments at every tool: wrong and near names, missing parts, nobody, dead targets.
+- **A generated bench script.** `tools/bench.mjs --script gen --adventure <id>` writes its script from the
+  adventure itself: its places along the exits, a probe per check, a word with someone, the fights, the
+  quests that end there. The preflight plays it once with the stand-in model.
+
+It fails on checker errors, replay regressions, tool crashes or a bench that trips. Wipes in the simulation
+are reported, not gated: the simulation plays both sides simply, and a fight may be meant to be survived
+by talking.
+
+**Writing an adventure:** `docs/AUTHORING.md` is the guide. `docs/DESIGNER-PROMPT.md` (a new adventure)
+and `docs/CONVERTER-PROMPT.md` (an existing one) turn it into a design partner in any AI chat.
+
+
 `node tools/check-adventure.mjs` (or one adventure: `... lantern`, or a file: `... my-quest.js`) checks
 an adventure file without playing it: ids, exits and whether every place can be reached, monsters that
 are not in the SRD, checks with skills that do not exist, broken zones and monster zones, clocks,

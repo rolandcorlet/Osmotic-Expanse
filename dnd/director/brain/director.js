@@ -166,7 +166,7 @@ export function declaresAttack(text, state) {
 
 // Before the model's turn: the Engine starts the game's first place (its rules on arrival, such as an
 // ambush) on the Director's first turn, and hears a player's declared attack. What it did goes in `calls`.
-function beforeTurn(T, state) {
+export function beforeTurn(T, state) {
   const out = [];
   const did = (name, action) => {
     const before = T.state.seq;

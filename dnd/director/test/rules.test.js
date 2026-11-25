@@ -181,15 +181,23 @@ test('the DM can turn the rules off, and fights are left as written or only made
 });
 
 test('fights are fitted to the party at the table: numbers first, then hit points, once per place', () => {
-  // Two 5th-level heroes at the chapel (written for four or five of 2nd level): more drowned villagers.
+  // Two 5th-level heroes at the chapel (written for four or five of 2nd level): a party smaller than
+  // written never gets more foes (the simulation wiped them half the time), it gets tougher ones.
   const T = table(13, { auto: { rules: true, scale: 'auto' } });
   hero(T, 'p1', 'Bryn', 'fighter', { level: 5 });
   hero(T, 'p2', 'Ila', 'cleric', { level: 5 });
   T.s.started = true;
   for (const site of ['causeway', 'chapel']) T.host({ type: 'site.move', siteId: site });
   const zombies = foesAt(T, 'chapel', 'Drowned villager');
-  assert.ok(zombies.length > 3, `more than the three written (${zombies.length})`);
-  assert.match(T.s.fits.chapel.text, /written for four to five characters of 2nd level, the party here is two of 5th level\. Drowned villager: \d+ \(written 3\)/);
+  assert.equal(zombies.length, 3, 'the three written');
+  assert.ok(zombies[0].maxHp > 22, 'with more hit points');
+  assert.match(T.s.fits.chapel.text, /written for four to five characters of 2nd level, the party here is two of 5th level\. hit points ×1\.5/);
+  // A bigger party than written gets more foes.
+  const B = table(20, { auto: { rules: true, scale: 'auto' } });
+  for (const [pid, nm] of [['p1', 'A'], ['p2', 'B'], ['p3', 'C'], ['p4', 'D'], ['p5', 'E'], ['p6', 'F']]) hero(B, pid, nm, 'fighter', { level: 3 });
+  B.s.started = true;
+  for (const site of ['causeway', 'chapel']) B.host({ type: 'site.move', siteId: site });
+  assert.ok(foesAt(B, 'chapel', 'Drowned villager').length > 3, 'six 3rd-level heroes meet more of the drowned');
   const b = briefing(T.s, adventure, srd, { reason: 'test' });
   assert.match(b, /FITTED TO THIS PARTY: .*Describe the numbers as they are here/);
   // One 1st-level hero at the sanctum: a skeleton less and thinner hit points; the boss stays one.
@@ -261,4 +269,14 @@ test('the Director: the Engine starts the fight a player declared before the mod
   assert.match(seen[0], /THE ADVENTURE'S RULES HERE .*\n- \[mill-road\/ambush\] When a Perception check here fails/);
   assert.equal(out.refusals, 0);
   void bryn;
+});
+
+test('a hero\'s damage spells do harm: the damage is read from the spell\'s words (found by the simulation)', () => {
+  const T = table(19);
+  const w = hero(T, 'p1', 'Wyn', 'wizard', { level: 5, spells: { cantrips: ['fire-bolt', 'light', 'mage-hand'], known: ['fireball', 'magic-missile', 'shield', 'sleep', 'burning-hands', 'thunderwave'], prepared: ['fireball', 'magic-missile', 'shield', 'burning-hands'] } });
+  T.host({ type: 'foe.add', monster: 'ogre', count: 1 });
+  const ogre = Object.values(T.s.foes)[0];
+  T.as('p1', { type: 'spell.cast', pcId: w.id, spell: 'fireball', targets: [`foe:${ogre.id}`] });
+  assert.ok(T.s.foes[ogre.id].hp < ogre.maxHp, 'the fireball burns');
+  assert.match(T.s.story.filter((e) => /Fireball/.test(e.text)).at(-1).text, /\d+ fire damage/);
 });

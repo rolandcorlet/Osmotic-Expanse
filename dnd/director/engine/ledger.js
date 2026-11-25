@@ -959,6 +959,7 @@ H['spell.cast'] = (s, a, ctx) => {
   // A near name: their own spells first ("cure wound", "guiding bolt"), then any spell.
   if (!sp) { sp = NAMES.pick(own, a.spell, (x) => [x.id, x.name]) || NAMES.pick(ctx.srd.spells, a.spell, (x) => [x.id, x.name]); if (sp) assume(ctx, `"${a.spell}" is ${sp.name}.`); }
   if (!sp) refuse(`There is no spell called "${a.spell}".`, own.map((x) => x.name));
+  R.spellDamage(sp); // its damage, read from its words when the data has none (a library spell added later)
   const can = sp.level === 0 ? [...c.cantrips, c.raceCantrip].includes(sp.id) : (c.kind === 'prepared' ? c.prepared : c.known).includes(sp.id);
   if (!can && !(c.spellbook && a.ritual && sp.ritual && c.known.includes(sp.id))) refuse(`${pc.name} does not have ${sp.name} ${c.kind === 'prepared' ? 'prepared' : 'known'}.`, own.map((x) => x.name));
   const ritual = !!a.ritual && sp.ritual;

@@ -77,7 +77,9 @@ export function planFight({ groups, designed, actual, srd, mode = 'auto' }) {
   for (let k = 0.1; k <= 3.001; k += 0.05) {
     const c = {};
     for (const g of groups) {
-      const most = mode === 'down' ? g.count : Math.min(12, g.count * 2);
+      // A party smaller than written never gets more foes (more attacks than it can answer: the simulation
+      // wiped two 5th-level heroes against six drowned villagers half the time); it gets tougher ones.
+      const most = mode === 'down' || actual.length < lo ? g.count : Math.min(12, g.count * 2);
       c[g.key] = g.scalable ? Math.max(1, Math.min(most, Math.round(g.count * k))) : g.count;
     }
     const total = Object.values(c).reduce((a, b) => a + b, 0);

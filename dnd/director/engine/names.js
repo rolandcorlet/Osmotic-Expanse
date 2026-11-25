@@ -44,6 +44,9 @@ export function pick(list, ref, names) {
   if (head) return head;
   const inside = one(all.filter(([, ns]) => ns.some((n) => n.length >= 4 && (` ${k} `).includes(` ${n} `))));
   if (inside) return inside;
+  // A short name with a letter or two too many ("Ilaa", "Bryns"): the one name it starts with.
+  const over = one(all.filter(([, ns]) => ns.some((n) => n.length >= 3 && !n.includes(' ') && k.startsWith(n) && k.length - n.length <= 2 && !/\s/.test(k))));
+  if (over) return over;
   let best = null; let bd = Infinity; let tie = false;
   for (const [x, ns] of all) {
     for (const n of ns) {

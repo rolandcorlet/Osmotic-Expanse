@@ -48,8 +48,31 @@ export function index(srd) {
     weapon: by(srd.weapons), armor: by(srd.armor), gear: by(srd.gear), skill: by(srd.skills),
     cond: by(srd.conditions), magic: by(srd.magicItems), bg: by(srd.backgrounds),
   };
+  for (const sp of srd.spells || []) spellDamage(sp);
   Object.defineProperty(srd, '_ix', { value: ix, enumerable: false, configurable: true });
   return ix;
+}
+
+// A spell's damage, read from its own words when the data has none (the SRD file carries no damage
+// fields: found by the fight simulation, 26 Nov, when no hero's Fire Bolt or Fireball ever did harm).
+// Cantrips grow at 5th, 11th and 17th level; a slot spell by the dice its "At Higher Levels" names.
+const DMG_TYPES = 'acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder';
+export function spellDamage(sp) {
+  if (!sp || sp.dmgSlot || sp.dmgLevel || sp._dmgRead) return sp;
+  Object.defineProperty(sp, '_dmgRead', { value: true, enumerable: false });
+  const m = new RegExp(`(\\d+)d(\\d+)(?:\\s*\\+\\s*(\\d+))?\\s+(${DMG_TYPES}) damage`, 'i').exec(String(sp.desc || ''));
+  if (!m || !(sp.attack || sp.save)) return sp;
+  const [n, d, flat] = [Number(m[1]), Number(m[2]), m[3] ? `+${m[3]}` : ''];
+  sp.dmgType = sp.dmgType || m[4].toLowerCase();
+  if (sp.level === 0) {
+    const grows = /5th level/i.test(sp.desc);
+    sp.dmgLevel = grows ? { 1: `${n}d${d}${flat}`, 5: `${2 * n}d${d}${flat}`, 11: `${3 * n}d${d}${flat}`, 17: `${4 * n}d${d}${flat}` } : { 1: `${n}d${d}${flat}` };
+  } else {
+    const up = /increases by (\d+)d(\d+) for each (?:slot )?level above (\d)/i.exec(String(sp.higher || ''));
+    sp.dmgSlot = {};
+    for (let l = sp.level; l <= 9; l++) sp.dmgSlot[l] = `${n + (up && Number(up[2]) === d ? Number(up[1]) * (l - sp.level) : 0)}d${d}${flat}`;
+  }
+  return sp;
 }
 export const item = (srd, id) => { const ix = index(srd); return ix.weapon[id] || ix.armor[id] || ix.gear[id] || ix.magic[id] || null; };
 

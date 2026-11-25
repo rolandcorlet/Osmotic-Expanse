@@ -13,6 +13,9 @@
 //   node tools/bench.mjs --part 4              part 4: The Ashen Crown, session 1: the ambush at Highbridge Gorge, Oakhurst, Blackreed Mill
 //   --no-library                               play on the SRD alone, without your private book library
 //   --level <n>                                the heroes' level (default: part 1 at 3, part 2 at 4, part 3 at 5, part 4 at 3)
+//   --script gen --adventure <id> [--places 6]  a script written from the adventure itself (any campaign):
+//                                              its places along the exits, a probe per check, a word with
+//                                              someone, its fights, and the quests that end there (level 3)
 //
 // Prefer --log to `> file.log`: PowerShell's redirect writes UTF-16LE and mangles the transcript.
 // With --log, the bench also keeps <log name>.status.json up to date (see tools/bench-watch.mjs): what it is
@@ -58,6 +61,9 @@ import { pregenBuild } from '../engine/pregen.js';
 import { directorTurn } from '../brain/director.js';
 import { checkAdventure } from '../engine/check.js';
 import { allRules } from '../engine/triggers.js';
+import { recordTurn } from '../brain/replay.js';
+import { generateScript } from '../engine/script-gen.js';
+import { appendFileSync } from 'node:fs';
 import { build, providerInfo, PROVIDERS } from '../brain/providers.js';
 import { statusPaths, createStatus, gpuReader, HEARTBEAT_SECS } from './bench-watch.mjs';
 
@@ -77,13 +83,17 @@ const model = opt('--model', (cfg.models || {})[provider] || '');
 const numCtx = Number(opt('--ctx', cfg.numCtx || 16384));
 const thinking = opt('--thinking', cfg.thinking || 'default');
 const runs = Math.max(1, Number(opt('--runs', 1)));
-const part = ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
+// --script gen: a script written from the adventure itself (engine/script-gen.js), for any campaign.
+const gen = opt('--script', '') === 'gen';
+const part = gen ? 5 : ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
 // The heroes' level in each part. Raised by two (25 Nov) after boss fights (Grisk, Brother Aldane) killed
 // the two-hero party in 3 of 5 runs and the endings went untested: a party of two needs about two levels
 // more than the party of four an adventure is written for. --level overrides.
-const LEVELS = { 1: 3, 2: 4, 3: 5, 4: 3 };
+const LEVELS = { 1: 3, 2: 4, 3: 5, 4: 3, 5: 3 };
 const level = Math.min(20, Math.max(1, Math.round(Number(opt('--level', LEVELS[part]))) || LEVELS[part]));
 const logFile = opt('--log', '');
+// The model's tool calls, with the game before each turn, for replaying after code changes (tools/replay.mjs).
+const callsFile = logFile ? `${logFile.replace(/\.log$/i, '')}.calls.jsonl` : '';
 const verbose = !flag('--quiet');
 const crashAt = opt('--crash-at', '');
 
@@ -195,7 +205,8 @@ const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.json'), 
 // As the server does: the private book library (if built) and every adventure's own monsters.
 const libFile = join(here, '..', 'library', 'library.json');
 const prep = prepareSrd(srd, { libraryFile: flag('--no-library') ? null : libFile, adventures: ADVENTURES });
-const adventure = adventureById(part === 4 ? 'ashen-crown' : 'lantern');
+const adventure = adventureById(gen ? opt('--adventure', 'lantern') : part === 4 ? 'ashen-crown' : 'lantern');
+if (!adventure) { console.log(`There is no adventure "${opt('--adventure', '')}". Adventures: ${ADVENTURES.map((a) => a.id).join(', ')}.`); process.exit(2); }
 const rng = systemRng();
 const ctx = (role, pid) => ({ role, pid, rng, now: Date.now(), adventure, srd });
 const BASE = { str: 15, dex: 13, con: 14, int: 8, wis: 12, cha: 10 };
@@ -209,6 +220,9 @@ const HEROES = [
 // Part 4's heroes: three of The Ashen Crown's ready-made characters, built as the player's screen builds them.
 const HEROES4 = [['p1', 'Roly', 'bram'], ['p2', 'Keith', 'hilde'], ['p3', 'Sam', 'pell']]
   .map(([pid, name, id]) => [pid, name, pregenBuild(id, srd, level, adventure.pregens || [])]);
+// A generated script plays the adventure's first three ready-made heroes, or Bryn and Ila when it has none.
+const PREGEN_RUN = part === 4 || (gen && (adventure.pregens || []).length >= 3);
+const HEROES_RUN = part === 4 ? HEROES4 : gen && PREGEN_RUN ? [['p1', 'Roly'], ['p2', 'Keith'], ['p3', 'Sam']].map(([pid, name], n) => [pid, name, pregenBuild(adventure.pregens[n].id, srd, level, adventure.pregens)]) : HEROES;
 
 // What the players say, in order. `expect` names a tool the stage should use (reported, not gated).
 const SCRIPT = [
@@ -277,6 +291,9 @@ const SCRIPT4 = [
   { pid: 'p2', say: 'I search the mill\'s strongroom for papers and the shipments.', expect: ['ask_for_roll'], at: 'blackreed' },
 ];
 
+// --script gen: walk the adventure's places (--places, 6 by default) and say what players say there.
+const SCRIPT_GEN = gen ? generateScript(adventure, { places: Number(opt('--places', 6)) || 6, heroes: HEROES_RUN.length }) : [];
+
 // ---- one run ---------------------------------------------------------------------------------
 async function runOnce(n) {
   const t0 = Date.now();
@@ -286,11 +303,11 @@ async function runOnce(n) {
   let stepTools = new Set(); // the tools the Director used (and the Engine allowed) during the current step
   let missedFight = false; // the step before a fight already counted "no fight started"
   let missedMove = false; // the step before already counted "the party did not move on"
-  let s = part === 4 ? openAdventure(newSession(adventure), adventure, ctx('host', null)) : newSession(adventure);
+  let s = part === 4 || gen ? openAdventure(newSession(adventure), adventure, ctx('host', null)) : newSession(adventure);
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); };
-  for (const [pid, name, input] of (part === 4 ? HEROES4 : HEROES)) {
+  for (const [pid, name, input] of HEROES_RUN) {
     act('player', pid, { type: 'join', name });
-    if (part === 4) act('player', pid, { type: 'pc.create', input });
+    if (PREGEN_RUN) act('player', pid, { type: 'pc.create', input });
     else act('host', null, { type: 'pc.create', input: { ...input, level }, forPid: pid });
   }
   if (part === 2) {
@@ -317,12 +334,15 @@ async function runOnce(n) {
     if (crashAt && label === crashAt) throw new Error(`--crash-at ${label}: a test crash`);
     const asked = actingPc();
     let out;
+    const before = s;
     try {
       out = await directorTurn({ state: s, adventure, srd, provider: makeProvider(), rng, now: Date.now(), reason });
     } catch (e) {
       tally.error += 1; notes.push(`${label}: ERROR ${e.message}`); console.log(`  [${label}] ERROR: ${e.message}`); return false;
     }
     s = out.state;
+    // Every tool call the model made, with the game before the turn, for tools/replay.mjs.
+    if (callsFile) { try { const rec = recordTurn({ part, run: n, label, reason, before, calls: out.calls, adventureId: adventure.id }); if (rec) appendFileSync(callsFile, `${JSON.stringify(rec)}\n`); } catch (e) { /* the record must never stop a bench */ } }
     tally.refusal += out.refusals || 0;
     for (const f of out.flags) {
       if (f.kind === 'leak') { tally.leak += 1; notes.push(`${label}: leak: ${f.text}`); }
@@ -501,7 +521,7 @@ async function runOnce(n) {
     // cleric's slots would (bench 21 Nov: they reached Brother Aldane half dead every run).
     for (const p of Object.values(s.pcs)) {
       if (p.dead) continue;
-      if ((part === 3 || part === 4) && p.hp < p.maxHp) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: p.maxHp - p.hp });
+      if ((part === 3 || part === 4 || gen) && p.hp < p.maxHp) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: p.maxHp - p.hp });
       else if (p.hp <= 0) act('host', null, { type: 'heal', target: `pc:${p.id}`, amount: 5 });
     }
   }
@@ -511,7 +531,7 @@ async function runOnce(n) {
   // A bench fault in one run (an Engine refusal of the bench's own move, a bug) is that run's error,
   // and the other runs go on.
   try {
-  for (const [k, step] of (part === 4 ? SCRIPT4 : part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+  for (const [k, step] of (gen ? SCRIPT_GEN : part === 4 ? SCRIPT4 : part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
     // The whole party is dead (bench part 3, 25 Nov: the crypt skeletons killed Bryn after Ila): the adventure
     // is over and the run ends here. A wipe is play, not a fault: reported, not gated.
     if (Object.values(s.pcs).length && Object.values(s.pcs).every((p) => p.dead)) {
@@ -558,7 +578,7 @@ const results = [];
 for (let r = 1; r <= runs; r++) results.push(await runOnce(r));
 if (crashAt === 'summary') throw new Error('--crash-at summary: a test crash');
 console.log('\n=== Summary ===');
-console.log(`Part ${part}${part === 4 ? ` (The Ashen Crown, ${prep.library ? 'with your book library' : 'SRD only'})` : ''}. Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
+console.log(`${gen ? `Generated script (${adventure.name}, ${SCRIPT_GEN.filter((x) => x.say).length} lines)` : `Part ${part}`}${part === 4 ? ` (The Ashen Crown, ${prep.library ? 'with your book library' : 'SRD only'})` : ''}. Model: ${fake ? 'fake stand-in' : `${info.name} · ${model}`}${!fake && info.group === 'local' ? ` · thinking ${thinking}` : ''}`);
 results.forEach((x, i) => {
   const t = x.tally;
   const bad = GATED.filter((k) => t[k]);
