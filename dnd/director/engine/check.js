@@ -214,7 +214,7 @@ export function checkAdventure(adv, srd) {
 
   // ---- the adventure's own rules (engine/triggers.js) ------------------------------------------------
   {
-    const rr = TRIG.checkRules(adv, { skills: (srd.skills || []).map((x) => x.id) });
+    const rr = TRIG.checkRules(adv, { skills: (srd.skills || []).map((x) => x.id), monsters: (srd.monsters || []).map((m) => m.id) });
     for (const t of rr.errors) E('rules', t);
     for (const t of rr.warnings) W('rules', t);
   }

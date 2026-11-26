@@ -48,10 +48,12 @@
 //            or to the party's loot
 //   calm     `target` or `who` (everyone here if neither) stands down: out of the fight, not beaten (no
 //            XP); the fight ends when no foe in it is still fighting. Attacking them starts a new one.
+//   add      `qty` (1) of `monster` (an SRD or adventure monster id) arrive here, named `name`, in sight
+//            unless `hidden`; in a fight they join it (a boss's second form, reinforcements)
 //   say      nothing happens but the line in `say`, for the Director (any rule may carry `say`)
 
 export const EVENTS = ['enter', 'use', 'fight', 'turn', 'attack', 'fail', 'succeed', 'round', 'down', 'hurt', 'cleared', 'full', 'quest'];
-export const EFFECTS = ['fight', 'flee', 'tick', 'quest', 'xp', 'reveal', 'give', 'calm', 'say'];
+export const EFFECTS = ['fight', 'flee', 'tick', 'quest', 'xp', 'reveal', 'give', 'calm', 'add', 'say'];
 export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'hurt', 'quest', 'has', 'carries', 'passed', 'failed', 'fight', 'no fight'];
 // Set off by a state that holds (checked after every change), not by one moment.
 export const STATES = ['down', 'hurt', 'cleared', 'full', 'quest'];
@@ -103,6 +105,7 @@ export function normRule(r, site, n) {
     surprise: /^(?:the )?(?:party|heroes|characters|players|pcs)$/i.test(String(r.surprise || '')) ? 'party' : /^(?:the )?(?:foes|monsters|enemies|them)$/i.test(String(r.surprise || '')) ? 'foes' : '',
     to: plain(r.to), clock: plain(r.clock), by: Math.trunc(Number(r.by)) || 1, quest: plain(r.quest),
     item: plain(r.item), qty: Number(r.qty) > 1 ? Math.min(999, Math.trunc(Number(r.qty))) : 1, gold: Number(r.gold) > 0 ? Math.min(1e6, Math.trunc(Number(r.gold))) : 0,
+    monster: plain(r.monster).toLowerCase(), name: plain(r.name), hidden: !!r.hidden,
     xp: Number(r.xp) > 0 ? Math.trunc(Number(r.xp)) : 0, level: Number(r.level) >= 2 ? Math.min(20, Math.trunc(Number(r.level))) : 0, say: plain(r.say),
     // "round" alone and "turn" happen every time unless the rule says once: true.
     once: r.once === false ? false : r.once === true ? true : !((when.ev === 'round' && !when.arg) || when.ev === 'turn'),
@@ -178,6 +181,7 @@ export function doWords(r, adv) {
     case 'reveal': parts.push(`${r.target || 'everyone hidden here'} ${r.target && !/s$/.test(r.target) ? 'is' : 'are'} revealed`); break;
     case 'give': parts.push(`${[r.item ? `${r.qty > 1 ? `${r.qty} × ` : ''}${r.item}` : '', r.gold ? `${r.gold} gp` : ''].filter(Boolean).join(' and ') || 'nothing'} ${r.when.ev === 'use' || r.when.ev === 'enter' ? 'goes to that character' : 'goes to the party'}`); break;
     case 'calm': parts.push(`${who} ${/s$/.test(who) ? 'stand' : 'stands'} down (no fight with ${/s$/.test(who) || !r.target ? 'them' : 'it'})`); break;
+    case 'add': parts.push(`${r.qty > 1 ? `${r.qty} × ` : ''}${r.name || r.monster} ${r.qty > 1 ? 'arrive' : 'arrives'}${r.hidden ? ', out of sight' : ''}`); break;
     case 'xp': break;
     case 'say': break;
     default: parts.push(`(${r.do || 'nothing'})`);
@@ -195,7 +199,8 @@ export function ruleWords(r, adv) {
 
 // ---- checking an adventure's rules (for engine/check.js) ----------------------------------------
 // names: the foe names and groups at each place; quests: every quest text; clocks: every clock name.
-export function checkRules(adv, { skills = [] } = {}) {
+export function checkRules(adv, { skills = [], monsters: monsterIds = [] } = {}) {
+  const monsters = new Set([...monsterIds, ...((adv && adv.monsters) || []).map((m) => m.id)].map((x) => String(x).toLowerCase()));
   const errors = []; const warnings = [];
   const sites = (adv && adv.sites) || [];
   const ids = new Set(sites.map((s) => s.id));
@@ -243,6 +248,8 @@ export function checkRules(adv, { skills = [] } = {}) {
     if (r.do === 'flee' && r.to && !ids.has(r.to)) errors.push(`${at}: there is no place "${r.to}" to flee to.`);
     if (r.do === 'xp' && !r.xp && !r.level) errors.push(`${at}: give the XP (xp: 300) or the level (level: 2).`);
     if (r.do === 'say' && !r.say) errors.push(`${at}: write what happens (say: '…').`);
+    if (r.do === 'add' && !r.monster) errors.push(`${at}: say which monster arrives (monster: 'ogre').`);
+    if (r.do === 'add' && r.monster && monsters.size && !monsters.has(String(r.monster).toLowerCase())) errors.push(`${at}: there is no monster "${r.monster}" (an SRD id, or one of this adventure's own).`);
     for (const c of r.if) {
       if (!c.k) errors.push(`${at}: "${c.raw}" is not a condition. Use one of: ${CONDITIONS.join(', ')}.`);
       if ((c.k === 'from' || c.k === 'visited') && !ids.has(c.arg)) errors.push(`${at}: there is no place "${c.arg}".`);

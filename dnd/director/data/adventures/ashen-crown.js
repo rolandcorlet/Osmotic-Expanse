@@ -360,6 +360,10 @@ export default {
         { monster: 'ac-ash-hound', count: 2, name: 'Ash Hound', note: 'Malakor\'s bodyguards' },
       ],
       clocks: [{ name: 'Runic suspension chains', size: 4, note: 'All four chains are broken: Malakor\'s fire shield drops.' }],
+      rules: [
+        // PHASE 2, carried out by the Engine (it was only in the notes): the Avatar rises where Malakor fell.
+        { id: 'avatar', when: 'down', who: 'Lord Malakor Vane', if: 'not quest ashen crown', do: 'add', monster: 'ac-ash-avatar', name: 'Malakor, Avatar of the Ash-King', say: 'Malakor falls, and the Ashen Crown fuses to his brow: ash and fire pour out of him, and he rises again, vast and burning, the Ash-King\'s soul behind his eyes.' },
+      ],
       treasure: 'Malakor\'s Ashbrand greatsword (a +2 greatsword that deals an extra 1d6 fire damage), the Iron Brand\'s war chest (5,000 gp), and the gratitude of the whole Sundermark.',
       exits: [{ to: 'cinderhelm', label: 'back up through the citadel' }],
     },

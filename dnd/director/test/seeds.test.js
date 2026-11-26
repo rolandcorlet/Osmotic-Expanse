@@ -177,3 +177,10 @@ test('a camp seed the Director brings in by hand still attacks the camp, and the
   T.host({ type: 'fight.end' });
   assert.equal(T.s.pcs[pc.id].hp, T.s.pcs[pc.id].maxHp);
 });
+
+test('a seed the Director calls by a name of its own is the only one that could come in', () => {
+  const T = party();
+  seed(T, LOST); seed(T, CAMP);
+  T.ai({ type: 'seed.fire', seed: 'the traveller', why: 'stuck' });
+  assert.equal(T.s.seedNow.title, 'The pedlar');
+});

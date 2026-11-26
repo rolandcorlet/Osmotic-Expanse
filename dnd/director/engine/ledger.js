@@ -1879,7 +1879,13 @@ function seedMoment(s, ctx, kind, { text = '', fight = false } = {}) {
 // The Director brings a seed in (on its judgement, or for trouble the Engine cannot see: a shopkeeper harassed).
 H['seed.fire'] = (s, a, ctx) => {
   hostOnly(ctx);
-  const seed = findSeed(s, a.seed);
+  let seed = findSeed(s, a.seed);
+  // A name of its own for the seed ("the traveller" for the tinker: bench part 6, 26 Nov): when only one seed
+  // could come in here now (not counting a camp's, which comes with a rest), that is the one it means.
+  if (!seed) {
+    const could = s.seeds.filter((x) => SEEDS.seedFree(x, s, s.scene.siteId) && SEEDS.seedPlan(x.text).kind !== 'camp');
+    if (could.length === 1) { seed = could[0]; assume(ctx, `"${a.seed}" is the story seed "${seed.title}", the only one that can come in here now.`); }
+  }
   if (!seed) refuse(`There is no story seed "${a.seed}".`, s.seeds.filter((x) => x.on).map((x) => x.title));
   if (!seed.on) nop(`"${seed.title}" is switched off on the Seeds tab.`);
   if (!SEEDS.seedFree(seed, s, s.scene.siteId)) nop(`"${seed.title}" cannot happen here now (used up, or written for another place).`);
@@ -2410,6 +2416,19 @@ function carryOut(s, ctx, rule, ev) {
       H['quest.done'](s, { id: q.id }, host);
       undo.quest = q.id;
       said.push(`Quest complete: ${q.text}`);
+      break;
+    }
+    // A boss's second form, or reinforcements: they arrive here, and join a fight that is on.
+    case 'add': {
+      const before = new Set(Object.keys(s.foes));
+      H['foe.add'](s, { monster: rule.monster, count: Math.max(1, Math.min(12, rule.qty || 1)), name: rule.name || '', hidden: !!rule.hidden, note: 'arrived by the adventure\'s rule' }, host);
+      const added = Object.values(s.foes).filter((f) => !before.has(f.id));
+      // Fitted as the place's own foes were (its hit points and blows), so a boss's second form suits the
+      // party at the table too (the simulation: two 10th-level heroes never beat the Avatar at full strength).
+      const plan = ((s.fits || {})[s.scene.siteId] || {}).plan;
+      if (plan) for (const f of added) { if (plan.hp && plan.hp !== 1) { f.maxHp = Math.max(1, Math.round(f.maxHp * plan.hp)); f.hp = f.maxHp; } if (plan.dmg && plan.dmg !== 1) f.dmgScale = plan.dmg; }
+      undo.moved = (undo.moved || []).concat(added.map((f) => f.id));
+      if (added.length) said.push(`${added.map((f) => f.name).join(', ')} ${added.length > 1 ? 'arrive' : 'arrives'}.`);
       break;
     }
     case 'reveal': {

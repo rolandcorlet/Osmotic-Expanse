@@ -355,7 +355,15 @@ async function runOnce(n) {
     act('host', null, { type: 'say', text: 'Earlier: Bryn and Ila took the Reeve\'s job, followed the tracks up the Mill Road and killed the three goblin scouts at the ruined mill. Drag marks and a small black shoe point up the switchback path to the watchtower.', as: 'Recap' });
     s.started = true;
   }
-  if (part === 6) for (const text of SEEDS6) act('host', null, { type: 'seed.save', text });
+  if (part === 6) {
+    for (const text of SEEDS6) act('host', null, { type: 'seed.save', text });
+    // The mill's goblins are gone (run 2, 26 Nov: with a goblin watching from the mill, the Director rightly
+    // would not let the party bed down there): the road is empty, and only the night is a danger.
+    // Its foes are placed on the party's first arrival, so the bench visits it first, clears it and comes back.
+    act('host', null, { type: 'site.move', siteId: 'mill-road' });
+    for (const f of Object.values(s.foes)) if (f.siteId === 'mill-road') act('host', null, { type: 'foe.remove', foeId: f.id });
+    act('host', null, { type: 'site.move', siteId: 'thornwick' });
+  }
   if (part === 3) {
     // The watchtower is behind them: Grisk is beaten, Nell is home, the lantern is lit in Bryn's hands.
     for (const site of ['mill-road', 'tower-gate', 'watchtower']) { act('host', null, { type: 'site.move', siteId: site }); for (const f of Object.values(s.foes)) if (f.siteId === site) act('host', null, { type: 'foe.remove', foeId: f.id }); }
