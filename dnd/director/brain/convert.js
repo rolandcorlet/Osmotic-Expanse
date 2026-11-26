@@ -447,9 +447,11 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
   }
   // 4. the checker, and its problems sent back once, place by place
   const book = { ...srd, monsters: [...(srd.monsters || []), ...own] };
+  fixQuestDone(adv);
   let check = checkAdventure(adv, book);
   const bySite = {};
-  for (const e of check.errors) { const id = (/^([a-z0-9-]+)/.exec(e.where) || [])[1]; if (adv.sites.some((s) => s.id === id)) (bySite[id] = bySite[id] || []).push(e.text); }
+  // A rule's problem is reported under "rules" as "<site>: rule <id>: ...": it goes back with its place too.
+  for (const e of check.errors) { const id = (ruleProblem(e) || {}).site || (/^([a-z0-9-]+)/.exec(e.where) || [])[1]; if (adv.sites.some((s) => s.id === id)) (bySite[id] = bySite[id] || []).push(e.text); }
   const fix = Object.entries(bySite);
   for (let i = 0; i < fix.length; i++) {
     const [id, problems] = fix[i];
@@ -461,9 +463,49 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
     } catch { /* kept as it was: the checker's findings are shown */ }
   }
   check = checkAdventure(adv, book);
+  // What the AI could not make into a rule the Engine runs stays in the story, as a note for the Director.
+  const moved = rulesToNotes(adv, check);
+  if (moved) check = checkAdventure(adv, book);
   // The campaign's own monsters as the screen shows a book's: each with its words beside what the Engine uses.
   const entries = summarise({ monsters: (adv.monsters || []).map((m) => ({ ...m, words: wordsOf.get(slug(m.name)) || '' })), spells: [], rules: [] }).entries;
-  return { adventure: adv, check, entries };
+  return { adventure: adv, check, entries, moved };
+}
+
+// "beach: rule alarm-stealth: ..." -> { site: 'beach', id: 'alarm-stealth' } (an adventure-wide rule has no site).
+export function ruleProblem(e) {
+  const m = /^(?:([a-z0-9-]+): )?rule ([^:]+?): /.exec(String((e && e.text) || ''));
+  return e && e.where === 'rules' && m ? { site: m[1] || '', id: m[2] } : null;
+}
+// A rule the Engine cannot run (a time of day, "damage taken", any check) is not lost: it moves into its
+// place's notes, in words, for the Director. Returns how many moved.
+export function rulesToNotes(adv, check) {
+  const bad = new Map();
+  for (const e of (check && check.errors) || []) { const p = ruleProblem(e); if (p) bad.set(`${p.site}/${p.id}`, p); }
+  let moved = 0;
+  const words = (r) => `when ${r.when || '?'}${r.if ? `, if ${[].concat(r.if).join(' and ')}` : ''}: ${[r.say, r.do && r.do !== 'say' ? `(${[r.do, r.target || r.who, r.to && `to ${r.to}`, r.clock, r.quest, r.item].filter(Boolean).join(' ')})` : ''].filter(Boolean).join(' ')}`;
+  for (const { site, id } of bad.values()) {
+    const holder = site ? (adv.sites || []).find((s) => s.id === site) : adv;
+    const r = holder && (holder.rules || []).find((x) => String(x.id || '') === id);
+    if (!r) continue;
+    holder.rules = holder.rules.filter((x) => x !== r);
+    const into = site ? holder : (adv.sites || [])[0];
+    if (into) into.notes = `${into.notes || ''}\n\nFor the Director (a rule the Engine cannot run by itself): ${words(r)}`.trim();
+    moved++;
+  }
+  return moved;
+}
+// A questDone whose words are in no quest is matched to the quest it shares most words with.
+export function fixQuestDone(adv) {
+  const quests = (adv.quests || []).map((q) => String(q).toLowerCase());
+  const sig = (t) => new Set(String(t || '').toLowerCase().match(/[a-z']{4,}/g) || []);
+  for (const qd of adv.questDone || []) {
+    const m = String(qd.match || '').toLowerCase().trim();
+    if (m && quests.some((q) => q.includes(m))) { qd.match = m; continue; }
+    const want = sig(`${m} ${qd.when || ''}`);
+    let best = null; let score = 0;
+    for (const q of quests) { const n = [...sig(q)].filter((w) => want.has(w)).length; if (n > score) { score = n; best = q; } }
+    if (best && score >= 1) qd.match = best.replace(/[.!?]+$/, '').split(/\s+/).slice(0, 5).join(' ');
+  }
 }
 
 // ---- 5. saving and loading ---------------------------------------------------------------------------
@@ -752,6 +794,7 @@ export async function convertText({ text, kind = 'auto', name = '', how = 'both'
   if (k === 'campaign') {
     if (!ask) throw new Error('A campaign is converted by the AI: set it up on the Director tab first.');
     const r = await aiCampaign({ ask, text: words, name, srd, onProgress });
+    if (r.moved) notes.push(`${r.moved} rule${r.moved > 1 ? 's' : ''} the Engine could not run (a time of day, a check of any kind, damage taken) ${r.moved > 1 ? 'were' : 'was'} moved into the places' notes for the Director.`);
     const placed = matchMaps(r.adventure, pics);
     if (placed.length) notes.push(`Maps given to their places: ${placed.join('; ')}.`);
     return { kind: k, sniffed, name: r.adventure.name, adventure: r.adventure, check: r.check, entries: r.entries || [], notes, pictures: pics, words: pics.length ? words : undefined };

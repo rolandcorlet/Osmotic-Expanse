@@ -140,3 +140,19 @@ test('the Director\'s use_object: the briefing lists the things here, and the ch
   assert.ok(out.adventure_rules.some((l) => /Ila gets Silver key/.test(l)), JSON.stringify(out));
   assert.match(tb.run('use_object', { character: 'Nobody', object: 'lever' }).refused, /nobody called "Nobody"/);
 });
+
+test('an object named with a hyphen ("hatch-lever") is the hatch lever the Director names', () => {
+  const adv = { ...vault, sites: vault.sites.map((s) => (s.id === 'hall' ? { ...s, rules: [{ id: 'lever', when: 'use hatch-lever', do: 'say', say: 'The grate drops.' }] } : s)) };
+  const T = table(3, { adv });
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'site.move', siteId: 'hall' });
+  T.host({ type: 'object.use', who: 'Bryn', object: 'hatch lever', how: 'pulls' });
+  assert.ok(rules(T).some((l) => /The grate drops\. \[rule hall\/lever\]/.test(l)));
+});
+
+test('the fight simulation plays a place whose own rule starts the fight on arrival', async () => {
+  const { simulatePlace } = await import('../engine/simulate.js');
+  const adv = { id: 'pool', name: 'Pool', party: { size: [2, 2], level: 3 }, sites: [{ id: 'road', name: 'Road', exits: [{ to: 'pool', label: 'on' }] }, { id: 'pool', name: 'Pool', level: 3, exits: [], foes: [{ monster: 'wolf', count: 1 }], rules: [{ id: 'bites', when: 'enter', do: 'fight' }] }] };
+  const r = simulatePlace({ adventure: adv, srd, siteId: 'pool', party: [{ cls: 'fighter', level: 3 }, { cls: 'cleric', level: 3 }], runs: 3 });
+  assert.equal(r.runs, 3, 'simulated, not skipped');
+});

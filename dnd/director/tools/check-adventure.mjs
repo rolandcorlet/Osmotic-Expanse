@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { ADVENTURES } from '../data/adventures/index.js';
+import { withConverted } from './adventures.mjs';
 import { prepareSrd } from '../engine/library.js';
 import { checkAdventure, reportText } from '../engine/check.js';
 
@@ -21,6 +22,7 @@ const args = process.argv.slice(2);
 const quiet = args.includes('--quiet');
 const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.engine.json'), 'utf8'));
 const wanted = args.filter((a) => !a.startsWith('--'));
+withConverted(); // and those converted on the Books tab (library/adventures)
 const list = [];
 for (const w of wanted) {
   if (/\.m?js$/.test(w)) list.push((await import(pathToFileURL(resolve(w)).href)).default);

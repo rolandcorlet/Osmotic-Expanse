@@ -9,7 +9,8 @@
 // A wipe in more than one run in ten sets the exit code to 1.
 
 import { readFileSync, existsSync } from 'node:fs';
-import { ADVENTURES, adventureById } from '../data/adventures/index.js';
+import { ADVENTURES } from '../data/adventures/index.js';
+import { withConverted, findAdventure } from './adventures.mjs';
 import { prepareSrd } from '../engine/library.js';
 import { simulateAdventure, partyOf, simText } from '../engine/simulate.js';
 
@@ -17,9 +18,11 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const srd = JSON.parse(readFileSync(new URL('../../data/srd.engine.json', import.meta.url), 'utf8'));
 const lib = new URL('../library/library.json', import.meta.url);
+withConverted(!args.includes('--no-library'));
 prepareSrd(srd, { adventures: ADVENTURES, libraryFile: !args.includes('--no-library') && existsSync(lib) ? lib.pathname : null });
 const which = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
-const list = which ? [adventureById(which)].filter(Boolean) : ADVENTURES.filter((a) => (a.sites || []).some((s) => (s.foes || []).length));
+const list = which ? [findAdventure(which)].filter(Boolean) : ADVENTURES.filter((a) => (a.sites || []).some((s) => (s.foes || []).length));
+if (which && !list.length) { console.log(`No adventure "${which}". Adventures: ${ADVENTURES.map((a) => a.id).join(', ')}.`); process.exit(2); }
 const runs = Number(opt('--runs', 50)) || 50;
 let bad = 0;
 for (const adv of list) {

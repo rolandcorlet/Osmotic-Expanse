@@ -58,6 +58,7 @@ import { dirname, join } from 'node:path';
 import { newSession, apply, openAdventure } from '../engine/ledger.js';
 import { systemRng } from '../engine/dice.js';
 import { ADVENTURES, adventureById } from '../data/adventures/index.js';
+import { withConverted, findAdventure } from './adventures.mjs';
 import { prepareSrd } from '../engine/library.js';
 import { pregenBuild } from '../engine/pregen.js';
 import { directorTurn } from '../brain/director.js';
@@ -210,10 +211,11 @@ const makeProvider = () => timed(fake ? fakeProvider() : build({ provider, apiKe
 const srd = JSON.parse(readFileSync(join(here, '..', '..', 'data', 'srd.engine.json'), 'utf8'));
 // As the server does: the private book library (if built) and every adventure's own monsters.
 const libFile = join(here, '..', 'library', 'library.json');
+withConverted(!flag('--no-library')); // and those converted on the Books tab (library/adventures)
 const prep = prepareSrd(srd, { libraryFile: flag('--no-library') ? null : libFile, adventures: ADVENTURES });
-const adventure = adventureById(gen ? opt('--adventure', 'lantern') : part === 4 ? 'ashen-crown' : 'lantern');
-if (gen && !opt('--level', '')) level = Math.min(20, Math.max(1, Number((adventure.party || {}).level) || 1));
+const adventure = gen ? findAdventure(opt('--adventure', 'lantern')) : adventureById(part === 4 ? 'ashen-crown' : 'lantern');
 if (!adventure) { console.log(`There is no adventure "${opt('--adventure', '')}". Adventures: ${ADVENTURES.map((a) => a.id).join(', ')}.`); process.exit(2); }
+if (gen && !opt('--level', '')) level = Math.min(20, Math.max(1, Number((adventure.party || {}).level) || 1));
 const rng = systemRng();
 const ctx = (role, pid) => ({ role, pid, rng, now: Date.now(), adventure, srd });
 const BASE = { str: 15, dex: 13, con: 14, int: 8, wis: 12, cha: 10 };

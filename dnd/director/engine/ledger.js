@@ -2215,7 +2215,7 @@ function setOff(s, ctx, rule, ev) {
     if (w.ev === 'round') return w.arg ? ev.n === w.arg : ev.n > 1;
     // "enter" alone is the party arriving; "enter <zone>" a character stepping into that zone.
     if (w.ev === 'enter') { if (!w.arg) return !ev.zone; const z = String(w.arg).toLowerCase(); return !!ev.zone && (ev.zone === z || String(ev.zoneName || '').toLowerCase() === z); }
-    if (w.ev === 'use') { const a = String(w.arg).toLowerCase().replace(/^(?:the|a|an)\s+/, ''); const o = String(ev.object || '').toLowerCase().replace(/^(?:the|a|an)\s+/, ''); return !!a && !!o && (o.includes(a) || a.includes(o)); }
+    if (w.ev === 'use') { const norm = (t) => String(t || '').toLowerCase().replace(/[-_]+/g, ' ').replace(/^(?:the|a|an)\s+/, '').replace(/\s+/g, ' ').trim(); const a = norm(w.arg); const o = norm(ev.object); return !!a && !!o && (o.includes(a) || a.includes(o)); }
     if (w.ev === 'turn') return !w.arg || foesNamed(s, rule.site, w.arg).some((f) => f.id === ev.foe);
     return true;
   }

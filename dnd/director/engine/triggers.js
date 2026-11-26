@@ -224,11 +224,13 @@ export function checkRules(adv, { skills = [] } = {}) {
     if (['down', 'hurt'].includes(r.when.ev) && !r.who) errors.push(`${at}: say who (who: 'Grisk').`);
     if (r.when.ev === 'use' && !r.when.arg) errors.push(`${at}: say what is used ("use chest").`);
     const place = sites.find((x) => x.id === r.site);
-    const objects = ((place && place.objects) || []).map((o) => String(typeof o === 'string' ? o : o.name || '').toLowerCase()).filter(Boolean);
-    if (r.when.ev === 'use' && r.when.arg && objects.length && !objects.some((o) => o.includes(r.when.arg.toLowerCase()) || r.when.arg.toLowerCase().includes(o))) warnings.push(`${at}: no object here is called "${r.when.arg}" (objects: ${objects.join(', ')}).`);
+    const flat = (t) => String(t || '').toLowerCase().replace(/[-_]+/g, ' ').trim();
+    const objects = ((place && place.objects) || []).map((o) => flat(typeof o === 'string' ? o : o.name)).filter(Boolean);
+    if (r.when.ev === 'use' && r.when.arg && objects.length && !objects.some((o) => o.includes(flat(r.when.arg)) || flat(r.when.arg).includes(o))) warnings.push(`${at}: no object here is called "${r.when.arg}" (objects: ${objects.join(', ')}).`);
     const zones = ((place && place.zones) || []).flatMap((z) => [z.id, z.name].filter(Boolean).map((x) => String(x).toLowerCase()));
     if (r.when.ev === 'enter' && r.when.arg && zones.length && !zones.includes(r.when.arg.toLowerCase())) errors.push(`${at}: there is no zone "${r.when.arg}" here (zones: ${place.zones.map((z) => z.name || z.id).join(', ')}).`);
     if (r.when.ev === 'enter' && r.when.arg && !r.site) errors.push(`${at}: a zone belongs to a place: put this rule in that place's rules.`);
+    if (r.when.ev === 'enter' && r.when.arg && ids.has(r.when.arg) && !zones.includes(r.when.arg.toLowerCase())) errors.push(`${at}: "${r.when.arg}" is a place, not an area of this one: put the rule in ${r.when.arg}'s rules with when: 'enter'.`);
     if (r.when.ev === 'turn' && r.when.arg && !knownFoe(r.site, r.when.arg)) warnings.push(`${at}: no foe here is called "${r.when.arg}".`);
     if (r.do === 'give' && !r.item && !r.gold) errors.push(`${at}: say what is given (item: 'Silver key', or gold: 50).`);
     if (r.who && r.do !== 'give' && !knownFoe(r.site, r.who)) warnings.push(`${at}: no foe here is called "${r.who}".`);

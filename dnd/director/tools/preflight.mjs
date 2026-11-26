@@ -20,7 +20,8 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { ADVENTURES, adventureById } from '../data/adventures/index.js';
+import { ADVENTURES } from '../data/adventures/index.js';
+import { withConverted, findAdventure } from './adventures.mjs';
 import { prepareSrd } from '../engine/library.js';
 import { checkAdventure, reportText } from '../engine/check.js';
 import { simulateAdventure, partyOf, simText } from '../engine/simulate.js';
@@ -31,9 +32,11 @@ const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const srd = JSON.parse(readFileSync(join(root, '..', 'data', 'srd.engine.json'), 'utf8'));
 const lib = join(root, 'library', 'library.json');
+const conv = ADVENTURES.length;
+withConverted(); // and those converted on the Books tab (library/adventures): checked when named, or all of them
 prepareSrd(srd, { adventures: ADVENTURES, libraryFile: existsSync(lib) ? lib : null });
 const which = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
-const list = which ? [adventureById(which)].filter(Boolean) : ADVENTURES.filter((a) => (a.sites || []).length > 1);
+const list = which ? [findAdventure(which)].filter(Boolean) : ADVENTURES.slice(0, conv).filter((a) => (a.sites || []).length > 1);
 if (!list.length) { console.log(`No adventure "${which}". Adventures: ${ADVENTURES.map((a) => a.id).join(', ')}.`); process.exit(2); }
 const runs = Number(opt('--runs', 40)) || 40;
 // The bench's party: two heroes at each place's own level, the level the story has reached there (the

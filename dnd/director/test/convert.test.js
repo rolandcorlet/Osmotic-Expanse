@@ -408,3 +408,35 @@ test('a converted book or adventure is taken out of the rules at once, its files
   assert.deepEqual(C.loadAdventures(dir), []);
   assert.equal(readdirSync(join(dir, '_removed')).length, 3, 'its file, its words and its pictures, set aside');
 });
+
+// ---- a converted campaign made playable: rules the Engine cannot run, quests' ends, guardians ----------
+test('rules the Engine cannot run go to the Director as notes; questDone words are matched to their quest', async () => {
+  const { checkAdventure } = await import('../engine/check.js');
+  const adv = {
+    id: 'fort', name: 'Fort', quests: ["Escape Conqueror's Foothold before being executed."], questDone: [{ match: 'escape foothold', at: ['gate'], when: 'they escape' }],
+    sites: [{ id: 'gate', name: 'Gate', exits: [{ to: 'yard', label: 'in' }], notes: 'A gate.', rules: [
+      { id: 'night-pass', when: 'succeed stealth', if: 'night', do: 'say', say: 'The dark hides you.' },
+      { id: 'shark', when: 'damage taken', do: 'fight', surprise: 'party' },
+      { id: 'yard-arrive', when: 'enter yard', do: 'say', say: 'Wrong place.' },
+      { id: 'fine', when: 'fail stealth', do: 'say', say: 'Spotted.' },
+    ] }, { id: 'yard', name: 'Yard', exits: [{ to: 'gate', label: 'out' }] }],
+  };
+  const c = checkAdventure(adv, srd);
+  assert.ok(c.errors.some((e) => /"yard" is a place, not an area of this one/.test(e.text)));
+  assert.deepEqual(c.errors.map(C.ruleProblem).filter(Boolean).map((p) => p.id).sort(), ['night-pass', 'shark', 'yard-arrive']);
+  assert.equal(C.rulesToNotes(adv, c), 3);
+  assert.deepEqual(adv.sites[0].rules.map((r) => r.id), ['fine']);
+  assert.match(adv.sites[0].notes, /For the Director \(a rule the Engine cannot run by itself\): when succeed stealth, if night: The dark hides you\./);
+  assert.match(adv.sites[0].notes, /when damage taken: \(fight\)/);
+  C.fixQuestDone(adv);
+  assert.equal(adv.questDone[0].match, "escape conqueror's foothold before being");
+  assert.equal(checkAdventure(adv, srd).errors.length, 0);
+});
+
+test('an attack whose damage is all in the save after the hit is not "an attack with no damage"', async () => {
+  const { checkAdventure } = await import('../engine/check.js');
+  const spitter = { id: 'xx-spitter', name: 'Spitter', size: 'Medium', type: 'beast', ac: 13, hp: 30, speed: '30 ft.', ab: [12, 16, 13, 4, 12, 6], cr: 1, xp: 200, pb: 2,
+    actions: [{ n: 'Spit Poison', d: 'Ranged Weapon Attack: +4 to hit, range 15/30 ft., one creature. Hit: The target must make a DC 13 Constitution saving throw, taking 18 (4d8) poison damage on a failed save, or half as much damage on a successful one.', hit: 4 }] };
+  const adv = { id: 's', name: 'S', sites: [{ id: 'a', name: 'A', exits: [], foes: [{ monster: 'xx-spitter', count: 1 }] }], monsters: [spitter] };
+  assert.ok(!checkAdventure(adv, { ...srd, monsters: [...srd.monsters, spitter] }).errors.some((e) => /no damage/.test(e.text)));
+});

@@ -59,7 +59,8 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
   const placed = Object.values(s.foes).filter((f) => f.siteId === siteId);
   if (!placed.length) return null;
   const fitted = ((s.fits || {})[siteId] || {}).text || '';
-  if (!tryHost({ type: 'fight.start', autoRoll: true })) return null;
+  // A place whose own rule starts the fight on arrival ("enter: fight") has it on already.
+  if (!s.fight && !tryHost({ type: 'fight.start', autoRoll: true })) return null;
   if (s.fight && s.fight.phase === 'initiative') tryHost({ type: 'fight.begin' });
   const pcs = () => Object.values(s.pcs);
   const up = (p) => !p.dead && p.hp > 0;

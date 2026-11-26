@@ -58,6 +58,13 @@ HOW TO CONVERT
      with an id carrying a short prefix of the adventure. Every attack needs `hit` and `dmg`; the words in
      `d` must agree with them.
    - **Other editions.** Convert challenge rating, hit points, attack bonus and damage to 5e.
+   - **Not every crowd is a fight.** A garrison, a patrol or a crowd the party is meant to sneak past or
+     talk to goes in `foes` only as the few who would close in (a patrol of twelve: six riders). Its
+     encounter is rules: `fail stealth` → `say` (they intercept and question), `succeed persuasion` or
+     `succeed deception` → `calm`, `fail persuasion` or `fail deception` → `fight`. Say in the notes that
+     the rest hold back.
+   - **A guardian that waits** (in a pool, behind a door) attacks when it is noticed too late or
+     disturbed: `fail perception` → `fight` with `surprise: 'party'`, not `enter` → `fight`.
 7. **Rules.** This is the heart of the conversion. Find every sentence in the source that says "when X, Y
    happens" and write it as a rule, keeping the sentence in the notes as well. Look for:
    - *"they flee if…"*: `{ when: 'down' | 'hurt', who, do: 'flee', to? }`
@@ -73,6 +80,10 @@ HOW TO CONVERT
    - *"award N XP"*: `xp`
    - *"the party reaches level N"*: `level`
    - *"the timer advances when…"*: `tick`
+   - **Only the `when`, `if` and `do` listed at the end.** Anything else (the time of day, "damage taken",
+     "any Stealth check", a person who is not a monster) stays in the notes, in words, for the Director.
+   - **A rule about another place goes in that place's rules**, with `when: 'enter'` there (and
+     `if: 'from <site>'` for "on arriving from…"). `enter <name>` is for an area of the same place.
 8. **Party and levels.** From the source's stated party write `party: { size, level }`, and give each site
    with monsters the `level` the party will have there. Don't trim encounters for a small group: the Engine
    fits each fight to the party at the table.

@@ -117,7 +117,10 @@ export function checkAdventure(adv, srd) {
       if (!a.d) W(at, `${a.n || 'An action'} has no description (d).`);
       if (a.hit != null) {
         if (!Number.isFinite(Number(a.hit))) E(at, `${a.n}'s attack bonus (hit) is not a number.`);
-        if (!Array.isArray(a.dmg) || !a.dmg.length) E(at, `${a.n} is an attack with no damage (dmg: [["1d6+2", "slashing"]]).`);
+        // A hit whose harm is all in the save that follows ("Hit: The target must make a DC 13 Constitution
+        // saving throw, taking 18 (4d8) poison damage") has its damage in the rider.
+        const viaSave = (a.rider && (a.rider.dmg || []).length) || /\bHit:[^.]*saving throw[^.]*taking \d+ \(\d+d\d+/i.test(a.d || '');
+        if ((!Array.isArray(a.dmg) || !a.dmg.length) && !viaSave) E(at, `${a.n} is an attack with no damage (dmg: [["1d6+2", "slashing"]]).`);
         for (const d of a.dmg || []) if (!Array.isArray(d) || !DICE.test(String(d[0])) || !d[1]) E(at, `${a.n}'s damage ${JSON.stringify(d)} should be like ["1d6+2", "slashing"].`);
         if (!/Melee|Ranged/.test(a.d || '')) W(at, `${a.n}'s description should start "Melee Weapon Attack" or "Ranged Weapon Attack": the map uses it to know whether it must step up to its target.`);
       }
