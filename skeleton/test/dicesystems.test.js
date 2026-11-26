@@ -57,7 +57,7 @@ for (const system of Object.keys(TUNE)) {
     assert.deepEqual(check(mod).errors, []);
     assert.match(instructions(mod), new RegExp(getSystem(mod.rules).name.replace(/[()+]/g, '.')));
     const rng = makeRng(9);
-    let s = newSession(mod);
+    let s = { ...newSession(mod), fitOff: true };
     const A = (a, role = 'host', pid = null, ai = false) => { s = apply(s, a, { role, pid, rng, now: 1, mod, ai }); };
     A({ type: 'join', name: 'Ann' }, 'player', 'p1');
     A({ type: 'char.pregen', index: 0 }, 'player', 'p1');

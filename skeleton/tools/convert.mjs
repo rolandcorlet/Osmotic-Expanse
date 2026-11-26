@@ -4,6 +4,7 @@
 //   node tools/convert.mjs --mode invent --ideas "Sky whales, a city of kites, smugglers" --name "Kitefall"
 //   node tools/convert.mjs --mode convert --source my-rules.md my-monsters.txt my-campaign.md
 //   node tools/convert.mjs --mode extend --base saltglass --source new-monsters.txt --sections bestiary
+//   node tools/convert.mjs --mode invent --dice percentile --ideas-file ideas.txt --name "Gull Rock"   (a dice system: d6-pool, d20, percentile, fate, step)
 //   node tools/convert.mjs --check saltglass
 //
 // It uses the AI chosen on the host console (saves/director.json), or --provider, --model and --key.
@@ -38,7 +39,7 @@ const provider = flag('provider')
 
 const t0 = Date.now();
 const out = await convert({
-  provider, mode, source, ideas, name: flag('name'), notes: flag('notes'),
+  provider, mode, source, ideas, name: flag('name'), notes: flag('notes'), dice: flag('dice'),
   sections: flag('sections') ? flag('sections').split(',') : undefined,
   existing: mode === 'extend' ? loadModule(MOD_DIR, flag('base')) : null,
   onProgress: (p) => console.log(`  ${p.section}: ${p.stage}${p.errors && p.errors.length ? ` (${p.errors.length} problem${p.errors.length > 1 ? 's' : ''})` : ''}`),

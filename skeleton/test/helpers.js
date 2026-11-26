@@ -9,7 +9,7 @@ export function table(seed = 7) {
   let now = 1000;
   const ctx = (role, pid, extra = {}) => ({ role, pid, rng, now: (now += 1000), mod, ...extra });
   const T = {
-    s: newSession(mod),
+    s: { ...newSession(mod), fitOff: true }, // fights as written here; the fitting has its own tests
     host(a) { T.s = apply(T.s, a, ctx('host', null)); return T.s; },
     ai(a) { T.s = apply(T.s, a, ctx('host', null, { ai: true })); return T.s; },
     as(pid, a) { T.s = apply(T.s, a, ctx('player', pid)); return T.s; },

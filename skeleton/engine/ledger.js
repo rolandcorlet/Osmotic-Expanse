@@ -7,6 +7,8 @@
 import { damageFromRoll, strainPenalty, snagRow, maxHealth, statBonus, getSystem, makeSource } from './core.js';
 import { difficulty, ladderName, term } from './module.js';
 import * as TRIG from './triggers.js';
+import * as SEEDS from './seeds.js';
+import * as SCALE from './scale.js';
 
 export class RuleError extends Error {}
 const no = (msg) => { throw new RuleError(msg); };
@@ -25,7 +27,7 @@ export function newSession(mod, adventureId) {
     scene: { siteId: adv.start, visited: [] },
     quests: (adv.quests || []).map((q) => ({ id: q.id, text: q.text, done: false })),
     clocks: (adv.clocks || []).map((c) => ({ id: c.id, name: c.name, size: c.size, filled: 0 })),
-    fight: null, requests: [], rolls: [], story: [], hostNotes: '',
+    fight: null, requests: [], rolls: [], story: [], hostNotes: '', seeds: [], seedLog: [], restCount: 0,
     director: { mode: 'off' },
   };
   placeSite(s, { mod, now: 0 }, adv.start);
@@ -222,7 +224,38 @@ function placeSite(s, ctx, siteId) {
   const site = siteOf(s, ctx.mod, siteId);
   if (!site || s.scene.visited.includes(siteId)) return;
   s.scene.visited.push(siteId);
-  for (const c of site.creatures || []) addCreatures(s, ctx, c.id, c.count || 1, siteId, !!c.hidden);
+  (site.creatures || []).forEach((c, n) => { for (const k of addCreatures(s, ctx, c.id, c.count || 1, siteId, !!c.hidden)) k.group = `${siteId}#${n}`; });
+}
+// Fit a place's fight to the party at the table (engine/scale.js), once, before anyone is hurt: fewer creatures,
+// then their health, then their blows. The adventure's `party` says who it is written for (three to five of its
+// first level when it does not); `fit: false` on the adventure, or s.fitOff, keeps every fight as written.
+function fitCreatures(s, ctx, siteId) {
+  s.fits = s.fits || {};
+  const adv = adventureOf(s, ctx.mod);
+  if (s.fitOff || adv.fit === false || s.fits[siteId]) return;
+  const site = siteOf(s, ctx.mod, siteId);
+  const placed = Object.values(s.creatures).filter((k) => k.siteId === siteId && k.group);
+  const levels = Object.values(s.chars).filter((c) => !c.down).map((c) => c.level || 1);
+  if (!site || !placed.length || !levels.length) return;
+  if (placed.some((k) => k.down || k.health < k.healthMax)) { s.fits[siteId] = { text: '' }; return; }
+  const groups = (site.creatures || []).map((c, n) => ({ key: `${siteId}#${n}`, id: c.id, count: placed.filter((k) => k.group === `${siteId}#${n}`).length, scalable: c.scale !== false })).filter((g) => g.count > 0);
+  const plan = SCALE.planFight({ groups, designed: SCALE.designedParty(adv), levels, ix: ctx.mod.ix.creature });
+  if (!plan) { s.fits[siteId] = { text: '' }; return; }
+  const lines = [];
+  for (const g of groups) {
+    const mine = placed.filter((k) => k.group === g.key).sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true }));
+    const want = plan.counts[g.key];
+    if (want < mine.length) for (const k of mine.slice(want)) delete s.creatures[k.id];
+    if (want > mine.length) for (const k of addCreatures(s, ctx, g.id, want - mine.length, siteId, mine[0].hidden)) k.group = g.key;
+    if (want !== mine.length) lines.push(`${ctx.mod.ix.creature[g.id].name}: ${want} (written ${mine.length})`);
+  }
+  const mineNow = Object.values(s.creatures).filter((k) => k.siteId === siteId && k.group);
+  if (plan.health !== 1) { for (const k of mineNow) { k.healthMax = Math.max(1, Math.round(k.healthMax * plan.health)); k.health = k.healthMax; } lines.push(`${term(ctx.mod, 'health')} x${plan.health}`); }
+  if (plan.blows !== 1) { for (const k of mineNow) k.blows = plan.blows; lines.push(`their blows x${plan.blows}`); }
+  const d = SCALE.designedParty(adv);
+  const text = `Fitted to this party: written for ${d.size[0] === d.size[1] ? d.size[0] : `${d.size[0]} to ${d.size[1]}`} at level ${d.level}, the party here is ${levels.length} at level ${levels.join(', ')}. ${lines.join('; ')}. (${plan.ratingBefore} as written for them; ${plan.rating} now.)`;
+  s.fits[siteId] = { text, plan };
+  story(s, ctx, 'host', text, 'Engine');
 }
 function addCreatures(s, ctx, base, count, siteId, hidden) {
   const b = ctx.mod.ix.creature[base];
@@ -512,7 +545,8 @@ H['creature.act'] = (s, a, ctx) => {
   let text = `${k.name} uses ${atk.name} on ${t.o.name}: ${r.success ? (r.partial ? 'a glancing hit' : 'a hit') : 'a miss'}.`;
   let dmg = null;
   if (r.success) {
-    const d = hurtChar(s, ctx, t.o, damageFromRoll(mod.rules, r, atk.weapon || 0, charSoak(mod, t.o), ctx.rng));
+    const raw = damageFromRoll(mod.rules, r, atk.weapon || 0, charSoak(mod, t.o), ctx.rng);
+    const d = hurtChar(s, ctx, t.o, k.blows && k.blows !== 1 && raw > 0 ? Math.max(1, Math.round(raw * k.blows)) : raw); // fitted to a small party
     dmg = d.taken;
     text += ` ${t.o.name} loses ${d.taken} ${term(mod, 'health')}${d.notes.length ? `; ${d.notes.join(', ')}` : ''}.`;
     if (r.surge && atk.effect) text += ` ${term(mod, 'surge')}: ${atk.effect}`;
@@ -582,6 +616,12 @@ H.rest = (s, a, ctx) => {
   hostOnly(ctx);
   if (s.fight) no('Not during a fight.');
   const long = a.kind === 'long';
+  // A night in the open: a camp seed may come up. Its creatures attack, and the rest finishes after the fight.
+  if (long && !a.after && !SEEDS.safePlace(siteOf(s, ctx.mod))) {
+    const came = seedMoment(s, ctx, 'camp', { fight: true });
+    if (came && came.length && s.fight) { s.restAfter = true; story(s, ctx, 'event', 'The night is broken: the camp is attacked. The rest will finish once the fight is over.', 'Engine'); return; }
+  }
+  if (long) s.restCount = (s.restCount || 0) + 1;
   for (const ch of Object.values(s.chars)) {
     if (long) { ch.health = ch.healthMax; ch.strain = 0; ch.conds = []; } else { ch.health = Math.min(ch.healthMax, ch.health + Math.ceil(ch.healthMax / 2)); ch.strain = Math.max(0, ch.strain - 2); }
     if (ch.health > 0) ch.down = false;
@@ -651,7 +691,9 @@ H['fight.start'] = (s, a, ctx) => {
   hostOnly(ctx);
   if (s.fight) no('A fight is already on.');
   const { mod } = ctx;
-  for (const k of Object.values(s.creatures)) if (k.siteId === s.scene.siteId && k.hidden && !k.down) k.hidden = false;
+  const only = Array.isArray(a.ids) && a.ids.length ? new Set(a.ids) : null; // a seed's own creatures (a camp attacked)
+  if (!only) fitCreatures(s, ctx, s.scene.siteId);
+  for (const k of Object.values(s.creatures)) if (k.siteId === s.scene.siteId && k.hidden && !k.down && (!only || only.has(k.id))) k.hidden = false;
   const ini = mod.rules.initiative;
   const order = [];
   for (const ch of Object.values(s.chars)) {
@@ -660,7 +702,7 @@ H['fight.start'] = (s, a, ctx) => {
     order.push({ key: keyOf('char', ch.id), init: r.margin, side: 0 });
   }
   for (const k of Object.values(s.creatures)) {
-    if (k.down || k.siteId !== s.scene.siteId) continue;
+    if (k.down || k.siteId !== s.scene.siteId || k.hidden || (only && !only.has(k.id))) continue;
     const b = mod.ix.creature[k.base];
     // The d6 pool rolls tier + 2 dice; other systems roll the creature's first attack's rating.
     const rating = getSystem(mod.rules).id === 'd6-pool' ? (b.tier || 1) + 2 : ((b.attacks || [])[0] || {}).rating ?? ((b.attacks || [])[0] || {}).dice ?? 0;
@@ -690,6 +732,8 @@ H['fight.end'] = (s, a, ctx) => {
   for (const o of [...Object.values(s.chars), ...Object.values(s.creatures)]) o.braced = false;
   story(s, ctx, 'event', 'The fight is over.', 'Engine');
   if (xp && a.award !== false) H['xp.award'](s, { amount: xp, why: 'the fight' }, ctx);
+  // A camp attacked in the night (a seed): the rest goes on once the fight is over.
+  if (s.restAfter) { delete s.restAfter; if (Object.values(s.chars).some((c) => !c.down)) H.rest(s, { kind: 'long', after: true }, { ...ctx, role: 'host', pid: null }); }
 };
 H.brace = (s, a, ctx) => {
   const ch = ownChar(s, ctx, a.charId);
@@ -697,6 +741,79 @@ H.brace = (s, a, ctx) => {
   spendAction(s, ctx, keyOf('char', ch.id));
   ch.braced = true;
   story(s, ctx, 'event', `${ch.name} braces: +2 defence until their next turn.`, 'Engine');
+};
+
+// ---- the host's story seeds (engine/seeds.js): the Engine brings one in at its moment (a party getting nowhere,
+// a camp somewhere unsafe) and rolls its chance; the Director may bring one in on its judgement (use_seed), as it
+// must for trouble only it can see (someone harassed). Everything is logged (s.seedLog) for the Seeds tab.
+H['seed.save'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  s.seeds = s.seeds || [];
+  const text = str(a.text, 8000);
+  if (!text) no('The seed is empty.');
+  const title = SEEDS.seedPlan(text).title || 'A seed';
+  const old = s.seeds.find((x) => x.id === a.id);
+  if (old) { old.text = text; old.title = title; return; }
+  s.seeds.push({ id: nextId(s, 'sd'), title, text, on: true });
+};
+H['seed.toggle'] = (s, a, ctx) => { hostOnly(ctx); const x = (s.seeds || []).find((y) => y.id === a.id); if (!x) no('No such seed.'); x.on = !x.on; };
+H['seed.remove'] = (s, a, ctx) => { hostOnly(ctx); s.seeds = (s.seeds || []).filter((y) => y.id !== a.id); };
+function seedLogRow(s, ctx, seed, row) {
+  s.seedLog = (s.seedLog || []).concat({ id: seed.id, title: seed.title, rest: s.restCount || 0, site: s.scene.siteId, seq: s.seq, t: ctx.now || 0, ...row }).slice(-60);
+}
+function fireSeed(s, ctx, seed, { by, why = '', roll = null, chance = 100, fight = false }) {
+  const p = SEEDS.seedPlan(seed.text);
+  const levels = Object.values(s.chars).filter((c) => !c.down).map((c) => c.level || 1);
+  const ix = ctx.mod.ix.creature;
+  const wanted = p.choose ? SEEDS.anyCreatures(ctx.mod, adventureOf(s, ctx.mod), levels, ctx.rng) : p.creatures.filter((c) => ix[c.id]);
+  const { groups, health } = SEEDS.sizeGroups(wanted, levels, ix, p.kind === 'provoke' ? 'medium' : 'easy');
+  const added = [];
+  for (const g of groups) added.push(...addCreatures(s, ctx, g.id, g.count, s.scene.siteId, false));
+  if (health !== 1) for (const k of added) { k.healthMax = Math.max(1, Math.round(k.healthMax * health)); k.health = k.healthMax; }
+  if (s.fight) for (const k of added) s.fight.order.push({ key: keyOf('creature', k.id), init: 0 });
+  const names = added.map((k) => k.name);
+  seedLogRow(s, ctx, seed, { fired: true, by, why: str(why, 200), roll, chance, foes: names });
+  s.seedNow = { id: seed.id, title: seed.title, kind: p.kind, by, why: str(why, 200), foes: names, seq: s.seq };
+  story(s, ctx, 'host', `Story seed "${seed.title}" comes into play (${by === 'engine' ? (roll != null ? `rolled ${roll} against ${chance}%` : 'its moment came') : `the Director's choice${why ? `: ${why}` : ''}`})${names.length ? `: ${names.join(', ')}` : ''}.`, 'Engine');
+  if (fight && added.length && !s.fight) H['fight.start'](s, { ids: added.map((k) => k.id) }, { ...ctx, role: 'host', pid: null });
+  return added;
+}
+function seedMoment(s, ctx, kind, { text = '', fight = false } = {}) {
+  const free = (s.seeds || []).filter((x) => SEEDS.seedFree(x, s, s.scene.siteId)).map((x) => ({ seed: x, p: SEEDS.seedPlan(x.text) })).filter((x) => x.p.kind === kind);
+  const fit = kind === 'provoke' && text ? free.filter((x) => !x.p.who || String(text).toLowerCase().includes((x.p.who.toLowerCase().split(/\s+/).filter((w) => w.length > 2).pop() || '\u0000'))) : free;
+  for (const { seed, p } of fit) {
+    const roll = p.chance < 100 ? 1 + Math.floor(ctx.rng() * 100) : null;
+    if (roll != null && roll > p.chance) { seedLogRow(s, ctx, seed, { fired: false, by: 'engine', roll, chance: p.chance, why: kind }); continue; }
+    return fireSeed(s, ctx, seed, { by: 'engine', why: kind === 'lost' ? `the party had been getting nowhere for ${p.turns} turns` : kind === 'camp' ? 'the party camped somewhere unsafe' : 'the party picked a fight', roll, chance: p.chance, fight });
+  }
+  return null;
+}
+H['seed.fire'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const k = str(a.seed).toLowerCase();
+  let seed = (s.seeds || []).find((x) => x.id === a.seed || x.title.toLowerCase() === k) || (s.seeds || []).find((x) => k && x.title.toLowerCase().includes(k));
+  // A name of its own for the seed ("the traveller" for the tinker): when only one could come in here now
+  // (not counting a camp's, which comes with a rest), that is the one it means.
+  if (!seed) { const could = (s.seeds || []).filter((x) => SEEDS.seedFree(x, s, s.scene.siteId) && SEEDS.seedPlan(x.text).kind !== 'camp'); if (could.length === 1) seed = could[0]; }
+  if (!seed) no(`There is no story seed "${a.seed}". Seeds: ${(s.seeds || []).filter((x) => x.on).map((x) => `${x.id} ${x.title}`).join(', ') || 'none'}.`);
+  if (!SEEDS.seedFree(seed, s, s.scene.siteId)) no(`"${seed.title}" cannot happen here now (switched off, used up, or written for another place).`);
+  const p = SEEDS.seedPlan(seed.text);
+  const camp = p.kind === 'camp' && !s.fight;
+  const came = fireSeed(s, ctx, seed, { by: ctx.ai ? 'director' : 'host', why: a.why || '', fight: camp || (!!a.fight && p.kind !== 'lost') });
+  if (camp && came.length && s.fight) { s.restAfter = true; story(s, ctx, 'event', 'The night is broken: the camp is attacked. The rest will finish once the fight is over.', 'Engine'); }
+};
+// Before each Director turn: is the party getting anywhere? (no new place, quest, creature down or experience)
+H['seed.check'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  if (a.event === 'provoke') { if (!s.fight) seedMoment(s, ctx, 'provoke', { text: a.text || '' }); return; }
+  const key = [s.scene.visited.length, s.scene.siteId, s.quests.filter((q) => q.done).length, Object.values(s.creatures).filter((k) => k.down).length,
+    Object.values(s.chars).reduce((n, c) => n + (c.xp || 0), 0), s.fight ? 1 : 0].join('|');
+  if (key !== s.driftKey) { s.driftKey = key; s.drift = 0; return; }
+  s.drift = (s.drift || 0) + 1;
+  const due = (s.seeds || []).filter((x) => SEEDS.seedFree(x, s, s.scene.siteId)).map((x) => SEEDS.seedPlan(x.text)).filter((p) => p.kind === 'lost' && s.drift >= p.turns);
+  if (!due.length || s.fight) return;
+  seedMoment(s, ctx, 'lost');
+  s.drift = 0;
 };
 
 H['director.mode'] = (s, a, ctx) => { hostOnly(ctx); if (!['off', 'auto', 'approve'].includes(a.mode)) no('Mode is off, auto or approve.'); s.director.mode = a.mode; };
@@ -710,6 +827,8 @@ export function viewFor(state, role) {
   for (const [id, k] of Object.entries(s.creatures)) if (k.hidden) delete s.creatures[id];
   s.rolls = s.rolls.filter((r) => !r.secret);
   s.hostNotes = '';
+  delete s.seeds; delete s.seedLog; delete s.seedNow; delete s.drift; delete s.driftKey; delete s.restAfter;
+  s.story = s.story.filter((e) => e.kind !== 'host');
   return s;
 }
 

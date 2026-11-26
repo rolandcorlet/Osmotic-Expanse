@@ -2,6 +2,7 @@
 // player's phone (/play). One file; the server sends each screen only what it may see.
 
 import { getSystem, chance, ownDiceHint, SYSTEMS } from '/engine/dicesystems.js';
+import * as SEEDS from '/engine/seeds.js';
 
 const ROLE = location.pathname.startsWith('/host') ? 'host' : location.pathname.startsWith('/table') ? 'table' : 'player';
 const KEY = new URLSearchParams(location.search).get('key') || '';
@@ -427,6 +428,43 @@ function hostAI() {
     p.group === 'local' ? h('label', { class: 'fld' }, h('span', {}, 'Thinking (local models)'), h('select', { onchange: (e) => save({ thinking: e.target.value }) }, ['default', 'off', 'low', 'medium'].map((x) => opt(x, x, x === ai.thinking)))) : null,
     h('div', { class: 'row' }, h('button', { class: 'go', onclick: async () => { const r = await post('/api/test', {}); toast(r.ok ? `${r.works ? 'It works' : 'It answered, but did not call the test tool: the Director needs a model that can'} (${r.ms} ms).` : r.error, r.ok && r.works); } }, 'Test the connection'))));
 }
+// ---------------------------------------------------------------- Seeds tab
+// The host's own side-stories (engine/seeds.js). A When line brings one in by itself: the Engine rolls its
+// Chance when the party is getting nowhere or camps somewhere unsafe; the Director brings one in when the
+// party picks a fight with the one it names, or when it fits. The In play list shows every one that came.
+const SEED_TEMPLATE = `# Seed: A title
+Where: any
+When: any (or: lost after 6 turns / camp in the wild / the party picks a fight with Someone)
+Chance: 100%
+Limit: once (or daily, or always)
+Hook: How the party is drawn in.
+Truth: What is really going on.
+Encounter: none (or bestiary ids and counts: glass-eel x2; or any)
+Ending: How it can end.`;
+function hostSeeds() {
+  const f = ui.form.seed = ui.form.seed || { text: '', edit: null };
+  const seeds = S.seeds || [];
+  const log = (S.seedLog || []).slice(-14).reverse();
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card' }, h('h2', {}, 'Write a story seed'),
+      h('small', { class: 'dim' }, `Your own side-stories, twists and wandering trouble. Encounter names the bestiary's creatures (${(M.bestiary.creatures || []).map((c) => c.id).join(', ')}); they are sized so the meeting stays minor.`),
+      h('textarea', { id: 'seed-text', style: 'min-height:260px', value: f.text, placeholder: 'Write a seed, or start from the template', oninput: (e) => { f.text = e.target.value; } }),
+      h('div', { class: 'row' }, h('button', { onclick: () => { f.text = SEED_TEMPLATE; f.edit = null; render(); } }, 'Template'),
+        h('button', { class: 'go', disabled: !f.text.trim(), onclick: async () => { if (await act({ type: 'seed.save', text: f.text, id: f.edit || undefined })) { f.text = ''; f.edit = null; render(); } } }, f.edit ? 'Save changes' : 'Save seed'))),
+    h('div', { class: 'card scroll', 'data-key': 'seeds' }, h('h2', {}, 'Your seeds'),
+      h('small', { class: 'dim' }, 'Switched-on seeds are given to the AI Director. Players never see them.'),
+      seeds.length ? seeds.map((x) => {
+        const came = (S.seedLog || []).filter((r) => r.id === x.id && r.fired).length;
+        return h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, x.title), h('div', {}, h('small', { class: 'dim' }, `Comes in ${SEEDS.whenWords(SEEDS.seedPlan(x.text))}${came ? ` · came in ${came}×` : ''}`))),
+          h('button', { class: x.on ? 'go' : '', onclick: () => act({ type: 'seed.toggle', id: x.id }) }, x.on ? 'On' : 'Off'),
+          h('button', { onclick: () => { f.text = x.text; f.edit = x.id; render(); } }, 'Edit'),
+          h('button', { onclick: () => { if (confirm('Delete this seed?')) act({ type: 'seed.remove', id: x.id }); } }, 'Delete'));
+      }) : h('small', {}, 'No seeds yet.'),
+      h('h3', {}, 'In play'),
+      log.length ? log.map((r) => h('div', {}, h('small', {}, h('b', {}, r.title), r.fired ? `: came in (${r.by === 'engine' ? (r.roll != null ? `the Engine rolled ${r.roll} against ${r.chance}%` : 'the Engine') : r.by === 'director' ? `the Director's choice${r.why ? `: ${r.why}` : ''}` : 'you'})${(r.foes || []).length ? `, ${r.foes.join(', ')}` : ''}` : `: rolled ${r.roll} against ${r.chance}%, not this time`)))
+        : h('small', { class: 'dim' }, 'Nothing yet. The Engine brings a seed in at its moment and rolls its chance; the Director may bring one in when it fits. Both show here.')));
+}
+
 function hostVoice() {
   const v = HELLO.voiceCfg.out;
   const f = ui.form.voice = ui.form.voice || { url: v.url, model: v.model, voice: v.voice, key: '' };
@@ -459,7 +497,7 @@ function hostGame() {
 
 // ---------------------------------------------------------------- tabs and rendering
 const TABS = {
-  host: [['play', 'Play'], ['world', 'World'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
+  host: [['play', 'Play'], ['world', 'World'], ['seeds', 'Seeds'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
   table: [['story', 'Story'], ['rules', 'Books'], ['colours', 'Colours']],
   player: [['story', 'Story'], ['sheet', 'Sheet'], ['rules', 'Books'], ['voice', 'Voice'], ['colours', 'Colours']],
 };
@@ -468,6 +506,7 @@ function view() {
   if (tab === 'colours') return coloursView();
   if (ROLE === 'host') {
     if (tab === 'world') return hostWorld();
+    if (tab === 'seeds') return hostSeeds();
     if (tab === 'rules') return rulesView(true);
     if (tab === 'convert') return hostConverter();
     if (tab === 'ai') return hostAI();

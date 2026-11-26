@@ -8,6 +8,7 @@ import { term, ladderName } from '../engine/module.js';
 import { getSystem } from '../engine/dicesystems.js';
 import { currentKey } from '../engine/ledger.js';
 import { rulesAt, ruleWords } from '../engine/triggers.js';
+import * as SEEDS from '../engine/seeds.js';
 
 const TEMPLATE = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 14;
@@ -30,7 +31,7 @@ export function instructions(mod) {
 const site = (s, mod) => ((mod.ix.adventure[s.adventureId] || {}).sites || []).find((x) => x.id === s.scene.siteId) || {};
 
 // Everything the Director needs this turn, in words.
-export function briefing(s, mod, { reason = '', hostNote = '' } = {}) {
+export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = {}) {
   const adv = mod.ix.adventure[s.adventureId];
   const here = site(s, mod);
   const L = [];
@@ -61,6 +62,11 @@ export function briefing(s, mod, { reason = '', hostNote = '' } = {}) {
   const recent = s.story.filter((e) => e.kind !== 'host' && !e.quiet).slice(-14);
   L.push(`\nTHE STORY SO FAR (latest last):`);
   for (const e of recent) L.push(`${e.who || e.kind}: ${e.text.slice(0, 500)}`);
+  // A seed that has just come into play (the Engine's moment or the Director's own choice): play it now.
+  const now = s.seedNow && s.seedNow.seq > lastSeq ? (s.seeds || []).find((x) => x.id === s.seedNow.id) : null;
+  if (now) L.push(`\nA STORY SEED COMES INTO PLAY NOW (${s.seedNow.by === 'engine' ? `its moment came: ${s.seedNow.why}` : 'your choice'}). Bring it into the scene this turn${s.seedNow.foes.length ? `; these have arrived: ${s.seedNow.foes.join(', ')}` : ''}${s.fight ? ' (the fight is on)' : ''}:\n${now.text}`);
+  const seeds = (s.seeds || []).filter((x) => x.on && (!now || x.id !== now.id) && SEEDS.seedFree(x, s, here.id));
+  if (seeds.length) L.push(`\nSTORY SEEDS (the host's; call use_seed with the id when its moment comes or it fits; the Engine brings in "getting nowhere" and "camp" ones by itself):\n${seeds.map((x) => `[${x.id}] ${SEEDS.whenWords(SEEDS.seedPlan(x.text))}:\n${x.text}`).join('\n---\n')}`);
   if (hostNote) L.push(`\nTHE HOST ASKS: ${hostNote}`);
   L.push(`\nNOW: ${reason || 'Continue the scene.'}`);
   return L.join('\n');
@@ -68,6 +74,25 @@ export function briefing(s, mod, { reason = '', hostNote = '' } = {}) {
 
 const ROLL_WORDS = /\b(roll|make a|give me a|test your)\b[^.?!]*\b(check|roll|save|test)\b/i;
 const LEAK = /\b(the engine|the briefing|your notes|the notes|tools?|ask_for_roll|creature_attack|difficulty \d+|defen[cs]e \d+|\d+\s*(?:health|hit points|hp)\b)/i;
+
+// The narration takes the party to a place along an exit, but nobody called move_party (the D&D bench, 26 Nov):
+// the place it names, or null. A name in talk ("the bell is in the nave") is not travel: travel words must
+// come before it, within a sentence or two.
+const TRAVEL_WORDS = /\b(set (?:off|out)|head(?:s|ed|ing)? (?:off|out|for|to|toward|towards|down|up|back)|make (?:your|their|our) way|travel(?:s|led|ling)?|walk(?:s|ed|ing)?|ride|rode|march(?:es|ed)?|climb(?:s|ed)?|descend(?:s|ed)?|cross(?:es|ed)?|follow(?:s|ed)? the|arriv(?:e|es|ed|ing)|reach(?:es|ed)?|come to|came to|you are (?:now )?(?:at|in)|step (?:into|out onto)|lead(?:s)? (?:you|them) (?:to|into|down|up))\b/i;
+export function travelledInWords(text, s, mod) {
+  const adv = mod.ix.adventure[s.adventureId];
+  const here = site(s, mod);
+  const t = String(text || '');
+  for (const id of here.exits || []) {
+    const x = (adv.sites || []).find((y) => y.id === id);
+    if (!x) continue;
+    const name = x.name.replace(/^the\s+/i, '');
+    const at = t.toLowerCase().indexOf(name.toLowerCase());
+    if (at < 0) continue;
+    if (TRAVEL_WORDS.test(t.slice(Math.max(0, at - 220), at + name.length + 40))) return x;
+  }
+  return null;
+}
 
 // Light checks of a draft: what a table would notice at once.
 export function checkNarration(text, s, mod) {
@@ -89,13 +114,23 @@ export function checkNarration(text, s, mod) {
 // One turn. provider: the chat provider (brain/providers.js build()).
 export async function directorTurn({ state, mod, provider, rng, now = 0, reason = '', hostNote = '' }) {
   const T = toolbox({ state, mod, rng, now });
+  // Before the model's turn: is the party getting anywhere? (a "getting nowhere" seed), and trouble picked
+  // with nobody here to fight (a "picks a fight" seed may bring someone out).
+  const lastNarr = [...state.story].reverse().find((e) => e.kind === 'narration');
+  if (lastNarr) {
+    const said = state.story.filter((e) => e.kind === 'say' && e.seq > lastNarr.seq).map((e) => e.text).join(' ');
+    const nobody = !Object.values(state.creatures).some((k) => k.siteId === state.scene.siteId && !k.down);
+    if (said && nobody && /\b(attack|punch|hit|stab|shove|grab|throttle|draw (?:my|his|her) (?:sword|knife|blade|gun))\b/i.test(said)) T.do({ type: 'seed.check', event: 'provoke', text: said });
+    T.do({ type: 'seed.check' });
+  }
   const chat = provider.start({ system: instructions(mod), tools: TOOLS.map(({ name, description, parameters }) => ({ name, description, parameters })) });
   const calls = [];
   const usage = { in: 0, out: 0 };
-  let reply = await chat.send(briefing(state, mod, { reason, hostNote }));
+  let reply = await chat.send(briefing(T.state, mod, { reason, hostNote, lastSeq: lastNarr ? lastNarr.seq : -1 }));
   let narration = '';
   let rollNudged = false;
   let silentNudged = false;
+  let moveNudged = false;
   for (let step = 0; step < MAX_STEPS + 2 * Object.keys(state.creatures).length; step++) {
     usage.in += reply.usage.in; usage.out += reply.usage.out;
     if (reply.calls.length) {
@@ -107,6 +142,13 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     if (narration && !rollNudged && ROLL_WORDS.test(narration) && T.state.requests.length === state.requests.length) {
       rollNudged = true; narration = '';
       reply = await chat.send('You asked for a roll in words, but nothing is on anyone\'s screen. Call ask_for_roll for it now, then narrate again, ending on one question. If no roll is needed, narrate again without asking for one.');
+      continue;
+    }
+    // A journey told in words, with the party still where it was: once, ask for the move (or what stops them).
+    const went = narration && !moveNudged && !T.state.fight && T.state.scene.siteId === state.scene.siteId ? travelledInWords(narration, T.state, mod) : null;
+    if (went) {
+      moveNudged = true; narration = '';
+      reply = await chat.send(`Your narration takes the party toward ${went.name}, but they are still at ${site(T.state, mod).name}. If they have arrived there or are close enough to see it, call move_party with place "${went.id}" now, then narrate again. If something stops them on the way, keep them where they are and say what stops them. End on one question.`);
       continue;
     }
     if (narration || silentNudged) break;

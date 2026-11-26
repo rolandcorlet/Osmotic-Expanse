@@ -219,6 +219,29 @@ export const TOOLS = [
     },
   },
   {
+    name: 'rest',
+    description: 'The party rests: short (a breather) or long (a night\'s sleep). Only when they choose to and no fight is on. A long rest somewhere unsafe may be interrupted (the Engine decides): then a fight starts, and the rest finishes when it is over.',
+    parameters: obj({ kind: S('short or long.') }, ['kind']),
+    run(a, T) {
+      if (T.state.fight) return { note: 'Nothing changed: nobody rests during a fight.', ...T.fightBrief() };
+      const seq = T.state.seq;
+      const no = T.do({ type: 'rest', kind: /long|night|sleep/i.test(String(a.kind)) ? 'long' : 'short' });
+      return no ? { refused: no } : T.since(seq);
+    },
+  },
+  {
+    name: 'use_seed',
+    description: 'Bring one of the host\'s story seeds (STORY SEEDS in the briefing) into play now: its people or creatures arrive, sized to the party. Use it when its moment comes and only you can see it (the party harasses, robs or picks a fight with someone who is not a creature here), or on your own judgement when it fits (the party is lost or going in circles). For a night in the open call rest with kind long instead: the Engine rolls the camp seeds itself. The Engine logs that you chose it.',
+    parameters: obj({ seed: S('The seed\'s id (in square brackets in the briefing) or its title.'), why: S('One short line: why now.') }, ['seed', 'why']),
+    run(a, T) {
+      const seq = T.state.seq;
+      const no = T.do({ type: 'seed.fire', seed: a.seed, why: a.why || '' });
+      if (no) return { refused: no };
+      const now = T.state.seedNow || {};
+      return { ...T.since(seq), seed: now.title, arrived: now.foes || [], here: T.here() };
+    },
+  },
+  {
     name: 'add_quest',
     description: 'The party takes on a new goal.',
     parameters: obj({ text: S('The quest in one sentence.') }, ['text']),
