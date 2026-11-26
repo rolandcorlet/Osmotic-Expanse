@@ -85,6 +85,10 @@ export function planFight({ groups, designed, levels, ix }) {
   const raw = target / w;
   let blows = raw < 0.5 && health === 0.5 ? Math.max(0.5, Math.round((raw / 0.5) * 20) / 20) : 1;
   if (blows > 0.9) blows = 1;
+  // A lone creature against a party smaller than written gets all its blows on one or two of them, which the
+  // weights do not count: softened again, never under 0.3 (the D&D simulation, 26 Nov: Venyx and Kragg).
+  const lone = best.c.reduce((n, g) => n + g.count, 0) === 1;
+  if (lone && levels.length < lo && w > partyPower(levels)) blows = Math.max(0.3, Math.round(blows * (w > partyPower(levels) * 2 ? 0.5 : 0.65) * 20) / 20); // twice the party: halved
   const counts = Object.fromEntries(best.c.map((g) => [g.key, g.count]));
   const changed = groups.some((g) => counts[g.key] !== g.count) || health !== 1 || blows !== 1;
   if (!changed) return null;

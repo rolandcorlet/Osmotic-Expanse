@@ -1,0 +1,279 @@
+{
+  "id": "the-gull-rock-light",
+  "name": "The Gull Rock Light",
+  "pitch": "Three nights after a storm, a lighthouse burns with no keeper, and the harbour is singing in the dark.",
+  "level": 1,
+  "party": "3 to 4 investigators",
+  "intro": "You arrive in Gull Rock while rain still drips from the eaves. The lighthouse on the point is lit, though the keeper and his family vanished three nights ago. The harbour town is quiet, the tide is turning, and something under the water keeps a slow, wet rhythm.",
+  "secrets": "The lighthouse lamp is a ward that has kept the thing under the harbour asleep. A drowned cult in the town and caves has been using the keeper's family to turn the light into a summons. The keeper's wife has become tide-kin; the keeper is almost drowned-kin. If the rite finishes, the thing stirs; if the light is put out, the ward fails, but if it burns, the cult can still work around it. The constable took the keeper's brass key to sell it, not knowing it opened the lamp room.",
+  "start": "harbour-town",
+  "sites": [
+    {
+      "id": "harbour-town",
+      "name": "Gull Rock Harbour Town",
+      "read": "Gull Rock is a wet, salt-black town. Nets hang from the harbour wall, and every window faces the sea. At the inn, a nervous constable tries to talk you away from the causeway.",
+      "notes": "Safe rest. Constable Aldous Pike is hiding the keeper's key. If asked about the light, he says it was lit the night the family vanished. A successful talk check can calm him; a failed talk check makes him call for the mayor's men.",
+      "exits": [
+        "causeway"
+      ],
+      "clues": [
+        "The innkeeper heard singing from the water on the night of the storm.",
+        "Constable Pike's pocket jingles with a brass key."
+      ],
+      "rules": [
+        {
+          "id": "constable-talk",
+          "when": "fail talk",
+          "do": "say",
+          "say": "The constable turns pale and refuses to speak."
+        }
+      ]
+    },
+    {
+      "id": "causeway",
+      "name": "The Causeway",
+      "read": "A low stone causeway runs out to the island. The sea is already licking the path, and the gulls are silent.",
+      "notes": "The tide is the true danger. The causeway floods as the clock fills. Drowned gulls circle below; tide-children may rise.",
+      "exits": [
+        "harbour-town",
+        "keeper-cottage"
+      ],
+      "creatures": [
+        {
+          "id": "drowned-gull",
+          "count": 2,
+          "hidden": true
+        }
+      ],
+      "hazards": [
+        {
+          "name": "Cold rising tide",
+          "stat": "body",
+          "skill": "athletics",
+          "at": 40,
+          "fail": "Lose 1 Health and gain bleeding."
+        }
+      ],
+      "clues": [
+        "Footprints on the causeway lead outward, but none lead back.",
+        "The stone steps are carved with old ward-marks, now smeared with black brine."
+      ],
+      "rules": [
+        {
+          "id": "causeway-tide",
+          "when": "enter",
+          "do": "tick",
+          "clock": "tide",
+          "say": "The tide moves one step closer."
+        },
+        {
+          "id": "causeway-noise",
+          "when": "fail athletics",
+          "do": "reveal",
+          "who": "drowned-gull",
+          "say": "The water shakes loose a pair of drowned gulls."
+        }
+      ]
+    },
+    {
+      "id": "keeper-cottage",
+      "name": "The Keeper's Cottage",
+      "read": "The keeper's cottage stands open. Rainwater pools on the floor, and a child's shoe sits by the cold hearth.",
+      "notes": "A successful look check finds a hidden compartment under the floor with the keeper's diary. The diary says the lamp was changed after the storm, and that the keeper heard the townsfolk singing on the rocks. A successful lore check may recognize the song as a drowned rite. A successful medicine check can tell the blood on the floor is old and fish-slick.",
+      "exits": [
+        "causeway",
+        "lighthouse-tower"
+      ],
+      "clues": [
+        "The keeper's diary mentions 'the wrong light' and 'Father Mott's song'.",
+        "The door bolt was opened from the outside.",
+        "A child's shoe is filled with black sand."
+      ],
+      "rules": [
+        {
+          "id": "diary-find",
+          "when": "succeed look",
+          "do": "say",
+          "say": "Under the floorboard is a diary soaked in salt."
+        },
+        {
+          "id": "diary-song",
+          "when": "succeed lore",
+          "do": "say",
+          "say": "The song in the diary is a drowned summoning."
+        }
+      ]
+    },
+    {
+      "id": "lighthouse-tower",
+      "name": "The Lighthouse Tower",
+      "read": "The tower is cold and bright. The lamp turns without hands, and wet footprints climb the stairs. A woman's voice sings from the gallery.",
+      "notes": "The keeper's wife has become drowned-keeper-wife; the keeper is drowned-keeper. They are not mindless; the wife may beg for the light to be put out. The lamp room contains the keyhole and the warding sigil. If the investigators are quiet they may learn; if loud, the drowned attack.",
+      "exits": [
+        "keeper-cottage",
+        "sea-cave"
+      ],
+      "creatures": [
+        {
+          "id": "drowned-keeper-wife",
+          "count": 1,
+          "hidden": true
+        },
+        {
+          "id": "drowned-keeper",
+          "count": 1,
+          "hidden": true
+        }
+      ],
+      "hazards": [
+        {
+          "name": "Blinding lamp",
+          "stat": "nerve",
+          "skill": "resolve",
+          "at": 20,
+          "fail": "Gain shaken."
+        }
+      ],
+      "clues": [
+        "The lamp has been refilled with oil and something blacker than oil.",
+        "The keeper's hand is still wrapped around a brass key.",
+        "The warding sigil around the lamp has been scored across."
+      ],
+      "rules": [
+        {
+          "id": "tower-quiet",
+          "when": "fail stealth",
+          "do": "reveal",
+          "who": "drowned-keeper-wife",
+          "say": "The wet woman turns toward you, her mouth full of brine."
+        },
+        {
+          "id": "tower-keeper",
+          "when": "fail stealth",
+          "do": "reveal",
+          "who": "drowned-keeper",
+          "say": "The keeper descends the stairs, his lantern swinging."
+        },
+        {
+          "id": "tower-lamp",
+          "when": "round",
+          "do": "say",
+          "say": "The lamp turns, and the shadows crawl like fingers."
+        }
+      ]
+    },
+    {
+      "id": "sea-cave",
+      "name": "The Sea Cave Beneath the Light",
+      "read": "The sea cave is black water and carved steps. Torches gutter. A choir of drowned townsfolk stands waist-deep in the tide, and a robed figure holds the keeper's key above a black pool.",
+      "notes": "This is the rite. The choir-master is leading it. A successful stealth check lets the investigators choose the moment; a failed check springs the ambush. The harbour-worm coils beneath the pool. If the clock fills, the rite is complete and the gull-rock-thing stirs. The drowned choir of townsfolk stands waist-deep in the black water, singing; they are the rite, not fighters, and fall silent when the choir-master falls.",
+      "exits": [
+        "lighthouse-tower"
+      ],
+      "creatures": [
+        {
+          "id": "choir-master",
+          "count": 1,
+          "hidden": true
+        }
+      ],
+      "hazards": [
+        {
+          "name": "Black pool",
+          "stat": "nerve",
+          "skill": "resolve",
+          "at": 40,
+          "fail": "Lose 1 Sanity and gain shaken."
+        }
+      ],
+      "clues": [
+        "The rite needs the keeper's key and the wrong light.",
+        "The choir-master's robe is stitched with names from the harbour's drowning records.",
+        "The black pool breathes."
+      ],
+      "rules": [
+        {
+          "id": "cave-tide",
+          "when": "enter",
+          "do": "tick",
+          "clock": "tide",
+          "say": "The rite draws the tide upward."
+        },
+        {
+          "id": "cave-ambush-master",
+          "when": "fail stealth",
+          "do": "reveal",
+          "who": "choir-master",
+          "say": "The choir-master lifts the keeper's key and sings."
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "tide-fills",
+      "when": "full tide",
+      "do": "say",
+      "say": "The water in the caves swells, and something vast shifts under the harbour."
+    },
+    {
+      "id": "causeway-lost",
+      "when": "full tide",
+      "do": "say",
+      "say": "The causeway is under the sea; return must be by boat or through the caves."
+    }
+  ],
+  "quests": [
+    {
+      "id": "missing-keepers",
+      "text": "Find what happened to the keeper's family.",
+      "doneAt": [
+        "keeper-cottage"
+      ]
+    },
+    {
+      "id": "stop-rite",
+      "text": "Stop the rite before the tide fills.",
+      "doneAt": [
+        "sea-cave"
+      ]
+    },
+    {
+      "id": "light-choice",
+      "text": "Put out the lighthouse light, or keep it burning.",
+      "doneAt": [
+        "lighthouse-tower"
+      ]
+    }
+  ],
+  "clocks": [
+    {
+      "id": "tide",
+      "name": "The Tide and the Rite",
+      "size": 5,
+      "ticks": "Every time the investigators enter the causeway or sea-cave, whenever they fail stealth or athletics, and after every third round of fighting.",
+      "fills": "The rite is complete; the thing under the harbour stirs and the causeway is lost."
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Constable Aldous Pike",
+      "role": "Nervous local lawman",
+      "want": "Keep the investigators out of the island.",
+      "voice": "Fast, clipped, always apologizing.",
+      "secret": "He took the keeper's brass key from the cottage floor."
+    },
+    {
+      "name": "Innkeeper Ada Brant",
+      "role": "Gull Rock innkeeper",
+      "want": "To know whether the lighthouse is cursed or the town is.",
+      "voice": "Low, wary, practical.",
+      "secret": "She saw Father Mott walking toward the causeway the night the family vanished."
+    }
+  ],
+  "ending": "If they stop the rite and put out the light, the ward dies and Gull Rock must evacuate; the thing may wake in a year. If they keep the light burning and stop the rite, the thing sleeps, but the town remains under a curse and the light must be tended by someone willing to be near the drowned. If the rite completes, the lighthouse gutters and the harbour opens; the investigators survive only by fleeing, and Gull Rock is lost.",
+  "reward": {
+    "xp": 10,
+    "other": "The keeper's brass key, a warding sigil, and one investigator may recover 1 Sanity."
+  }
+}

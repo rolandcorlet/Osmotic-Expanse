@@ -1,0 +1,251 @@
+{
+  "creatures": [
+    {
+      "id": "drowned-gull",
+      "name": "Drowned Gull",
+      "tier": 1,
+      "about": "A What Answers: gulls that drowned in the storm but still circle the tower, their throats full of seawater and hymns.",
+      "look": "Bloated white feathers, milky eyes, and open mouths that click with the tide.",
+      "health": 10,
+      "soak": 0,
+      "defence": -10,
+      "attacks": [
+        {
+          "name": "Gale Peck",
+          "rating": 35,
+          "weapon": 1,
+          "kind": "melee",
+          "effect": "On a hit, the target is Shaken."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Tide Calling",
+          "effect": "An investigator who hears it croak must pass a Listen roll against Regular Peril or lose 1 Sanity."
+        }
+      ],
+      "tactics": "It swoops, pecks, and flees when hurt, returning to call other things out of the fog.",
+      "xp": 2
+    },
+    {
+      "id": "tide-child",
+      "name": "Tide Child",
+      "tier": 1,
+      "about": "A What Answers: a child-shaped drowned thing that lures people toward cold water.",
+      "look": "A small, wet figure in old clothes, with hair full of sand and a smile too wide for its face.",
+      "health": 12,
+      "soak": 0,
+      "defence": -5,
+      "attacks": [
+        {
+          "name": "Cold Grip",
+          "rating": 40,
+          "weapon": 1,
+          "kind": "melee",
+          "effect": "On a surge, the target is Frozen."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Ask to Be Held",
+          "effect": "An investigator who fails a Resolve roll against Hard Peril when it reaches for them loses 1 Sanity."
+        }
+      ],
+      "tactics": "It hides in fog and calls from shore, trying to separate one investigator from the rest.",
+      "xp": 2
+    },
+    {
+      "id": "tide-kin",
+      "name": "Tide-Kin",
+      "tier": 2,
+      "about": "A What Answers: drowned townsfolk whose bodies are pulled by the harbour's old voice.",
+      "look": "Blue-lipped people in salt-stiff clothes, moving as if dragged by an unseen rope.",
+      "health": 18,
+      "soak": 0,
+      "defence": 5,
+      "attacks": [
+        {
+          "name": "Drowned Claw",
+          "rating": 45,
+          "weapon": 2,
+          "kind": "melee",
+          "effect": "On a surge, the target is Bleeding."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Chorus",
+          "effect": "When it is with another What Answers, its attack rating is +10."
+        }
+      ],
+      "tactics": "It lunges from surf or shadow, grabs an investigator, and tries to drag them toward the water.",
+      "xp": 4
+    },
+    {
+      "id": "drowned-keeper-wife",
+      "name": "Drowned Keeper's Wife",
+      "tier": 2,
+      "about": "A What Answers: the lighthouse keeper's wife, still guarding the light she cannot leave.",
+      "look": "A swollen woman in a wet dress, carrying a lantern that burns without oil.",
+      "health": 20,
+      "soak": 1,
+      "defence": 10,
+      "attacks": [
+        {
+          "name": "Lantern Bite",
+          "rating": 50,
+          "weapon": 2,
+          "kind": "melee",
+          "effect": "On a hit, the target is Shaken."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Lantern Lure",
+          "effect": "An investigator who looks at her lantern must pass a Resolve roll against Hard Peril or lose 1 Sanity."
+        }
+      ],
+      "tactics": "It stays near the lamp or stairs, striking when investigators try to pass or put out the light.",
+      "xp": 4
+    },
+    {
+      "id": "drowned-keeper",
+      "name": "Drowned Keeper",
+      "tier": 3,
+      "about": "A What Answers: the keeper, drowned but still tending a lamp no hand should keep lit.",
+      "look": "A tall, waterlogged man with a hatchet and a face carved by salt and storm.",
+      "health": 26,
+      "soak": 1,
+      "defence": 15,
+      "attacks": [
+        {
+          "name": "Storm Hatchet",
+          "rating": 55,
+          "weapon": 3,
+          "kind": "melee",
+          "effect": "On a surge, the target is Bleeding."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Lamp Keeper",
+          "effect": "While it stands in the tower, its defence is +5."
+        }
+      ],
+      "tactics": "It blocks the stairway, swings old tools, and screams when anyone nears the lamp.",
+      "xp": 7
+    },
+    {
+      "id": "singing-choir",
+      "name": "Singing Choir",
+      "tier": 3,
+      "about": "A What Answers: many drowned mouths moved together, singing the harbour's old words.",
+      "look": "A wet mass of bodies, faces, and hands sliding along the walls like one long creature.",
+      "health": 34,
+      "soak": 1,
+      "defence": 10,
+      "attacks": [
+        {
+          "name": "Many Hands",
+          "rating": 60,
+          "weapon": 3,
+          "kind": "melee",
+          "effect": "On a hit, the target is Exhausted."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Chant",
+          "effect": "Any investigator who hears it must pass a Resolve roll against Hard Peril or lose 1 Sanity."
+        }
+      ],
+      "tactics": "It surges in wet waves, grabs, and drowns. It falters if the rite is broken or the light is changed.",
+      "xp": 7
+    },
+    {
+      "id": "harbour-worm",
+      "name": "Harbour Worm",
+      "tier": 2,
+      "about": "A What Answers: a pale thing that lives in the sea cave's tidal mud.",
+      "look": "A ringed, eyeless body the width of a man, with a mouth like a broken lamp.",
+      "health": 22,
+      "soak": 1,
+      "defence": 0,
+      "attacks": [
+        {
+          "name": "Mud Lash",
+          "rating": 45,
+          "weapon": 2,
+          "kind": "melee",
+          "effect": "On a surge, the target is Bleeding."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Cave Ambush",
+          "effect": "If investigators fail a Stealth roll in the sea cave, it is hidden until it attacks."
+        }
+      ],
+      "tactics": "It waits in wet dark, pulls legs, and drags victims into the tidal muck.",
+      "xp": 4
+    },
+    {
+      "id": "choir-master",
+      "name": "Choir Master",
+      "tier": 4,
+      "about": "A What Answers: the drowned cult leader who sings the old thing awake from beneath the harbour.",
+      "look": "A bloated priest-shape in torn robes, eyes open, mouth moving with a voice that fills the cave.",
+      "health": 48,
+      "soak": 2,
+      "defence": 20,
+      "attacks": [
+        {
+          "name": "Salt Staff",
+          "rating": 65,
+          "weapon": 3,
+          "kind": "melee",
+          "effect": "On a surge, the target is Bleeding."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Rite Leader",
+          "effect": "While the rite is underway, all What Answers gain +10 to attack ratings."
+        },
+        {
+          "name": "Deep Song",
+          "effect": "An investigator who hears it sing must pass a Resolve roll against Dire Peril or lose 1 Sanity."
+        }
+      ],
+      "tactics": "It keeps the centre of the rite, uses the choir as a shield, and flees to deeper water if the rite fails.",
+      "xp": 14
+    },
+    {
+      "id": "gull-rock-thing",
+      "name": "Gull Rock Thing",
+      "tier": 4,
+      "about": "The old sleeper beneath the harbour, stirring when the tide and rite fill the dark.",
+      "look": "A hill of wet stone that is not stone, with mouths opening where the waves strike.",
+      "health": 80,
+      "soak": 3,
+      "defence": 25,
+      "attacks": [
+        {
+          "name": "Tentacle",
+          "rating": 70,
+          "weapon": 5,
+          "kind": "melee",
+          "effect": "On a hit, the target is Shaken."
+        }
+      ],
+      "abilities": [
+        {
+          "name": "Harbour Dream",
+          "effect": "An investigator who sees it must pass a Resolve roll against Dire Peril or lose 2 Sanity."
+        }
+      ],
+      "tactics": "It is not meant for a fair fight. It stirs when the rite nears completion or the light is wrong, punishing those who try to wake or silence it.",
+      "xp": 18
+    }
+  ]
+}

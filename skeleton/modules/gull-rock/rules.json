@@ -1,0 +1,265 @@
+{
+  "dice": {
+    "system": "percentile"
+  },
+  "stats": [
+    {
+      "id": "body",
+      "name": "Body",
+      "about": "Strength, stamina, swimming, and holding your ground."
+    },
+    {
+      "id": "mind",
+      "name": "Mind",
+      "about": "Memory, education, deduction, and knowing things."
+    },
+    {
+      "id": "nerve",
+      "name": "Nerve",
+      "about": "Courage, self-control, and keeping your voice steady."
+    },
+    {
+      "id": "sense",
+      "name": "Sense",
+      "about": "Perception, reflexes, and reading a room or a shore."
+    }
+  ],
+  "statPoints": {
+    "start": 5,
+    "spend": 15,
+    "max": 20,
+    "step": 1
+  },
+  "skills": [
+    {
+      "id": "athletics",
+      "name": "Athletics",
+      "stat": "body",
+      "about": "Running, climbing, swimming, and moving over rough ground."
+    },
+    {
+      "id": "brawl",
+      "name": "Brawl",
+      "stat": "body",
+      "about": "Fighting with fists, boots, or a heavy hand."
+    },
+    {
+      "id": "dodge",
+      "name": "Dodge",
+      "stat": "body",
+      "about": "Getting clear of a blow, a net, or a falling stone."
+    },
+    {
+      "id": "boat",
+      "name": "Boat",
+      "stat": "body",
+      "about": "Handling a skiff, rowing against tide, or holding a line."
+    },
+    {
+      "id": "listen",
+      "name": "Listen",
+      "stat": "sense",
+      "about": "Hearing voices, bells, or wet footsteps in the dark."
+    },
+    {
+      "id": "look",
+      "name": "Look",
+      "stat": "sense",
+      "about": "Noticing details, reading weather, and spotting lies."
+    },
+    {
+      "id": "medicine",
+      "name": "Medicine",
+      "stat": "mind",
+      "about": "Treating wounds, judging death, and knowing what the body has suffered."
+    },
+    {
+      "id": "stealth",
+      "name": "Stealth",
+      "stat": "body",
+      "about": "Moving quietly, hiding, and avoiding notice."
+    },
+    {
+      "id": "talk",
+      "name": "Talk",
+      "stat": "nerve",
+      "about": "Questioning, calming, threatening, or lying without flinching."
+    },
+    {
+      "id": "lore",
+      "name": "Lore",
+      "stat": "mind",
+      "about": "Knowing old stories, church secrets, and local superstition."
+    },
+    {
+      "id": "resolve",
+      "name": "Resolve",
+      "stat": "nerve",
+      "about": "Fighting off fear, nausea, and what you have seen."
+    }
+  ],
+  "skillPoints": {
+    "spend": 60,
+    "max": 50,
+    "step": 5
+  },
+  "ladder": [
+    {
+      "at": -20,
+      "name": "Routine Peril"
+    },
+    {
+      "at": 0,
+      "name": "Regular Peril"
+    },
+    {
+      "at": 20,
+      "name": "Hard Peril"
+    },
+    {
+      "at": 40,
+      "name": "Dire Peril"
+    }
+  ],
+  "snag": {
+    "effect": "Each Mistake marks 1 Sanity.",
+    "table": [
+      {
+        "snags": 1,
+        "name": "Slip",
+        "effect": "Drop something small, or make a sound that carries."
+      },
+      {
+        "snags": 2,
+        "name": "Freeze",
+        "effect": "You are Frozen until you spend an action."
+      },
+      {
+        "snags": 3,
+        "name": "Dread",
+        "effect": "Mark 2 Sanity."
+      }
+    ]
+  },
+  "surge": {
+    "effect": "A Flawless: on an attack the weapon counts twice; otherwise choose one bonus.",
+    "options": [
+      "Do it in half the time.",
+      "Learn a secret about the place.",
+      "An ally gains +10 on their next roll."
+    ]
+  },
+  "health": {
+    "name": "Health",
+    "base": 2,
+    "stat": "body",
+    "perStat": 1,
+    "perLevel": 2
+  },
+  "strain": {
+    "name": "Sanity",
+    "max": 6,
+    "penalties": [
+      {
+        "at": 3,
+        "dice": -10
+      },
+      {
+        "at": 5,
+        "dice": -20
+      }
+    ],
+    "atMax": "Breakdown: you are Shaken until you rest, and Sanity drops to 3."
+  },
+  "defence": {
+    "base": 10,
+    "stat": "sense",
+    "note": "Difficulty to hit a character = base + Sense + armour's defence bonus."
+  },
+  "initiative": {
+    "stat": "sense",
+    "skill": "listen"
+  },
+  "combat": {
+    "actionsPerTurn": 1,
+    "actions": [
+      {
+        "id": "strike",
+        "name": "Strike",
+        "cost": 1,
+        "does": "Attack once with a weapon."
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "cost": 1,
+        "does": "Add +10 to your defence until your next turn."
+      },
+      {
+        "id": "flee",
+        "name": "Flee",
+        "cost": 1,
+        "does": "Move away; an attacker may follow after a Dodge versus Athletics check."
+      },
+      {
+        "id": "aid",
+        "name": "Aid",
+        "cost": 1,
+        "does": "Make Talk or Medicine to remove a condition from an adjacent ally."
+      }
+    ]
+  },
+  "conditions": [
+    {
+      "id": "shaken",
+      "name": "Shaken",
+      "effect": "-10 on every roll.",
+      "mod": -10,
+      "ends": "A rest, or an ally steadies you (Regular Peril Resolve)."
+    },
+    {
+      "id": "bleeding",
+      "name": "Bleeding",
+      "effect": "-10 on every roll; lose 1 Health each round unless tended.",
+      "mod": -10,
+      "ends": "Medicine Hard Peril, or a long rest."
+    },
+    {
+      "id": "frozen",
+      "name": "Frozen",
+      "effect": "You cannot act except to steady yourself.",
+      "mod": 0,
+      "ends": "You spend an action to steady yourself (Routine Peril Resolve)."
+    },
+    {
+      "id": "exhausted",
+      "name": "Exhausted",
+      "effect": "-10 on every roll.",
+      "mod": -10,
+      "ends": "A long rest."
+    }
+  ],
+  "rest": {
+    "short": "Recover half your Health; clear 2 Sanity.",
+    "long": "Recover all Health; clear all Sanity and conditions."
+  },
+  "advancement": {
+    "xpPerLevel": 10,
+    "maxLevel": 10,
+    "perLevel": "Gain 10 Truth; spend it to raise skills. Every 3rd Standing may raise one stat (max 20)."
+  },
+  "rulings": [
+    {
+      "q": "Can two investigators roll together?",
+      "a": "One rolls; each helper adds +10, to a maximum of +20."
+    },
+    {
+      "q": "What happens when Sanity is at 3 or 5?",
+      "a": "At 3 Sanity you roll at -10; at 5 Sanity you roll at -20. At 0 Sanity you Break Down and become Shaken until you rest."
+    },
+    {
+      "q": "How does a Mistake work?",
+      "a": "A Mistake marks 1 Sanity. On a failed roll, extra consequences may apply; on any roll, 96-00 is treated as a Mistake."
+    }
+  ]
+}

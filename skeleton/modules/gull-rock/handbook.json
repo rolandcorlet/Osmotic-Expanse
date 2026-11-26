@@ -1,0 +1,379 @@
+{
+  "intro": "You are investigators in 1920s Gull Rock, where the harbour holds something old and the drowned chorus sings. Roll under skill with percentile dice: 96 or higher is a Mistake, and one-fifth of your skill or less is Flawless. Peril runs from Routine (-20) to Dire (40). Sanity is your strain; what you see costs it. Athletics covers climbing, throwing, and shooting. Brawl covers close combat. Talk covers persuasion, lies, and panic. Truth is experience; Standing is how much you have learned.",
+  "origins": [
+    {
+      "id": "coastal-born",
+      "name": "Coastal-Born",
+      "about": "You grew up among salt houses, tide marks, and bad weather.",
+      "stats": {
+        "body": 60,
+        "mind": 50,
+        "nerve": 55,
+        "sense": 55
+      },
+      "gift": "Gain +10 to boat, athletics, and stealth when near the water."
+    },
+    {
+      "id": "mainland-scholar",
+      "name": "Mainland Scholar",
+      "about": "You came from schools, hospitals, or newsrooms on the mainland.",
+      "stats": {
+        "body": 45,
+        "mind": 65,
+        "nerve": 55,
+        "sense": 55
+      },
+      "gift": "Use lore as if trained for one research or reading roll each story."
+    },
+    {
+      "id": "old-stock",
+      "name": "Old Stock",
+      "about": "Your family has lived near Gull Rock long enough to be blamed for things.",
+      "stats": {
+        "body": 50,
+        "mind": 55,
+        "nerve": 60,
+        "sense": 50
+      },
+      "gift": "You know one local name, place, or old grudge; gain +10 to talk or lore with Gull Rock folk."
+    },
+    {
+      "id": "far-wind",
+      "name": "Far Wind",
+      "about": "You came by ship or border, and you still sound like you came from elsewhere.",
+      "stats": {
+        "body": 55,
+        "mind": 55,
+        "nerve": 60,
+        "sense": 45
+      },
+      "gift": "You speak another language and gain +10 to talk with outsiders."
+    }
+  ],
+  "callings": [
+    {
+      "id": "physician",
+      "name": "Physician",
+      "about": "A doctor who has seen too much and tries to name it.",
+      "skills": [
+        "medicine",
+        "lore",
+        "listen",
+        "talk"
+      ],
+      "gear": [
+        "scalpel"
+      ],
+      "abilities": [
+        "field-triage",
+        "steady-nerves"
+      ]
+    },
+    {
+      "id": "reporter",
+      "name": "Reporter",
+      "about": "A writer chasing what Gull Rock wants buried.",
+      "skills": [
+        "talk",
+        "look",
+        "stealth",
+        "lore"
+      ],
+      "gear": [
+        "revolver"
+      ],
+      "abilities": [
+        "press-the-story",
+        "unshaken-witness"
+      ]
+    },
+    {
+      "id": "widow",
+      "name": "Fisherman's Widow",
+      "about": "You know the sea's moods and what it takes back.",
+      "skills": [
+        "boat",
+        "athletics",
+        "listen",
+        "stealth"
+      ],
+      "gear": [
+        "gaff-hook",
+        "storm-coat"
+      ],
+      "abilities": [
+        "harbour-sense",
+        "tide-walk"
+      ]
+    },
+    {
+      "id": "defrocked-priest",
+      "name": "Defrocked Priest",
+      "about": "You stopped believing, but you still pray when the dark comes.",
+      "skills": [
+        "lore",
+        "talk",
+        "resolve",
+        "medicine"
+      ],
+      "gear": [
+        "hatchet"
+      ],
+      "abilities": [
+        "name-the-prayer",
+        "ward-the-dark"
+      ]
+    }
+  ],
+  "abilities": [
+    {
+      "id": "field-triage",
+      "name": "Field Triage",
+      "level": 1,
+      "cost": "1 Sanity",
+      "roll": {
+        "stat": "mind",
+        "skill": "medicine"
+      },
+      "effect": "Restore 5 Health to one wounded Investigator; if you succeed, also remove bleeding."
+    },
+    {
+      "id": "steady-nerves",
+      "name": "Steady Nerves",
+      "level": 1,
+      "cost": "1 Sanity",
+      "roll": {
+        "stat": "nerve",
+        "skill": "resolve"
+      },
+      "effect": "Ignore shaken or frozen until the end of your next turn."
+    },
+    {
+      "id": "press-the-story",
+      "name": "Press the Story",
+      "level": 1,
+      "cost": "1 Sanity",
+      "roll": {
+        "stat": "nerve",
+        "skill": "talk"
+      },
+      "effect": "An NPC reveals one hidden clue; if you fail, they clam up."
+    },
+    {
+      "id": "unshaken-witness",
+      "name": "Unshaken Witness",
+      "level": 1,
+      "cost": "1 Sanity",
+      "roll": {
+        "stat": "nerve",
+        "skill": "resolve"
+      },
+      "effect": "Take one Sanity in place of another Investigator's Sanity loss."
+    },
+    {
+      "id": "harbour-sense",
+      "name": "Harbour Sense",
+      "level": 1,
+      "cost": "1 Sanity",
+      "roll": {
+        "stat": "sense",
+        "skill": "listen"
+      },
+      "effect": "You know what the tide will do next and gain +20 to dodge or stealth while moving by water."
+    },
+    {
+      "id": "tide-walk",
+      "name": "Tide Walk",
+      "level": 1,
+      "cost": "once a scene",
+      "roll": {
+        "stat": "body",
+        "skill": "athletics"
+      },
+      "effect": "Cross a flooded path, causeway, or slick rock without slipping."
+    },
+    {
+      "id": "name-the-prayer",
+      "name": "Name the Prayer",
+      "level": 1,
+      "cost": "1 Sanity",
+      "roll": {
+        "stat": "nerve",
+        "skill": "lore"
+      },
+      "effect": "When the drowned chorus sings, you and allies gain +10 to resist being shaken."
+    },
+    {
+      "id": "ward-the-dark",
+      "name": "Ward the Dark",
+      "level": 1,
+      "cost": "once a scene",
+      "roll": {
+        "stat": "nerve",
+        "skill": "talk"
+      },
+      "effect": "One What Answers takes -10 to its next attack."
+    }
+  ],
+  "gear": [
+    {
+      "id": "scalpel",
+      "name": "Scalpel",
+      "kind": "weapon",
+      "weapon": 2,
+      "stat": "body",
+      "skill": "brawl",
+      "about": "A surgeon's blade."
+    },
+    {
+      "id": "gaff-hook",
+      "name": "Gaff Hook",
+      "kind": "weapon",
+      "weapon": 3,
+      "stat": "body",
+      "skill": "brawl",
+      "about": "Fishing hook and blade."
+    },
+    {
+      "id": "hatchet",
+      "name": "Hatchet",
+      "kind": "weapon",
+      "weapon": 3,
+      "stat": "body",
+      "skill": "brawl",
+      "about": "A woodcutter's hatchet."
+    },
+    {
+      "id": "revolver",
+      "name": "Revolver",
+      "kind": "weapon",
+      "weapon": 4,
+      "stat": "body",
+      "skill": "athletics",
+      "about": "A service revolver."
+    },
+    {
+      "id": "storm-coat",
+      "name": "Storm Coat",
+      "kind": "armour",
+      "soak": 1,
+      "defence": 5,
+      "about": "Oilskin coat against spray and fear."
+    }
+  ],
+  "chargen": [
+    "Choose an origin and take its starting stats and gift.",
+    "Choose a calling and take its gear and abilities.",
+    "Move up to 20 stat points between your four stats; no stat may be above 70.",
+    "Assign 30 skill points among the skills listed by your calling, plus any others you can explain; no skill may start above 60.",
+    "Set Sanity to 6. The maximum is 8. At 3 or less, take -10 to all rolls; at 1 or less, take -20.",
+    "Set Health to 10 plus body divided by 10, rounded down.",
+    "Name your Investigator, write one thing they want, and track Truth spent on your Standing."
+  ],
+  "pregens": [
+    {
+      "name": "Dr. Ada Fenwick",
+      "origin": "mainland-scholar",
+      "calling": "physician",
+      "stats": {
+        "body": 50,
+        "mind": 70,
+        "nerve": 55,
+        "sense": 60
+      },
+      "skills": {
+        "athletics": 35,
+        "brawl": 30,
+        "dodge": 40,
+        "boat": 30,
+        "listen": 55,
+        "look": 50,
+        "medicine": 70,
+        "stealth": 30,
+        "talk": 45,
+        "lore": 55,
+        "resolve": 50
+      },
+      "look": "Plain coat, steady hands, tired eyes.",
+      "want": "Find out who signed the hospital orders."
+    },
+    {
+      "name": "Sam Oakes",
+      "origin": "coastal-born",
+      "calling": "reporter",
+      "stats": {
+        "body": 55,
+        "mind": 60,
+        "nerve": 65,
+        "sense": 55
+      },
+      "skills": {
+        "athletics": 45,
+        "brawl": 35,
+        "dodge": 50,
+        "boat": 40,
+        "listen": 50,
+        "look": 65,
+        "medicine": 30,
+        "stealth": 50,
+        "talk": 70,
+        "lore": 50,
+        "resolve": 55
+      },
+      "look": "Fedora, ink-stained cuffs, notebook in hand.",
+      "want": "Get the Gull Rock story into the morning edition."
+    },
+    {
+      "name": "Maren Thorne",
+      "origin": "coastal-born",
+      "calling": "widow",
+      "stats": {
+        "body": 65,
+        "mind": 50,
+        "nerve": 55,
+        "sense": 65
+      },
+      "skills": {
+        "athletics": 60,
+        "brawl": 50,
+        "dodge": 55,
+        "boat": 75,
+        "listen": 65,
+        "look": 50,
+        "medicine": 35,
+        "stealth": 55,
+        "talk": 40,
+        "lore": 35,
+        "resolve": 55
+      },
+      "look": "Sea-rough hands and a black shawl.",
+      "want": "Bring her husband's body home."
+    },
+    {
+      "name": "Father Eamon Locke",
+      "origin": "old-stock",
+      "calling": "defrocked-priest",
+      "stats": {
+        "body": 50,
+        "mind": 60,
+        "nerve": 70,
+        "sense": 50
+      },
+      "skills": {
+        "athletics": 35,
+        "brawl": 30,
+        "dodge": 40,
+        "boat": 30,
+        "listen": 50,
+        "look": 45,
+        "medicine": 45,
+        "stealth": 40,
+        "talk": 65,
+        "lore": 70,
+        "resolve": 70
+      },
+      "look": "Frayed collar and a bruised cross.",
+      "want": "Prove the old faith was not madness."
+    }
+  ]
+}

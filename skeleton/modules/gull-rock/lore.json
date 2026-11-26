@@ -1,0 +1,71 @@
+{
+  "world": "Gull Rock is a small 1920s New England harbour town where the fog comes in early and the townsfolk speak too little. Something old sleeps beneath the harbour, and a drowned cult among the families, fishermen, and old churches has begun singing it awake. The lighthouse keeper's family vanished during a storm three nights ago, yet the lamp still burns. Investigators know only that the town is afraid, the tide is wrong, and some voices under the water answer when spoken to.",
+  "sections": [
+    {
+      "title": "The Light That Should Not Burn",
+      "text": "The Gull Rock Light is meant to be tended by the keeper and his family, but no one has been seen since the storm. The lamp turns on schedule, the oil is somehow full, and the light draws boats too close to the reef. Locals say the keeper's wife was heard singing through the storm, and the constable refuses to climb the tower at night."
+    },
+    {
+      "title": "The Town of Closed Doors",
+      "text": "Gull Rock has an inn, a harbour market, a church, and a constable who knows more than he will say. Many families have old ties to the sea: they keep strange relics, dream of singing, and speak of 'the Choir' as if it were a neighbour. A visitor who asks too much about the drowned past may find the town closing around them."
+    },
+    {
+      "title": "The Choir Under the Water",
+      "text": "The cult is not a separate evil; it is part of Gull Rock. Its members believe the thing beneath the harbour is a forgotten god of mercy, a drowned presence that will remake the town if the rite is completed. They gather in the sea cave beneath the island, led by a Choir-master who has not drawn breath in years."
+    },
+    {
+      "title": "The Thing Under the Harbour",
+      "text": "No investigator knows its true shape. It sleeps below the silt, roots, and drowned cellars. As the rite nears, the tide rises wrong, gulls gather in silence, and things that were human begin to answer to it. If the light is kept burning, it may guide the thing into the town; if it is put out, the harbour may go dark before the sleeper wakes."
+    },
+    {
+      "title": "What Answers",
+      "text": "Those who hear the Choir too long may drown without water, wake as tide-born things, or become servants of the rite. A What Answers is not simply a monster; it is a transformed person, animal, or place, still shaped by what it was before the water took it."
+    },
+    {
+      "title": "The Investigators",
+      "text": "A physician, a reporter, a fisherman's widow, a defrocked priest, or others who cannot look away. Their minds are the strain track: what they see costs them. Knowledge gives Truth, but Truth is not safe. An investigator may stand taller and learn more while losing the ordinary mind that made them human."
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Sanity",
+      "means": "An investigator's strained mind. Seeing true horror, hearing the Choir, or surviving impossible things costs Sanity."
+    },
+    {
+      "term": "Health",
+      "means": "A measure of wounds and exhaustion. When it fails, an investigator falls bleeding, frozen, exhausted, or dead."
+    },
+    {
+      "term": "Truth",
+      "means": "The reward for uncovering the rite, the Choir, or the thing beneath Gull Rock. It can change an investigator as much as it helps them."
+    },
+    {
+      "term": "Standing",
+      "means": "An investigator's place among the living and the drowned, marked by experience gained from surviving Truth."
+    },
+    {
+      "term": "What Answers",
+      "means": "A creature that has been changed by the Choir: a drowned keeper, a singing tide-child, a gull with too many eyes, or a person who can no longer remember being human."
+    },
+    {
+      "term": "Peril",
+      "means": "The danger a task carries in Gull Rock. A Routine Peril may be survivable; a Dire Peril asks whether the investigator can remain themselves."
+    },
+    {
+      "term": "Mistake",
+      "means": "A roll made too late, too wrong, or too afraid. It worsens the situation and often costs Sanity."
+    },
+    {
+      "term": "Flawless",
+      "means": "A moment of terrible certainty: the investigator acts with cold clarity, gains the best advantage, and may recover a little Sanity."
+    },
+    {
+      "term": "The Choir",
+      "means": "The drowned cult and its voices. It sings to wake what sleeps under the harbour, and those who listen too closely become part of it."
+    },
+    {
+      "term": "The Rite",
+      "means": "The ceremony beneath the sea cave, bound to the tide and the lighthouse. If it fills, the sleeper stirs."
+    }
+  ]
+}

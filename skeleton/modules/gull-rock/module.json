@@ -1,0 +1,31 @@
+{
+  "format": "skeleton-module/1",
+  "id": "gull-rock",
+  "name": "Gull Rock",
+  "tagline": "Percentile horror in a 1920s New England harbour town, where the light still burns and the drowned are singing.",
+  "tone": "Salt-damp dread, old secrets, and fragile minds. The Director should speak plainly, with the sea always present: wet stone, cold lamps, gulls that sound like crying. Danger is intimate and real; sanity is the main currency.",
+  "audience": "Teens and adults",
+  "credits": "Original game invented from provided ideas for the Skeleton.",
+  "rawTerms": {
+    "difficulty": "Peril",
+    "snag": "Mistake",
+    "surge": "Flawless",
+    "health": "Health",
+    "strain": "Sanity",
+    "character": "Investigator",
+    "creature": "What Answers",
+    "xp": "Truth",
+    "level": "Standing"
+  },
+  "terms": {
+    "difficulty": "Peril",
+    "snag": "Mistake",
+    "surge": "Flawless",
+    "health": "Health",
+    "strain": "Sanity",
+    "character": "Investigator",
+    "creature": "What Answers",
+    "xp": "Truth",
+    "level": "Standing"
+  }
+}

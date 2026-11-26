@@ -13,6 +13,7 @@
 // The dice: a module chooses a system from engine/dicesystems.js (see DICE below); without one it uses
 // the d6 pool. A module also names the parts and says what a snag costs and what a surge earns.
 
+import { weightOf, partyPower, designedParty } from './scale.js';
 import { checkRules as checkAdventureRules } from './triggers.js';
 import { getSystem, SYSTEMS, catalogue, validWeapon } from './dicesystems.js';
 
@@ -323,6 +324,15 @@ export function checkAdventure(a, { bestiary, rules } = {}) {
     if (!text(s.read)) errs.push(`${tag} site "${s.id}" needs "read" (what the players see).`);
     for (const e of s.exits || []) if (!siteIds.has(e)) errs.push(`${tag} site "${s.id}" has an exit to "${e}", which is not a site.`);
     for (const c of s.creatures || []) if (!c || !beasts.has(c.id)) errs.push(`${tag} site "${s.id}" places "${c && c.id}", which is not in the bestiary.`);
+    // A fight far past deadly for the party it is written for (Gull Rock's sea cave, 26 Nov: three tier-3
+    // choirs, a tier-4 master and a worm against first-level investigators, every simulated party lost),
+    // unless the place says it is meant to be (deadly: true). Weights: tier 1 to 5 = 1, 2, 4, 7, 11; a
+    // character counts 1, and half again for each level past the first.
+    const byId = new Map(((bestiary && bestiary.creatures) || []).map((c) => [c.id, c]));
+    const weight = (s.creatures || []).reduce((n, c) => n + (byId.has(c && c.id) ? weightOf(byId.get(c.id)) * Math.max(1, Number(c.count) || 1) : 0), 0);
+    const d = designedParty(a);
+    const power = partyPower(Array(d.size[0]).fill(d.level));
+    if (weight && !s.deadly && weight > power * 2.5) errs.push(`${tag} site "${s.id}": its creatures weigh ${weight} against ${power} for the smallest party it is written for (${d.size[0]} at level ${d.level}): far past deadly. Use fewer or lower-tier creatures (at most about ${Math.floor(power * 2)}), or mark the place "deadly": true if it is meant to be a fight to run from.`);
     const RA = getSystem(rules).ranges;
     for (const h of s.hazards || []) if (!h || !text(h.name) || !statIds.has(h.stat) || !num(h.at, RA.at[0], RA.at[1])) errs.push(`${tag} site "${s.id}" hazard needs "name", a "stat" and "at" (${RA.at[0]} to ${RA.at[1]}).`);
   }
