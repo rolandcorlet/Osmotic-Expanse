@@ -86,7 +86,7 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
         const slot = pc.cast && pc.cast.slots.findIndex(([m, u]) => m > u);
         if (down && heal && slot >= 0) tryHost({ type: 'spell.cast', pcId: pc.id, spell: heal, level: slot + 1, target: `pc:${down.id}` });
         else {
-          const foes = Object.values(s.foes).filter((f) => f.siteId === siteId && !f.dead);
+          const foes = Object.values(s.foes).filter((f) => f.siteId === siteId && !f.dead && !f.hidden && !f.calm); // not the ones out of it
           const foe = foes.sort((a, b) => a.hp - b.hp)[0];
           const atk = (pc.attacks || []).slice().sort((a, b) => (b.hit || 0) - (a.hit || 0))[0];
           const sp = foe && bestSpell(srd, pc);
@@ -103,16 +103,24 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
     } else {
       const foe = s.foes[id];
       const m = R.index(srd).monster[foe.mid] || {};
-      const weapons = (m.actions || []).filter((a) => a.hit != null);
-      const multi = (m.actions || []).find((a) => a.n === 'Multiattack');
-      const times = multi ? (/\bthree\b/i.test(multi.d) ? 3 : /\bfour\b/i.test(multi.d) ? 4 : 2) : 1;
-      for (let k = 0; k < times && s.fight && weapons.length; k++) {
-        const targets = pcs().filter(up);
-        if (!targets.length) break;
-        // A random target first, then the others if the stat block rules that one out (a held grapple).
-        const first = Math.floor(rng() * targets.length);
-        const order = targets.slice(first).concat(targets.slice(0, first));
-        for (const t of order) if (tryHost({ type: 'foe.act', foeId: foe.id, action: weapons[k % weapons.length].n, target: `pc:${t.id}` })) break;
+      // A recharge or limited-use area action (a dragon's breath) whenever it is ready, catching half the
+      // heroes standing (rounded up: both of two), as a cone or a line does: the simulation never breathed
+      // before, so lone dragons looked tamer than they play (26 Nov).
+      const area = (m.actions || []).find((a) => a.dc && (a.dmg || []).length && /^(Recharge|\d+\/day)/i.test(a.use || '') && !(foe.spent || {})[a.n]);
+      const standing = pcs().filter(up).sort(() => rng() - 0.5).slice(0, Math.ceil(pcs().filter(up).length / 2));
+      if (area && standing.length && tryHost({ type: 'foe.act', foeId: foe.id, action: area.n, targets: standing.map((t) => `pc:${t.id}`) })) {
+        for (const q of s.requests.filter((x) => x.kind !== 'death')) tryHost({ type: 'roll.make', id: q.id });
+      } else {
+        const weapons = (m.actions || []).filter((a) => a.hit != null);
+        const plan = multiPlan(m, weapons);
+        for (let k = 0; k < plan.length && s.fight; k++) {
+          const targets = pcs().filter(up);
+          if (!targets.length) break;
+          // A random target first, then the others if the stat block rules that one out (a held grapple).
+          const first = Math.floor(rng() * targets.length);
+          const order = targets.slice(first).concat(targets.slice(0, first));
+          for (const t of order) if (tryHost({ type: 'foe.act', foeId: foe.id, action: plan[k].n, target: `pc:${t.id}` })) break;
+        }
       }
     }
     if (pcs().some((p) => p.hp <= 0)) anyDown = true;
@@ -122,8 +130,26 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
     }
     if (s.fight) tryHost({ type: 'fight.next' });
   }
-  const standing = Object.values(s.foes).some((f) => f.siteId === siteId && !f.dead);
+  const standing = Object.values(s.foes).some((f) => f.siteId === siteId && !f.dead && !f.calm && !f.hidden);
   return { won: !s.fight && !standing ? true : !standing, wiped: false, anyDown, deaths: pcs().filter((p) => p.dead).length, rounds: round, fitted, foes: Object.values(s.foes).filter((f) => f.siteId === siteId).length, timedOut: !!s.fight };
+}
+
+// The attacks of one turn, as the Multiattack line names them ("one with its bite and two with its
+// claws": bite, claw, claw); without names, the first weapon that many times.
+const COUNT = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+export function multiPlan(m, weapons) {
+  if (!weapons.length) return [];
+  const multi = (m.actions || []).find((a) => /^multiattack$/i.test(a.n || ''));
+  if (!multi) return [weapons[0]];
+  const d = String(multi.d || '').split(/,?\s+or\s+/i)[0]; // "two with his morningstar, or one with ... and one with ...": the first way
+  const plan = [];
+  for (const [, n, what] of d.matchAll(/\b(one|two|three|four|five)\s+(?:attacks?\s+)?with\s+(?:its|his|her|their)\s+([\w' -]+?)(?=[,.;]|\s+and\b|$)/gi)) {
+    const w = weapons.find((x) => { const a = x.n.toLowerCase(); const b = what.toLowerCase().replace(/s$/, ''); return a === b || a.startsWith(b) || b.startsWith(a); });
+    if (w) for (let k = 0; k < COUNT[n.toLowerCase()]; k++) plan.push(w);
+  }
+  if (plan.length) return plan;
+  const times = /\bfive\b/i.test(d) ? 5 : /\bfour\b/i.test(d) ? 4 : /\bthree\b/i.test(d) ? 3 : 2;
+  return Array.from({ length: times }, () => weapons[0]);
 }
 
 // A caster's best damaging spell now: a slot spell (cast with the highest slot left) while slots last,

@@ -223,6 +223,12 @@ export default {
       objects: [{ name: 'Strongroom', note: 'Thorne\'s strongroom' }],
       rules: [
         { id: 'strongroom', when: 'use strongroom', do: 'give', gold: 300, item: 'Malakor\'s letter', say: 'Thorne\'s strongroom: 300 gp, a silver signet ring, a Potion of Healing, and a letter from Malakor that names Cinderhelm.' },
+        // The book's own ways in, carried out by the Engine (they were only in the notes, so a straight fight
+        // had all six foes, the bailiff too: half of the simulated parties of four fell, 26 Nov).
+        { id: 'bailiff-hides', when: 'fight', do: 'calm', target: 'Bailiff Cedric Thorne', say: 'Thorne bolts for his vault and bars the door. He will beg and surrender when cornered.' },
+        { id: 'militia', when: 'succeed persuasion', do: 'flee', target: 'Thorne\'s house guard', say: 'Halia believes the proof. The militia storms the gates, and Thorne\'s house guards throw down their spears and are marched off.' },
+        { id: 'duel', when: 'succeed intimidation', if: 'no fight', do: 'calm', target: 'Iron Brand soldier', say: 'Drazhul accepts the challenge. His soldiers lower their blades and step back to watch the duel on the battlements.' },
+        { id: 'guards-yield', when: 'down', who: 'Wyrm-Captain Drazhul', do: 'calm', target: 'Thorne\'s house guard', say: 'With the Wyrm-Captain down, Thorne\'s guards lower their spears: they were never paid enough for this.' },
         { id: 'milestone', when: 'quest thorne', do: 'xp', level: 5 },
       ],
       exits: [{ to: 'oakhurst', label: 'down to the town square' }],
@@ -290,6 +296,11 @@ export default {
       objects: [{ name: 'Keystone', note: 'the Third Runic Keystone in the spire' }],
       rules: [
         { id: 'keystone', when: 'use keystone', do: 'give', item: 'Third Runic Keystone', say: 'The Third Runic Keystone comes away from the spire\'s crystal.' },
+        // The book's ways past the dragon, carried out by the Engine (26 Nov: with his breath in the simulation,
+        // a straight fight felled a quarter of the parties of four).
+        { id: 'venyx-turns', when: 'succeed deception', if: 'standing Venyx the Whisperer', do: 'calm', target: 'Venyx the Whisperer', say: 'Venyx believes Malakor means to betray him. The dragon turns his poison on the battle-mages; they throw down their staves, and Venyx withdraws to brood on his perch.' },
+        { id: 'venyx-persuaded', when: 'succeed persuasion', if: ['standing Venyx the Whisperer', 'no fight'], do: 'calm', target: 'Venyx the Whisperer', say: 'The letters sting Venyx\'s vanity. He will not be Malakor\'s dupe: he lets the party pass and sulks above the dome.' },
+        { id: 'venyx-flees', when: 'hurt', who: 'Venyx the Whisperer', do: 'flee', say: 'Vain to the last, Venyx will not die for Malakor: bleeding, he hurls himself off the spire and beats away into the clouds. The battle-mages give up.' },
         { id: 'milestone', when: 'quest starfall', do: 'xp', level: 7 },
       ],
       exits: [{ to: 'brindol', label: 'back down the mountain to Brindol' }],
