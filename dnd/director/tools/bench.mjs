@@ -494,6 +494,13 @@ async function runOnce(n) {
       const earlier = k && credits.find((c) => c.kind === k && !c.used);
       if (earlier) { earlier.used = true; tally.byRules += 1; if (verbose) console.log(`    (${label}: "${o.what}": already done by the adventure's own rule)`); continue; }
       if (o.soft) { tally.noRoll += 1; notes.push(`${label}: no roll asked (a passive score, or none needed)`); continue; }
+      // Stopped on the way by a failed check (the Lantern's fog: fail Survival and wander back to the start, by the
+      // adventure's own rule; generated script, 27 Nov): the Director played it right, so it is not a miss.
+      if (e === 'move_party' && s.rolls.some((r) => r.seq > a.seq && ['check', 'save'].includes(r.kind) && r.success === false)) {
+        tally.skipped += 1; missedMove = true;
+        notes.push(`${label}: the party did not move on: a check failed on the way (not counted as a miss)`);
+        continue;
+      }
       tally.missing += 1;
       notes.push(`${label}: expected outcome missing: ${o.what} (${e})`);
       if (e === 'start_combat') missedFight = true;

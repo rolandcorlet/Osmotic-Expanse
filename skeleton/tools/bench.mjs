@@ -205,6 +205,7 @@ async function runOnce(n) {
       continue;
     }
     const snaps = Object.fromEntries(step.expect.map((e) => [e, OUTCOME[e].snap()]));
+    const seq0 = s.seq;
     act('player', step.pid, { type: 'say', text: step.say });
     say(`  ${charOf(step.pid).name}: ${step.say}`);
     await director(label, `A player spoke: "${step.say}". Answer them.`);
@@ -212,6 +213,12 @@ async function runOnce(n) {
     for (const e of step.expect) {
       if (OUTCOME[e].met(snaps[e])) continue;
       if (OUTCOME[e].soft) { tally.noRoll += 1; notes.push(`${label}: no roll asked`); continue; }
+      // Stopped on the way by a failed roll (a hazard, a rule): the Director played it right, so not a miss.
+      if (e === 'move_party' && s.rolls.some((r) => r.seq > seq0 && r.kind === 'check' && r.success === false)) {
+        notes.push(`${label}: the party did not move on: a roll failed on the way (not counted as a miss)`);
+        tryAct('host', null, { type: 'site.move', siteId: step.to });
+        continue;
+      }
       tally.missing += 1; notes.push(`${label}: expected outcome missing: ${OUTCOME[e].what} (${e})`);
       if (e === 'move_party') tryAct('host', null, { type: 'site.move', siteId: step.to });
       if (e === 'start_combat') { tryAct('host', null, { type: 'creature.reveal', ids: Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId).map((c) => c.id) }); tryAct('host', null, { type: 'fight.start' }); }
