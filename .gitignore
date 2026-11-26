@@ -40,3 +40,25 @@ v3/director/*.log
 dnd/director/library/
 git-sync.log
 git-sync.exit.txt
+
+# ---- Bench and converter files that stay on the computer that ran them (27 Nov tidy) ----
+dnd/director/*.calls.jsonl
+dnd/director/*.out
+skeleton/convert-*.log
+skeleton/convert-*.exit.txt
+skeleton/preflight-*.log
+skeleton/preflight-*.exit.txt
+# files moved aside to be deleted by hand
+_to_delete/
+
+# ---- Private: source books and adventures you own, kept beside the Director (never committed) ----
+dnd/director/*.pdf
+dnd/director/*.zip
+dnd/director/Vault_of_the_Runemark_One_Page_Dungeon.txt
+dnd/director/X_MARKS_THE_SPOT_A_Plane_Shift_Ixalan_Adventure.txt
+dnd/director/vault_of_the_runemark*.png
+dnd/director/ICE ROAD TRACKERS/
+dnd/director/Icewind dale/
+dnd/director/discworld/
+# a copy of the root launcher
+dnd/director/Sponge_dnd_alt_server.bat
