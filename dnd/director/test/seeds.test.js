@@ -164,3 +164,16 @@ test('before the Director\'s turn the Engine checks whether the party is getting
   }
   assert.equal(st.seedNow && st.seedNow.title, 'The pedlar');
 });
+
+test('a camp seed the Director brings in by hand still attacks the camp, and the rest finishes after', () => {
+  const T = party();
+  const s = seed(T, CAMP);
+  T.host({ type: 'site.move', siteId: 'mill-road' });
+  const pc = Object.values(T.s.pcs)[0];
+  T.s.pcs[pc.id].hp = 2;
+  T.ai({ type: 'seed.fire', seed: s.id, why: 'they camp by the road' });
+  assert.ok(T.s.fight && T.s.restAfter);
+  assert.ok(T.s.fight.order.every((o) => !o.key.startsWith('foe:') || T.s.foes[o.key.slice(4)].mid === 'wolf'), 'only the wolves, not the goblins hiding here');
+  T.host({ type: 'fight.end' });
+  assert.equal(T.s.pcs[pc.id].hp, T.s.pcs[pc.id].maxHp);
+});

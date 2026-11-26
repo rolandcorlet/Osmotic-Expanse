@@ -1884,7 +1884,11 @@ H['seed.fire'] = (s, a, ctx) => {
   if (!seed.on) nop(`"${seed.title}" is switched off on the Seeds tab.`);
   if (!SEEDS.seedFree(seed, s, s.scene.siteId)) nop(`"${seed.title}" cannot happen here now (used up, or written for another place).`);
   const p = SEEDS.seedPlan(seed.text);
-  fireSeed(s, ctx, seed, { by: ctx.ai ? 'director' : 'host', why: a.why || '', fight: !!a.fight && p.kind !== 'lost' });
+  // A camp seed brought in by hand is still a night in the open (bench part 6, 26 Nov: the Director called
+  // use_seed and start_combat instead of long_rest): its foes attack the camp, and the rest finishes after.
+  const camp = p.kind === 'camp' && !s.fight;
+  const came = fireSeed(s, ctx, seed, { by: ctx.ai ? 'director' : 'host', why: a.why || '', fight: camp || (!!a.fight && p.kind !== 'lost') });
+  if (camp && came.length && s.fight) { s.restAfter = true; story(s, ctx, 'event', 'The night is broken: the camp is attacked. The party will finish its rest once the fight is over.', 'Engine'); }
 };
 // Before each Director turn: is the party getting anywhere? A turn in which nothing moves on (no new place,
 // quest, foe beaten, treasure or experience) adds one; a lost seed's turns, and its chance is rolled.
