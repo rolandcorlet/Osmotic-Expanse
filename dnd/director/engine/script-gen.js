@@ -54,6 +54,10 @@ export function generateScript(adv, { places = 6, heroes = 2 } = {}) {
       if (seen.size < places) route.push({ id, from: e.to, back: true });
     }
   })(sites[0].id, null);
+  // The quests the party starts with, in the order the adventure lists them, and the places this walk reaches.
+  const questDone = ((adv && adv.questDone) || []).filter((qd) => quests.some((q) => q.includes(qd.match)));
+  const reached = new Set(route.map((h) => h.id));
+  const cut = (qd) => questDone.slice(0, questDone.indexOf(qd)).some((e) => (e.at || []).some((a) => !reached.has(a)));
   for (const [k, hop] of route.entries()) {
     const site = byId[hop.id];
     if (hop.from) {
@@ -81,8 +85,9 @@ export function generateScript(adv, { places = 6, heroes = 2 } = {}) {
     if (npc) out.push({ pid: who(), say: `I ask ${first(npc.name)} what they know about what is going on.`, expect: [], at: site.id, gen: 'talk' });
     if (foes.length && !ambush) fight();
     // A quest that ends here (one the party starts with): finish it.
-    for (const qd of (adv && adv.questDone) || []) {
-      if (k === 0 || !(qd.at || []).includes(site.id) || !quests.some((q) => q.includes(qd.match))) continue;
+    for (const qd of questDone) {
+      if (k === 0 || !(qd.at || []).includes(site.id)) continue;
+      if (cut(qd)) continue; // an earlier quest's place is off this walk, so what this one hands over was never won
       if (k < route.length - 1 && (qd.at || []).some((a) => route.slice(k + 1).some((h) => h.id === a && !h.back))) continue; // a later stop finishes it
       out.push({ pid: who(), say: `We see it through: ${qd.when}.`, expect: ['complete_quest'], at: site.id, gen: `quest ${qd.match}` });
     }

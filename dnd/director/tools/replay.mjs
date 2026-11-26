@@ -11,7 +11,8 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ADVENTURES, adventureById } from '../data/adventures/index.js';
+import { ADVENTURES } from '../data/adventures/index.js';
+import { withConverted, findAdventure } from './adventures.mjs';
 import { prepareSrd } from '../engine/library.js';
 import { replayRecord, fuzzTools, unpackState } from '../brain/replay.js';
 
@@ -21,6 +22,8 @@ const args = process.argv.slice(2);
 const verbose = args.includes('-v');
 const srd = JSON.parse(readFileSync(join(root, '..', 'data', 'srd.engine.json'), 'utf8'));
 const lib = join(root, 'library', 'library.json');
+// The converted adventures (library/adventures) join first, so a recorded converted campaign replays against its own places.
+withConverted(true);
 prepareSrd(srd, { adventures: ADVENTURES, libraryFile: existsSync(lib) ? lib : null });
 
 const files = args.filter((a) => !a.startsWith('-'));
@@ -35,7 +38,7 @@ for (const f of files) {
   for (const line of lines) {
     let rec;
     try { rec = JSON.parse(line); } catch (e) { continue; }
-    const adventure = adventureById(rec.adventure);
+    const adventure = findAdventure(rec.adventure);
     if (!adventure) continue;
     turns += 1;
     const out = replayRecord(rec, { adventure, srd });
@@ -55,7 +58,7 @@ let fuzzBad = 0;
 if (!args.includes('--no-fuzz')) {
   // The fuzz runs on recorded games when there are any, and always on a fight at the Lantern's mill.
   const { fuzzGame } = await import('../brain/fuzz-game.js');
-  const games = [...sample.map((s) => ({ s, adventure: adventureById(s.adventure) || adventureById('lantern') })), ...fuzzGame(srd)];
+  const games = [...sample.map((s) => ({ s, adventure: findAdventure(s.adventure) || findAdventure('lantern') })), ...fuzzGame(srd)];
   let cases = 0;
   for (const g of games) {
     const r = fuzzTools(g.s, { adventure: g.adventure, srd });
