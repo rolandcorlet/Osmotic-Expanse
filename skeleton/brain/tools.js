@@ -250,6 +250,8 @@ export const TOOLS = [
     description: 'Bring one of the host\'s story seeds (STORY SEEDS in the briefing) into play now: its people or creatures arrive, sized to the party. Use it when its moment comes and only you can see it (the party harasses, robs or picks a fight with someone who is not a creature here), or on your own judgement when it fits (the party is lost or going in circles). For a night in the open call rest with kind long instead: the Engine rolls the camp seeds itself. The Engine logs that you chose it.',
     parameters: obj({ seed: S('The seed\'s id (in square brackets in the briefing) or its title.'), why: S('One short line: why now.') }, ['seed', 'why']),
     run(a, T) {
+      // "No seed" said as a call (bench part 3, 27 Nov: seed "none"): nothing to do, not a broken rule.
+      if (/^\s*(none|no|nothing|null|n\/a|-|no seed)?\s*$/i.test(String(a.seed == null ? '' : a.seed))) return { note: 'Nothing changed: no seed was named, so none came into play. Only call use_seed to bring one in.' };
       const seq = T.state.seq;
       const no = T.do({ type: 'seed.fire', seed: a.seed, why: a.why || '' });
       if (no) return { refused: no };
