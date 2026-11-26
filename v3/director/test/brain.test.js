@@ -2038,3 +2038,30 @@ test('a roll the host or the Director asks is told to the table with what it is 
   const s = apply(seated(), { type: 'request.check', organismId: 'wall', baseline: 'VSC', pathway: 'Pressure Tolerance', at: 12, label: 'Cross the wound lip' }, ctx('host', null));
   assert.ok(s.story.some((e) => e.kind === 'action' && /asked to roll, for this: Cross the wound lip/.test(e.text)));
 });
+
+// Plain words (a human player, 27 Nov).
+import { wordFlags, wordsBrief, wordsUsed, termsIn } from '../brain/words.js';
+test('plain words: a new setting word with no meaning is sent back once, and the table meets it', async () => {
+  const s = seated();
+  const gl = scenario.kit.glossary;
+  assert.ok(gl.some((g) => g.word === 'Substrate'));
+  const bare = 'Bresk counts the Substrate in the pouch. Bresk, what do you do?';
+  assert.match(wordFlags(bare, gl, s).map((f) => f.text).join(' '), /without saying what it means: Substrate/);
+  assert.equal(wordFlags('Bresk counts the Substrate, the money here, in the pouch. Bresk, what do you do?', gl, s).length, 0);
+  assert.equal(wordFlags(bare, gl, { ...s, words: ['Substrate'] }).length, 0, 'a word already explained is fine');
+  assert.match(wordFlags('The Tonic, the Churn and the Substrate and the Codon wait. Bresk, what do you do?', gl, s).map((f) => f.text).join(' '), /new setting words in one reply/);
+  assert.deepEqual(termsIn('Harvest it now. Bresk waits.', gl, []).map((h) => h.word), [], 'an ordinary word at the start of a sentence is English');
+  const make = scripted([{ text: bare }, { text: 'Bresk counts the Substrate, the money of this world, in the pouch. Bresk, what do you do?' }]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
+  assert.match(r.narration, /the money of this world/);
+  assert.ok(make.seen.some((t) => typeof t === 'string' && /New players do not know these words yet: Substrate/.test(t)));
+  assert.ok(r.state.words.includes('Substrate'));
+  assert.match(briefing(r.state, scenario, bestiary), /Already explained to this table \(use freely\): Substrate/);
+});
+test('plain words: the briefing names the new words a place may need', () => {
+  const s = seated();
+  const lines = wordsBrief(s, scenario, scenario.sites[0]).join('\n');
+  assert.match(lines, /^# PLAIN WORDS/);
+  assert.match(briefing(s, scenario, bestiary), /# PLAIN WORDS/);
+  assert.deepEqual(wordsUsed('Bresk of the Sixth Choir waits.', scenario.kit.glossary, s), [], 'names are not setting words');
+});

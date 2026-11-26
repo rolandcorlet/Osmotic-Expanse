@@ -50,6 +50,8 @@ export function newSession(scenario) {
     rolls: [],
     log: [],
     story: [],
+    // The setting words the table has already had explained (or seen in the story, where a tap explains them).
+    words: [],
     // Session zero: agreed before play. The pause word stops the scene at once.
     zero: { pauseWord: 'SLACK WATER', tone: '', lines: [], open: true },
     cohesion: 0, // the table's shared trust; an Oath kept pays one (CORE 11.4)
@@ -1865,6 +1867,11 @@ const HANDLERS = {
       const lastSay = [...s.story].reverse().find((e) => e.kind === 'say');
       const pre = !!(lastSay && lastSay.pre && !((s.players[lastSay.pid] || {}).organismId));
       s.story.push({ id: newId(s, 's'), seq: s.seq, t: ctx.now || 0, site: s.scene.siteId, kind: 'narration', who: 'The Director', by: a.by === 'ai' ? 'ai' : 'host', text, ...(pre ? { pre: true } : {}) });
+      // The setting words this reply used: the table has met them now (brain/words.js keeps the list).
+      if (Array.isArray(a.words) && a.words.length) {
+        const have = new Set((s.words || []).map((w) => w.toLowerCase()));
+        s.words = [...(s.words || []), ...a.words.map((w) => String(w).slice(0, 40)).filter((w) => w && !have.has(w.toLowerCase()))].slice(0, 300);
+      }
       // A day has plainly gone by and nobody closed it: the Engine does (bench 17 Nov, Ninth Shift 5:
       // one Beat in thirty-five turns, so SHIFT never bit).
       const every = Number(((ctx.scenario || {}).rules || {}).beatAfterTurns);

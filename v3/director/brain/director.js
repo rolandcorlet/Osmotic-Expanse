@@ -11,6 +11,7 @@ import { hazardBudget } from '../engine/ledger.js';
 import { seedHere } from '../engine/seeds.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
+import { wordsBrief, wordFlags, wordAsk, wordsUsed } from './words.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 16;
@@ -357,6 +358,7 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     L.push(`If a player says the pause word (${z.pauseWord || 'the pause word'}), stop at once: no narration, step back one sentence, and ask how they would like to go on.`);
   }
 
+  L.push(...wordsBrief(state, scenario, site));
   L.push('');
   if (hostNote) L.push(`# NOTE FROM THE HOST (follow it): ${hostNote}`);
   const lastLine = [...(state.story || [])].reverse().find((e) => e.kind === 'say');
@@ -844,7 +846,8 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   }
   narration = narration.replace(/\*\*/g, '').trim();
   const moved = T.state.scene.siteId !== state.scene.siteId;
-  let flags = checkNarration(narration, T.state, { moved, since: state.seq });
+  const gloss = (scenario.kit || {}).glossary || [];
+  let flags = checkNarration(narration, T.state, { moved, since: state.seq }).concat(prePlay ? [] : wordFlags(narration, gloss, T.state));
   // One rewrite before anyone sees it, for a suspected leak, a reply that runs long, or one that
   // does not end on a question. A better rewrite replaces the draft; otherwise the draft and its
   // flags stand (and a leak is held for the host).
@@ -854,7 +857,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const creDead = (f) => f.kind === 'rule' && /(?:is destroyed, but the Engine has it still fighting|^Says the fight is over, but)/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names .+ moving when nothing moved it/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || buriedF(f) || creDead(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives )/.test(f.text));
+  const fixable = (f) => unpaid(f) || buriedF(f) || creDead(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives |Uses a setting word|Uses \d+ new setting words)/.test(f.text));
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -871,6 +874,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     if (flags.some((f) => /^Contains characters/.test(f.text))) asks.push('It contains a word in another language or script. Write every word in English.');
     if (flags.some((f) => /^Repeats an earlier/.test(f.text))) asks.push('It repeats words you already used in an earlier line: say what is new this time, as this roll changed it, in fresh words.');
     if (flags.some((f) => /^Reads out dice/.test(f.text))) asks.push('It reads out dice counts or Thresholds outside a Pulse War: the player sees those on their own screen, so leave the numbers out.');
+    if (flags.some((f) => /^Uses (?:a setting word|\d+ new setting words)/.test(f.text))) asks.push(wordAsk(flags));
     if (flags.some((f) => /^Does not end/.test(f.text))) asks.push('It does not end on a question: end on exactly one question, put to one named organism.');
     const gave = flags.find((f) => /^Gives /.test(f.text));
     if (gave) asks.push(`${gave.speaker} is the one who spoke and acted: open with what ${gave.speaker} does and what happens to them, in their own words, before anyone else moves.`);
@@ -885,13 +889,14 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       usage.in += fix.usage.in;
       usage.out += fix.usage.out;
       const text = String(fix.text || '').replace(/\*\*/g, '').trim();
-      const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved, since: state.seq }) : null;
+      const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved, since: state.seq }).concat(prePlay ? [] : wordFlags(text, gloss, T.state)) : null;
       const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style' || f.kind === 'rule').length;
       if (again && !again.some(isLeak) && bad(again) < bad(flags)) {
         const why = flags.some(isLeak) ? 'the first draft gave away a creature\'s numbers or the machinery'
           : flags.some(buriedF) ? 'the first draft buried a body the Engine still had standing'
           : flags.some(unpaid) ? 'the first draft described damage the Engine never paid'
             : flags.some((f) => /^Puts a new question/.test(f.text)) ? 'the first draft moved the table on while a throw was still in the air'
+              : flags.some((f) => /^Uses (?:a setting word|\d+ new setting words)/.test(f.text)) ? 'the first draft used setting words the table had not been told'
               : 'the first draft ran long, read out dice, or did not end on a question';
         narration = text;
         flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
@@ -918,6 +923,6 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   }
   if (flags.some(isLeak)) rescues.push({ kind: 'held-leak', hard: true, text: `A leak survived the rewrite and would be held for the host: ${flags.filter(isLeak).map((f) => f.text).join(' ')}` });
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
-  T.do({ type: 'narrate', text: narration, by: 'ai' });
+  T.do({ type: 'narrate', text: narration, by: 'ai', words: wordsUsed(narration, gloss, T.state) });
   return { state: T.state, narration, calls, flags, usage, refusals: T.refusals, rescues };
 }

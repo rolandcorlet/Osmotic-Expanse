@@ -8,6 +8,7 @@ import { burstByName, EV as BURST_EV } from '/engine/bursts.js';
 import { ATLAS } from '/data/chargen/model.generated.js';
 import { genHtml, genActs, growHtml, growActs, codonLine } from '/gen.js';
 import { vial, gems, sigil, satchel, levelReady, levelFlash } from '/flair.js';
+import { termsIn } from '/engine/words.js';
 
 // The Bonded Domain of an organism's Phenotype (a Burst from another domain costs +2 ATP, +1 Stress).
 function myDomain(o) {
@@ -697,12 +698,50 @@ function orderList({ numbers = true } = {}) {
   }).join('')}</div>`;
 }
 
+// Tap a word (a human player, 27 Nov: the setting's words were hard to follow). The first time a
+// setting word appears in a piece of narration it is underlined; a tap or Enter shows it in plain words.
+const storyNames = () => [...Object.values(state.organisms || {}), ...Object.values(state.creatures || {})].map((x) => x.name).filter(Boolean);
+function glossy(text) {
+  const t = String(text || '');
+  const hits = sc ? termsIn(t, sc.glossary || [], storyNames()) : [];
+  let out = '';
+  let at = 0;
+  for (const h of hits) {
+    out += `${esc(t.slice(at, h.index))}<span class="gw" role="button" tabindex="0" data-gloss="${esc(h.word)}" title="${esc(h.plain)}">${esc(t.slice(h.index, h.end))}</span>`;
+    at = h.end;
+  }
+  return out + esc(t.slice(at));
+}
+function glossPop(el) {
+  let pop = document.getElementById('gloss');
+  if (!el) { if (pop) pop.hidden = true; return; }
+  const g = ((sc && sc.glossary) || []).find((x) => x.word === el.dataset.gloss);
+  if (!g) return;
+  if (!pop) { pop = document.createElement('div'); pop.id = 'gloss'; pop.setAttribute('role', 'tooltip'); document.body.appendChild(pop); }
+  pop.innerHTML = `<b>${esc(g.word)}</b>${esc(g.plain)}<span class="faint small">Every word is on the Words tab.</span>`;
+  pop.hidden = false;
+  const r = el.getBoundingClientRect();
+  const w = Math.min(300, window.innerWidth - 16);
+  pop.style.maxWidth = `${w}px`;
+  pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - w - 8))}px`;
+  const below = r.bottom + 8;
+  pop.style.top = `${below}px`;
+  const h = pop.offsetHeight;
+  if (below + h > window.innerHeight - 8) pop.style.top = `${Math.max(8, r.top - h - 8)}px`;
+}
+document.addEventListener('click', (e) => { const w = e.target.closest && e.target.closest('.gw'); if (!(e.target.closest && e.target.closest('#gloss'))) glossPop(w || null); }, true);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') glossPop(null);
+  else if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('gw')) { e.preventDefault(); glossPop(e.target); }
+}, true);
+document.addEventListener('scroll', () => glossPop(null), true);
+
 // The story: what players said and what the Director narrated. Newest at the bottom;
 // the list is drawn bottom-up so it stays pinned to the latest line.
 function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {}) {
   const d = state.director || {};
   const rows = (state.story || []).filter((e) => !e.pre || role === 'host').slice(-n).reverse().map((e) => (e.kind === 'narration'
-    ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>`
+    ? `<div class="st dir"><p class="tale">${glossy(e.text)}</p></div>`
     : e.kind === 'action'
       ? `<div class="st act"><b>${esc(e.who)}</b>${e.away ? ' <span class="faint small">played by the Director</span>' : forNote(e)} <span class="dim">${esc(e.text)}</span></div>`
       : `<div class="st say"><b>${esc(e.who)}</b>${forNote(e)} ${esc(e.text)}</div>`)).join('');
@@ -912,7 +951,7 @@ function preChatCard() {
     if (e.kind === 'say') asker = e.pre ? e.pid : null;
     return e.pre && (e.kind === 'say' ? e.pid === pid : asker === pid);
   }).slice(-12).reverse();
-  const rows = mineP.map((e) => (e.kind === 'narration' ? `<div class="st dir"><p class="tale">${esc(e.text)}</p></div>` : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
+  const rows = mineP.map((e) => (e.kind === 'narration' ? `<div class="st dir"><p class="tale">${glossy(e.text)}</p></div>` : `<div class="st say"><b>${esc(e.who)}</b> ${esc(e.text)}</div>`)).join('');
   const thinkRow = d.on && d.thinking ? `<div class="st dir thinking" role="status">${miniFace()}<span class="dim">The Director is thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>` : '';
   return `<section class="card prechat"><h3>Talk to the Director<span class="right dim small">${d.on ? 'before you play' : 'the AI Director is off: the host will answer'}</span></h3>
     <p class="small dim">Ask anything before you start: what this game is, what a word means, which organism might suit you.</p>
