@@ -552,8 +552,17 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/info') {
       const out = { title: adventure.name, port: PORT, addresses: addresses(), voice: voice.publicView() };
-      const trusted = isLocal(req) || codeOk(q) || (q.key && String(q.key).toUpperCase() === hostKey);
+      const isHost = !!(q.key && String(q.key).toUpperCase() === hostKey);
+      const trusted = isLocal(req) || codeOk(q) || isHost;
       if (trusted && publicUrl) out.online = `${publicUrl}/play?t=${tableCode}`;
+      // Every way in, for each screen (Roly, 27 Nov): players, the table screen and (for the DM only) the Director,
+      // on this network and from anywhere when the --online link is up.
+      const lan = addresses()[0] || 'localhost';
+      out.links = {
+        lan: { play: `http://${lan}:${PORT}/player.html`, table: `http://${lan}:${PORT}/table.html`, ...(isHost ? { host: `http://${lan}:${PORT}/director.html?key=${hostKey}` } : {}) },
+        online: trusted && publicUrl ? { play: `${publicUrl}/play?t=${tableCode}`, table: `${publicUrl}/table?t=${tableCode}`, ...(isHost ? { host: `${publicUrl}/director.html?key=${hostKey}` } : {}) } : null,
+        code: trusted ? tableCode : '',
+      };
       json(res, 200, out);
       return;
     }
@@ -715,6 +724,8 @@ function startTunnel() {
       console.log(`   Join           ${publicUrl}/play?t=${tableCode}`);
       console.log(' For you, the DM, from anywhere (it asks for the host key):');
       console.log(`   Director (DM)  ${publicUrl}/director.html`);
+      console.log(' For a table screen anywhere:');
+      console.log(`   Table screen   ${publicUrl}/table?t=${tableCode}`);
       console.log(' The links change each time the host is started with --online.');
       console.log(line);
     }
@@ -760,6 +771,7 @@ server.listen(PORT, '0.0.0.0', () => {
   if (publicUrl) {
     console.log(` Outside link:    ${publicUrl}/play?t=${tableCode}`);
     console.log(` DM from outside: ${publicUrl}/director.html   (asks for the host key)`);
+    console.log(` Table outside:   ${publicUrl}/table?t=${tableCode}`);
   }
   console.log(` Host key: ${hostKey}   (keep it to yourself)`);
   console.log(` Table code: ${tableCode}   (asked of anyone joining from outside your network)`);

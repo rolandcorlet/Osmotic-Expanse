@@ -442,6 +442,7 @@ function coloursHtml() {
     <div class="row">${Object.keys(THEMES).map((n) => `<button class="btn" data-act="col.theme" data-n="${n}">${n}</button>`).join('')}</div>
     <div class="fields four">${COLOURS.map(([k, n]) => `<label class="fld"><span class="fl">${n}</span><div class="row nw"><input type="color" value="${c[k]}" data-colour="${k}"><span class="small dim">${c[k]}</span></div></label>`).join('')}</div>
     <div class="note">Colours are saved on this device only.</div></section>
+    ${role === 'player' ? joinCard() : ''}
     ${role === 'player' || role === 'table' ? `<section class="card"><h3>Effects</h3><p class="small dim">The living backdrop: the sky by the game's clock, the place's weather and light, the glow on your turn, the dice. Light keeps the glows but stops the drifting and the tilt; it saves battery.</p>
       <div class="seg">${['full', 'light', 'off'].map((m) => `<button class="${effectsMode() === m ? 'on' : ''}" data-act="fx.mode" data-m="${m}">${m[0].toUpperCase()}${m.slice(1)}</button>`).join('')}</div></section>` : ''}</div>`;
 }
@@ -832,12 +833,23 @@ function playHtml() {
     </div></div>`;
 }
 
+// Every way in (Roly, 27 Nov): players, the table screen and (on the DM's own screen) the Director, on this
+// network and from anywhere when the host started with the --online link.
+function joinCard() {
+  const L = info && info.links;
+  if (!L || LOCAL) return '';
+  const line = (label, url) => (url ? `<div class="row nw"><span class="small dim" style="min-width:104px">${label}</span><code class="grow small" style="word-break:break-all">${esc(url)}</code><button class="btn sm" data-act="copy" data-u="${esc(url)}">Copy</button></div>` : '');
+  const on = L.online;
+  return `<section class="card"><h3>Join this game</h3>
+    <div class="small dim">On the same Wi-Fi or network:</div>${line('Players', L.lan.play)}${line('Table screen', L.lan.table)}${role === 'host' ? line('Director (DM)', L.lan.host) : ''}
+    <div class="small dim" style="margin-top:6px">From anywhere:</div>${on ? `${line('Players', on.play)}${line('Table screen', on.table)}${role === 'host' ? line('Director (DM)', on.host) : ''}${L.code ? `<div class="small">Table code: <b>${esc(L.code)}</b> (it is in the links).</div>` : ''}${role === 'host' ? '<div class="small faint">Keep the Director link to yourself: it holds the host key.</div>' : ''}`
+      : `<div class="small faint">${role === 'host' ? 'Start the host with Start Director (online).bat for links that work from anywhere.' : 'Only on this network for now: the DM can start an outside link.'}</div>`}</section>`;
+}
 function tableHtml() {
   const s = site();
   return `<div class="lay-two"><div class="col">${storyCard({ n: 80 })}</div>
     <div class="col scroll" data-scroll="t2"><section class="card"><h3>${esc(s.name)}<span class="right small dim">Day ${state.time.day}</span></h3><div class="small dim">${esc(s.region || '')}</div></section>
-      ${fightCard()}${clocksCard()}${partyMini()}${state.loot.length ? `<section class="card"><h3>Party loot</h3>${satchel('loot', state.loot)}</section>` : ''}${rollsCard(12, 'Latest rolls')}
-      ${info && info.addresses ? `<section class="card"><h3>Join this table</h3>${info.addresses.map((a) => `<div><b>http://${esc(a)}:${info.port}/player.html</b></div>`).join('')}${info.online ? `<div>From anywhere: <b>${esc(info.online)}</b></div>` : ''}</section>` : ''}</div></div>`;
+      ${fightCard()}${clocksCard()}${partyMini()}${state.loot.length ? `<section class="card"><h3>Party loot</h3>${satchel('loot', state.loot)}</section>` : ''}${joinCard()}${rollsCard(12, 'Latest rolls')}</div></div>`;
 }
 
 // The adventure's own ready-made characters (The Ashen Crown has ten), else the builder's six.
@@ -1360,6 +1372,7 @@ function hostRunHtml() {
       <section class="card"><h3>Monsters here<span class="right"><button class="btn sm" data-act="tab" data-t="encounter">Add</button></span></h3>${foes.length ? foes.map(foeCard).join('') : '<div class="empty">None here.</div>'}</section>
       ${askRollCard()}
       <section class="card"><h3>Party</h3>${pcs.map((p) => `<div class="pcard${curKey() === `pc:${p.id}` ? ' now' : ''}"><div class="row nw"><b class="grow">${esc(p.name)}</b><span class="small dim">L${p.level} ${esc(p.clsName)} · AC ${p.ac} · PP ${p.passive}</span></div>${hpBar(p)}<div class="row nw small"><span>${p.dead ? 'dead' : p.hp <= 0 ? (p.stable ? 'stable' : `dying ${p.death.s}✓ ${p.death.f}✗`) : `${p.hp}/${p.maxHp}${p.tempHp ? ` +${p.tempHp}` : ''}`}</span>${p.conc ? `<span class="chip warn">${esc(p.conc.name)}</span>` : ''}<span class="grow"></span>${!p.playerId ? '<span class="chip">no player</span>' : ''}</div>${hpControls(p)}${condControls(p)}</div>`).join('') || (LOCAL ? '<div class="empty">No characters yet. Add the party on the Party tab.</div>' : '<div class="empty">No characters yet. Players make them on their own screens, or you can on the Party tab.</div>')}</section>
+      ${joinCard()}
       ${rollsCard(14, 'Latest rolls')}
     </div></div>`;
 }
@@ -1725,6 +1738,7 @@ const ACT = {
   'bk.refresh': async () => { await booksLoad(); },
   'fx.mode': (d) => { setEffects(d.m); },
   'col.reset': () => { store.del('dnd.colours'); applyColours(); },
+  copy: (d) => { try { navigator.clipboard.writeText(d.u); toast('Link copied.', true); } catch (e) { toast(d.u); } },
   'col.theme': (d) => { store.set('dnd.colours', JSON.stringify(THEMES[d.n] || DEFAULTS)); applyColours(); },
   'key.go': () => { const q = new URLSearchParams(location.search); q.set('key', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },
   'code.go': () => { const q = new URLSearchParams(location.search); q.set('t', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },

@@ -13,6 +13,10 @@ const strainGems = (c, key) => raw(gems(`${key}:${c.id}`, [{ label: '', max: M.r
 
 const ROLE = location.pathname.startsWith('/host') ? 'host' : location.pathname.startsWith('/table') ? 'table' : 'player';
 const KEY = new URLSearchParams(location.search).get('key') || '';
+// The table code, for screens joining from outside the host's own network (the --online link): from the link
+// (?t=), else remembered on this device.
+const TCODE = (() => { const t = (new URLSearchParams(location.search).get('t') || '').toUpperCase(); try { if (t) localStorage.setItem('sk-t', t); return t || localStorage.getItem('sk-t') || ''; } catch (e) { return t; } })();
+const qs = (more = {}) => new URLSearchParams({ ...(KEY ? { key: KEY } : {}), ...(TCODE ? { t: TCODE } : {}), ...more }).toString();
 const PID = (() => { try { let p = localStorage.getItem('sk-pid'); if (!p) { p = `p${Math.random().toString(36).slice(2, 10)}`; localStorage.setItem('sk-pid', p); } return p; } catch (e) { return `p${Math.random().toString(36).slice(2, 10)}`; } })();
 const store = { get(k, d) { try { const v = localStorage.getItem(`sk-${k}`); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(`sk-${k}`, JSON.stringify(v)); } catch (e) { /* private mode */ } } };
 
@@ -66,7 +70,7 @@ function toast(text, good = false) {
   clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 4500);
 }
 async function post(path, body) {
-  const r = await fetch(`${path}${KEY ? `?key=${encodeURIComponent(KEY)}` : ''}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
+  const r = await fetch(`${path}?${qs()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
   return r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
 }
 async function act(action) {
@@ -90,7 +94,7 @@ async function playNext() {
   const done = () => { V.busy = false; playNext(); };
   if (HELLO && HELLO.voice && HELLO.voice.out === 'server') {
     try {
-      const r = await fetch('/api/voice/say', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: line }) });
+      const r = await fetch(`/api/voice/say?${qs()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: line }) });
       if (r.ok && /audio/.test(r.headers.get('content-type') || '')) {
         const a = audioEl(); a.src = URL.createObjectURL(await r.blob()); a.onended = done; a.onerror = done; await a.play().catch(done); return;
       }
@@ -211,11 +215,29 @@ const COLOUR_VARS = ['--bg', '--panel', '--panel2', '--line', '--ink', '--dim', 
   '--sky-night', '--sky-dawn', '--sky-day', '--sky-dusk', '--fx-leaf', '--fx-ember', '--fx-snow', '--fx-rain', '--fx-fog', '--fx-dust', '--fx-candle', '--fx-water', '--fx-star',
   '--fx-vial', '--fx-gem', '--fx-seal', '--paper', '--paper-ink'];
 function applyColours() { const c = store.get('colours', {}); for (const [k, v] of Object.entries(c)) document.documentElement.style.setProperty(k, v); }
+// Ready-made looks (Roly, 27 Nov: the D&D screens had them, the Skeleton did not). A theme sets every colour it
+// names and puts the rest back to the screen's own defaults; any colour can still be changed after.
+const THEMES = {
+  'Deep water': {},
+  Lamplight: { '--bg': '#14110e', '--panel': '#1e1a16', '--panel2': '#29231d', '--line': '#3d342b', '--ink': '#efe6d8', '--dim': '#b2a38f', '--faint': '#7d705f', '--accent': '#d4a84a', '--accent2': '#c97b3a', '--ok': '#6fbf73', '--no': '#e0675c', '--warn-c': '#e09a4a', '--input': '#110e0b', '--btn': '#332b23', '--snag': '#e0675c', '--six': '#6fbf73' },
+  Parchment: { '--bg': '#efe4cc', '--panel': '#f8f0dc', '--panel2': '#eadcbc', '--line': '#cdb98f', '--ink': '#2b2016', '--dim': '#6c5a43', '--faint': '#93806a', '--accent': '#8a2c1b', '--accent2': '#9a5a12', '--ok': '#2f7a3a', '--no': '#a5281b', '--warn-c': '#9a5a12', '--input': '#fffaf0', '--btn': '#e8d9b5', '--snag': '#a5281b', '--six': '#2f7a3a', '--paper': '#f6ecd2', '--paper-ink': '#2b2016' },
+  Eldritch: { '--bg': '#0d0f0c', '--panel': '#151a14', '--panel2': '#1d241b', '--line': '#2f3a2b', '--ink': '#e4ecd9', '--dim': '#9fb08f', '--faint': '#6a7a5d', '--accent': '#8fd16a', '--accent2': '#b38bff', '--ok': '#8fd16a', '--no': '#e0605a', '--warn-c': '#d9b44a', '--input': '#0a0c09', '--btn': '#232c20', '--snag': '#e0605a', '--six': '#8fd16a', '--paper': '#1c2118', '--paper-ink': '#dfe8d2' },
+  Ash: { '--bg': '#121212', '--panel': '#1b1b1b', '--panel2': '#242424', '--line': '#383838', '--ink': '#f2f2f2', '--dim': '#b4b4b4', '--faint': '#7a7a7a', '--accent': '#e8e8e8', '--accent2': '#c0c0c0', '--ok': '#7fd18b', '--no': '#ff6b62', '--warn-c': '#f0b44c', '--input': '#0d0d0d', '--btn': '#2c2c2c', '--snag': '#ff6b62', '--six': '#7fd18b', '--paper': '#202020', '--paper-ink': '#f0f0f0' },
+};
+function useTheme(name) {
+  for (const k of COLOUR_VARS) document.documentElement.style.removeProperty(k);
+  store.set('colours', { ...THEMES[name] });
+  applyColours();
+  render();
+}
 function coloursView() {
   const cs = getComputedStyle(document.documentElement);
   return h('div', { class: 'view v-one' }, h('div', { class: 'card scroll' }, h('h2', {}, 'Colours'), h('small', {}, 'Every colour on this screen. Saved on this device only.'),
+    h('h3', {}, 'Themes'), h('div', { class: 'row' }, Object.keys(THEMES).map((n) => h('button', { onclick: () => useTheme(n) }, n))),
+    h('h3', {}, 'Each colour'),
     COLOUR_VARS.map((k) => { const v = cs.getPropertyValue(k).trim(); return h('div', { class: 'swatch' }, h('span', {}, k.slice(2)), h('input', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(v) ? v : '#000000', oninput: (e) => { const c = store.get('colours', {}); c[k] = e.target.value; store.set('colours', c); document.documentElement.style.setProperty(k, e.target.value); } }), h('small', {}, v)); }),
     h('div', { class: 'row' }, h('button', { onclick: () => { store.set('colours', {}); for (const k of COLOUR_VARS) document.documentElement.style.removeProperty(k); render(); } }, 'Back to the defaults')),
+    ROLE === 'player' ? joinCard() : null,
     ROLE === 'host' ? null : h('div', {}, h('h2', {}, 'Effects'), h('small', {}, 'The living backdrop: the place\'s weather and light, the glow on your turn, the dice. Light keeps the glows but stops the drifting and the tilt; it saves battery.'),
       h('div', { class: 'row' }, ['full', 'light', 'off'].map((m) => h('button', { class: effectsMode() === m ? 'go' : '', onclick: () => { setEffects(m); render(); } }, `${m[0].toUpperCase()}${m.slice(1)}`))))));
 }
@@ -313,10 +335,32 @@ function sheetView(c) {
 }
 
 // ---------------------------------------------------------------- the table screen
+// Every way in (Roly, 27 Nov): the players' screen, the table screen and (on the host's own console) the host
+// console, on this network and from anywhere when the host started with the --online link.
+function joinCard() {
+  const L = (HELLO && HELLO.links) || {};
+  const lan = L.lan || {}; const on = L.online;
+  const line = (label, url) => (url ? h('div', { class: 'list-line' }, h('span', { style: 'min-width:120px' }, label), h('code', { class: 'grow', style: 'word-break:break-all' }, url),
+    h('button', { title: 'Copy the link', onclick: () => { try { navigator.clipboard.writeText(url); toast('Link copied.', true); } catch (e) { toast(url); } } }, 'Copy')) : null);
+  return h('div', { class: 'card' }, h('h3', {}, 'Join this game'),
+    h('small', { class: 'dim' }, 'On the same Wi-Fi or network:'),
+    line('Players', lan.play), line('Table screen', lan.table), ROLE === 'host' ? line('Host console', lan.host) : null,
+    h('small', { class: 'dim' }, 'From anywhere:'),
+    on ? [line('Players', on.play), line('Table screen', on.table), ROLE === 'host' ? line('Host console', on.host) : null,
+      L.code ? h('small', {}, `Table code: ${L.code} (it is in the links; anyone typing an address asks for it).`) : null,
+      ROLE === 'host' ? h('small', { class: 'faint' }, 'Keep the host console link to yourself: it holds the host key.') : null]
+      : h('small', { class: 'faint' }, ROLE === 'host' ? 'Start the host with Start Skeleton (online).bat for links that work from anywhere.' : 'Only on this network for now: the host can start an outside link.'));
+}
+function codeView() {
+  return h('div', { class: 'view v-one' }, h('div', { class: 'card', style: 'max-width:460px;margin:auto' }, h('h2', {}, 'Table code'),
+    h('small', {}, 'This game is joined from outside the host\'s own network: type the table code the host gave you.'),
+    h('input', { id: 'tcode', placeholder: 'ABCD', style: 'text-transform:uppercase' }),
+    h('button', { class: 'go', onclick: () => { const v = document.getElementById('tcode').value.trim().toUpperCase(); if (!v) return; const u = new URL(location.href); u.searchParams.set('t', v); location.href = u.toString(); } }, 'Join')));
+}
 function tableView() {
   return h('div', { class: 'view v-table' },
     h('div', { class: 'card' }, storyView(true)),
-    h('div', { class: 'side' }, placeCard(), fightStrip(), rollCard(S.rolls.at(-1)), h('div', { class: 'card' }, h('h3', {}, 'The party'), partyList()), clocksQuests(),
+    h('div', { class: 'side' }, placeCard(), fightStrip(), rollCard(S.rolls.at(-1)), h('div', { class: 'card' }, h('h3', {}, 'The party'), partyList()), clocksQuests(), joinCard(),
       h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: ui.readAloud, onchange: (e) => { ui.readAloud = e.target.checked; store.set('read', ui.readAloud); unlockAudio(); } }), 'Read the Director aloud on this screen')));
 }
 
@@ -412,7 +456,7 @@ function hostConverter() {
       h('div', { class: 'row' }, h('button', { class: 'go', disabled: C.running, onclick: async () => {
         C.running = true; C.log = []; C.result = null; render();
         const r = await post('/api/convert', { mode: f.mode, base: f.base, name: f.name, ideas: f.ideas, source: f.source, notes: f.notes, dice: f.dice || '', sections: f.sections.length ? SECTIONS.filter((s) => f.sections.includes(s)) : undefined });
-        C.running = false; C.result = r; if (r.savedAs) HELLO = await (await fetch(`/api/hello?key=${encodeURIComponent(KEY)}`)).json(); render();
+        C.running = false; C.result = r; if (r.savedAs) HELLO = await (await fetch(`/api/hello?${qs()}`)).json(); render();
       } }, C.running ? 'Converting… (a minute or two a section)' : 'Convert'),
       h('a', { href: '/docs/CONVERTER-PROMPT.md', target: '_blank' }, 'The copy-paste prompt'), h('a', { href: '/docs/DESIGNER-PROMPT.md', target: '_blank' }, 'The designer prompt'), h('a', { href: '/docs/MODULE-FORMAT.md', target: '_blank' }, 'The format'))),
     h('div', { class: 'card scroll' }, h('h3', {}, 'Progress'),
@@ -502,8 +546,8 @@ function hostGame() {
         h('button', { class: 'warn', onclick: async () => { if (!confirm('Start a new game? The current one can be brought back with Undo only until the host restarts.')) return; const r = await post('/api/new', { module: f.module, adventure: f.module === S.moduleId ? f.adventure : undefined }); if (r.ok) location.reload(); else toast(r.error); } }, 'Start a new game')),
       ui.form.checked ? h('div', { class: 'log' }, ui.form.checked.ok === false && ui.form.checked.error ? ui.form.checked.error : ui.form.checked.errors.length ? ui.form.checked.errors.map((e) => `• ${e}\n`) : 'Valid: every section checks out.') : null),
     h('div', { class: 'card scroll' }, h('h3', {}, 'Players'), Object.values(S.players).map((p) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, p.name), h('small', {}, p.charId && S.chars[p.charId] ? S.chars[p.charId].name : 'no character'))),
-      h('h3', {}, 'Characters'), Object.values(S.chars).map((c) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, c.name), h('select', { onchange: (e) => act({ type: 'char.release', charId: c.id, playerId: e.target.value || null }) }, opt('', 'nobody', !c.playerId), Object.values(S.players).map((p) => opt(p.id, p.name, p.id === c.playerId))))),
-      h('h3', {}, 'Where players join'), h('div', { class: 'log' }, `${location.protocol}//${(HELLO.addresses || [])[0] || location.hostname}:${HELLO.port}/play\n${location.protocol}//${location.host}/table`)));
+      h('h3', {}, 'Characters'), Object.values(S.chars).map((c) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, c.name), h('select', { style: 'width:auto;max-width:50%', onchange: (e) => act({ type: 'char.release', charId: c.id, playerId: e.target.value || null }) }, opt('', 'nobody', !c.playerId), Object.values(S.players).map((p) => opt(p.id, p.name, p.id === c.playerId))))),
+      joinCard()));
 }
 
 // ---------------------------------------------------------------- tabs and rendering
@@ -579,10 +623,13 @@ function scene() {
 applyColours();
 if (ROLE !== 'host') initScene({ store });
 (async () => {
-  HELLO = await (await fetch(`/api/hello${KEY ? `?key=${encodeURIComponent(KEY)}` : ''}`)).json();
+  HELLO = await (await fetch(`/api/hello?${qs()}`)).json();
+  // From outside the host's network without the table code: ask for it.
+  if (HELLO.need === 'code') { document.getElementById('main').replaceChildren(codeView()); return; }
   if (ROLE === 'host' && HELLO.role !== 'host') { document.getElementById('main').replaceChildren(h('div', { class: 'card' }, 'This host link needs its key: use the address the host computer printed when it started.')); return; }
   M = HELLO.module;
-  const es = new EventSource(`/api/events?role=${ROLE}${KEY ? `&key=${encodeURIComponent(KEY)}` : ''}`);
+  const es = new EventSource(`/api/events?${qs({ role: ROLE })}`);
+  es.addEventListener('links', async () => { try { HELLO.links = (await (await fetch(`/api/hello?${qs()}`)).json()).links; render(); } catch (e) { /* next time */ } });
   es.addEventListener('state', (e) => {
     const next = JSON.parse(e.data);
     const reload = S && next.moduleId !== S.moduleId;

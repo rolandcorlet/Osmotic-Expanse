@@ -1,5 +1,7 @@
 // The Skeleton host: one computer runs this; every phone, tablet and laptop joins it in a browser.
-//   node server.js [--port 8790] [--module saltglass] [--adventure id] [--new] [--key secret]
+//   node server.js [--port 8790] [--module saltglass] [--adventure id] [--new] [--key secret] [--online] [--table-code ABCD]
+//   --online asks the free cloudflared program for a public link, so players anywhere can join (they need the
+//   table code; anyone on this computer or its own network does not).
 // No packages to install: Node 18 or later only.
 
 import { fileURLToPath } from 'node:url';
@@ -8,6 +10,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, extname, normalize } from 'node:path';
 import { networkInterfaces } from 'node:os';
 import { randomBytes } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { systemRng } from './engine/dice.js';
 import { listModules, loadModule, saveModule, check, books } from './engine/module.js';
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
@@ -25,6 +28,18 @@ const arg = (k, d = '') => { const i = process.argv.indexOf(`--${k}`); return i 
 const PORT = Number(arg('port', process.env.PORT || 8790));
 const HOST_KEY = arg('key', '') || randomBytes(4).toString('hex');
 mkdirSync(SAVE_DIR, { recursive: true });
+// The table code: asked of anyone joining from outside this computer's own network (the --online link). It is
+// kept between starts so a link sent to players keeps working.
+const TABLE_CODE = (() => {
+  const given = arg('table-code', '').toUpperCase();
+  const file = join(SAVE_DIR, 'access.json');
+  let saved = {};
+  try { saved = JSON.parse(readFileSync(file, 'utf8')); } catch (e) { /* first start */ }
+  const code = given || saved.tableCode || Array.from(randomBytes(4), (b) => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
+  if (code !== saved.tableCode) { try { writeFileSync(file, JSON.stringify({ ...saved, tableCode: code })); } catch (e) { /* keep going */ } }
+  return code;
+})();
+let publicUrl = arg('public-url', '').replace(/\/+$/, '');
 
 const rng = systemRng();
 const settings = createSettings({ saveDir: SAVE_DIR });
@@ -163,6 +178,27 @@ async function body(req, max = 4 << 20) {
   return t ? JSON.parse(t) : {};
 }
 const isHostReq = (url, b = {}) => (url.searchParams.get('key') || b.key) === HOST_KEY;
+// This computer or its own network (not through the tunnel): no table code needed.
+function isLocal(req) {
+  if (req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.headers.forwarded) return false;
+  const ip = String(req.socket.remoteAddress || '').replace(/^::ffff:/, '');
+  if (ip === '::1' || ip.startsWith('127.') || ip.startsWith('10.') || ip.startsWith('192.168.') || ip.startsWith('169.254.')) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+  return /^f[cde]/i.test(ip);
+}
+const codeOk = (url) => String(url.searchParams.get('t') || '').toUpperCase() === TABLE_CODE;
+// Every way in, for each screen: on this network, and from anywhere when the --online link is up (Roly, 27 Nov:
+// the players' screen, the table screen and the host console, each with its outside address too).
+function links({ host = false, trusted = false } = {}) {
+  const lan = addresses()[0] || 'localhost';
+  const out = { lan: { play: `http://${lan}:${PORT}/play`, table: `http://${lan}:${PORT}/table` }, online: null, code: trusted ? TABLE_CODE : '' };
+  if (host) out.lan.host = `http://${lan}:${PORT}/host?key=${HOST_KEY}`;
+  if (publicUrl && trusted) {
+    out.online = { play: `${publicUrl}/play?t=${TABLE_CODE}`, table: `${publicUrl}/table?t=${TABLE_CODE}` };
+    if (host) out.online.host = `${publicUrl}/host?key=${HOST_KEY}`;
+  }
+  return out;
+}
 
 // What screens may know about the module: everything but the adventure's secrets and notes
 // (and, for players, the bestiary's numbers stay on the host).
@@ -179,6 +215,11 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const p = url.pathname;
   try {
+    // From outside the home network (the --online link): the table code or the host key, or nothing.
+    if (p.startsWith('/api/') && !isLocal(req) && !isHostReq(url) && !codeOk(url)) {
+      json(res, 403, { ok: false, error: 'This table needs its table code.', need: 'code' });
+      return;
+    }
     if (req.method === 'GET' && p === '/api/events') {
       const role = isHostReq(url) ? 'host' : url.searchParams.get('role') === 'table' ? 'table' : 'player';
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store', connection: 'keep-alive' });
@@ -191,7 +232,7 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === 'GET' && p === '/api/hello') {
       const host = isHostReq(url);
-      const out = { role: host ? 'host' : 'player', module: moduleFor(host ? 'host' : 'player'), modes: MODES, voice: voice.publicView(), port: PORT, addresses: addresses() };
+      const out = { role: host ? 'host' : 'player', module: moduleFor(host ? 'host' : 'player'), modes: MODES, voice: voice.publicView(), port: PORT, addresses: addresses(), links: links({ host, trusted: true }) };
       if (host) Object.assign(out, { modules: listModules(MOD_DIR), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, converting: !!converting });
       json(res, 200, out);
       return;
@@ -268,5 +309,43 @@ server.listen(PORT, () => {
   console.log(`\n  ${mod.module.name} on the Skeleton\n`);
   console.log(`  Host console:  http://localhost:${PORT}/host?key=${HOST_KEY}`);
   console.log(`  Table screen:  http://localhost:${PORT}/table`);
-  console.log(`  Players:       http://${lan}:${PORT}/play\n`);
+  console.log(`  Players:       http://${lan}:${PORT}/play`);
+  console.log(`  Table code:    ${TABLE_CODE}   (asked of anyone joining from outside your network)\n`);
+  if (process.argv.includes('--online')) startTunnel();
 });
+
+// --online: a temporary public address through the free cloudflared program (as the D&D Director does).
+function startTunnel() {
+  const line = `  ${'-'.repeat(60)}`;
+  let child = null;
+  try { child = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${PORT}`], { stdio: ['ignore', 'pipe', 'pipe'] }); } catch (e) { child = null; }
+  const missing = () => {
+    console.log(line);
+    console.log('  --online needs the free "cloudflared" program, and it was not found.');
+    console.log('  Windows: open a Command Prompt and run   winget install --id Cloudflare.cloudflared');
+    console.log('  then close this window and start again. Play on your own network still works meanwhile.');
+    console.log(line);
+  };
+  if (!child) { missing(); return; }
+  child.on('error', missing);
+  const read = (buf) => {
+    const m = String(buf).match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    if (!m || publicUrl === m[0]) return;
+    publicUrl = m[0];
+    console.log(line);
+    console.log('  From anywhere (the links change each time the host starts with --online):');
+    console.log(`  Players:       ${publicUrl}/play?t=${TABLE_CODE}`);
+    console.log(`  Table screen:  ${publicUrl}/table?t=${TABLE_CODE}`);
+    console.log(`  Host console:  ${publicUrl}/host?key=${HOST_KEY}   (keep this one to yourself)`);
+    console.log(line);
+    // Every screen fetches its links again.
+    for (const c of clients) { try { c.res.write('event: links\ndata: {}\n\n'); } catch (e) { clients.delete(c); } }
+  };
+  child.stdout.on('data', read);
+  child.stderr.on('data', read);
+  child.on('exit', () => { if (publicUrl) console.log('  The outside link has closed (cloudflared stopped).'); publicUrl = arg('public-url', ''); });
+  const stop = () => { try { child.kill(); } catch (e) { /* gone */ } };
+  process.on('exit', stop);
+  process.on('SIGINT', () => process.exit(0));
+  process.on('SIGTERM', () => process.exit(0));
+}
