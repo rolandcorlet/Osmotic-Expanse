@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
 let esbuild;
 try { esbuild = require('esbuild'); } catch (e) { esbuild = require(process.env.ESBUILD_PATH || '/tmp/esb/node_modules/esbuild'); }
 
-const css = readFileSync(join(director, 'public', 'app.css'), 'utf8') + readFileSync(join(director, 'public', 'scene.css'), 'utf8'); // and the living backdrop
+const css = readFileSync(join(director, 'public', 'app.css'), 'utf8') + readFileSync(join(director, 'public', 'scene.css'), 'utf8') + readFileSync(join(director, 'public', 'flair.css'), 'utf8'); // and the living backdrop, and flair.js's pieces
 const FAVICON = readFileSync(join(director, 'public', 'index.html'), 'utf8').match(/<link rel="icon" href="([^"]+)">/)[1];
 
 const PAGES = [

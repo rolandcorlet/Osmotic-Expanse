@@ -9,6 +9,7 @@ import { checkAdventure } from '/engine/check.js';
 import * as TRIG from '/engine/triggers.js';
 import * as SEEDS from '/engine/seeds.js';
 import { initScene, updateScene, rollD20, effectsMode, setEffects } from './scene.js';
+import { vial, gems, sigil, seal, satchel, levelReady, levelFlash } from './flair.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -218,6 +219,8 @@ function onState(data) {
   voiceFollows();
   render();
   if (role === 'player' || role === 'table') updateScene(sceneInfo());
+  // A level ready for the first time: a golden flare (flair.js), once.
+  if (role === 'player' && p && levelReady(`lvl:${p.id}`, canLevel(p))) levelFlash();
   if (asked) requestAlert(asked);
 }
 // The kept d20 of a roll (the higher with advantage, the lower with disadvantage).
@@ -415,18 +418,20 @@ function storyCard({ n = 60, title = 'The story', input = '', fill = true } = {}
     return `<div class="ev${e.roll ? ' roll' : ''}">${esc(e.text)}</div>`;
   }).join('');
   return `<section class="card${fill ? ' fill' : ''}"><h3>${title}<span class="right"><button class="chip${ui.readAloud ? ' on' : ''}" data-act="readaloud" title="Read each new narration aloud on this device">${ui.readAloud ? 'Reading aloud' : 'Read aloud'}</button></span></h3>
-    <div class="scroll story" data-stick="story" style="flex:1">${html || `<div class="empty">The story has not begun. ${LOCAL ? 'Narrate or note what happens below; it becomes the session log.' : role === 'host' ? 'Take a turn on the Director tab, or narrate the opening yourself.' : 'Waiting for the Dungeon Master.'}</div>`}</div>${input}</section>`;
+    <div class="scroll story${role === 'player' || role === 'table' ? ' journal' : ''}" data-stick="story" style="flex:1">${html || `<div class="empty">The story has not begun. ${LOCAL ? 'Narrate or note what happens below; it becomes the session log.' : role === 'host' ? 'Take a turn on the Director tab, or narrate the opening yourself.' : 'Waiting for the Dungeon Master.'}</div>`}</div>${input}</section>`;
 }
 
 // ------------------------------------------------------------------ colours
 const DEFAULTS = { '--bg': '#14110e', '--panel': '#1e1a16', '--panel2': '#29231d', '--line': '#3d342b', '--ink': '#efe6d8', '--dim': '#b2a38f', '--faint': '#7d705f', '--accent': '#d4a84a', '--ok': '#6fbf73', '--no': '#e0675c', '--warn-c': '#e09a4a', '--input': '#110e0b', '--btn': '#332b23',
-  '--sky-night': '#0b1020', '--sky-dawn': '#6b4a6e', '--sky-day': '#3d6a8e', '--sky-dusk': '#8a4b2e', '--fx-leaf': '#c98a3a', '--fx-ember': '#ff8a3c', '--fx-snow': '#eef4ff', '--fx-rain': '#9fb6d0', '--fx-fog': '#c8c8c0', '--fx-dust': '#9a8a70', '--fx-candle': '#e0a040', '--fx-water': '#a8d4e6', '--fx-star': '#fff6d8' };
+  '--sky-night': '#0b1020', '--sky-dawn': '#6b4a6e', '--sky-day': '#3d6a8e', '--sky-dusk': '#8a4b2e', '--fx-leaf': '#c98a3a', '--fx-ember': '#ff8a3c', '--fx-snow': '#eef4ff', '--fx-rain': '#9fb6d0', '--fx-fog': '#c8c8c0', '--fx-dust': '#9a8a70', '--fx-candle': '#e0a040', '--fx-water': '#a8d4e6', '--fx-star': '#fff6d8',
+  '--fx-vial': '#3fa66a', '--fx-gem': '#6fb8ff', '--fx-seal': '#9e2a22', '--paper': '#2a2219', '--paper-ink': '#eadfca' };
 const COLOURS = [['--bg', 'Background'], ['--panel', 'Panels'], ['--panel2', 'Inner panels'], ['--line', 'Lines'], ['--ink', 'Text'], ['--dim', 'Quiet text'], ['--faint', 'Faint text'], ['--accent', 'Accent (gold)'], ['--ok', 'Good'], ['--no', 'Bad'], ['--warn-c', 'Warning'], ['--input', 'Fields'], ['--btn', 'Buttons'],
-  ['--sky-night', 'Sky: night'], ['--sky-dawn', 'Sky: dawn'], ['--sky-day', 'Sky: day'], ['--sky-dusk', 'Sky: dusk'], ['--fx-leaf', 'Leaves'], ['--fx-ember', 'Embers'], ['--fx-snow', 'Snow'], ['--fx-rain', 'Rain'], ['--fx-fog', 'Fog'], ['--fx-dust', 'Dust'], ['--fx-candle', 'Candle and campfire'], ['--fx-water', 'Water glints'], ['--fx-star', 'Stars and motes']];
+  ['--sky-night', 'Sky: night'], ['--sky-dawn', 'Sky: dawn'], ['--sky-day', 'Sky: day'], ['--sky-dusk', 'Sky: dusk'], ['--fx-leaf', 'Leaves'], ['--fx-ember', 'Embers'], ['--fx-snow', 'Snow'], ['--fx-rain', 'Rain'], ['--fx-fog', 'Fog'], ['--fx-dust', 'Dust'], ['--fx-candle', 'Candle and campfire'], ['--fx-water', 'Water glints'], ['--fx-star', 'Stars and motes'],
+  ['--fx-vial', 'Hit-point vial'], ['--fx-gem', 'Spell-slot gems'], ['--fx-seal', 'Quest seal'], ['--paper', 'Journal paper'], ['--paper-ink', 'Journal ink']];
 const THEMES = {
   Tavern: DEFAULTS,
   Dungeon: { '--bg': '#0f1114', '--panel': '#171a1f', '--panel2': '#1f242b', '--line': '#2f3640', '--ink': '#e3e7ec', '--dim': '#97a1ad', '--faint': '#66707c', '--accent': '#8fb8de', '--ok': '#66c08a', '--no': '#e2685f', '--warn-c': '#dda24c', '--input': '#0c0e11', '--btn': '#242a33' },
-  Parchment: { '--bg': '#efe4cc', '--panel': '#f8f0dc', '--panel2': '#eadcbc', '--line': '#cdb98f', '--ink': '#2b2016', '--dim': '#6c5a43', '--faint': '#93806a', '--accent': '#8a2c1b', '--ok': '#2f7a3a', '--no': '#a5281b', '--warn-c': '#9a5a12', '--input': '#fffaf0', '--btn': '#e8d9b5' },
+  Parchment: { '--paper': '#f6ecd2', '--paper-ink': '#2b2016', '--bg': '#efe4cc', '--panel': '#f8f0dc', '--panel2': '#eadcbc', '--line': '#cdb98f', '--ink': '#2b2016', '--dim': '#6c5a43', '--faint': '#93806a', '--accent': '#8a2c1b', '--ok': '#2f7a3a', '--no': '#a5281b', '--warn-c': '#9a5a12', '--input': '#fffaf0', '--btn': '#e8d9b5' },
   Feywild: { '--bg': '#120f1a', '--panel': '#1b1726', '--panel2': '#252036', '--line': '#3a3152', '--ink': '#efe9fb', '--dim': '#ad9fcf', '--faint': '#776a96', '--accent': '#c79bff', '--ok': '#6fd3a5', '--no': '#ff7a9a', '--warn-c': '#f2b46b', '--input': '#0e0b15', '--btn': '#2c2540' },
 };
 const savedColours = () => { try { return JSON.parse(store.get('dnd.colours') || '{}'); } catch (e) { return {}; } };
@@ -804,9 +809,9 @@ function xpCard(p) {
 }
 function partyMini() {
   const pcs = Object.values(state.pcs);
-  return `<section class="card"><h3>The party</h3>${pcs.map((p) => `<div class="row nw"><b class="grow">${esc(p.name)}</b><span class="small dim">${p.dead ? 'dead' : p.hp <= 0 ? (p.stable ? 'stable' : 'dying') : `${p.hp}/${p.maxHp}`}</span>${(p.conds || []).length ? `<span class="small" style="color:var(--warn-c)">${esc(p.conds.join(', '))}</span>` : ''}</div><div>${hpBar(p)}</div>`).join('') || '<div class="empty">Nobody yet.</div>'}
+  return `<section class="card"><h3>The party</h3>${pcs.map((p) => `<div class="row nw"><b class="grow">${sigil(p.clsName, { small: true })}${esc(p.name)}</b><span class="small dim">${p.dead ? 'dead' : p.hp <= 0 ? (p.stable ? 'stable' : 'dying') : `${p.hp}/${p.maxHp}`}</span>${(p.conds || []).length ? `<span class="small" style="color:var(--warn-c)">${esc(p.conds.join(', '))}</span>` : ''}</div><div>${vial(`party:${p.id}`, p.hp / Math.max(1, p.maxHp), { title: `${p.hp} of ${p.maxHp} hit points` })}</div>`).join('') || '<div class="empty">Nobody yet.</div>'}
     ${foesHere().filter((f) => !f.hidden).length ? `<div class="fl dim small">Foes</div>${foesHere().filter((f) => !f.hidden).map((f) => `<div class="row nw"><span class="grow" style="color:var(--no)">${esc(f.name)}</span><span class="small dim">${esc(f.dead ? (f.fled ? 'fled' : 'down') : f.health || '')}</span></div>`).join('')}` : ''}
-    ${state.quests.length ? `<div class="fl dim small">Quests</div>${state.quests.map((q) => `<div class="small${q.done ? ' faint' : ''}">${q.done ? '✓' : '•'} ${esc(q.text)}</div>`).join('')}` : ''}</section>`;
+    ${state.quests.length ? `<div class="fl dim small">Quests</div>${state.quests.map((q) => `<div class="small${q.done ? ' faint' : ''}">${seal(q.id, q.done)}${esc(q.text)}</div>`).join('')}` : ''}</section>`;
 }
 function sayBox() {
   return `<div class="row nw"><input type="text" class="grow" data-k="say" data-bind="say" value="${esc(ui.say)}" maxlength="1000" placeholder="Say or do something…">${talkButtonHtml()}<button class="btn primary" data-act="say">Send</button></div>${ui.talkAsk && !hearOk() && canHear() ? hearConsentHtml() : ''}`;
@@ -814,12 +819,13 @@ function sayBox() {
 function playHtml() {
   const p = myPc();
   const reqs = myRequests();
-  const lvl = canLevel(p) ? '<section class="card ask"><h3>Level up!</h3><div>You have enough experience for the next level.</div><button class="btn primary" data-act="tab" data-t="build">Level up now</button></section>' : '';
+  const lvl = canLevel(p) ? '<section class="card ask lvl-glow"><h3>Level up!</h3><div>You have enough experience for the next level.</div><button class="btn primary" data-act="tab" data-t="build">Level up now</button></section>' : '';
   return `<div class="lay-two">
     <div class="col">${reqs.map((q) => requestCard(q, p)).join('')}${storyCard({ input: sayBox() })}</div>
     <div class="col scroll" data-scroll="play2">${lvl}${fightCard()}${clocksCard()}
-      ${p ? `<section class="card"><h3>${esc(p.name)}<span class="right"><span class="chip">AC ${p.ac}</span><span class="chip">${p.hp}/${p.maxHp} hp${p.tempHp ? ` +${p.tempHp}` : ''}</span></span></h3>${hpBar(p)}${deathHtml(p)}${condControls(p)}
-        ${p.cast && p.cast.slots.some((x) => x[0]) ? `<div class="slots">${p.cast.slots.map(([m, u], k) => (m ? `<div class="slot"><span>${R.ordinal(k + 1)}</span><span class="pips">${Array.from({ length: m }, (_, n) => `<i class="pip${n < u ? ' used' : ''}"></i>`).join('')}</span></div>` : '')).join('')}</div>` : ''}</section>` : ''}
+      ${p ? `<section class="card"><h3><span class="row nw" style="gap:0">${sigil(p.clsName, { title: `${p.raceName || ''} ${p.clsName || ''}`.trim() })}${esc(p.name)}</span><span class="right"><span class="chip">AC ${p.ac}</span><span class="chip">${p.hp}/${p.maxHp} hp${p.tempHp ? ` +${p.tempHp}` : ''}</span></span></h3>${vial(`hp:${p.id}`, p.hp / Math.max(1, p.maxHp), { title: `${p.hp} of ${p.maxHp} hit points` })}${deathHtml(p)}${condControls(p)}
+        ${p.cast && p.cast.slots.some((x) => x[0]) ? gems(`slots:${p.id}`, p.cast.slots.map(([m, u], k) => ({ label: R.ordinal(k + 1), max: m, used: u })), { title: 'Spell slots: lit ones are ready' }) : ''}</section>` : ''}
+      ${state.loot.length ? `<section class="card"><h3>Party loot<span class="right small dim">take it on your sheet</span></h3>${satchel('loot', state.loot)}</section>` : ''}
       ${actionsCard(p)}
       ${p && p.cast ? `<section class="card"><h3>Quick spells<span class="right"><button class="btn sm" data-act="tab" data-t="spells">All spells</button></span></h3>${castable(p).filter((s) => s.level === 0 || s.attack || s.save || s.heal || s.dmgSlot).slice(0, 8).map((s) => spellCard(s, { cast: castControls(p, s) })).join('')}</section>` : ''}
       ${partyMini()}
@@ -830,7 +836,7 @@ function tableHtml() {
   const s = site();
   return `<div class="lay-two"><div class="col">${storyCard({ n: 80 })}</div>
     <div class="col scroll" data-scroll="t2"><section class="card"><h3>${esc(s.name)}<span class="right small dim">Day ${state.time.day}</span></h3><div class="small dim">${esc(s.region || '')}</div></section>
-      ${fightCard()}${clocksCard()}${partyMini()}${rollsCard(12, 'Latest rolls')}
+      ${fightCard()}${clocksCard()}${partyMini()}${state.loot.length ? `<section class="card"><h3>Party loot</h3>${satchel('loot', state.loot)}</section>` : ''}${rollsCard(12, 'Latest rolls')}
       ${info && info.addresses ? `<section class="card"><h3>Join this table</h3>${info.addresses.map((a) => `<div><b>http://${esc(a)}:${info.port}/player.html</b></div>`).join('')}${info.online ? `<div>From anywhere: <b>${esc(info.online)}</b></div>` : ''}</section>` : ''}</div></div>`;
 }
 

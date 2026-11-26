@@ -4,6 +4,12 @@
 import { getSystem, chance, ownDiceHint, SYSTEMS } from '/engine/dicesystems.js';
 import * as SEEDS from '/engine/seeds.js';
 import { initScene, updateScene, rollD20, effectsMode, setEffects } from '/scene.js';
+import { vial, gems, sigil, seal, levelFlash } from '/flair.js';
+// flair.js gives HTML; this puts it in the tree (a span or div with no box of its own).
+const raw = (html, tag = 'span') => { const e = document.createElement(tag); e.style.display = 'contents'; e.innerHTML = html; return e; };
+const callingName = (c) => (M.handbook.callings.find((x) => x.id === c.calling) || {}).name || '';
+const health = (c, key) => raw(vial(`${key}:${c.id}`, c.health / Math.max(1, c.healthMax), { title: `${T('health')} ${c.health} of ${c.healthMax}` }), 'div');
+const strainGems = (c, key) => raw(gems(`${key}:${c.id}`, [{ label: '', max: M.rules.strain.max, used: c.strain }], { cls: 'strain', title: `${T('strain')} ${c.strain} of ${M.rules.strain.max}: lit gems are what is left` }), 'div');
 
 const ROLE = location.pathname.startsWith('/host') ? 'host' : location.pathname.startsWith('/table') ? 'table' : 'player';
 const KEY = new URLSearchParams(location.search).get('key') || '';
@@ -133,7 +139,7 @@ function rollCard(r) {
 }
 function bar(v, max, cls = '') { return h('div', { class: `bar ${cls}`, title: `${v} / ${max}` }, h('i', { style: `width:${Math.max(0, Math.min(100, (100 * v) / Math.max(1, max)))}%` })); }
 function storyView(big = false) {
-  const box = h('div', { class: `story${big ? ' table-big' : ''}`, 'data-key': 'story' },
+  const box = h('div', { class: `story${big ? ' table-big' : ''}${ROLE === 'host' ? '' : ' journal'}`, 'data-key': 'story' },
     S.story.filter((e) => ROLE === 'host' || e.kind !== 'host').filter((e) => !e.quiet || ROLE === 'host').map((e) => h('div', { class: `ev ${e.kind}` },
       e.kind === 'say' ? h('span', { class: 'who' }, e.who) : null, e.text, e.kind === 'narration' && ROLE !== 'table' ? h('span', { style: 'margin-left:6px' }, readBtn(e.text)) : null)));
   return box;
@@ -146,8 +152,8 @@ function fightStrip() {
 }
 function partyList(compact = false) {
   return Object.values(S.chars).map((c) => h('div', { class: `list-line${c.down ? ' down' : ''}${curKey() === `char:${c.id}` ? ' turn-now' : ''}` },
-    h('div', { class: 'grow' }, h('b', {}, c.name), h('small', {}, ` ${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name || ''} ${(M.handbook.callings.find((x) => x.id === c.calling) || {}).name || ''}`),
-      h('div', { class: 'grid2' }, h('div', {}, h('small', {}, `${T('health')} ${c.health}/${c.healthMax}`), bar(c.health, c.healthMax)), h('div', {}, h('small', {}, `${T('strain')} ${c.strain}/${M.rules.strain.max}`), bar(c.strain, M.rules.strain.max, 'strain'))),
+    h('div', { class: 'grow' }, ROLE === 'host' ? null : raw(sigil(callingName(c), { small: true })), h('b', {}, c.name), h('small', {}, ` ${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name || ''} ${callingName(c)}`),
+      h('div', { class: 'grid2' }, h('div', {}, h('small', {}, `${T('health')} ${c.health}/${c.healthMax}`), ROLE === 'host' ? bar(c.health, c.healthMax) : health(c, 'party')), h('div', {}, h('small', {}, `${T('strain')} ${c.strain}/${M.rules.strain.max}`), ROLE === 'host' ? bar(c.strain, M.rules.strain.max, 'strain') : strainGems(c, 'party'))),
       c.conds.length ? h('div', { class: 'row' }, c.conds.map((x) => h('span', { class: 'pill no' }, condName(x)))) : null,
       compact ? null : h('small', { class: 'faint' }, c.playerId && S.players[c.playerId] ? `played by ${S.players[c.playerId].name}` : 'no player'))));
 }
@@ -162,7 +168,7 @@ function clocksQuests(host = false) {
     S.clocks.map((c) => h('div', { class: 'row' }, h('span', { class: 'grow' }, c.name), h('span', { class: 'clock' }, Array.from({ length: c.size }, (_, i) => h('i', { class: i < c.filled ? 'f' : '' }))),
       host ? [h('button', { onclick: () => act({ type: 'clock.tick', id: c.id, n: -1 }) }, '−'), h('button', { onclick: () => act({ type: 'clock.tick', id: c.id, n: 1 }) }, '+')] : null)),
     h('h3', {}, 'Quests'),
-    S.quests.map((q) => h('div', { class: 'row' }, h('span', { class: `grow${q.done ? ' faint' : ''}` }, q.done ? '✓ ' : '• ', q.text), host && !q.done ? h('button', { onclick: () => act({ type: 'quest.done', id: q.id }) }, 'Done') : null)));
+    S.quests.map((q) => h('div', { class: 'row' }, h('span', { class: `grow${q.done ? ' faint' : ''}` }, raw(seal(q.id, q.done)), q.text), host && !q.done ? h('button', { onclick: () => act({ type: 'quest.done', id: q.id }) }, 'Done') : null)));
 }
 function rulesView(includeHidden) {
   const q = ui.search.toLowerCase();
@@ -202,7 +208,8 @@ function bookSections(hidden) {
 
 // ---------------------------------------------------------------- Colours tab
 const COLOUR_VARS = ['--bg', '--panel', '--panel2', '--line', '--ink', '--dim', '--faint', '--accent', '--accent2', '--ok', '--no', '--warn-c', '--input', '--btn', '--snag', '--six',
-  '--sky-night', '--sky-dawn', '--sky-day', '--sky-dusk', '--fx-leaf', '--fx-ember', '--fx-snow', '--fx-rain', '--fx-fog', '--fx-dust', '--fx-candle', '--fx-water', '--fx-star'];
+  '--sky-night', '--sky-dawn', '--sky-day', '--sky-dusk', '--fx-leaf', '--fx-ember', '--fx-snow', '--fx-rain', '--fx-fog', '--fx-dust', '--fx-candle', '--fx-water', '--fx-star',
+  '--fx-vial', '--fx-gem', '--fx-seal', '--paper', '--paper-ink'];
 function applyColours() { const c = store.get('colours', {}); for (const [k, v] of Object.entries(c)) document.documentElement.style.setProperty(k, v); }
 function coloursView() {
   const cs = getComputedStyle(document.documentElement);
@@ -291,11 +298,11 @@ async function sendSay() { const t = ui.say.trim(); if (!t) return; if (await ac
 function sheetView(c) {
   const R = M.rules;
   return h('div', { class: 'view v-two' },
-    h('div', { class: 'card scroll' }, h('h2', {}, c.name), h('small', {}, `${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name} ${(M.handbook.callings.find((x) => x.id === c.calling) || {}).name} · ${T('level')} ${c.level} · ${c.xp} ${T('xp')}`),
+    h('div', { class: 'card scroll' }, h('h2', {}, raw(sigil(callingName(c))), c.name), h('small', {}, `${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name} ${callingName(c)} · ${T('level')} ${c.level} · ${c.xp} ${T('xp')}`),
       c.look ? h('small', { class: 'dim' }, c.look) : null, c.want ? h('small', {}, `Wants: ${c.want}`) : null,
       h('div', { class: 'stat-tiles' }, R.stats.map((s) => h('div', { class: 'tile', title: s.about }, h('div', { class: 'k' }, s.name), h('div', { class: 'v' }, SYS().id === 'step' ? `d${c.stats[s.id]}` : SYS().id === 'percentile' ? `${c.stats[s.id]}%` : (c.stats[s.id] ?? 0))))),
-      h('div', {}, h('small', {}, `${T('health')} ${c.health} / ${c.healthMax}`), bar(c.health, c.healthMax)),
-      h('div', {}, h('small', {}, `${T('strain')} ${c.strain} / ${R.strain.max}`), bar(c.strain, R.strain.max, 'strain')),
+      h('div', {}, h('small', {}, `${T('health')} ${c.health} / ${c.healthMax}`), health(c, 'sheet')),
+      h('div', {}, h('small', {}, `${T('strain')} ${c.strain} / ${R.strain.max}`), strainGems(c, 'sheet')),
       c.conds.length ? h('div', { class: 'row' }, c.conds.map((x) => h('span', { class: 'pill no', title: ((R.conditions.find((y) => y.id === x) || {}).effect) }, condName(x)))) : null,
       h('h3', {}, `Skills (${SYS().name})`), R.skills.filter((s) => c.skills[s.id]).map((s) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), h('b', {}, SYS().id === 'step' ? `d${c.skills[s.id]}` : c.skills[s.id]), h('span', { class: 'pill' }, specFor(c, s.stat, s.id).label),
         h('button', { title: 'Roll it for yourself (not asked for)', onclick: () => act({ type: 'roll.free', charId: c.id, stat: s.stat, skill: s.id }) }, '🎲')))),
@@ -549,6 +556,7 @@ function render() {
 // The place's own words pick the weather and light; this game has no clock, so outdoors is daylight. Your turn
 // glows, a bad wound pulses, and a single d20 (in the d20 systems) tumbles to its number.
 let sceneRoll = null;
+let sceneLevel = null;
 function scene() {
   const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
   const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
@@ -558,6 +566,8 @@ function scene() {
     myTurn: !!c && curKey() === `char:${c.id}`, hp: c && c.healthMax ? Math.max(0, c.health) / c.healthMax : null, down: !!c && c.down,
     rested: S.story.filter((e) => /^A long rest\b/.test(e.text)).length,
   });
+  // A new level: a golden flare (flair.js), once, on that player's screen.
+  if (c) { if (sceneLevel != null && c.level > sceneLevel) levelFlash(`${T('level')} ${c.level}!`); sceneLevel = c.level; }
   const r = S.rolls[S.rolls.length - 1];
   if (!r || r.id === sceneRoll) return;
   const first = sceneRoll === null; sceneRoll = r.id;
