@@ -27,6 +27,17 @@ const pcLine = (s, p, srd) => {
   return `- ${bits.filter(Boolean).join('; ')}.`;
 };
 
+// An open quest that ends at this place, when every roll since the last narration succeeded and the Director
+// has not called complete_quest this turn.
+function questWon(s, adventure, sinceSeq, calls) {
+  if (calls.some((c) => c.name === 'complete_quest')) return null;
+  const ends = ((adventure || {}).questDone || []).filter((qd) => (qd.at || []).includes(s.scene.siteId));
+  const open = (s.quests || []).find((q) => !q.done && ends.some((qd) => q.text.toLowerCase().includes(qd.match)));
+  if (!open) return null;
+  const rolls = (s.story || []).filter((e) => e.roll && e.seq > sinceSeq && / (succeeds on|fails) a /.test(e.text));
+  if (!rolls.length || rolls.some((e) => / fails a /.test(e.text))) return null;
+  return open;
+}
 const lastNarrSeq = (s) => { const n = [...(s.story || [])].reverse().find((e) => e.kind === 'narration'); return n ? n.seq : 0; };
 export function briefing(state, adventure, srd, { reason = '', hostNote = '', chapters = [], lastSeq: since = null } = {}) {
   const s = state;
@@ -311,6 +322,7 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
   let nudged = false;
   let rollNudged = false;
   let moveNudged = false;
+  let questNudged = false;
   const maxSteps = MAX_STEPS + 3 * Math.min(10, Object.values(state.foes || {}).filter((f) => !f.dead && f.siteId === state.scene.siteId).length);
   for (let step = 0; step < maxSteps; step++) {
     usage.in += reply.usage.in;
@@ -339,6 +351,15 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
       moveNudged = true;
       narration = '';
       reply = await chat.send(`Your narration takes the party toward ${went.name}, but the Engine still has them at ${(adventure.sites.find((x) => x.id === T.state.scene.siteId) || {}).name}. If they have arrived there or are close enough to see it, call move_party with place "${went.id}" now, then narrate again. If something stops them on the way (a patrol, a hazard, a choice), keep them where they are and say what stops them. End on one question.`);
+      continue;
+    }
+    // Checks that all succeeded where a quest ends, and no complete_quest (the Skeleton's Gull Rock bench,
+    // 27 Nov: three successes found everything at the keeper's cottage and the quest stayed open): once, ask.
+    const won = narration && !questNudged && !T.state.fight ? questWon(T.state, adventure, lastNarrSeq(state), calls) : null;
+    if (won) {
+      questNudged = true;
+      narration = '';
+      reply = await chat.send(`Those rolls all succeeded here. Does that finish the quest "${won.text}" (${won.id})? If it does, call complete_quest for it now, then narrate again. If something is still left to do, narrate again as you would have and say what is left. End on one question to one named character.`);
       continue;
     }
     if (narration || nudged) break;

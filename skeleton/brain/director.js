@@ -77,6 +77,18 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = 
   return L.join('\n');
 }
 
+// A quest that ends at this place, not done yet, when every roll since the last narration succeeded and the
+// Director has not called complete_quest this turn.
+function questWon(s, mod, sinceSeq, calls) {
+  if (calls.some((c) => c.name === 'complete_quest')) return null;
+  const adv = mod.ix.adventure[s.adventureId];
+  if (!adv) return null;
+  const open = (adv.quests || []).find((q) => (q.doneAt || []).includes(s.scene.siteId) && !(s.quests.find((x) => x.id === q.id) || {}).done);
+  if (!open) return null;
+  const rolls = s.story.filter((e) => e.roll && e.seq > sinceSeq && / rolls /.test(e.text));
+  if (!rolls.length || rolls.some((e) => /fail/i.test(e.text)) || !rolls.every((e) => /success/i.test(e.text))) return null;
+  return open;
+}
 const ROLL_WORDS = /\b(roll|make a|give me a|test your)\b[^.?!]*\b(check|roll|save|test)\b/i;
 const LEAK = /\b(the engine|the briefing|your notes|the notes|tools?|ask_for_roll|creature_attack|difficulty \d+|defen[cs]e \d+|\d+\s*(?:health|hit points|hp)\b)/i;
 
@@ -136,6 +148,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
   let rollNudged = false;
   let silentNudged = false;
   let moveNudged = false;
+  let questNudged = false;
   for (let step = 0; step < MAX_STEPS + 2 * Object.keys(state.creatures).length; step++) {
     usage.in += reply.usage.in; usage.out += reply.usage.out;
     if (reply.calls.length) {
@@ -154,6 +167,15 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     if (went) {
       moveNudged = true; narration = '';
       reply = await chat.send(`Your narration takes the party toward ${went.name}, but they are still at ${site(T.state, mod).name}. If they have arrived there or are close enough to see it, call move_party with place "${went.id}" now, then narrate again. If something stops them on the way, keep them where they are and say what stops them. End on one question.`);
+      continue;
+    }
+    // Rolls that all succeeded where a quest ends, and no complete_quest (the Gull Rock bench, 27 Nov: three
+    // successes at the keeper's cottage found the diary, the blood and the cave-sand, and the quest stayed open):
+    // once, ask whether that finishes it.
+    const open = narration && !questNudged && !T.state.fight ? questWon(T.state, mod, lastNarr ? lastNarr.seq : -1, calls) : null;
+    if (open) {
+      questNudged = true; narration = '';
+      reply = await chat.send(`Those rolls all succeeded here. Does that finish the quest "${open.text}" (${open.id})? If it does, call complete_quest with quest "${open.id}" now, then narrate again. If something is still left to do, narrate again as you would have and say what is left. End on one question.`);
       continue;
     }
     if (narration || silentNudged) break;

@@ -51,7 +51,7 @@ export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new S
     for (const q of adv.quests || []) {
       if (k === 0 || done.has(q.id) || !(q.doneAt || []).includes(site.id)) continue;
       if (route.slice(k + 1).some((h) => (q.doneAt || []).includes(h.id))) continue; // a later visit finishes it
-      out.push({ pid: who(), say: `We see it through: ${q.text.replace(/\.$/, '').replace(/^\w/, (c) => c.toLowerCase())}.`, expect: ['complete_quest'], at: site.id });
+      out.push({ pid: who(), say: `We see it through: ${q.text.replace(/\.$/, '').replace(/^\w/, (c) => c.toLowerCase())}.`, expect: ['complete_quest'], at: site.id, quest: q.id });
       done.add(q.id);
     }
   }

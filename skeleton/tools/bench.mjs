@@ -199,6 +199,11 @@ async function runOnce(n) {
       notes.push(`${label}: not checked: nothing is left standing here to fight`);
       continue;
     }
+    // A quest the story already finished (the Choir Master fell and the rite with him, mid-fight): not checkable.
+    if (step.quest && (s.quests.find((q) => q.id === step.quest) || {}).done) {
+      notes.push(`${label}: not checked: the quest "${step.quest}" was already finished`);
+      continue;
+    }
     const snaps = Object.fromEntries(step.expect.map((e) => [e, OUTCOME[e].snap()]));
     act('player', step.pid, { type: 'say', text: step.say });
     say(`  ${charOf(step.pid).name}: ${step.say}`);

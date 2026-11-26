@@ -354,3 +354,23 @@ test('naming a place in talk, with no journey, is not taken for travel', async (
   assert.equal(travelledInWords('The Reeve frowns. "The Mill Road is dangerous," he says. Bryn, what do you ask him?', T.s, adventure), null);
   assert.equal(travelledInWords('Wren points at the map: the Mill Road is where Bren saw them. Bryn, will you go?', T.s, adventure), null);
 });
+
+test('checks that all succeed where a quest ends get one question: does that finish it?', async () => {
+  const T = table();
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'narrate', text: 'Thornwick Ford. What do you do?' });
+  T.s.seq += 1;
+  T.s.story.push({ id: 'e-test', seq: T.s.seq, t: 0, kind: 'event', who: 'Engine', roll: true, text: 'Bryn succeeds on a Wisdom (Insight) check.' });
+  const provider = scripted([{ text: 'The ford is quiet. Bryn, what now?' }, { calls: [{ name: 'complete_quest', args: { quest: 'q1' } }] }, { text: 'The lantern hangs over the ford again. Bryn, what now?' }]);
+  const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1), reason: 'rolls' });
+  assert.ok(provider.seen.some((m) => typeof m === 'string' && /Those rolls all succeeded/.test(m)));
+  assert.ok(out.state.quests.find((q) => q.id === 'q1').done);
+  const T2 = table();
+  hero(T2, 'p1', 'Bryn');
+  T2.host({ type: 'narrate', text: 'Thornwick Ford.' });
+  T2.s.seq += 1;
+  T2.s.story.push({ id: 'e-t2', seq: T2.s.seq, t: 0, kind: 'event', who: 'Engine', roll: true, text: 'Bryn fails a Wisdom (Insight) check.' });
+  const p2 = scripted([{ text: 'Bryn, what now?' }]);
+  await directorTurn({ state: T2.s, adventure, srd, provider: p2, rng: makeRng(1), reason: 'rolls' });
+  assert.ok(!p2.seen.some((m) => typeof m === 'string' && /Those rolls/.test(m)));
+});

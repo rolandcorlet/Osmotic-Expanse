@@ -119,3 +119,26 @@ test('the converter passes a chosen dice system to the AI, and checks numbers ag
   await convert({ provider: scripted((msg) => { seen2.push(msg); return { text: '{}' }; }), mode: 'convert', source: 'rules', sections: ['module'] });
   assert.match(seen2[0], /keep the source's own dice/);
 });
+
+test('rolls that all succeed where a quest ends get one question: does that finish it?', async () => {
+  const T = table(); diver(T, 'p1', 0);
+  T.host({ type: 'narrate', text: 'Lamp Dock. What do you do?' });
+  const seq = T.s.seq + 1;
+  T.s.story.push({ id: 'e-test', seq, t: 0, kind: 'event', who: 'Engine', roll: true, text: 'Moll Tarrow rolls Nerve + Talk (3 dice): 5, success.' });
+  T.s.seq = seq;
+  let asked = 0;
+  const provider = scripted((msg) => {
+    if (/Those rolls all succeeded/.test(msg)) { asked += 1; return { calls: [{ name: 'complete_quest', args: { quest: 'bell' } }] }; }
+    return { text: 'The bell is on the quay. Moll, what now?' };
+  });
+  const out = await directorTurn({ state: T.s, mod, provider, rng: makeRng(1), reason: 'rolls' });
+  assert.equal(asked, 1);
+  assert.ok(out.state.quests.find((q) => q.id === 'bell').done);
+  // A failure among them: no question.
+  const T2 = table(); diver(T2, 'p1', 0);
+  T2.host({ type: 'narrate', text: 'Lamp Dock.' });
+  T2.s.story.push({ id: 'e-t2', seq: T2.s.seq + 1, t: 0, kind: 'event', who: 'Engine', roll: true, text: 'Moll Tarrow rolls Nerve: 1, failure.' }); T2.s.seq += 1;
+  let asked2 = 0;
+  await directorTurn({ state: T2.s, mod, provider: scripted((msg) => { if (/Those rolls/.test(msg)) asked2 += 1; return { text: 'Moll, what now?' }; }), rng: makeRng(1), reason: 'rolls' });
+  assert.equal(asked2, 0);
+});
