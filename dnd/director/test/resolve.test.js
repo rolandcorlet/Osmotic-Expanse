@@ -85,3 +85,13 @@ test('every Director tool answers in the same three ways', () => {
   assert.match(quest.refused, /There is no such quest/);
   assert.equal(tb.refusals, 1);
 });
+
+test('completing a written quest the party was never given is a note (bench part 4, 27 Nov)', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  const adv = { ...adventure, questDone: [...(adventure.questDone || []), { match: 'blackreed', at: ['blackreed'], when: 'the mill is cleared' }] };
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(2), now: 2 });
+  const r = tb.run('complete_quest', { quest: 'blackreed' });
+  assert.match(r.note, /never took on a quest for "blackreed"/);
+  assert.equal(tb.refusals, 0);
+});

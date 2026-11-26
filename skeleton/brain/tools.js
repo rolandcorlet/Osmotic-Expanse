@@ -281,7 +281,14 @@ export const TOOLS = [
       const q = T.state.quests.find((x) => x.id === ref) || (lead && T.state.quests.find((x) => x.id === lead))
         || T.state.quests.find((x) => x.text.toLowerCase().includes(ref.replace(/^\w+\s+/, '').replace(/[.]+$/, '').toLowerCase()))
         || T.state.quests.find((x) => x.text.toLowerCase().includes(ref.toLowerCase()));
-      if (!q) return { refused: `There is no such quest. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.` };
+      // A quest the adventure writes but the party was never given: nothing to finish, so a note (D&D bench, 27 Nov).
+      if (!q) {
+        const low = ref.toLowerCase();
+        const adv = T.mod.ix.adventure[T.state.adventureId] || T.mod.adventures[0];
+        const written = (adv.quests || []).find((x) => x.id === low || (x.id && low.startsWith(`${x.id} `)) || (x.text && x.text.toLowerCase().includes(low.replace(/^[\w-]+\s+/, '').replace(/[.]+$/, ''))));
+        if (written || low === T.state.scene.siteId) return { note: `Nothing changed: the party never took on a quest for "${ref}". If they have taken it on, add_quest it first, then complete it. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ') || 'none'}.` };
+        return { refused: `There is no such quest. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.` };
+      }
       if (q.done) return { note: `Nothing changed: "${q.text}" is already done.` };
       const no = T.do({ type: 'quest.done', id: q.id });
       if (no && /^Not yet/.test(no)) return { note: `${no} Keep it open.` };

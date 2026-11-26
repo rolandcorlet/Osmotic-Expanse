@@ -487,6 +487,11 @@ export const TOOLS = [
       const words = ref.replace(/^q\d+\s*[:(\-–]?\s*/i, '').replace(/[.)]+$/, '').toLowerCase();
       const q = T.state.quests.find((x) => x.id === ref) || (lead && T.state.quests.find((x) => x.id === lead.toLowerCase()))
         || T.state.quests.find((x) => words && x.text.toLowerCase().includes(words));
+      // A quest the adventure writes but the party was never given (bench part 4, 27 Nov: "blackreed" at the
+      // mill, its ledger quest never added at the bridge): nothing to finish, so a note, not a refusal.
+      const low = ref.toLowerCase();
+      const written = !q && ((T.adventure || {}).questDone || []).find((r) => r.match && (low.includes(r.match) || (words && r.match.includes(words))));
+      if (written || (!q && low === T.state.scene.siteId)) return { note: `Nothing changed: the party never took on a quest for "${ref}". If they have taken it on, add_quest it first, then complete it. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ') || 'none'}.` };
       if (!q) return { refused: `There is no such quest. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.` };
       const rule = q && ((T.adventure || {}).questDone || []).find((r) => q.text.toLowerCase().includes(r.match));
       if (q && q.done) return { note: `Nothing changed: "${q.text}" is already complete.` };

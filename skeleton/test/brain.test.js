@@ -45,6 +45,13 @@ test('complete_quest reads "bell Bring the glass bell up"', () => {
   const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
   assert.ok(B.run('complete_quest', { quest: 'bell Bring the glass bell up to Lamp Dock.' }).ok);
 });
+test('complete_quest for a written quest never given is a note (27 Nov)', () => {
+  const T = table(); diver(T, 'p1', 0);
+  T.s.quests = T.s.quests.filter((q) => q.id !== 'saltmarks');
+  const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
+  assert.match(B.run('complete_quest', { quest: 'saltmarks' }).note, /never took on a quest/);
+  assert.ok(B.run('complete_quest', { quest: 'the dragon' }).refused);
+});
 test('a Director turn: a roll asked for in words is sent back to the tool, then narration', async () => {
   const T = table(); const m = diver(T, 'p1', 0);
   const provider = scripted([
