@@ -227,7 +227,9 @@ async function runOnce(n) {
       await fight(s.scene.siteId);
       // As players do after a hard fight: catch their breath before going on (what the Director does about it
       // is its own call: a rest, healing, a clock ticking).
-      if (Object.values(s.chars).some((c) => c.health < c.healthMax / 2)) {
+      // Under two thirds, not half (Saltglass, 27 Nov: Sefa at 7 of 12 went on unrested from the eels, and the choir
+      // took two divers down in one round of the next fight): as players patch up when anyone is hurt.
+      if (Object.values(s.chars).some((c) => c.health < (c.healthMax * 2) / 3)) {
         const pid = pids[0];
         const line = 'We catch our breath and patch each other up before we go on.';
         act('player', pid, { type: 'say', text: line });
