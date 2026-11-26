@@ -123,7 +123,9 @@ export default {
         { monster: 'spy', count: 1, name: 'Riven the Eelskin', note: 'leader; bargains when cornered' },
       ],
       treasure: '60 gp in a strongbox, a Potion of Healing, and the three clues (blasting powder crates, Thorne\'s promissory note, the tunnel map).',
+      objects: [{ name: 'Strongbox', note: 'the mill\'s strongbox' }],
       rules: [
+        { id: 'mill-strongbox', when: 'use strongbox', do: 'give', gold: 60, item: 'Potion of Healing', say: 'The strongbox holds 60 gp and a Potion of Healing.' },
         { id: 'rats-scatter', when: 'down', who: 'Riven the Eelskin', do: 'flee', target: 'River Rat', say: 'With Riven down, the River Rats scatter for the boat.' },
         { id: 'mill-taken', when: 'cleared', do: 'quest', quest: 'blackreed' },
         { id: 'milestone', when: 'quest blackreed', do: 'xp', level: 2 },
@@ -149,6 +151,10 @@ export default {
         { monster: 'ghoul', count: 1, name: 'Barrow ghoul', note: 'feeds on the fallen' },
       ],
       treasure: 'Burial offerings in the niches: 40 gp in old coins and a silver sun-disc (25 gp). Morwen\'s ciphered orders.',
+      objects: [{ name: 'Burial niches', note: 'the old offerings' }],
+      rules: [
+        { id: 'offerings', when: 'use burial niches', do: 'give', gold: 40, item: 'Silver sun-disc', say: 'Among the burial offerings: 40 gp in old coins and a silver sun-disc.' },
+      ],
       exits: [{ to: 'barrow-sanctum', label: 'down the flooded stair to the inner sanctum' }, { to: 'oakhurst', label: 'back through the marsh to Oakhurst' }],
     },
     {
@@ -161,7 +167,9 @@ export default {
       ],
       foes: [{ monster: 'wight', count: 1, name: 'Sir Garrick', note: 'Saint Vane\'s bodyguard; laid to rest by the sun-mirrors' }],
       treasure: 'The First Runic Keystone. Dawnwarden, a +1 longsword (sheds dim light at dawn). 2 Potions of Healing in a reliquary.',
+      objects: [{ name: 'Keystone', note: 'the First Runic Keystone on its plinth' }],
       rules: [
+        { id: 'keystone', when: 'use keystone', do: 'give', item: 'First Runic Keystone', say: 'The First Runic Keystone comes free of its plinth, warm and humming.' },
         { id: 'milestone', when: 'quest saint vane', do: 'xp', level: 3 },
       ],
       exits: [{ to: 'barrow-crypt', label: 'up the flooded stair' }],
@@ -184,7 +192,9 @@ export default {
         { monster: 'goblin', count: 1, name: 'Goblin whip-hand', note: 'Kragg\'s overseer; dragged down if Snikt\'s revolt starts' },
       ],
       treasure: 'Torgga\'s Clan Anvil (too heavy to carry far without a cart: the party can come back for it). The iron war-map. A chest with 80 gp and a Potion of Healing.',
+      objects: [{ name: 'Chest', note: 'Torgga\'s chest' }],
       rules: [
+        { id: 'foundry-chest', when: 'use chest', do: 'give', gold: 80, item: 'Potion of Healing', say: 'The chest holds 80 gp and a Potion of Healing.' },
         { id: 'foundry-stopped', when: 'cleared', do: 'quest', quest: 'ironfang' },
         { id: 'milestone', when: 'quest ironfang', do: 'xp', level: 4 },
       ],
@@ -210,7 +220,9 @@ export default {
         { monster: 'noble', count: 1, name: 'Bailiff Cedric Thorne', note: 'hides in the vault; surrenders when cornered' },
       ],
       treasure: 'The deeds to Thorne Keep. Thorne\'s strongroom: 300 gp, a silver signet ring (50 gp), a Potion of Healing, and Malakor\'s letter naming Cinderhelm.',
+      objects: [{ name: 'Strongroom', note: 'Thorne\'s strongroom' }],
       rules: [
+        { id: 'strongroom', when: 'use strongroom', do: 'give', gold: 300, item: 'Malakor\'s letter', say: 'Thorne\'s strongroom: 300 gp, a silver signet ring, a Potion of Healing, and a letter from Malakor that names Cinderhelm.' },
         { id: 'milestone', when: 'quest thorne', do: 'xp', level: 5 },
       ],
       exits: [{ to: 'oakhurst', label: 'down to the town square' }],
@@ -255,7 +267,9 @@ export default {
         { monster: 'duergar', count: 4, name: 'Duergar sapper', note: 'underpaid mercenaries; can be bribed' },
       ],
       treasure: 'The Second Runic Keystone. The vault treasury: 1,200 gp, a Potion of Greater Healing, and rune-forged dwarven armour promised for Act III.',
+      objects: [{ name: 'Keystone', note: 'the Second Runic Keystone in the vault' }],
       rules: [
+        { id: 'keystone', when: 'use keystone', do: 'give', item: 'Second Runic Keystone', say: 'The Second Runic Keystone lifts from the vault\'s heart.' },
         { id: 'milestone', when: 'quest karak-tor', do: 'xp', level: 6 },
       ],
       exits: [{ to: 'brindol', label: 'back down to Brindol' }],
@@ -273,7 +287,9 @@ export default {
         { monster: 'young-green-dragon', count: 1, name: 'Venyx the Whisperer', note: 'vain and paranoid; can be turned' },
       ],
       treasure: 'The Third Runic Keystone. Selari\'s thanks: griffon mounts for Act III, and a Wand of Magic Missiles.',
+      objects: [{ name: 'Keystone', note: 'the Third Runic Keystone in the spire' }],
       rules: [
+        { id: 'keystone', when: 'use keystone', do: 'give', item: 'Third Runic Keystone', say: 'The Third Runic Keystone comes away from the spire\'s crystal.' },
         { id: 'milestone', when: 'quest starfall', do: 'xp', level: 7 },
       ],
       exits: [{ to: 'brindol', label: 'back down the mountain to Brindol' }],

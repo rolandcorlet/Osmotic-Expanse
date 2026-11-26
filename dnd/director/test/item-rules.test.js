@@ -156,3 +156,14 @@ test('the fight simulation plays a place whose own rule starts the fight on arri
   const r = simulatePlace({ adventure: adv, srd, siteId: 'pool', party: [{ cls: 'fighter', level: 3 }, { cls: 'cleric', level: 3 }], runs: 3 });
   assert.equal(r.runs, 3, 'simulated, not skipped');
 });
+
+test('the Lantern: taking the lantern at the watchtower lights the causeway', () => {
+  const T = table(5, { auto: { rules: true, scale: 'off' } });
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'site.move', siteId: 'watchtower' });
+  T.host({ type: 'object.use', object: 'Lantern', pcId: Object.keys(T.s.pcs)[0] });
+  const text = T.s.log.map((l) => l.text).join('\n');
+  assert.match(text, /Lantern of the Ford/);
+  T.host({ type: 'site.move', siteId: 'causeway' });
+  assert.match(T.s.log.map((l) => l.text).join('\n'), /parts the fog/);
+});

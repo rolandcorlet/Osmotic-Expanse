@@ -102,15 +102,22 @@ export function planFight({ groups, designed, actual, srd, mode = 'auto' }) {
   });
   // Then hit points, for what the numbers could not reach (a lone boss cannot be halved).
   let hp = best.adjusted ? target / best.adjusted : 1;
+  const rawHp = hp;
   if (mode === 'down') hp = Math.min(1, hp);
   hp = Math.max(0.5, Math.min(1.5, hp));
   if (Math.abs(hp - 1) < 0.15) hp = 1;
   hp = Math.round(hp * 20) / 20;
-  const changed = groups.some((g) => best.counts[g.key] !== g.count) || hp !== 1;
+  // Then damage, for what hit points could not reach: halving a lone boss's hit points does not soften
+  // its blows (X Marks' giant crocodile, CR 5, against two 4th-level heroes: 35 damage a round, 75%
+  // wipes in the simulation at half hit points). Its attacks hit for less, never under half.
+  let dmg = 1;
+  if (rawHp < 0.5 && hp === 0.5) dmg = Math.round(Math.max(0.5, rawHp / 0.5) * 20) / 20;
+  if (dmg > 0.9) dmg = 1;
+  const changed = groups.some((g) => best.counts[g.key] !== g.count) || hp !== 1 || dmg !== 1;
   if (!changed) return null;
-  const after = Math.round(best.adjusted * hp);
+  const after = Math.round(best.adjusted * hp * dmg);
   const names = ['Easy', 'Medium', 'Hard', 'Deadly'];
   let rating = 'Trivial';
   for (let n = 0; n < 4; n++) if (after >= forUs.thresholds[n]) rating = names[n];
-  return { counts: best.counts, hp, target: Math.round(target), before: forUs.adjusted, after, ratingAsWritten: asWritten.rating, ratingBefore: forUs.rating, rating };
+  return { counts: best.counts, hp, dmg, target: Math.round(target), before: forUs.adjusted, after, ratingAsWritten: asWritten.rating, ratingBefore: forUs.rating, rating };
 }

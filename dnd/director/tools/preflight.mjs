@@ -73,7 +73,7 @@ for (const adv of list) {
   const log = join(tmp, `gen-${adv.id}.log`);
   const r = spawnSync(process.execPath, [join(here, 'bench.mjs'), '--fake', '--script', 'gen', '--adventure', adv.id, '--runs', '1', '--log', log, '--quiet'], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const text = existsSync(log) ? readFileSync(log, 'utf8') : '';
-  const crashed = /BENCH ERROR|CRASH/.test(text) || ![0, 1].includes(r.status);
+  const crashed = /BENCH ERROR|CRASH/.test(text) || r.status !== 0; // the stand-in's gate counts only errors
   const lines = (text.match(/Generated script \([^)]*\)/) || [''])[0];
   console.log(`4. Generated bench script: ${crashed ? 'THE BENCH TRIPPED' : 'plays through'} ${lines.replace(/^Generated script /, '').replace(/\)$/, ', stand-in model)') || '(no script)'}.`);
   if (crashed) { fail += 1; console.log(text.split('\n').filter((l) => /BENCH ERROR|CRASH|at /.test(l)).slice(0, 8).join('\n')); }

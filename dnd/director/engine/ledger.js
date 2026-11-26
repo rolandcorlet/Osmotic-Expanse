@@ -1344,6 +1344,15 @@ function foeAct(s, a, ctx) {
     if (!t) refuse(`Name the character ${foe.name} attacks: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const pc = t.o;
     if (pc.dead) nop(`${pc.name} is dead.`, { options: partyNames(s), hint: 'Name a living target, or end the monster\'s turn.' });
+    // What the stat block says a grapple allows: "can't bite another target" while it holds one, and an
+    // attack on "one target not grappled by" it.
+    const held = Object.values(s.pcs).filter((p) => p.grappledBy && p.grappledBy.foeId === foe.id && !p.dead);
+    if ((act.onHit || []).includes('grappled') && held.length && !held.some((p) => p.id === pc.id)) {
+      nop(`${foe.name} is holding ${held.map((p) => p.name).join(' and ')} and cannot use ${act.n} on anyone else.`, { options: held.map((p) => p.name), hint: `Use ${act.n} on ${held[0].name}, or another attack.` });
+    }
+    if (/not grappled by/i.test(act.d || '') && pc.grappledBy && pc.grappledBy.foeId === foe.id) {
+      nop(`${act.n} cannot target ${pc.name}, whom ${foe.name} is holding.`, { options: Object.values(s.pcs).filter((p) => !p.dead && p.id !== pc.id).map((p) => p.name), hint: 'Pick another target.' });
+    }
     const melee = act.kind ? act.kind !== 'ranged' : /Melee/.test(act.d);
     // On the map: a melee attack steps up to its target; a ranged one may be spoilt by distance or a close enemy.
     let mfx = { dis: false, why: [], far: '' };
@@ -1371,7 +1380,7 @@ function foeAct(s, a, ctx) {
       let sum = 0;
       for (const [expr, type] of act.dmg || []) {
         const d = rollDice(expr, ctx.rng, { crit });
-        const res = damagePc(s, ctx, pc, d.total, type, { crit });
+        const res = damagePc(s, ctx, pc, scaledDmg(foe, d.total), type, { crit });
         sum += res.taken;
         parts.push(`${res.taken} ${type}${res.notes.length ? ` (${res.notes.join(', ')})` : ''}`);
       }
@@ -1385,11 +1394,16 @@ function foeAct(s, a, ctx) {
         for (const c of act.onHit || []) {
           if (conds[c] && !pc.conds.includes(c)) { pc.conds.push(c); text += ` ${pc.name} is ${c}${c === 'grappled' && act.escape ? ` (escape DC ${act.escape})` : ''}.`; }
         }
+        // Who holds whom: the grapple (and the restraint it brings) ends when the holder falls, flees or
+        // the character breaks free (pc.escape). Before this a grapple never ended (simulation, 26 Nov).
+        if ((act.onHit || []).includes('grappled') && pc.conds.includes('grappled')) {
+          pc.grappledBy = { foeId: foe.id, dc: act.escape || 10, conds: (act.onHit || []).filter((c) => conds[c]) };
+        }
       }
       const rd = act.rider;
       if (rd && !pc.dead) {
         const cond = rd.cond && conds[rd.cond] ? rd.cond : '';
-        const d = rd.dmg && rd.dmg.length ? rollDice(rd.dmg[0][0], ctx.rng) : null;
+        const d = rd.dmg && rd.dmg.length ? scaledRoll(foe, rollDice(rd.dmg[0][0], ctx.rng)) : null;
         if (cond || d || rd.fail) {
           const what = cond ? `resist being ${cond}` : d ? `take less ${rd.dmg[0][1]} damage` : rd.fail;
           s.requests.push({ id: nextId(s, 'q'), pcId: pc.id, kind: 'save', ability: rd.ability, skill: '', dc: rd.dc, adv: '', reason: `${foe.name}'s ${act.n}: ${what}.`, by: 'engine', t: ctx.now || 0,
@@ -1405,7 +1419,7 @@ function foeAct(s, a, ctx) {
   if (act.dc) {
     if (!targets.length) refuse(`Name who ${act.n} catches: ${Object.values(s.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, partyNames(s));
     const [ab, dc, success] = act.dc;
-    const d = act.dmg && act.dmg.length ? rollDice(act.dmg[0][0], ctx.rng) : null;
+    const d = act.dmg && act.dmg.length ? scaledRoll(foe, rollDice(act.dmg[0][0], ctx.rng)) : null;
     const cond = act.cond || '';
     for (const t of targets) {
       s.requests.push({ id: nextId(s, 'q'), pcId: t.id, kind: 'save', ability: ab, skill: '', dc, adv: '', reason: `${foe.name}'s ${act.n}`, by: 'engine', t: ctx.now || 0,
@@ -1416,6 +1430,9 @@ function foeAct(s, a, ctx) {
   }
   story(s, ctx, 'event', `${foe.name} uses ${act.n}.`, 'Engine');
 }
+// A foe fitted to a smaller party (fitFoes: foe.dmgScale) hits for less, never under 1.
+function scaledDmg(foe, n) { return foe && foe.dmgScale && foe.dmgScale !== 1 && n > 0 ? Math.max(1, Math.round(n * foe.dmgScale)) : n; }
+function scaledRoll(foe, d) { return foe && foe.dmgScale && foe.dmgScale !== 1 ? { ...d, total: scaledDmg(foe, d.total) } : d; }
 const ATTACK_WORDS = /sword|scimitar|axe|bow|dagger|spear|mace|club|hammer|bite|claw|slam|fist|hook|talon|tail|whip|flail|pick|rapier|glaive|halberd|javelin|sling|crossbow|blade|strike|smash|stab|attack|hit|swing|lunge|shoot|fire|thrust|slash|punch|gore|horn|tusk|sting|morning ?star|star|weapon|melee|ranged/i;
 // ---- monsters that cast spells (the Spellcasting trait of the SRD stat block) ----
 const CONDS = ['blinded', 'charmed', 'deafened', 'frightened', 'grappled', 'incapacitated', 'paralyzed', 'petrified', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'];
@@ -1569,6 +1586,40 @@ H['cond.add'] = (s, a, ctx) => {
   if (t.kind === 'pc' && R.incapacitated(t.o.conds)) dropConcentration(s, ctx, t.o, c);
   story(s, ctx, 'event', `${t.o.name} is ${c}.`, 'Engine');
 };
+// A character tries to break a grapple: Athletics or Acrobatics, whichever is better, against the escape DC.
+H['pc.escape'] = (s, a, ctx) => {
+  const t = target(s, a.pcId || a.target, ctx);
+  if (!t || t.kind !== 'pc') refuse('Name the character who tries to break free.', partyNames(s));
+  if (!isHost(ctx)) ownPc(s, ctx, t.id);
+  const pc = t.o;
+  if (!pc.conds.includes('grappled')) nop(`${pc.name} is not grappled.`);
+  const g = pc.grappledBy || { dc: 10, conds: ['grappled'] };
+  const ath = R.skillBonus(pc, 'athletics', ctx.srd); const acr = R.skillBonus(pc, 'acrobatics', ctx.srd);
+  const skill = ath && acr && acr.bonus > ath.bonus ? 'acrobatics' : 'athletics';
+  const r = pcD20(s, ctx, pc, { kind: 'check', skill });
+  const ok = r.total >= g.dc;
+  addRoll(s, ctx, { who: pc.name, pcId: pc.id, kind: 'check', label: `Escape the grapple (${skill === 'acrobatics' ? 'Acrobatics' : 'Athletics'})`, dice: r.rolls, mod: r.bonus, total: r.total, at: g.dc, success: ok, mode: r.mode });
+  if (ok) freeFrom(pc, g);
+  story(s, ctx, 'event', ok ? `${pc.name} breaks free of the grapple (${r.total} against DC ${g.dc}).` : `${pc.name} struggles but cannot break free (${r.total} against DC ${g.dc}).`, 'Engine');
+};
+function freeFrom(pc, g) {
+  pc.conds = pc.conds.filter((c) => !(g.conds || ['grappled']).includes(c));
+  delete pc.grappledBy;
+}
+// A grapple ends when the one holding it is dead, gone or no longer there.
+function releaseGrapples(s, ctx) {
+  for (const pc of Object.values(s.pcs)) {
+    const g = pc.grappledBy;
+    if (!g) continue;
+    if (!pc.conds.includes('grappled')) { delete pc.grappledBy; continue; }
+    const f = s.foes[g.foeId];
+    const far = !!(f && mapOn(s) && s.map.at[keyOf('pc', pc.id)] && s.map.at[keyOf('foe', f.id)] && !MAP.inReach(s.map.at[keyOf('foe', f.id)], s.map.at[keyOf('pc', pc.id)], 10));
+    if (!f || f.dead || f.fled || far || (R.incapacitated(f.conds || []))) {
+      freeFrom(pc, g);
+      story(s, ctx, 'event', `${pc.name} is no longer held${f ? ` by ${f.name}` : ''}.`, 'Engine');
+    }
+  }
+}
 H['cond.remove'] = (s, a, ctx) => {
   const t = target(s, a.target, ctx);
   if (!t) refuse(`Nobody called "${a.target}" is here.`, [...partyNames(s), ...foeNamesHere(s)]);
@@ -1577,6 +1628,7 @@ H['cond.remove'] = (s, a, ctx) => {
   if (c === 'exhaustion') { t.o.exhaustion = Math.max(0, (t.o.exhaustion || 0) - 1); return; }
   if (c === 'unconscious' && t.kind === 'pc' && t.o.hp <= 0) nop(`${t.o.name} is at 0 hit points: heal them to wake them.`);
   t.o.conds = t.o.conds.filter((x) => x !== c);
+  if (c === 'grappled' && t.o.grappledBy) delete t.o.grappledBy;
   story(s, ctx, 'event', `${t.o.name} is no longer ${c}.`, 'Engine');
 };
 H.stabilize = (s, a, ctx) => {
@@ -2451,6 +2503,10 @@ function fitFoes(s, ctx, siteId) {
     for (const f of Object.values(s.foes).filter((x) => x.siteId === siteId && x.group && x.group.startsWith(`${siteId}#`))) { f.maxHp = Math.max(1, Math.round(f.maxHp * plan.hp)); f.hp = f.maxHp; }
     lines.push(`hit points ×${plan.hp}`);
   }
+  if (plan.dmg && plan.dmg !== 1) {
+    for (const f of Object.values(s.foes).filter((x) => x.siteId === siteId && x.group && x.group.startsWith(`${siteId}#`))) f.dmgScale = plan.dmg;
+    lines.push(`damage ×${plan.dmg}`);
+  }
   const text = `Fitted to this party: written for ${SCALE.partyWords(designed)}, the party here is ${SCALE.tableWords(levels)}. ${lines.join('; ')}. (${plan.ratingBefore} as written for them; ${plan.rating} now.)`;
   s.fits[siteId] = { text, plan };
   log(s, ctx, `${text} [fit ${siteId}]`, 'rule');
@@ -2557,6 +2613,7 @@ export function apply(state, action, ctx) {
   s.t = ctx.now || 0;
   const c = { ...ctx, events: [] };
   h(s, action, c);
+  try { releaseGrapples(s, c); } catch (e) { /* never stops the game */ }
   // The adventure's own rules and the Engine's defaults (a fight starts, a foe flees, a clock ticks, a
   // quest is done), after every change. They must never stop the game.
   runRules(s, c, action);

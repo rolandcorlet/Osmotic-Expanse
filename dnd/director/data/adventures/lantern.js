@@ -108,10 +108,19 @@ export default {
       npcs: [{ name: 'Nell Hale', who: 'the innkeeper\'s daughter, chained to the wall', voice: 'scared but sharp; she listened to everything', wants: 'to go home; she heard Grisk say the "pale brother" wants the lantern to "wake the drowned"' }],
       checks: [{ skill: 'investigation', dc: 10, find: 'A loose stone behind the throne hides Grisk\'s hoard.' }],
       treasure: 'Grisk\'s hoard: 35 gp, a silver locket (10 gp), and a potion of healing. The Lantern of the Ford.',
+      // Things to use here (use_object; the DM's "Use" on the Adventure tab).
+      objects: [
+        { name: 'Lantern', note: 'the Lantern of the Ford, wrapped in sacking by the chained wall; unlit' },
+        { name: 'Chains', note: 'Nell\'s chains on the wall ring; Grisk carries the key' },
+        { name: 'Loose stone', note: 'behind the throne: Grisk\'s hoard' },
+      ],
       exits: [{ to: 'tower-gate', label: 'out to the yard' }, { to: 'causeway', label: 'the goat path down the far side of the crag to the Greyfen (the goblins\' route to the chapel)' }],
       rules: [
         { id: 'grisk-sells', when: 'hurt', who: 'Grisk', if: 'down Goblin guard', do: 'flee', say: 'Below half his hit points with his goblin down, Grisk offers to "sell" the lantern and the girl, drops the key and runs.' },
         { id: 'milestone', when: 'cleared', do: 'xp', xp: 300, say: 'Nell can be freed (the key was Grisk\'s) and the lantern is here.' },
+        { id: 'take-lantern', when: 'use lantern', do: 'give', item: 'Lantern of the Ford', say: 'The sacking falls away from the Lantern of the Ford: heavy brass, cold, its wick dry. Lit, its light keeps the fog back.' },
+        { id: 'free-nell', when: 'use chains', if: 'down Grisk', do: 'say', say: 'Grisk\'s key turns in the old lock and the chains fall away from Nell.' },
+        { id: 'hoard', when: 'use loose stone', do: 'give', gold: 35, item: 'Silver locket', say: 'Behind the loose stone: 35 gp, a silver locket and a potion of healing wrapped in a rag.' },
       ],
     },
     {
@@ -132,6 +141,10 @@ export default {
         { skill: 'perception', dc: 13, find: 'The pale lights move together, like lanterns carried by people walking very slowly toward the chapel.' },
       ],
       exits: [{ to: 'thornwick', label: 'back along the causeway to Thornwick Ford' }, { to: 'chapel', label: 'onward to the drowned chapel, a dark shape in the fog' }],
+      rules: [
+        { id: 'lantern-light', when: 'enter', if: 'has lantern of the ford', do: 'say', say: 'Lit and held high, the Lantern of the Ford parts the fog: the causeway is plain to follow, with no Survival checks needed.' },
+        { id: 'lost-in-fog', when: 'fail survival', if: 'not has lantern of the ford', do: 'say', say: 'The fog swallows the causeway: the party wanders for an hour and comes back to where it started, cold and wet.' },
+      ],
     },
     {
       id: 'chapel', name: 'The Drowned Chapel', region: 'The Greyfen marsh', travelHours: 1, level: 2,
@@ -172,6 +185,10 @@ export default {
         { skill: 'investigation', dc: 13, find: 'A niche with no body has a false back: behind it is a small iron chest.' },
       ],
       treasure: 'The chest: 60 gp, a silver holy symbol of the river god (25 gp) and a spell scroll of cure wounds (use the potion-of-healing rules if you prefer: it restores 2d4+2).',
+      objects: [{ name: 'Empty niche', note: 'its false back hides a small iron chest' }],
+      rules: [
+        { id: 'hidden-chest', when: 'use empty niche', do: 'give', gold: 60, item: 'Silver holy symbol of the river god', say: 'The false back of the empty niche swings open on a small iron chest: 60 gp, a silver holy symbol of the river god and a spell scroll of cure wounds.' },
+      ],
       exits: [{ to: 'chapel', label: 'back up the stair' }, { to: 'sanctum', label: 'through the iron door toward the chanting' }],
     },
     {
@@ -193,6 +210,7 @@ export default {
       exits: [{ to: 'crypt', label: 'back through the iron door' }, { to: 'thornwick', label: 'the long walk home with the lantern, to rehang it over the ford (the ending)' }],
       rules: [
         { id: 'aldane-leaps', when: 'hurt', who: 'Brother Aldane', hp: 10, do: 'flee', say: 'Brought below 10 hit points, Aldane leaps into the black pool (only 6 feet deep: he can be dragged out alive).' },
+        { id: 'aldane-covets', when: 'fight', if: 'has lantern of the ford', do: 'say', say: 'Aldane\'s eyes never leave the Lantern of the Ford: he orders his skeletons at whoever carries it.' },
         { id: 'captives-freed', when: 'cleared', do: 'quest', quest: 'vanished', xp: 300, say: 'Aldane is beaten: his ring of keys frees the four villagers (Cobb the miller, Ada, Jory and Tam).' },
       ],
     },

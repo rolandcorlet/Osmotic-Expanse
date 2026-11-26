@@ -79,6 +79,8 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
       const death = s.requests.find((q) => q.pcId === id && q.kind === 'death');
       if (death) tryHost({ type: 'roll.make', id: death.id });
       else if (up(pc)) {
+        // A prone hero stands (half their movement) before doing anything else.
+        if (pc.conds.includes('prone') && !pc.conds.includes('restrained')) tryHost({ type: 'cond.remove', target: `pc:${pc.id}`, cond: 'prone' });
         const down = pcs().find((p) => p.id !== pc.id && !p.dead && p.hp <= 0 && !p.stable);
         const heal = pc.cast && ['healing-word', 'cure-wounds'].find((x) => [...(pc.cast.prepared || []), ...(pc.cast.known || [])].includes(x));
         const slot = pc.cast && pc.cast.slots.findIndex(([m, u]) => m > u);
@@ -107,8 +109,10 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
       for (let k = 0; k < times && s.fight && weapons.length; k++) {
         const targets = pcs().filter(up);
         if (!targets.length) break;
-        const t = targets[Math.floor(rng() * targets.length)];
-        tryHost({ type: 'foe.act', foeId: foe.id, action: weapons[k % weapons.length].n, target: `pc:${t.id}` });
+        // A random target first, then the others if the stat block rules that one out (a held grapple).
+        const first = Math.floor(rng() * targets.length);
+        const order = targets.slice(first).concat(targets.slice(0, first));
+        for (const t of order) if (tryHost({ type: 'foe.act', foeId: foe.id, action: weapons[k % weapons.length].n, target: `pc:${t.id}` })) break;
       }
     }
     if (pcs().some((p) => p.hp <= 0)) anyDown = true;

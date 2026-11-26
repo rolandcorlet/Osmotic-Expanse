@@ -31,7 +31,7 @@ const SAY = {
 const PREFER = ['perception', 'insight', 'investigation', 'stealth', 'medicine', 'survival', 'religion', 'athletics', 'persuasion', 'history', 'arcana', 'acrobatics', 'deception', 'intimidation'];
 const first = (name) => { const n = String(name || '').replace(/^(?:Reeve|Brother|Sister|Father|Mother|Captain|Bailiff|Lady|Lord|Thane|Archmage|Caravan Master|Old)\s+/i, ''); const w = n.split(/\s+/)[0]; return w.includes('-') ? n : w; };
 
-export function generateScript(adv, { places = 6, heroes = 2 } = {}) {
+export function generateScript(adv, { places = 6, heroes = 2, route: how = 'walk' } = {}) {
   const sites = (adv && adv.sites) || [];
   if (!sites.length) return [];
   const byId = Object.fromEntries(sites.map((s) => [s.id, s]));
@@ -54,9 +54,28 @@ export function generateScript(adv, { places = 6, heroes = 2 } = {}) {
       if (seen.size < places) route.push({ id, from: e.to, back: true });
     }
   })(sites[0].id, null);
+  // --route quests: the shortest way from the start to each place a quest ends at, in the order the
+  // adventure lists them (fetch the chalice, then hand it over), so the whole quest chain is played.
+  if (how === 'quests') {
+    const ends = ((adv && adv.questDone) || []).filter((qd) => quests.some((q) => q.includes(qd.match))).map((qd) => (qd.at || [])[0]).filter((id) => byId[id]);
+    const path = (from, to) => {
+      const prev = { [from]: null }; const q = [from];
+      while (q.length) { const id = q.shift(); if (id === to) break; for (const e of byId[id].exits || []) if (byId[e.to] && !(e.to in prev)) { prev[e.to] = id; q.push(e.to); } }
+      if (!(to in prev)) return [];
+      const out = []; for (let id = to; id !== from; id = prev[id]) out.unshift(id);
+      return out;
+    };
+    route.length = 0; seen.clear();
+    let at = sites[0].id;
+    route.push({ id: at, from: null }); seen.add(at);
+    for (const end of ends) {
+      for (const id of path(at, end)) { route.push({ id, from: at, back: seen.has(id) }); seen.add(id); at = id; }
+    }
+  }
   // The quests the party starts with, in the order the adventure lists them, and the places this walk reaches.
   const questDone = ((adv && adv.questDone) || []).filter((qd) => quests.some((q) => q.includes(qd.match)));
   const reached = new Set(route.map((h) => h.id));
+  const done = new Set();
   const cut = (qd) => questDone.slice(0, questDone.indexOf(qd)).some((e) => (e.at || []).some((a) => !reached.has(a)));
   for (const [k, hop] of route.entries()) {
     const site = byId[hop.id];
@@ -64,7 +83,7 @@ export function generateScript(adv, { places = 6, heroes = 2 } = {}) {
       const exit = (byId[hop.from].exits || []).find((e) => e.to === hop.id);
       out.push({ pid: who(), say: `We ${hop.back ? 'head back' : 'go on'}: ${exit ? exit.label : `to ${site.name}`}.`, expect: ['move_party'], at: hop.from, gen: `arrive ${site.id}` });
     }
-    if (hop.back) continue;
+    if (hop.back) { questsHere(k, site); continue; }
     const npc = (site.npcs || [])[0];
     const foes = site.foes || [];
     // A place whose fight starts on arrival (an ambush): the fight comes first.
@@ -84,13 +103,18 @@ export function generateScript(adv, { places = 6, heroes = 2 } = {}) {
     }
     if (npc) out.push({ pid: who(), say: `I ask ${first(npc.name)} what they know about what is going on.`, expect: [], at: site.id, gen: 'talk' });
     if (foes.length && !ambush) fight();
-    // A quest that ends here (one the party starts with): finish it.
+    questsHere(k, site);
+  }
+  return out;
+  // A quest that ends here (one the party starts with): finish it, once.
+  function questsHere(k, site) {
     for (const qd of questDone) {
+      if (done.has(qd)) continue;
       if (k === 0 || !(qd.at || []).includes(site.id)) continue;
       if (cut(qd)) continue; // an earlier quest's place is off this walk, so what this one hands over was never won
       if (k < route.length - 1 && (qd.at || []).some((a) => route.slice(k + 1).some((h) => h.id === a && !h.back))) continue; // a later stop finishes it
       out.push({ pid: who(), say: `We see it through: ${qd.when}.`, expect: ['complete_quest'], at: site.id, gen: `quest ${qd.match}` });
+      done.add(qd);
     }
   }
-  return out;
 }

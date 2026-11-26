@@ -14,7 +14,9 @@
 //   --no-library                               play on the SRD alone, without your private book library
 //   --level <n>                                the heroes' starting level (default: the story's: parts 1, 2 and 4 at 1st,
 //                                              part 3 at 2nd; they level up as the XP comes)
-//   --script gen --adventure <id> [--places 6]  a script written from the adventure itself (any campaign):
+//   --script gen --adventure <id> [--places 6] [--route quests]  a script written from the adventure itself
+//                                              (--route quests: the way to each quest's place in turn):
+//                                              (any campaign):
 //                                              its places along the exits, a probe per check, a word with
 //                                              someone, its fights, and the quests that end there (the
 //                                              adventure's own starting level)
@@ -303,7 +305,7 @@ const SCRIPT4 = [
 ];
 
 // --script gen: walk the adventure's places (--places, 6 by default) and say what players say there.
-const SCRIPT_GEN = gen ? generateScript(adventure, { places: Number(opt('--places', 6)) || 6, heroes: HEROES_RUN.length }) : [];
+const SCRIPT_GEN = gen ? generateScript(adventure, { places: Number(opt('--places', 6)) || 6, heroes: HEROES_RUN.length, route: opt('--route', 'walk') }) : [];
 
 // ---- one run ---------------------------------------------------------------------------------
 async function runOnce(n) {
@@ -615,6 +617,11 @@ if (calls.length && !fake) {
   const turns = results.reduce((a, x) => a + x.tally.turns, 0);
   console.log(`  ${(calls.length / Math.max(1, turns)).toFixed(1)} model calls per Director turn; ${(calls.reduce((a, c) => a + c.ms, 0) / 1000 / Math.max(1, turns)).toFixed(1)} s of model time per turn.`);
 }
-const pass = results.every((x) => GATED.every((k) => !x.tally[k]));
-console.log(pass ? 'GATE: PASS' : 'GATE: FAIL. Send this log to Sponge.');
+// The stand-in never calls a tool, so it cannot move the party, run a fight or finish a quest: its runs
+// check the bench and the Engine (no crash, no error, every step played), not the Director's play.
+const STAND_IN_GATED = ['error'];
+const gated = fake ? STAND_IN_GATED : GATED;
+const pass = results.every((x) => gated.every((k) => !x.tally[k]));
+if (fake) console.log(pass ? 'GATE: PASS (stand-in: the bench played every step without an error; the Director\'s play is not judged)' : 'GATE: FAIL. The bench or the Engine broke with the stand-in: send this log to Sponge.');
+else console.log(pass ? 'GATE: PASS' : 'GATE: FAIL. Send this log to Sponge.');
 process.exitCode = pass ? 0 : 1;
