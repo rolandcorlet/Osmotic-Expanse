@@ -37,3 +37,9 @@ test('the stand-in plays the script through, and the status, exit and calls file
   assert.equal(JSON.parse(readFileSync(join(dir, 'b.status.json'), 'utf8')).state, 'finished');
   assert.ok(existsSync(join(dir, 'b.exit.txt')) && existsSync(join(dir, 'b.calls.jsonl')));
 });
+
+test('a place whose rule calms its creature on a success gets a try at that, not an attack', () => {
+  const bell = generateScript(mod, mod.adventures[0], { heroes: 3 }).filter((x) => x.at === 'bell');
+  assert.ok(bell.some((x) => /Lore/.test(x.say) && x.expect.includes('ask_for_roll')));
+  assert.ok(!bell.some((x) => /attack/i.test(x.say)));
+});

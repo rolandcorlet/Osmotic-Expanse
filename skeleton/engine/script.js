@@ -3,6 +3,7 @@
 //   - the way in ("We go on to The Sunken Causeway."), expecting the party to move;
 //   - a try at each hazard ("We push on through the Cold current."), expecting a roll (soft);
 //   - a search for the place's clues, and a word with someone who is there;
+//   - where a rule of the place calms its creatures on a success, a try at that (a roll), not a fight;
 //   - a fight with the creatures there ("Enough. We attack the Glass eel!"), expecting a fight, unless the
 //     place is in `avoid` (a fight meant to be won another way: the bench leaves out those the simulation
 //     says wipe the party);
@@ -42,7 +43,15 @@ export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new S
     const npc = (site.npcs || [])[0];
     if (npc) out.push({ pid: who(), say: `I ask ${String(npc.name || npc).split(/\s+/)[0]} what is going on here.`, expect: [], at: site.id });
     const foes = (site.creatures || []).filter((c) => (mod.ix.creature || {})[c.id]);
-    if (foes.length && !avoid.has(site.id)) out.push({ pid: pids[0], say: `Enough. We attack the ${creatureName(foes[0])}!`, expect: ['start_combat'], at: site.id });
+    // A place whose own rule calms its creatures on a success (Saltglass's bell: a Lore roll rings it and the
+    // Tidewarden stands down; the bench, 27 Nov: two runs attacked it instead and were beaten): the script takes
+    // the way the adventure offers, a roll, and does not attack.
+    const calm = foes.length ? (site.rules || []).find((r) => r.do === 'calm' && /^succeed\s+\S+/.test(String(r.when || ''))) : null;
+    if (calm) {
+      const skill = String(calm.when).split(/\s+/)[1];
+      const sk = ((mod.ix.skill || {})[skill] || {}).name || skill.replace(/^\w/, (c) => c.toUpperCase());
+      out.push({ pid: pids[0], say: `We do not fight the ${creatureName(foes[0])}. I use my ${sk} to settle it the way this place asks.`, expect: ['ask_for_roll'], at: site.id });
+    } else if (foes.length && !avoid.has(site.id)) out.push({ pid: pids[0], say: `Enough. We attack the ${creatureName(foes[0])}!`, expect: ['start_combat'], at: site.id });
     questsHere(k, site);
   }
   return out;

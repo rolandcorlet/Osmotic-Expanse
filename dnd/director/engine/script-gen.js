@@ -102,7 +102,15 @@ export function generateScript(adv, { places = 6, heroes = 2, route: how = 'walk
       out.push({ pid: who(), say, expect: ['ask_for_roll'], at: site.id, gen: `check ${c.skill}` });
     }
     if (npc) out.push({ pid: who(), say: `I ask ${first(npc.name)} what they know about what is going on.`, expect: [], at: site.id, gen: 'talk' });
-    if (foes.length && !ambush) fight();
+    // A place whose own rule calms its monsters on a check (X Marks the Spot's Legion patrols wave a party on
+    // that talks its way past): the script takes that way, a roll, and does not attack (the Skeleton bench,
+    // 27 Nov: Saltglass's bell, the same kind of rule, beaten twice by a script that only attacked).
+    const calm = foes.length && !ambush ? (site.rules || []).find((r) => r.do === 'calm' && /^succeed\s+\S+/.test(String(r.when || ''))) : null;
+    if (calm) {
+      const skill = String(calm.when).split(/\s+/)[1];
+      const name = (foes[0].name || foes[0].monster);
+      out.push({ pid: pids[0], say: `We do not fight ${name}. I use my ${skill.replace(/^\w/, (c) => c.toUpperCase())} to get us past them.`, expect: ['ask_for_roll'], at: site.id, gen: `calm ${skill}` });
+    } else if (foes.length && !ambush) fight();
     questsHere(k, site);
   }
   return out;

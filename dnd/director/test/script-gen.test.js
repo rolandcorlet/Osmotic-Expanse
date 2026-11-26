@@ -31,3 +31,13 @@ test('a quest whose earlier place the walk never reaches is not expected to fini
   ]), { places: 6, heroes: 2 });
   assert.deepEqual(sayings(script), []);
 });
+
+test('a place whose rule calms its monsters on a check gets a try at that, not an attack', () => {
+  const a = { quests: [], sites: [
+    { id: 'road', name: 'The Road', exits: [{ to: 'fort', label: 'to the fort' }] },
+    { id: 'fort', name: 'The Fort', exits: [{ to: 'road', label: 'back' }], foes: [{ monster: 'guard', name: 'Patrol', count: 2 }], rules: [{ when: 'succeed persuasion', do: 'calm', target: 'Patrol' }] },
+  ] };
+  const s = generateScript(a, { places: 4, heroes: 2 }).filter((x) => x.at === 'fort');
+  assert.ok(s.some((x) => /Persuasion/.test(x.say) && x.expect.includes('ask_for_roll')));
+  assert.ok(!s.some((x) => /attack/i.test(x.say)));
+});
