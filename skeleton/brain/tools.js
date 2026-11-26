@@ -107,6 +107,9 @@ export const TOOLS = [
       if (k && k.kind === 'char') { const other = target(T.state, a.target); if (other && other.kind === 'creature') { t = k.id; k = other; } }
       if (!k || k.kind !== 'creature') return { refused: `No creature called "${a.creature}" is here. Here: ${T.here()}.` };
       if (k.o.down) return { note: `Nothing changed: ${k.o.name} is already down. Still standing: ${T.here()}.`, ...T.fightBrief() };
+      // A character it already brought down (the attack before this one did it): a harmless slip.
+      const tc = target(T.state, t);
+      if (tc && tc.kind === 'char' && tc.o.down) return { note: `Nothing changed: ${tc.o.name} is already down. Still standing: ${Object.values(T.state.chars).filter((c) => !c.down).map((c) => `${c.id} (${c.name})`).join(', ') || 'nobody'}.`, ...T.fightBrief() };
       if (/^(talk|speak|say|taunt|threaten|wait|watch|laugh|sing)\b/i.test(String(a.attack || ''))) return { note: `Nothing changed: ${k.o.name} speaking or waiting needs no tool. Say it in your narration.`, ...T.fightBrief() };
       const seq = T.state.seq;
       const no = T.do({ type: 'creature.act', creature: k.id, attack: a.attack || '', target: t });

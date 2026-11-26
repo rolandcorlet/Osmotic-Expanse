@@ -55,3 +55,18 @@ test('a creature or character named as the briefing writes them ("k3 Glass eel",
   assert.equal(target(T.s, `${a.id} (${a.name})`).id, a.id);
   assert.equal(target(T.s, `${a.id} ${a.name}`).id, a.id);
 });
+
+test('a creature attacking a character already down is a harmless slip (a note), not a refusal', async () => {
+  const { toolbox } = await import('../brain/tools.js');
+  const { makeRng } = await import('../engine/dice.js');
+  const T = table(3);
+  const a = diver(T, 'p1', 0);
+  diver(T, 'p2', 1);
+  T.host({ type: 'site.move', siteId: 'causeway' });
+  T.s.chars[a.id].health = 0; T.s.chars[a.id].down = true;
+  const k = Object.values(T.s.creatures)[0];
+  const tb = toolbox({ state: T.s, mod, rng: makeRng(1), now: 1 });
+  const out = tb.run('creature_attack', { creature: k.id, target: a.name });
+  assert.ok(out.note && !out.refused, JSON.stringify(out));
+  assert.equal(tb.refusals, 0);
+});

@@ -1,6 +1,6 @@
 // The fight simulation: for each place with creatures, the pregenerated characters walk in, the fight starts,
-// and both sides play simply (each character attacks the weakest creature it can see with its first weapon;
-// each creature attacks a random standing character with each attack it has), many times over. It says how
+// and both sides play simply, with the actions the game gives a turn (each character attacks the weakest
+// creature it can see with its first weapon; each creature attacks a random standing character), many times over. It says how
 // often the party wins, is wiped out, or loses someone, before any model time is spent on a bench.
 //   simulatePlace({ mod, adventure, siteId, heroes, runs, seed }) -> { site, runs, won, wiped, anyDown, rounds }
 //   simulateAdventure({ mod, adventure, heroes, runs, seed }) -> [ one per place with creatures ]
@@ -23,6 +23,7 @@ function playOnce({ mod, adventure, siteId, heroes, seed }) {
   if (s.scene.siteId !== siteId && !tryAct('host', null, { type: 'site.move', siteId })) return null;
   if (!s.fight && !tryAct('host', null, { type: 'fight.start' })) return null;
   const chars = () => Object.values(s.chars);
+  const acts = Math.max(1, Number((mod.rules.combat || {}).actionsPerTurn) || 1);
   let anyDown = false;
   for (let guard = 0; s.fight && guard < 400 && s.fight.round <= 20; guard++) {
     const key = currentKey(s);
@@ -32,11 +33,16 @@ function playOnce({ mod, adventure, siteId, heroes, seed }) {
       const pid = Object.keys(s.players).find((p) => s.players[p].charId === id);
       const foe = Object.values(s.creatures).filter((k) => k.siteId === siteId && !k.down && !k.hidden).sort((a, b) => a.health - b.health)[0];
       if (!foe) break;
-      if (ch && !ch.down) tryAct('player', pid, { type: 'attack', charId: id, target: `creature:${foe.id}` });
+      // As many attacks as the game gives a turn (rules.combat.actionsPerTurn), at the weakest still standing.
+      for (let n = 0; n < acts && ch && !ch.down; n++) {
+        const f = Object.values(s.creatures).filter((k) => k.siteId === siteId && !k.down && !k.hidden).sort((a, b) => a.health - b.health)[0];
+        if (!f || !tryAct('player', pid, { type: 'attack', charId: id, target: `creature:${f.id}` })) break;
+      }
     } else if (kind === 'creature') {
       const k = s.creatures[id];
       const b = mod.ix.creature[k.base] || { attacks: [] };
-      for (const atk of (b.attacks || []).slice(0, Math.max(1, (mod.rules.combat || {}).actionsPerTurn || 1))) {
+      for (let n = 0; n < acts && (b.attacks || []).length; n++) {
+        const atk = b.attacks[n % b.attacks.length];
         const up = chars().filter((c) => !c.down);
         if (!up.length) break;
         const t = up[Math.floor(rng() * up.length)];

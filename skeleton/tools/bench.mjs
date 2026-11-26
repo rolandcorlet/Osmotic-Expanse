@@ -144,8 +144,17 @@ async function runOnce(n) {
         const pid = Object.keys(s.players).find((p) => s.players[p].charId === id);
         const foe = Object.values(s.creatures).find((k) => k.siteId === siteId && !k.down && !k.hidden);
         if (!foe) { if (!tryAct('host', null, { type: 'fight.end' })) break; await director(`after the last creature at ${siteId}`, 'The last creature is down. Close the fight and describe the moment.'); break; }
-        if (!ch.down && pid && tryAct('player', pid, { type: 'attack', charId: id, target: `creature:${foe.id}` })) {
+        // As a player would: every action the game gives a turn (rules.combat.actionsPerTurn) spent attacking.
+        // One attack a turn against creatures with two left the party out-fought (first iq3_s bench, 26 Nov).
+        const acts = Math.max(1, Number((mod.rules.combat || {}).actionsPerTurn) || 1);
+        let did = 0;
+        for (let n = 0; n < acts && s.fight && !ch.down && pid; n++) {
+          const f = Object.values(s.creatures).find((k) => k.siteId === siteId && !k.down && !k.hidden);
+          if (!f || !tryAct('player', pid, { type: 'attack', charId: id, target: `creature:${f.id}` })) break;
+          did += 1;
           say(`    ${s.story[s.story.length - 1].text}`);
+        }
+        if (did) {
           await director(`R${s.fight ? s.fight.round : '?'} after ${ch.name}`, 'A character acted. Say what happened.');
           await makeRolls(`R${s.fight ? s.fight.round : '?'}`);
         }
@@ -158,7 +167,14 @@ async function runOnce(n) {
           tryAct('host', null, { type: 'fight.next' });
         }
       }
-      if (!Object.values(s.chars).some((c) => !c.down)) { notes.push(`fight at ${siteId}: the party is down`); tryAct('host', null, { type: 'fight.end' }); break; }
+      if (!Object.values(s.chars).some((c) => !c.down)) {
+        // The party is beaten. So the rest of the script still tests something, the bench (not the Director)
+        // ends the fight and puts everyone back on their feet, and notes it.
+        notes.push(`fight at ${siteId}: the party is down (the bench ended the fight and put everyone back on their feet)`);
+        tryAct('host', null, { type: 'fight.end', award: false });
+        for (const c of Object.values(s.chars)) tryAct('host', null, { type: 'heal', target: c.id, amount: c.healthMax });
+        break;
+      }
     }
     if (s.fight) { tally.stall += 1; notes.push('fight: still going after 60 turns'); tryAct('host', null, { type: 'fight.end' }); }
   };
@@ -195,7 +211,19 @@ async function runOnce(n) {
       if (e === 'move_party') tryAct('host', null, { type: 'site.move', siteId: step.to });
       if (e === 'start_combat') { tryAct('host', null, { type: 'creature.reveal', ids: Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId).map((c) => c.id) }); tryAct('host', null, { type: 'fight.start' }); }
     }
-    if (s.fight) await fight(s.scene.siteId);
+    if (s.fight) {
+      await fight(s.scene.siteId);
+      // As players do after a hard fight: catch their breath before going on (what the Director does about it
+      // is its own call: a rest, healing, a clock ticking).
+      if (Object.values(s.chars).some((c) => c.health < c.healthMax / 2)) {
+        const pid = pids[0];
+        const line = 'We catch our breath and patch each other up before we go on.';
+        act('player', pid, { type: 'say', text: line });
+        say(`  ${charOf(pid).name}: ${line}`);
+        await director('after the fight', `A player spoke: "${line}". Answer them.`);
+        await makeRolls('after the fight');
+      }
+    }
   }
   const secs = (Date.now() - t0) / 1000;
   say(`  End: ${s.scene.siteId}; ${Object.values(s.chars).map((c) => `${c.name} ${c.health}/${c.healthMax}`).join('; ')}; quests done ${s.quests.filter((q) => q.done).length} of ${s.quests.length}`);
