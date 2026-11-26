@@ -412,7 +412,9 @@ async function runOnce(n) {
     for (const c of out.calls) if (c.result && c.result.refused) notes.push(`${label}: refused ${c.name}: ${c.result.refused}`);
     for (const c of out.calls) {
       if (!(c.result && c.result.refused)) stepTools.add(c.name);
-      if (c.result && typeof c.result.note === 'string' && /^Nothing changed/.test(c.result.note)) tally.nochange += 1;
+      // Counted and named (27 Nov: nine in one X Marks run, and nobody could say which), so the slips that keep
+      // coming back can be fixed where they start.
+      if (c.result && typeof c.result.note === 'string' && /^Nothing changed/.test(c.result.note)) { tally.nochange += 1; notes.push(`${label}: nothing changed: ${c.name}: ${c.result.note.replace(/^Nothing changed:?\s*/, '').slice(0, 90)}`); }
     }
     void expect;
     // On a player's turn in a fight, the closing question goes to that player.

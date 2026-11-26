@@ -374,3 +374,17 @@ test('checks that all succeed where a quest ends get one question: does that fin
   await directorTurn({ state: T2.s, adventure, srd, provider: p2, rng: makeRng(1), reason: 'rolls' });
   assert.ok(!p2.seen.some((m) => typeof m === 'string' && /Those rolls/.test(m)));
 });
+
+test('a monster that acted and was left in its turn has the turn ended by the Engine', async () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  const f = T.s.fight;
+  f.turn = f.order.findIndex((o) => o.key.startsWith('foe:'));
+  const key = f.order[f.turn].key;
+  const provider = scripted([{ calls: [{ name: 'monster_action', args: { monster: 'Goblin', action: 'Scimitar', targets: ['Bryn'] } }] }, { text: 'The goblin slashes. Bryn, what do you do?' }]);
+  const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1), reason: 'a monster is up' });
+  assert.notEqual(out.state.fight && out.state.fight.order[out.state.fight.turn].key, key);
+  assert.ok(out.calls.some((c) => c.name === '(engine)'));
+});

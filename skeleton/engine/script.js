@@ -51,6 +51,9 @@ export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new S
       const skill = String(calm.when).split(/\s+/)[1];
       const sk = ((mod.ix.skill || {})[skill] || {}).name || skill.replace(/^\w/, (c) => c.toUpperCase());
       out.push({ pid: pids[0], say: `We do not fight the ${creatureName(foes[0])}. I use my ${sk} to settle it the way this place asks.`, expect: ['ask_for_roll'], at: site.id });
+      // Then what the party came down for, which a quest finishes somewhere else (Saltglass: float the bell up
+      // to Lamp Dock; the bench, 27 Nov: never asked, so the quest at the dock could not finish).
+      if ((adv.quests || []).some((q) => (q.doneAt || []).length && !(q.doneAt || []).includes(site.id))) out.push({ pid: who(), say: 'With that settled, we take what we came for and get it ready to bring back.', expect: ['ask_for_roll'], at: site.id });
     } else if (foes.length && !avoid.has(site.id)) out.push({ pid: pids[0], say: `Enough. We attack the ${creatureName(foes[0])}!`, expect: ['start_combat'], at: site.id });
     questsHere(k, site);
   }

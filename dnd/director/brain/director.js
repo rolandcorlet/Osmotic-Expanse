@@ -366,6 +366,16 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
     nudged = true;
     reply = await chat.send('You have not said anything to the table yet. Narrate now, in plain text, and end on one question to one named character.');
   }
+  // A monster that acted on its turn and was left standing in it (the Skeleton's Gull Rock bench, 27 Nov: the
+  // keeper swung and the turn never ended, and the fight stalled): the Engine ends that turn.
+  {
+    const turnKey = (st) => (st.fight && st.fight.phase === 'turns' ? (st.fight.order[st.fight.turn] || {}).key : null);
+    const startKey = turnKey(state);
+    if (startKey && startKey.startsWith('foe:') && turnKey(T.state) === startKey
+      && calls.some((c) => c.name === 'monster_action' && c.result && !c.result.refused) && !T.do({ type: 'fight.next', expect: startKey })) {
+      calls.push({ name: '(engine)', args: {}, result: { note: 'The monster had acted; the Engine ended its turn.' } });
+    }
+  }
   if (!narration) {
     try {
       const last = await chat.send('Stop calling tools. Say now, in two to four short sentences of plain text, what the party sees, and end on one question to one named character.');

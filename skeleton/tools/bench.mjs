@@ -96,7 +96,7 @@ async function runOnce(n) {
   pids.forEach((pid, i) => { act('player', pid, { type: 'join', name: `Player ${i + 1}` }); act('player', pid, { type: 'char.pregen', index: i }); });
   const charOf = (pid) => s.chars[s.players[pid].charId];
   say(`  Party: ${pids.map((p) => charOf(p).name).join(', ')}`);
-  const tally = { turns: 0, error: 0, rule: 0, leak: 0, stall: 0, style: 0, missing: 0, noRoll: 0 };
+  const tally = { turns: 0, error: 0, rule: 0, leak: 0, stall: 0, style: 0, missing: 0, noRoll: 0, nochange: 0 };
   const notes = [];
   const t0 = Date.now();
   const director = async (label, reason) => {
@@ -114,6 +114,8 @@ async function runOnce(n) {
         if (f.kind !== 'style') notes.push(`${label}: ${f.kind}: ${f.text}`);
       }
       say(`  [${label}] ${out.calls.map((c) => c.name).join(', ') || 'narration only'}`);
+      // The harmless slips, counted and named, so the ones that keep coming back can be fixed where they start.
+      for (const c of out.calls) if (c.result && typeof c.result.note === 'string' && /^Nothing changed/.test(c.result.note)) { tally.nochange += 1; notes.push(`${label}: nothing changed: ${c.name}: ${c.result.note.replace(/^Nothing changed:?\s*/, '').slice(0, 90)}`); }
       say(`    Director: ${out.narration}`);
       return out;
     } catch (e) {
@@ -264,7 +266,7 @@ say('\n=== Summary ===');
 results.forEach((x, i) => {
   const t = x.tally;
   const bad = GATED.filter((k) => t[k]);
-  say(`Run ${i + 1}: ${t.turns} turns in ${Math.round(x.secs / 60)} min ${Math.round(x.secs % 60)} s · ${bad.length ? `FAIL (${bad.map((k) => `${k} ${t[k]}`).join(', ')})` : 'PASS'} · expected outcome missing ${t.missing} · no roll asked ${t.noRoll} · style ${t.style}`);
+  say(`Run ${i + 1}: ${t.turns} turns in ${Math.round(x.secs / 60)} min ${Math.round(x.secs % 60)} s · ${bad.length ? `FAIL (${bad.map((k) => `${k} ${t[k]}`).join(', ')})` : 'PASS'} · expected outcome missing ${t.missing} · no roll asked ${t.noRoll} · style ${t.style} · nothing-changed notes ${t.nochange}`);
   for (const line of x.notes.slice(0, 80)) say(`   - ${line}`);
 });
 const pass = results.every((x) => GATED.every((k) => !x.tally[k]));
