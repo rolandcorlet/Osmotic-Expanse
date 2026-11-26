@@ -351,7 +351,7 @@ function pcD20(s, ctx, pc, { kind, ability = '', skill = '', adv = '', own = nul
   if (kind === 'check' && skill) { const sb = R.skillBonus(pc, skill, ctx.srd); if (!sb) no(`There is no skill called "${skill}".`); bonus = sb.bonus; ability = sb.ability; }
   else if (kind === 'check') bonus = pc.mods[ability] + (pc.cls === 'bard' && pc.level >= 2 ? Math.floor(pc.prof / 2) : 0);
   else if (kind === 'save') bonus = R.saveBonus(pc, ability);
-  else if (kind === 'initiative') bonus = pc.mods.dex + (pc.cls === 'bard' && pc.level >= 2 ? Math.floor(pc.prof / 2) : 0);
+  else if (kind === 'initiative') bonus = pc.mods.dex + (pc.initBonus || 0) + (pc.cls === 'bard' && pc.level >= 2 ? Math.floor(pc.prof / 2) : 0);
   const r = d20(ctx.rng, { adv: wantAdv, dis: wantDis, own });
   // Halflings reroll a natural 1 once (Lucky).
   let kept = r.kept;

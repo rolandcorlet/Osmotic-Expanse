@@ -98,3 +98,76 @@ test('saved and merged, character creation can build a mossfolk bog warden; remo
   CV.unmergeBook(srd, saved.id);
   assert.ok(!srd.races.some((x) => x.id === 'mossfolk') && !srd.backgrounds.some((x) => x.id === 'bog-warden') && !srd.feats.some((x) => x.id === 'bogborn'));
 });
+
+const SUBCLASS_TEXT = `Druid Circles
+Circle of Spores
+Druids of the Circle of Spores find beauty in decay, seeing in mold and fungi the power to transform lifeless matter.
+Halo of Spores
+Starting at 2nd level, you are surrounded by invisible, necrotic spores that are harmless until you unleash them on a creature nearby.
+Symbiotic Entity
+Also starting at 2nd level, you gain the ability to channel magic into your spores.
+Fungal Infestation
+Starting at 6th level, your spores gain the ability to infest a corpse and animate it.
+Hit Points
+Hit Dice: 1d8 per level`;
+
+test('a new subclass is read with its features by level, joins its class, and leaves with its book', async () => {
+  const srd = JSON.parse(JSON.stringify(base));
+  const o = readOptions(SUBCLASS_TEXT, { srd });
+  assert.deepEqual(o.subclasses.map((s) => [s.cls, s.id, s.flavor]), [['druid', 'circle-of-spores', 'Druid Circle']]);
+  assert.deepEqual(o.subclasses[0].levels, [{ level: 2, features: ['Halo of Spores', 'Symbiotic Entity'] }, { level: 6, features: ['Fungal Infestation'] }]);
+  const dir = mkdtempSync(join(tmpdir(), 'opts-sc-'));
+  const r = await CV.convertText({ text: SUBCLASS_TEXT, kind: 'options', name: 'Spore Book', srd });
+  CV.saveBook(dir, { name: 'Spore Book', kind: r.kind, original: SUBCLASS_TEXT, book: r.book });
+  const [saved] = CV.loadBooks(dir);
+  CV.mergeBook(srd, saved);
+  const druid = srd.classes.find((c) => c.id === 'druid');
+  assert.ok(druid.subclasses.some((s) => s.id === 'circle-of-spores'));
+  assert.match(druid.features['Halo of Spores'], /necrotic spores/);
+  assert.doesNotMatch(druid.features['Fungal Infestation'], /Hit Dice/);
+  const { derive } = await import('../engine/rules.js');
+  const pc = derive({ name: 'Moss', race: 'human', class: 'druid', subclass: 'circle-of-spores', level: 6, method: 'standard', base: { str: 10, dex: 14, con: 13, int: 12, wis: 15, cha: 8 }, skills: ['nature', 'perception'], background: 'acolyte' }, srd);
+  assert.ok(pc.features.some((f) => f.name === 'Fungal Infestation' && /animate/.test(f.desc)));
+  CV.unmergeBook(srd, saved.id);
+  assert.ok(!druid.subclasses.some((s) => s.id === 'circle-of-spores'));
+  assert.equal(druid.features['Halo of Spores'], undefined);
+});
+
+test('a subclass the rules know only by name gets its features from the book, and its old self back after', async () => {
+  const srd = JSON.parse(JSON.stringify(base));
+  const druid = srd.classes.find((c) => c.id === 'druid');
+  druid.subclasses.push({ id: 'spores', name: 'Circle of Spores', flavor: 'Druid Circle', desc: 'See your book.', levels: [], lib: true });
+  const r = await CV.convertText({ text: SUBCLASS_TEXT, kind: 'options', name: 'Spore Book', srd });
+  const dir = mkdtempSync(join(tmpdir(), 'opts-sc2-'));
+  CV.saveBook(dir, { name: 'Spore Book', kind: r.kind, original: SUBCLASS_TEXT, book: r.book });
+  const [saved] = CV.loadBooks(dir);
+  CV.mergeBook(srd, saved);
+  const sc = druid.subclasses.filter((s) => /spores/i.test(s.name));
+  assert.equal(sc.length, 1);
+  assert.equal(sc[0].levels.length, 2);
+  CV.unmergeBook(srd, saved.id);
+  const back = druid.subclasses.find((s) => s.id === 'spores');
+  assert.deepEqual([back.levels, back.desc, back.conv], [[], 'See your book.', undefined]);
+});
+
+test('options in a layout the reader does not know are read by the AI, in the same shapes', async () => {
+  const srd = JSON.parse(JSON.stringify(base));
+  const text = 'Our homebrew page. The kenku-folk race: +2 Dex, +1 Wis, speed 30, they mimic sounds. The Sky Pilot background gives Acrobatics and Perception. The Featherfall feat lets you fall slowly.';
+  const ask = async () => JSON.stringify({
+    races: [{ name: 'Kenku-folk', speed: 30, size: 'Medium', bonus: { dex: 2, wis: 1 }, traits: [{ name: 'Mimicry', desc: 'You can mimic sounds you have heard.' }] }],
+    backgrounds: [{ name: 'Sky Pilot', skills: ['Acrobatics', 'Perception'], gold: 10, feature: { name: 'Airborne', desc: 'You know the winds.' } }],
+    feats: [{ name: 'Featherfall', desc: 'You fall slowly.' }],
+  });
+  const r = await CV.convertText({ text, kind: 'options', name: 'Homebrew', srd, ask });
+  assert.deepEqual(r.book.races.map((x) => [x.id, x.bonus]), [['kenku-folk', { dex: 2, wis: 1 }]]);
+  assert.deepEqual(r.book.backgrounds[0].skills, ['acrobatics', 'perception']);
+  assert.deepEqual(r.book.feats.map((x) => x.id), ['featherfall']);
+  assert.ok(r.notes.some((n) => /The AI read 3 character options/.test(n)));
+  assert.ok(r.entries.some((e) => e.kind === 'race' && e.name === 'Kenku-folk'));
+});
+
+test('"Work it out" knows a page of subclass features for character options', async () => {
+  const r = await CV.convertText({ text: SUBCLASS_TEXT, kind: 'auto', name: 'Spore Book', srd: JSON.parse(JSON.stringify(base)) });
+  assert.equal(r.kind, 'options');
+  assert.ok(r.entries.some((e) => e.kind === 'subclass' && e.name === 'Circle of Spores'));
+});

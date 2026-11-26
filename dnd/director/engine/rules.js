@@ -54,7 +54,7 @@ export function index(srd) {
   const ix = {
     race: by(srd.races), cls: by(srd.classes), spell: by(srd.spells), monster: by(srd.monsters),
     weapon: by(srd.weapons), armor: by(srd.armor), gear: by(srd.gear), skill: by(srd.skills),
-    cond: by(srd.conditions), magic: by(srd.magicItems), bg: by(srd.backgrounds),
+    cond: by(srd.conditions), magic: by(srd.magicItems), bg: by(srd.backgrounds), feat: by(srd.feats),
   };
   Object.defineProperty(srd, '_ix', { value: ix, enumerable: false, configurable: true });
   return ix;
@@ -62,6 +62,15 @@ export function index(srd) {
 
 // A spell's damage and how it lands, read from its words when the book has none (book.js).
 export const spellDamage = (sp) => BOOK.compileSpell(sp);
+// The abilities a feat raises by 1, from its words ("Increase your Strength or Dexterity score by 1"):
+// one means it rises; more than one means the player chooses.
+export function featAbilities(feat) {
+  const t = String((feat && feat.desc) || '');
+  const m = /increase your ((?:strength|dexterity|constitution|intelligence|wisdom|charisma)(?:(?:,\s*|,?\s+or\s+)(?:strength|dexterity|constitution|intelligence|wisdom|charisma))*) score by 1/i.exec(t);
+  if (m) return m[1].toLowerCase().split(/,\s*|\s+or\s+/).map((w) => w.trim().replace(/^or\s+/, '')).filter(Boolean).map((w) => w.slice(0, 3)).filter((a) => ABILITIES.includes(a));
+  if (/increase one ability score of your choice by 1|increase the chosen ability score by 1/i.test(t)) return [...ABILITIES];
+  return [];
+}
 export const item = (srd, id) => { const ix = index(srd); return ix.weapon[id] || ix.armor[id] || ix.gear[id] || ix.magic[id] || null; };
 
 // Items a starting-equipment choice leaves open ("any martial weapon").
@@ -174,6 +183,11 @@ export function derive(input, srd) {
   let maxHp = cls.hitDie + mods.con + (level - 1) * (cls.hitDie / 2 + 1 + mods.con);
   if (traitNames.includes('Dwarven Toughness')) maxHp += level;
   if (cls.id === 'sorcerer' && i.subclass === 'draconic') maxHp += level;
+  // Feats taken at an Ability Score Improvement level (an "asi" entry with a feat): what the Engine can do
+  // with a number (Tough, Alert, Mobile, Observant, Resilient), and every one listed with its words.
+  const feats = (i.asi || []).filter((x) => x && x.feat && Number(x.level) <= level && ix.feat[x.feat]).map((x) => ({ ...ix.feat[x.feat], level: Number(x.level), ab: x.ab || {} }));
+  const hasFeat = (id) => feats.some((f) => f.id === id || f.name.toLowerCase() === id);
+  if (hasFeat('tough')) maxHp += 2 * level;
   maxHp = Math.max(level, maxHp);
 
   // Equipment: what the class kit choices and the background give.
@@ -222,6 +236,7 @@ export function derive(input, srd) {
   let speed = race.speed;
   if (cls.id === 'monk' && !body && !shield) speed += Number(ex.unarmored_movement || 0);
   if (cls.id === 'barbarian' && level >= 5 && !(body && body.cat === 'Heavy')) speed += 10;
+  if (hasFeat('mobile')) speed += 10;
 
   // Attacks: every weapon carried, an unarmed strike, and attack cantrips.
   const attacks = [];
@@ -325,13 +340,16 @@ export function derive(input, srd) {
 
   const langs = [...new Set([...(race.languages || []), ...((i.languages || []).map(String))])];
   const savesP = cls.saves.slice();
-  const passive = 10 + mods.wis + (skills.has('perception') ? prof : 0) + (expertise.includes('perception') ? prof : 0);
+  for (const f of feats) if (f.id === 'resilient') for (const a of Object.keys(f.ab)) if (ABILITIES.includes(a) && !savesP.includes(a)) savesP.push(a);
+  const passive = 10 + mods.wis + (skills.has('perception') ? prof : 0) + (expertise.includes('perception') ? prof : 0) + (hasFeat('observant') ? 5 : 0);
+  for (const f of feats) features.push({ name: `Feat: ${f.name}`, level: f.level, from: 'Feat', desc: `${f.prereq ? `Prerequisite: ${f.prereq}. ` : ''}${f.desc}` });
   return {
     name: String(i.name).trim().slice(0, 40), race: race.id, raceName: sub ? sub.name : race.name, cls: cls.id, clsName: cls.name,
     subclass: subc && level >= subclassLevel(cls.id) ? subc.id : '', subclassName: subc && level >= subclassLevel(cls.id) ? subc.name : '',
     level, prof, ab, mods, saves: savesP, skills: [...skills].sort(), expertise,
     maxHp, ac, acNote, speed, size: race.size, hitDie: cls.hitDie, attacks, cast, features,
     traits: traits.map((t) => ({ name: t.name, desc: t.desc })), res, resources, sneak, extraAttacks, style: styleOn,
+    feats: feats.map((f) => f.id), initBonus: hasFeat('alert') ? 5 : 0,
     profs, langs, passive, inventory: inv, gold, background: bg ? bg.name : (i.bgName || 'Custom background'),
     alignment: String(i.alignment || '').slice(0, 30), input: { ...input, level },
   };

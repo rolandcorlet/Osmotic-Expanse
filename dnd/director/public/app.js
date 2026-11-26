@@ -954,6 +954,24 @@ function sheetPreview(pv) {
     <div class="small"><b>Languages:</b> ${esc(pv.langs.join(', '))}</div></section>`;
 }
 
+// A feat at an Ability Score Improvement level: every feat the rules have (the SRD's and those from your
+// books), the ones whose ability prerequisite the character does not meet greyed out, and the ability it
+// raises when it offers a choice.
+function featMeets(p, f) {
+  const m = /\b(Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)\s+(\d+)\s+or\s+higher/gi;
+  const need = [...String(f.prereq || '').matchAll(m)];
+  if (!need.length) return true;
+  const ok = need.map((x) => (p.ab[x[1].slice(0, 3).toLowerCase()] || 0) >= Number(x[2]));
+  return /\bor\b/i.test(String(f.prereq).replace(/or higher/gi, '')) ? ok.some(Boolean) : ok.every(Boolean);
+}
+function featPicker(p, L, feat, opts) {
+  const taken = new Set((p.feats || []));
+  const list = (srd.feats || []).filter((f) => !taken.has(f.id)).sort((a, b) => a.name.localeCompare(b.name));
+  return `<label class="fld"><span class="fl">Feat</span><select data-k="lvl.feat" data-bind="lvl.asi.feat" data-live="1"><option value="">Choose…</option>${list.map((f) => `<option value="${f.id}" ${f.id === L.feat ? 'selected' : ''} ${featMeets(p, f) ? '' : 'disabled'}>${esc(f.name)}${f.prereq ? ` (needs ${esc(f.prereq)})` : ''}${f.lib ? ` · ${esc(f.lib)}` : ''}</option>`).join('')}</select></label>
+    ${feat ? `<details class="feature" open><summary>${esc(feat.name)}</summary><p>${esc(feat.desc).replace(/\n/g, '<br>')}</p></details>` : ''}
+    ${feat && opts.length > 1 ? `<label class="fld"><span class="fl">${esc(feat.name)} raises by 1</span><select data-k="lvl.featab" data-bind="lvl.asi.featAb" data-live="1"><option value="">Choose…</option>${opts.map((a) => `<option value="${a}" ${L.featAb === a ? 'selected' : ''} ${p.ab[a] >= 20 ? 'disabled' : ''}>${ABN[a]} (${p.ab[a]})</option>`).join('')}</select></label>` : ''}`;
+}
+
 // Levelling up: the same choices with one more level, plus whatever the new level asks for.
 function lvlInput(p) {
   const base = p.input;
@@ -962,7 +980,12 @@ function lvlInput(p) {
   const cls = ix.cls[p.cls];
   const asiNow = (cls.levels[next] || {}).asi > (cls.levels[p.level] || {}).asi;
   const asi = [...(base.asi || [])];
-  if (asiNow && L.asi.a) { const ab = {}; ab[L.asi.a] = (ab[L.asi.a] || 0) + 1; const second = L.asi.b || L.asi.a; ab[second] = (ab[second] || 0) + 1; asi.push({ level: next, ab }); }
+  if (asiNow && L.asi.mode === 'feat' && L.asi.feat) {
+    // A feat in place of the +2: its own +1 (chosen when it offers more than one ability), and its id.
+    const opts = R.featAbilities(ix.feat[L.asi.feat]);
+    const a = opts.length === 1 ? opts[0] : (opts.includes(L.asi.featAb) ? L.asi.featAb : '');
+    asi.push({ level: next, feat: L.asi.feat, ab: a ? { [a]: 1 } : {} });
+  } else if (asiNow && L.asi.a) { const ab = {}; ab[L.asi.a] = (ab[L.asi.a] || 0) + 1; const second = L.asi.b || L.asi.a; ab[second] = (ab[second] || 0) + 1; asi.push({ level: next, ab }); }
   return { ...base, level: next, subclass: L.subclass || base.subclass || '', asi, spells: L.spells || base.spells || {}, style: L.style || base.style || '' };
 }
 function levelUpHtml(p) {
@@ -980,12 +1003,19 @@ function levelUpHtml(p) {
   const newFeats = pv ? pv.features.filter((f) => f.level === next) : [];
   const needs = [];
   if (subNow && !input.subclass) needs.push('Choose your subclass.');
-  if (asiNow && !ui.lvl.asi.a) needs.push('Choose your ability score improvement.');
+  const featMode = ui.lvl.asi.mode === 'feat';
+  const feat = featMode ? ix.feat[ui.lvl.asi.feat] : null;
+  const featOpts = feat ? R.featAbilities(feat) : [];
+  if (asiNow && !featMode && !ui.lvl.asi.a) needs.push('Choose your ability score improvement.');
+  if (asiNow && featMode && !feat) needs.push('Choose your feat.');
+  if (asiNow && feat && featOpts.length > 1 && !featOpts.includes(ui.lvl.asi.featAb)) needs.push(`Choose which ability ${feat.name} raises.`);
   return `<div class="lay-two"><div class="col scroll" data-scroll="lv1"><section class="card ask"><h3>${esc(p.name)} reaches level ${next}</h3>
       ${pv ? `<div>Hit points: ${p.maxHp} → <b>${pv.maxHp}</b> (+${pv.maxHp - p.maxHp}). Proficiency bonus ${sg(pv.prof)}.</div>` : ''}
       ${newFeats.length ? newFeats.map((f) => `<details class="feature"><summary>${esc(f.name)}</summary><p>${esc(f.desc)}</p></details>`).join('') : '<div class="small dim">No new features at this level.</div>'}
       ${subNow ? `<label class="fld"><span class="fl">${esc((cls.subclasses[0] || {}).flavor || 'Subclass')}</span><select data-k="lvl.sub" data-bind="lvl.subclass" data-live="1"><option value="">Choose…</option>${cls.subclasses.map((s) => `<option value="${s.id}" ${s.id === input.subclass ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><span class="small dim">${esc((cls.subclasses.find((s) => s.id === input.subclass) || cls.subclasses[0] || {}).desc || '')}</span></label>` : ''}
-      ${asiNow ? `<div class="fields"><label class="fld"><span class="fl">Ability score improvement: +1</span><select data-k="lvl.a" data-bind="lvl.asi.a" data-live="1"><option value="">Choose…</option>${AB.map((a) => `<option value="${a}" ${ui.lvl.asi.a === a ? 'selected' : ''} ${p.ab[a] >= 20 ? 'disabled' : ''}>${ABN[a]} (${p.ab[a]})</option>`).join('')}</select></label>
+      ${asiNow ? `<label class="fld"><span class="fl">Ability Score Improvement</span><select data-k="lvl.mode" data-bind="lvl.asi.mode" data-live="1"><option value="" ${featMode ? '' : 'selected'}>Raise ability scores (+2)</option><option value="feat" ${featMode ? 'selected' : ''}>Take a feat instead</option></select></label>` : ''}
+      ${asiNow && featMode ? featPicker(p, ui.lvl.asi, feat, featOpts) : ''}
+      ${asiNow && !featMode ? `<div class="fields"><label class="fld"><span class="fl">Ability score improvement: +1</span><select data-k="lvl.a" data-bind="lvl.asi.a" data-live="1"><option value="">Choose…</option>${AB.map((a) => `<option value="${a}" ${ui.lvl.asi.a === a ? 'selected' : ''} ${p.ab[a] >= 20 ? 'disabled' : ''}>${ABN[a]} (${p.ab[a]})</option>`).join('')}</select></label>
         <label class="fld"><span class="fl">and another +1 (the same for +2)</span><select data-k="lvl.b" data-bind="lvl.asi.b" data-live="1"><option value="">Same ability</option>${AB.map((a) => `<option value="${a}" ${ui.lvl.asi.b === a ? 'selected' : ''} ${p.ab[a] >= 20 ? 'disabled' : ''}>${ABN[a]} (${p.ab[a]})</option>`).join('')}</select></label></div>` : ''}
       ${R.styleLevel(p.cls) === next ? `<label class="fld"><span class="fl">Fighting style</span><select data-k="lvl.style" data-bind="lvl.style" data-live="1"><option value="">Choose…</option>${Object.entries(R.FIGHTING_STYLES).map(([k, v]) => `<option value="${k}" ${k === ui.lvl.style ? 'selected' : ''}>${esc(v.name)}</option>`).join('')}</select></label>` : ''}
       ${pv && pv.cast ? `<div class="fl dim small">Spells</div>${spellPicker(input, pv, 'lvl')}` : ''}
@@ -1526,9 +1556,9 @@ function booksResultHtml(J) {
       ${C.errors.length ? '<p class="small dim">The adventure can still be saved: the Director plays round what the checker flags, and you can fix the file in library/adventures.</p>' : ''}${saveRow('Save as an adventure')}`;
   }
   const E = R.entries || [];
-  const counts = { monster: 0, spell: 0, rule: 0, race: 0, subrace: 0, background: 0, feat: 0 };
+  const counts = { monster: 0, spell: 0, rule: 0, race: 0, subrace: 0, background: 0, feat: 0, subclass: 0 };
   for (const e of E) counts[e.kind] = (counts[e.kind] || 0) + 1;
-  const optionChips = ['race', 'subrace', 'background', 'feat'].filter((k) => counts[k]).map((k) => `<span class="chip">${counts[k]} ${k}${counts[k] > 1 ? 's' : ''}</span>`).join('');
+  const optionChips = ['race', 'subrace', 'background', 'feat', 'subclass'].filter((k) => counts[k]).map((k) => `<span class="chip">${counts[k]} ${k}${counts[k] > 1 ? (k === 'subclass' ? 'es' : 's') : ''}</span>`).join('');
   const withGaps = E.filter((e) => e.gaps.length).length;
   const sel = E[B.sel] || null;
   return `<h3>${esc(R.name || 'Converted')}<span class="right">${counts.monster ? `<span class="chip">${counts.monster} monster${counts.monster > 1 ? 's' : ''}</span>` : ''}${counts.spell ? `<span class="chip">${counts.spell} spell${counts.spell > 1 ? 's' : ''}</span>` : ''}${counts.rule ? `<span class="chip">${counts.rule} rules section${counts.rule > 1 ? 's' : ''}</span>` : ''}${optionChips}<span class="chip ${withGaps ? 'warn' : 'ok'}">${withGaps ? `${withGaps} to check` : 'all read'}</span></span></h3>

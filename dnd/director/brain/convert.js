@@ -341,9 +341,10 @@ export function summarise(book) {
   for (const r of book.races || []) entries.push({ kind: 'race', id: r.id, name: r.name, facts: raceFacts(r), gaps: [], words: r.traits.map((x) => `${x.name}. ${x.desc}`).join('\n') });
   for (const r of book.subraces || []) entries.push({ kind: 'subrace', id: r.id, name: r.name, facts: [`a subrace of ${r.race}`, ...raceFacts(r)], gaps: [], words: r.traits.map((x) => `${x.name}. ${x.desc}`).join('\n') });
   for (const b of book.backgrounds || []) entries.push({ kind: 'background', id: b.id, name: b.name, facts: [`skills: ${b.skills.join(', ') || 'none found'}`, `tools: ${b.tools}`, `${b.languages} language${b.languages === 1 ? '' : 's'} of choice`, `${b.gold} gp`], gaps: b.skills.length < 2 ? ['fewer than two skills were found'] : [], words: `${b.feature.name ? `Feature: ${b.feature.name}. ${b.feature.desc}\n` : ''}Equipment: ${b.kitText}` });
+  for (const sc of book.subclasses || []) entries.push({ kind: 'subclass', id: sc.id, name: sc.name, facts: [`${sc.flavor || 'subclass'} of the ${sc.cls}`, ...sc.levels.map((l) => `level ${l.level}: ${l.features.join(', ')}`)], gaps: sc.levels.length < 2 ? ['only one level of features was found'] : [], words: Object.entries(sc.features || {}).map(([k, v]) => `${k}. ${v}`).join('\n').slice(0, 1500) });
   for (const f of book.feats || []) entries.push({ kind: 'feat', id: f.id, name: f.name, facts: f.prereq ? [`prerequisite: ${f.prereq}`] : ['no prerequisite'], gaps: f.desc.length < 40 ? ['its words look cut short'] : [], words: f.desc });
   for (const r of book.rules || []) entries.push({ kind: 'rule', id: r.id, name: r.name, facts: [`${r.text.split(/\s+/).length} words, for the Director's rules look-ups`], gaps: [], words: r.text.slice(0, 1500) });
-  return { engine: { ...eng, rules: book.rules || [], races: book.races || [], subraces: book.subraces || [], backgrounds: book.backgrounds || [], feats: book.feats || [] }, gaps, entries };
+  return { engine: { ...eng, rules: book.rules || [], races: book.races || [], subraces: book.subraces || [], backgrounds: book.backgrounds || [], feats: book.feats || [], subclasses: book.subclasses || [] }, gaps, entries };
 }
 
 // ---- 3. the AI: what the reader could not read, and whole campaigns ----------------------------------
@@ -397,6 +398,33 @@ export async function aiReadEntries({ ask, kind, text, prefix = '', taken = new 
     } catch (e) { problems.push(`Part ${i + 1}: ${e.message}`); }
   }
   return { entries: out, problems };
+}
+
+// Character options in a layout the reader does not know (a homebrew page, a web copy with no headings): the
+// AI writes them in the SRD's shapes, the same ones the reader makes, so they merge the same way.
+const OPTIONS_SHAPE = '{"races":[{"name":"Mossfolk","speed":25,"size":"Small","bonus":{"wis":2},"bonusChoice":0,"languages":["Common","Sylvan"],"traits":[{"name":"Bog Stride","desc":"Difficult terrain of mud or shallow water costs you no extra movement."}]}],"subraces":[{"race":"mossfolk","name":"Deep Moss","bonus":{"con":1},"traits":[{"name":"Spongy Hide","desc":"You have resistance to poison damage."}]}],"backgrounds":[{"name":"Bog Warden","skills":["survival","nature"],"tools":"Herbalism kit","languages":1,"gold":12,"kitText":"A pole, a lantern, common clothes and a pouch with 12 gp","feature":{"name":"Paths of the Fen","desc":"You always know a safe path through a marsh."}}],"feats":[{"name":"Bogborn","prereq":"","desc":"You gain the following benefits:\\n- Increase your Constitution score by 1.\\n- You can hold your breath for an hour."}],"subclasses":[{"cls":"druid","name":"Circle of Spores","flavor":"Druid Circle","desc":"Druids who find beauty in decay.","features":[{"name":"Halo of Spores","level":2,"desc":"You are surrounded by necrotic spores..."}]}]}';
+export async function aiReadOptions({ ask, text, onProgress = () => {} }) {
+  const system = `You turn tabletop role-playing text into data for a Dungeons & Dragons 5e rules engine. Answer only with one JSON object, no other words, in exactly this shape (leave out any list with nothing in it):\n${OPTIONS_SHAPE}\nRaces and subraces are what a player is born as; backgrounds what they did before; feats what they can take in place of an ability increase; subclasses the paths a class chooses (cls is the class's id: barbarian, bard, cleric, druid, fighter, monk, paladin, ranger, rogue, sorcerer, warlock or wizard), each feature with the class level it comes at. Abilities are str, dex, con, int, wis, cha; skills are lower case with dashes (sleight-of-hand). Keep each rule's full words; copy numbers exactly; never invent anything the text does not give.`;
+  const out = { races: [], subraces: [], backgrounds: [], feats: [], subclasses: [] };
+  const problems = [];
+  const parts = chunks(text, 9000);
+  for (let i = 0; i < parts.length; i++) {
+    onProgress({ step: 'Reading character options with the AI', at: i + 1, of: parts.length });
+    try {
+      const r = parseJson(await ask(system, `Turn every race, subrace, background, feat and subclass in this text into the JSON object:\n\n${parts[i]}`)) || {};
+      for (const x of r.races || []) if (x && x.name) out.races.push({ id: slug(x.name), name: x.name, speed: Number(x.speed) || 30, size: x.size || 'Medium', bonus: x.bonus || {}, bonusChoice: Number(x.bonusChoice) || 0, languages: x.languages || ['Common'], langDesc: '', age: '', alignment: '', sizeDesc: '', traits: (x.traits || []).filter((y) => y && y.name), subraces: [] });
+      for (const x of r.subraces || []) if (x && x.name && x.race) out.subraces.push({ race: slug(x.race), id: slug(x.name), name: x.name, desc: x.desc || '', bonus: x.bonus || {}, traits: (x.traits || []).filter((y) => y && y.name) });
+      for (const x of r.backgrounds || []) if (x && x.name) out.backgrounds.push({ id: slug(x.name), name: x.name, skills: (x.skills || []).map((k) => slug(k)), tools: x.tools || 'None', languages: Number(x.languages) || 0, gold: Number(x.gold) || 0, items: [], kitText: x.kitText || '', feature: x.feature && x.feature.name ? x.feature : { name: '', desc: '' } });
+      for (const x of r.feats || []) if (x && x.name) out.feats.push({ id: slug(x.name), name: x.name, ...(x.prereq ? { prereq: x.prereq } : {}), desc: String(x.desc || '') });
+      for (const x of r.subclasses || []) {
+        const feats = (x && x.features || []).filter((f) => f && f.name && Number(f.level));
+        if (!x || !x.name || !x.cls || !feats.length) continue;
+        const levels = [...new Set(feats.map((f) => Number(f.level)))].sort((a, b) => a - b).map((lv) => ({ level: lv, features: feats.filter((f) => Number(f.level) === lv).map((f) => f.name) }));
+        out.subclasses.push({ cls: slug(x.cls), id: slug(x.name), name: x.name, flavor: x.flavor || '', desc: x.desc || '', levels, features: Object.fromEntries(feats.map((f) => [f.name, String(f.desc || '')])) });
+      }
+    } catch (e) { problems.push(`Part ${i + 1}: ${e.message}`); }
+  }
+  return { options: out, problems };
 }
 
 // A whole campaign, as an adventure for the Director, in steps a small local model can take:
@@ -526,9 +554,9 @@ export function saveBook(dir, { name, kind, original, book, pictures = [], files
   const at = join(dir, id);
   mkdirSync(at, { recursive: true });
   const clean = { spells: (book.spells || []).map(({ words, ...x }) => x), monsters: (book.monsters || []).map(({ words, ...x }) => x), rules: book.rules || [], magicItems: book.magicItems || [],
-    races: book.races || [], subraces: book.subraces || [], backgrounds: book.backgrounds || [], feats: book.feats || [] };
+    races: book.races || [], subraces: book.subraces || [], backgrounds: book.backgrounds || [], feats: book.feats || [], subclasses: book.subclasses || [] };
   const { engine, gaps } = summarise(clean);
-  const options = clean.races.length + clean.subraces.length + clean.backgrounds.length + clean.feats.length;
+  const options = clean.races.length + clean.subraces.length + clean.backgrounds.length + clean.feats.length + clean.subclasses.length;
   const meta = { id, name, kind, savedAt: new Date().toISOString(), counts: { monsters: clean.monsters.length, spells: clean.spells.length, rules: clean.rules.length, ...(options ? { options } : {}) }, gaps: gaps.length };
   writeFileSync(join(at, 'original.txt'), String(original || ''));
   writeFileSync(join(at, 'book.json'), JSON.stringify({ ...meta, ...clean, ...(pictures.length ? { pictures } : {}) }));
@@ -573,6 +601,21 @@ export function mergeBook(srd, book) {
     race.subraces.push({ ...sub, lib: book.name, conv: book.id });
     added.options += 1;
   }
+  // Subclasses: a new one joins its class; one the rules know by name but without its features (your
+  // library lists the Handbook's that way) gets them, and gets its old self back when the book goes.
+  const flat = (x) => lower(x).replace(/[^a-z]/g, '');
+  for (const sc of book.subclasses || []) {
+    const cls = (srd.classes || []).find((c) => c.id === sc.cls);
+    if (!cls) continue;
+    cls.features = cls.features || {};
+    const featureNames = [];
+    for (const [k, v] of Object.entries(sc.features || {})) if (!(k in cls.features)) { cls.features[k] = v; featureNames.push(k); }
+    const was = (cls.subclasses || []).find((x) => x.id === sc.id || flat(x.name) === flat(sc.name));
+    if (was && (was.levels || []).length) continue; // the SRD's own, written out already
+    if (was) { was.was = { levels: was.levels || [], desc: was.desc || '' }; Object.assign(was, { levels: sc.levels, desc: sc.desc || was.desc, conv: book.id, convFeatures: featureNames }); }
+    else cls.subclasses.push({ id: sc.id, name: sc.name, flavor: sc.flavor, desc: sc.desc, levels: sc.levels, lib: book.name, conv: book.id, convFeatures: featureNames });
+    added.options += 1;
+  }
   const rules = [...(srd.libRules || []), ...(book.rules || []).map((r) => ({ ...r, book: r.book || book.name, conv: book.id }))];
   Object.defineProperty(srd, 'libRules', { value: rules, enumerable: false, configurable: true, writable: true });
   added.rules = (book.rules || []).length;
@@ -589,6 +632,14 @@ export function unmergeBook(srd, id) {
   srd.spells.splice(0, srd.spells.length, ...srd.spells.filter(keep));
   for (const k of ['races', 'backgrounds', 'feats']) if (srd[k]) srd[k].splice(0, srd[k].length, ...srd[k].filter(keep));
   for (const r of srd.races || []) if (r.subraces) r.subraces = r.subraces.filter(keep);
+  for (const c of srd.classes || []) {
+    for (const sc of (c.subclasses || []).filter((x) => x.conv === id)) for (const k of sc.convFeatures || []) delete (c.features || {})[k];
+    c.subclasses = (c.subclasses || []).filter((x) => x.conv !== id || x.was).map((x) => {
+      if (x.conv !== id) return x;
+      const { was, conv, convFeatures, ...rest } = x;
+      return { ...rest, levels: was.levels, desc: was.desc };
+    });
+  }
   if (srd.libRules) Object.defineProperty(srd, 'libRules', { value: srd.libRules.filter(keep), enumerable: false, configurable: true, writable: true });
   if (Object.prototype.hasOwnProperty.call(srd, '_ix')) delete srd._ix;
   return before - srd.monsters.length - srd.spells.length;
@@ -865,11 +916,24 @@ export async function convertText({ text, kind = 'auto', name = '', how = 'both'
     }
   }
   if (k === 'options' || (kind === 'auto' && OPT.optionMarks(words) >= 3)) {
-    const o = OPT.readOptions(words);
+    const o = OPT.readOptions(words, { srd });
     Object.assign(book, o);
-    const n = o.races.length + o.subraces.length + o.backgrounds.length + o.feats.length;
-    const said = [[o.races.length, 'race'], [o.subraces.length, 'subrace'], [o.backgrounds.length, 'background'], [o.feats.length, 'feat']].filter(([c]) => c).map(([c, w]) => `${c} ${w}${c > 1 ? 's' : ''}`);
-    notes.push(n ? `The book reader read ${said.join(', ')}: character creation lists them once the book is saved.` : 'No races, backgrounds or feats were found in the usual layout (Ability Score Increase, Skill Proficiencies, a feats chapter).');
+    const n = o.races.length + o.subraces.length + o.backgrounds.length + o.feats.length + o.subclasses.length;
+    const said = [[o.races.length, 'race'], [o.subraces.length, 'subrace'], [o.backgrounds.length, 'background'], [o.feats.length, 'feat'], [o.subclasses.length, 'subclass']].filter(([c]) => c).map(([c, w]) => `${c} ${w}${c > 1 ? 's' : ''}`);
+    notes.push(n ? `The book reader read ${said.join(', ')}: character creation lists them once the book is saved.` : 'No races, backgrounds, feats or subclasses were found in the usual layout (Ability Score Increase, Skill Proficiencies, a feats chapter, features "Starting at 3rd level").');
+    // The AI for what the reader could not read: when it found nothing, or when asked for the AI alone.
+    if ((how === 'ai' || (!n && k === 'options')) && ask && how !== 'reader') {
+      const ai = await aiReadOptions({ ask, text: words, onProgress });
+      const have = (list) => new Set((list || []).map((x) => x.id));
+      let more = 0;
+      for (const key of ['races', 'subraces', 'backgrounds', 'feats', 'subclasses']) {
+        const seen = have(book[key]);
+        const add = ai.options[key].filter((x) => !seen.has(x.id));
+        book[key] = [...(book[key] || []), ...add];
+        more += add.length;
+      }
+      notes.push(`The AI read ${more} character option${more === 1 ? '' : 's'}.`, ...ai.problems);
+    } else if (!n && k === 'options' && !ask) notes.push('Set up the AI on the Director tab to read them in another layout.');
   }
   if (k === 'rules') {
     book.rules.push(...readRules(words, book.name));

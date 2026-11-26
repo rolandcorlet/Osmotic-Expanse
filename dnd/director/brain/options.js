@@ -180,14 +180,70 @@ function readFeats(ls) {
   return out;
 }
 
-export function readOptions(text) {
+// ---- subclasses ------------------------------------------------------------------------------------
+// A subclass is found by its name as a heading: the names the rules already know (the SRD's, and those your
+// library lists without their features), and new ones by the way each class names them ("Path of the Storm
+// Herald", "Grave Domain", "Circle of Spores", "School of Chronurgy"). Its features are the headings after it
+// that say the level they come at ("Starting at 6th level", "When you choose this domain at 1st level").
+const FLAVOR = [
+  [/^Path of (?:the )?[A-Z]/, 'barbarian', 'Primal Path'], [/^College of [A-Z]/, 'bard', 'Bard College'],
+  [/ Domain$/, 'cleric', 'Divine Domain'], [/^Circle of (?:the )?[A-Z]/, 'druid', 'Druid Circle'],
+  [/^Way of (?:the )?[A-Z]/, 'monk', 'Monastic Tradition'], [/^Oath of (?:the )?[A-Z]/, 'paladin', 'Sacred Oath'],
+  [/ Bloodline$|^Wild Magic$/, 'sorcerer', 'Sorcerous Origin'], [/^School of [A-Z]/, 'wizard', 'Arcane Tradition'],
+];
+// Headings that end a subclass's write-up: a class's own sections, and the next class's subclass list.
+const CLASS_STOP = /^(?:Class Features|Hit Points|Proficiencies|Equipment|Quick Build|Barbarian|Bard|Cleric|Druid|Fighter|Monk|Paladin|Ranger|Rogue|Sorcerer|Warlock|Wizard|Primal Paths?|Bard Colleges?|Divine Domains?|Druid Circles?|Martial Archetypes?|Monastic Traditions?|Sacred Oaths?|Ranger Archetypes?|Roguish Archetypes?|Sorcerous Origins?|Otherworldly Patrons?|Arcane Traditions?)$/i;
+const LEVEL_AT = /\b(?:at|starting at|beginning at|when you [a-z ]+? at)\s+(\d{1,2})(?:st|nd|rd|th) level/i;
+function readSubclasses(ls, srd) {
+  const flat = (x) => String(x || '').toLowerCase().replace(/[^a-z]/g, '');
+  const known = [];
+  for (const c of (srd && srd.classes) || []) for (const sc of c.subclasses || []) known.push({ cls: c.id, name: sc.name, flavor: sc.flavor || '' });
+  const isFeature = (i) => isHeading(ls[i], ls[i + 1]) && LEVEL_AT.test(ls.slice(i + 1, i + 3).join(' '));
+  // Every heading that names a subclass, known or by its class's pattern, with a feature soon after it.
+  const heads = [];
+  ls.forEach((l, i) => {
+    const s = l.trim();
+    if (!isHeading(l, ls[i + 1]) || /\bspells?$/i.test(s) || CLASS_STOP.test(s)) return;
+    const k = known.find((x) => flat(x.name) === flat(s));
+    const f = !k && FLAVOR.find(([rx]) => rx.test(s));
+    if (!k && !f) return;
+    let feat = -1;
+    for (let j = i + 1; j < Math.min(ls.length, i + 60); j++) if (isFeature(j)) { feat = j; break; }
+    if (feat < 0) return;
+    heads.push({ at: i, name: k ? k.name : s.replace(/\b\w+/g, (w) => (w === w.toUpperCase() && w.length > 2 ? w[0] + w.slice(1).toLowerCase() : w)), cls: k ? k.cls : f[1], flavor: k ? k.flavor : f[2] });
+  });
+  const out = [];
+  heads.forEach((h, n) => {
+    if (out.some((x) => flat(x.name) === flat(h.name))) return; // the first full write-up of each
+    const end = Math.min(ls.length, n + 1 < heads.length ? heads[n + 1].at : h.at + 260);
+    const features = [];
+    let intro = [];
+    for (let i = h.at + 1; i < end; i++) {
+      if (/^\s*Chapter\b|_/.test(ls[i]) || (isHeading(ls[i], ls[i + 1]) && CLASS_STOP.test(ls[i].trim()))) break;
+      if (isFeature(i)) {
+        const level = Number(LEVEL_AT.exec(ls.slice(i + 1, i + 3).join(' '))[1]);
+        // A subclass's features come in level order: a lower level means the text has run into a class.
+        if (features.length && level < features[features.length - 1].level) break;
+        const desc = [];
+        for (let j = i + 1; j < end && !isFeature(j) && desc.join(' ').length < 1600; j++) { if (isHeading(ls[j], ls[j + 1]) && (CLASS_STOP.test(ls[j].trim()) || /^\s*Chapter\b/.test(ls[j]))) break; desc.push(ls[j].trim()); }
+        features.push({ name: ls[i].trim(), level, desc: tidy(desc.join(' ')) });
+      } else if (!features.length && intro.join(' ').length < 600) intro.push(ls[i].trim());
+    }
+    if (!features.length) return;
+    const levels = [...new Set(features.map((f) => f.level))].sort((a, b) => a - b).map((lv) => ({ level: lv, features: features.filter((f) => f.level === lv).map((f) => f.name) }));
+    out.push({ cls: h.cls, id: slugOf(h.name), name: h.name, flavor: h.flavor, desc: tidy(intro.join(' ')).slice(0, 600), levels, features: Object.fromEntries(features.map((f) => [f.name, f.desc])) });
+  });
+  return out;
+}
+
+export function readOptions(text, { srd = null } = {}) {
   const ls = lines(text);
   const { races, subraces } = readRaces(ls);
-  return { races, subraces, backgrounds: readBackgrounds(ls), feats: readFeats(ls) };
+  return { races, subraces, backgrounds: readBackgrounds(ls), feats: readFeats(ls), subclasses: readSubclasses(ls, srd) };
 }
 // How many option markers the text has: for "work it out".
 export function optionMarks(text) {
   const t = clean(text);
   const n = (rx) => (t.match(rx) || []).length;
-  return n(/^\s*Ability Score Increase\./gim) + n(/^\s*Skill Proficiencies:/gim) + n(/you gain the following benefits/gi);
+  return n(/^\s*Ability Score Increase\./gim) + n(/^\s*Skill Proficiencies:/gim) + n(/you gain the following benefits/gi) + n(/^(?:Also )?(?:starting|beginning) at \d{1,2}(?:st|nd|rd|th) level/gim);
 }
