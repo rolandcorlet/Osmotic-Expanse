@@ -173,6 +173,7 @@ async function runOnce(n) {
         notes.push(`fight at ${siteId}: the party is down (the bench ended the fight and put everyone back on their feet)`);
         tryAct('host', null, { type: 'fight.end', award: false });
         for (const c of Object.values(s.chars)) tryAct('host', null, { type: 'heal', target: c.id, amount: c.healthMax });
+        restedAt = Infinity;
         break;
       }
     }
@@ -183,6 +184,20 @@ async function runOnce(n) {
     ask_for_roll: { what: 'a roll was asked', snap: () => s.rolls.length + s.requests.length, met: (b) => s.rolls.length + s.requests.length > b, soft: true },
     start_combat: { what: 'a fight started', snap: () => 0, met: () => !!s.fight },
     complete_quest: { what: 'a quest was finished', snap: () => s.quests.filter((q) => q.done).length, met: (b) => s.quests.filter((q) => q.done).length > b },
+  };
+  // As players do when anyone is under two thirds and has been hurt since the last breather: they catch their
+  // breath (what the Director does about it is its own call: a rest, healing, a clock ticking).
+  let restedAt = Infinity;
+  const healthSum = () => Object.values(s.chars).reduce((n, c) => n + c.health, 0);
+  const breather = async (label = 'breather') => {
+    if (!Object.values(s.chars).some((c) => c.health < (c.healthMax * 2) / 3) || healthSum() >= restedAt) return;
+    const pid = pids[0];
+    const line = 'We catch our breath and patch each other up before we go on.';
+    act('player', pid, { type: 'say', text: line });
+    say(`  ${charOf(pid).name}: ${line}`);
+    await director(label, `A player spoke: "${line}". Answer them.`);
+    await makeRolls(label);
+    restedAt = healthSum();
   };
   await director('opening', 'The game begins. Set the scene and ask the first player what they do.');
   for (const [k, step] of SCRIPT.entries()) {
@@ -204,6 +219,9 @@ async function runOnce(n) {
       notes.push(`${label}: not checked: the quest "${step.quest}" was already finished`);
       continue;
     }
+    // Before going on to a new place, hurt since the last breather (a hazard's failed rolls hurt too: Saltglass,
+    // 27 Nov, the cold current took the divers to 6 and 5 of 12 after the eels, and they walked into the choir).
+    if (step.expect.includes('move_party') && !s.fight) await breather();
     const snaps = Object.fromEntries(step.expect.map((e) => [e, OUTCOME[e].snap()]));
     const seq0 = s.seq;
     act('player', step.pid, { type: 'say', text: step.say });
@@ -229,14 +247,7 @@ async function runOnce(n) {
       // is its own call: a rest, healing, a clock ticking).
       // Under two thirds, not half (Saltglass, 27 Nov: Sefa at 7 of 12 went on unrested from the eels, and the choir
       // took two divers down in one round of the next fight): as players patch up when anyone is hurt.
-      if (Object.values(s.chars).some((c) => c.health < (c.healthMax * 2) / 3)) {
-        const pid = pids[0];
-        const line = 'We catch our breath and patch each other up before we go on.';
-        act('player', pid, { type: 'say', text: line });
-        say(`  ${charOf(pid).name}: ${line}`);
-        await director('after the fight', `A player spoke: "${line}". Answer them.`);
-        await makeRolls('after the fight');
-      }
+      await breather('after the fight');
     }
   }
   const secs = (Date.now() - t0) / 1000;
