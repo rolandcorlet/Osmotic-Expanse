@@ -37,3 +37,24 @@ test('an add rule must name a monster that exists', () => {
   assert.ok(errors.some((e) => /no monster "no-such-beast"/.test(e)), errors.join('\n'));
   assert.equal(TRIG.checkRules({ ...bad, sites: [{ ...bad.sites[0], rules: [{ id: 'r', when: 'enter', do: 'add', monster: 'goblin' }] }] }, { monsters: ['goblin'] }).errors.length, 0);
 });
+
+test('the tainted elixir sears Malakor when the fight starts, and the Avatar as it rises, stunned', () => {
+  const rng = makeRng(6);
+  const ctx = (role, pid) => ({ role, pid, rng, now: 1, adventure: adv, srd });
+  let s = { ...newSession(adv), auto: { rules: true, scale: 'off' } };
+  const host = (a) => { s = apply(s, a, ctx('host', null)); };
+  s = apply(s, { type: 'join', name: 'Roly' }, ctx('player', 'p1'));
+  s = apply(s, { type: 'pc.create', input: { name: 'Bryn', race: 'human', class: 'fighter', level: 10, method: 'standard', base: { str: 15, dex: 14, con: 13, int: 12, wis: 10, cha: 8 }, skills: ['athletics', 'perception'], background: 'soldier' } }, ctx('player', 'p1'));
+  s.started = true;
+  host({ type: 'quest.add', text: 'Taint the Blood-Ash Elixir.' });
+  host({ type: 'quest.done', id: s.quests.at(-1).id });
+  s.scene.siteId = 'coronation';
+  host({ type: 'foe.add', monster: 'ac-malakor', count: 1, name: 'Lord Malakor Vane' });
+  const m = Object.values(s.foes).find((f) => f.name.startsWith('Lord Malakor'));
+  host({ type: 'fight.start', autoRoll: true });
+  assert.equal(s.foes[m.id].hp, s.foes[m.id].maxHp - 50, 'seared for 50 as the fight starts');
+  host({ type: 'damage', target: `foe:${m.id}`, amount: 999, damageType: 'force', why: 'test' });
+  const av = Object.values(s.foes).find((f) => f.mid === 'ac-ash-avatar');
+  assert.equal(av.hp, av.maxHp - 45);
+  assert.ok(av.conds.includes('stunned'));
+});

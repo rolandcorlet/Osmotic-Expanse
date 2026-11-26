@@ -363,6 +363,10 @@ export default {
       rules: [
         // PHASE 2, carried out by the Engine (it was only in the notes): the Avatar rises where Malakor fell.
         { id: 'avatar', when: 'down', who: 'Lord Malakor Vane', if: 'not quest ashen crown', do: 'add', monster: 'ac-ash-avatar', name: 'Malakor, Avatar of the Ash-King', say: 'Malakor falls, and the Ashen Crown fuses to his brow: ash and fire pour out of him, and he rises again, vast and burning, the Ash-King\'s soul behind his eyes.' },
+        // The tainted Blood-Ash Elixir (the coven's help at Briarwood), carried out by the Engine (it was only in the notes).
+        // Force damage: the book says it ignores the Avatar's immunity to fire, and Malakor resists fire.
+        { id: 'elixir-malakor', when: 'fight', if: 'quest elixir', do: 'damage', target: 'Lord Malakor Vane', amount: 50, type: 'force', say: 'The tainted Blood-Ash in Malakor\'s veins turns on him: he staggers, smoke pouring from his mouth, weakened before a blow is struck. He will be slow to shake off spells.' },
+        { id: 'elixir-avatar', when: 'down', who: 'Lord Malakor Vane', if: 'quest elixir', do: 'damage', target: 'ac-ash-avatar', amount: 45, type: 'force', cond: 'stunned', say: 'The tainted Crown sears the Avatar as it rises: it reels, burning from within, stunned until the end of its first turn.' },
       ],
       treasure: 'Malakor\'s Ashbrand greatsword (a +2 greatsword that deals an extra 1d6 fire damage), the Iron Brand\'s war chest (5,000 gp), and the gratitude of the whole Sundermark.',
       exits: [{ to: 'cinderhelm', label: 'back up through the citadel' }],

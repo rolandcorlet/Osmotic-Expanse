@@ -2418,6 +2418,19 @@ function carryOut(s, ctx, rule, ev) {
       said.push(`Quest complete: ${q.text}`);
       break;
     }
+    // The world hurts a foe (the Ashen Crown's tainted elixir sears Malakor): scaled like its hit points when the
+    // fight was fitted, so 50 of a halved 150 is 25.
+    case 'damage': {
+      const l = foesNamed(s, where, rule.target).filter(standingFoe);
+      const plan = ((s.fits || {})[s.scene.siteId] || {}).plan;
+      const amount = Math.max(1, Math.round(rule.amount * (plan && plan.hp ? plan.hp : 1)));
+      for (const f of l) {
+        try { H.damage(s, { target: `foe:${f.id}`, amount, damageType: rule.type || 'force', why: rule.say || 'the adventure\'s rule' }, host); } catch (e) { if (!(e instanceof RuleError)) throw e; }
+        if (rule.cond && !s.foes[f.id].dead) { try { H['cond.add'](s, { target: `foe:${f.id}`, cond: rule.cond }, host); } catch (e) { if (!(e instanceof RuleError)) throw e; } }
+      }
+      if (l.length) said.push(`${l.map((f) => f.name).join(', ')} ${l.length > 1 ? 'take' : 'takes'} ${amount} ${rule.type || ''} damage${rule.cond ? ` and ${l.length > 1 ? 'are' : 'is'} ${rule.cond}` : ''}.`.replace(/\s+/g, ' '));
+      break;
+    }
     // A boss's second form, or reinforcements: they arrive here, and join a fight that is on.
     case 'add': {
       const before = new Set(Object.keys(s.foes));

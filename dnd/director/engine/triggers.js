@@ -50,10 +50,12 @@
 //            XP); the fight ends when no foe in it is still fighting. Attacking them starts a new one.
 //   add      `qty` (1) of `monster` (an SRD or adventure monster id) arrive here, named `name`, in sight
 //            unless `hidden`; in a fight they join it (a boss's second form, reinforcements)
+//   damage   `target` (or `who`) takes `amount` damage of `type`, and `cond` if given (the Ashen Crown's tainted
+//            elixir searing Malakor); scaled like the place's hit points when the fight was fitted
 //   say      nothing happens but the line in `say`, for the Director (any rule may carry `say`)
 
 export const EVENTS = ['enter', 'use', 'fight', 'turn', 'attack', 'fail', 'succeed', 'round', 'down', 'hurt', 'cleared', 'full', 'quest'];
-export const EFFECTS = ['fight', 'flee', 'tick', 'quest', 'xp', 'reveal', 'give', 'calm', 'add', 'say'];
+export const EFFECTS = ['fight', 'flee', 'tick', 'quest', 'xp', 'reveal', 'give', 'calm', 'add', 'damage', 'say'];
 export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'hurt', 'quest', 'has', 'carries', 'passed', 'failed', 'fight', 'no fight'];
 // Set off by a state that holds (checked after every change), not by one moment.
 export const STATES = ['down', 'hurt', 'cleared', 'full', 'quest'];
@@ -106,6 +108,7 @@ export function normRule(r, site, n) {
     to: plain(r.to), clock: plain(r.clock), by: Math.trunc(Number(r.by)) || 1, quest: plain(r.quest),
     item: plain(r.item), qty: Number(r.qty) > 1 ? Math.min(999, Math.trunc(Number(r.qty))) : 1, gold: Number(r.gold) > 0 ? Math.min(1e6, Math.trunc(Number(r.gold))) : 0,
     monster: plain(r.monster).toLowerCase(), name: plain(r.name), hidden: !!r.hidden,
+    amount: Number(r.amount) > 0 ? Math.min(999, Math.trunc(Number(r.amount))) : 0, type: plain(r.type).toLowerCase(), cond: plain(r.cond).toLowerCase(),
     xp: Number(r.xp) > 0 ? Math.trunc(Number(r.xp)) : 0, level: Number(r.level) >= 2 ? Math.min(20, Math.trunc(Number(r.level))) : 0, say: plain(r.say),
     // "round" alone and "turn" happen every time unless the rule says once: true.
     once: r.once === false ? false : r.once === true ? true : !((when.ev === 'round' && !when.arg) || when.ev === 'turn'),
@@ -182,6 +185,7 @@ export function doWords(r, adv) {
     case 'give': parts.push(`${[r.item ? `${r.qty > 1 ? `${r.qty} × ` : ''}${r.item}` : '', r.gold ? `${r.gold} gp` : ''].filter(Boolean).join(' and ') || 'nothing'} ${r.when.ev === 'use' || r.when.ev === 'enter' ? 'goes to that character' : 'goes to the party'}`); break;
     case 'calm': parts.push(`${who} ${/s$/.test(who) ? 'stand' : 'stands'} down (no fight with ${/s$/.test(who) || !r.target ? 'them' : 'it'})`); break;
     case 'add': parts.push(`${r.qty > 1 ? `${r.qty} × ` : ''}${r.name || r.monster} ${r.qty > 1 ? 'arrive' : 'arrives'}${r.hidden ? ', out of sight' : ''}`); break;
+    case 'damage': parts.push(`${who} ${/s$/.test(who) ? 'take' : 'takes'} ${r.amount} ${r.type || ''} damage${r.cond ? ` and ${/s$/.test(who) ? 'are' : 'is'} ${r.cond}` : ''}`.replace(/\s+/g, ' ')); break;
     case 'xp': break;
     case 'say': break;
     default: parts.push(`(${r.do || 'nothing'})`);
@@ -208,7 +212,9 @@ export function checkRules(adv, { skills = [], monsters: monsterIds = [] } = {})
   const clockNames = sites.flatMap((s) => (s.clocks || []).map((c) => String(c.name || '').toLowerCase()));
   const groupsAt = (siteId) => {
     const s = sites.find((x) => x.id === siteId);
-    return s ? (s.foes || []).flatMap((f) => [f.name, f.monster].filter(Boolean).map((x) => String(x).toLowerCase())) : sites.flatMap((x) => (x.foes || []).flatMap((f) => [f.name, f.monster].filter(Boolean).map((y) => String(y).toLowerCase())));
+    // The foes written there, and those a rule brings in (do: 'add'): a rule may name the boss's second form.
+    const of = (x) => [...(x.foes || []), ...((x.rules || []).filter((r) => r.do === 'add'))].flatMap((f) => [f.name, f.monster].filter(Boolean).map((y) => String(y).toLowerCase()));
+    return s ? of(s) : sites.flatMap(of);
   };
   const knownFoe = (siteId, who) => {
     const w = String(who || '').toLowerCase().replace(/s$/, '');
@@ -249,6 +255,7 @@ export function checkRules(adv, { skills = [], monsters: monsterIds = [] } = {})
     if (r.do === 'xp' && !r.xp && !r.level) errors.push(`${at}: give the XP (xp: 300) or the level (level: 2).`);
     if (r.do === 'say' && !r.say) errors.push(`${at}: write what happens (say: '…').`);
     if (r.do === 'add' && !r.monster) errors.push(`${at}: say which monster arrives (monster: 'ogre').`);
+    if (r.do === 'damage' && (!r.amount || !(r.target || r.who))) errors.push(`${at}: say who takes the damage and how much (target: 'Grisk', amount: 10).`);
     if (r.do === 'add' && r.monster && monsters.size && !monsters.has(String(r.monster).toLowerCase())) errors.push(`${at}: there is no monster "${r.monster}" (an SRD id, or one of this adventure's own).`);
     for (const c of r.if) {
       if (!c.k) errors.push(`${at}: "${c.raw}" is not a condition. Use one of: ${CONDITIONS.join(', ')}.`);
