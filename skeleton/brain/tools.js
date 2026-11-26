@@ -274,7 +274,8 @@ export const TOOLS = [
     parameters: obj({ quest: S('The quest id or a few words of it.') }, ['quest']),
     run(a, T) {
       const ref = String(a.quest || '').trim();
-      const lead = (/^(\w+)\s/.exec(ref) || [])[1];
+      // The id and its words, as the briefing lists them ("stop-rite Stop the rite...": Gull Rock, 27 Nov).
+      const lead = (/^([\w-]+)\s/.exec(ref) || [])[1];
       const q = T.state.quests.find((x) => x.id === ref) || (lead && T.state.quests.find((x) => x.id === lead))
         || T.state.quests.find((x) => x.text.toLowerCase().includes(ref.replace(/^\w+\s+/, '').replace(/[.]+$/, '').toLowerCase()))
         || T.state.quests.find((x) => x.text.toLowerCase().includes(ref.toLowerCase()));

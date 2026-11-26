@@ -142,3 +142,15 @@ test('rolls that all succeed where a quest ends get one question: does that fini
   await directorTurn({ state: T2.s, mod, provider: scripted((msg) => { if (/Those rolls/.test(msg)) asked2 += 1; return { text: 'Moll, what now?' }; }), rng: makeRng(1), reason: 'rolls' });
   assert.equal(asked2, 0);
 });
+
+test('a creature that attacked and was left in its turn has the turn ended by the Engine', async () => {
+  const T = table(4); const m = diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
+  const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
+  B.run('start_combat', {});
+  const eel = Object.values(B.state.creatures).find((k) => k.siteId === 'causeway');
+  B.state.fight.turn = B.state.fight.order.findIndex((o) => o.key === `creature:${eel.id}`);
+  const provider = scripted([{ calls: [{ name: 'creature_attack', args: { creature: eel.id, target: m.id } }] }, { text: `The eel strikes. ${m.name}, what do you do?` }]);
+  const out = await directorTurn({ state: B.state, mod, provider, rng: makeRng(2), reason: 'a creature is up' });
+  assert.notEqual(out.state.fight && out.state.fight.order[out.state.fight.turn].key, `creature:${eel.id}`);
+  assert.ok(out.flags.some((f) => /ended its turn/.test(f.text)));
+});

@@ -195,6 +195,13 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
       }
     } catch (e) { /* keep the draft */ }
   }
+  // A creature that attacked on its turn and was left standing in it (Gull Rock, 27 Nov: the keeper swung his
+  // hatchet and the turn never ended): the Engine ends that turn, so the fight does not stall.
+  const startKey = currentKey(state);
+  if (T.state.fight && startKey && startKey.startsWith('creature:') && currentKey(T.state) === startKey
+    && calls.some((c) => c.name === 'creature_attack' && c.result && !c.result.refused) && !T.do({ type: 'fight.next' })) {
+    flags.push({ kind: 'note', text: 'The creature had acted; the Engine ended its turn.' });
+  }
   if (!narration) {
     const cur = currentKey(T.state);
     const who = cur && cur.startsWith('char:') ? T.state.chars[cur.slice(5)].name : '';
