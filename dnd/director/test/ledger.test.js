@@ -286,3 +286,12 @@ test('a hold person save asked for by hand is still tied to its caster', () => {
   T.host({ type: 'damage', target: `foe:${foe.id}`, amount: 999, dmgType: 'force' });
   assert.ok(!T.s.pcs[pc.id].conds.includes('paralyzed'));
 });
+
+test('two monsters never share a name, even when one is added with a number of its own', () => {
+  const T = table();
+  T.host({ type: 'foe.add', monster: 'zombie', count: 1, name: 'Drowned villager 1' });
+  T.host({ type: 'foe.add', monster: 'zombie', count: 1, name: 'Drowned villager 1' });
+  T.host({ type: 'foe.add', monster: 'zombie', count: 2, name: 'Drowned villager' });
+  const names = Object.values(T.s.foes).map((f) => f.name);
+  assert.equal(new Set(names).size, names.length, names.join(', '));
+});

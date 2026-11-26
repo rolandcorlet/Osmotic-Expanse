@@ -1202,12 +1202,18 @@ H['foe.add'] = (s, a, ctx) => {
     assume(ctx, `Only ${12 - standing} more could be placed (twelve monsters at most in one place).`);
     count = 12 - standing;
   }
-  const base = str(a.name, 30) || m.name;
+  // A name given with a number ("Drowned villager 1"): the number is the Engine's to give.
+  const base = str(a.name, 30).replace(/\s+\d+$/, '') || m.name;
   const same = Object.values(s.foes).filter((f) => f.base === base).length;
+  // Never two with one name (bench part 3, 27 Nov: two "Drowned villager 1" in the chapel after a fit had
+  // removed some, so every call naming one could mean either): the first number nobody has.
+  const taken = new Set(Object.values(s.foes).map((f) => f.name));
   const out = [];
   for (let n = 0; n < count; n++) {
     const id = nextId(s, 'f');
-    const label = count > 1 || same ? `${base} ${same + n + 1}` : base;
+    let label = count > 1 || same ? `${base} ${same + n + 1}` : base;
+    for (let k = 1; taken.has(label); k++) label = `${base} ${k}`;
+    taken.add(label);
     const hp = a.rollHp ? rollDice(m.hd, ctx.rng).total || m.hp : m.hp;
     s.foes[id] = { id, mid: m.id, base, name: label, siteId: a.siteId || s.scene.siteId, hp, maxHp: hp, ac: m.ac, dexMod: R.mod(m.ab[1]), xp: m.xp, cr: m.cr, conds: [], dead: false, hidden: !!a.hidden, spent: {}, note: str(a.note, 200), legendary: m.legendary ? 3 : null };
     if (a.zone) s.foes[id].zone0 = str(a.zone, 40); // where on the map it starts (the adventure's zone for it)

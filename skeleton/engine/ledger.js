@@ -282,11 +282,16 @@ function addCreatures(s, ctx, base, count, siteId, hidden) {
   const b = ctx.mod.ix.creature[base];
   if (!b) no(`There is no creature "${base}" in the bestiary. It has: ${ctx.mod.bestiary.creatures.map((c) => c.id).join(', ')}.`);
   const same = Object.values(s.creatures).filter((k) => k.base === base).length;
+  // Never two with one name (the D&D bench, 27 Nov: two "Drowned villager 1" after a fit removed some): the
+  // first number nobody has.
+  const taken = new Set(Object.values(s.creatures).map((k) => k.name));
   const out = [];
   for (let i = 0; i < Math.min(12, Math.max(1, count)); i++) {
     const id = nextId(s, 'k');
-    const n = same + i + 1;
-    s.creatures[id] = { id, base, name: count > 1 || same ? `${b.name} ${n}` : b.name, siteId, health: b.health, healthMax: b.health, soak: b.soak || 0, defence: b.defence, xp: b.xp || 0, conds: [], down: false, hidden };
+    let name = count > 1 || same ? `${b.name} ${same + i + 1}` : b.name;
+    for (let k = 1; taken.has(name); k++) name = `${b.name} ${k}`;
+    taken.add(name);
+    s.creatures[id] = { id, base, name, siteId, health: b.health, healthMax: b.health, soak: b.soak || 0, defence: b.defence, xp: b.xp || 0, conds: [], down: false, hidden };
     out.push(s.creatures[id]);
   }
   return out;
