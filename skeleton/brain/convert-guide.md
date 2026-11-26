@@ -23,6 +23,7 @@ Keep what makes the source itself: its names, its mood, its signature tricks. Ch
 - Stats: 3 to 6. Merge the source's attributes if it has more (Strength and Constitution may become Body).
 - Monsters: keep their names, looks, tactics and special abilities. With the source's own dice, keep its numbers (an attack bonus becomes the attack's "rating", armour class becomes "defence", damage dice become "weapon", hit points become "health"). On the d6 pool, re-derive them from the tables below.
 - A campaign or adventure -> one adventure file per chapter or self-contained story. Locations -> sites with exits between them. Encounters -> creatures placed in sites (hidden when they ambush). Traps and skill challenges -> hazards. Plot goals -> quests. Countdowns and rising threats -> clocks. Important people -> npcs.
+- What the source says happens by itself -> a place's "rules", so the Engine carries it out and the Director only narrates it. Write one wherever the source says "when" or "if": an ambush that springs on a failed sneak (when "fail sneak", do "fight" or "reveal"); followers who flee when their leader falls (when "down", who the leader, do "flee"); a countdown that moves on arrival or each round (do "tick" with the clock); a quest done when a creature falls or a place is cleared (do "quest"); reinforcements (do "add"); a reward for a cleared place (do "xp"). Give each rule a short "say" for the Director. Use only the events, conditions and effects the template lists; anything else stays in the place's text.
 - Write every description in your own words. Do not copy long passages from the source; a short phrase is fine. Rules text should be short, plain and exact.
 
 NUMBERS FOR THE d6 POOL (when moving a game onto the d6 pool, or inventing one for it, use these so every module plays alike)
@@ -42,7 +43,7 @@ NUMBERS FOR THE d6 POOL (when moving a game onto the d6 pool, or inventing one f
 - Experience: 10 a level is a good default; a short adventure is worth about one level.
 
 INVENTING FROM IDEAS
-Build one strong, original game around the ideas: a clear premise, a world with one big mystery, characters with something to want, creatures with a reason to exist, and a first adventure that can be played in one evening (3 to 5 sites, 1 or 2 fights, a hazard, a choice that matters at the end). Do not borrow names, places or characters from published games, books or films. Give the module terms that fit its world (what it calls a snag, a surge, health and strain).
+Build one strong, original game around the ideas: a clear premise, a world with one big mystery, characters with something to want, creatures with a reason to exist, and a first adventure that can be played in one evening (3 to 5 sites, 1 or 2 fights, a hazard, a rule or two that make the world react by itself, a choice that matters at the end). Do not borrow names, places or characters from published games, books or films. Give the module terms that fit its world (what it calls a snag, a surge, health and strain).
 
 WRITING THE FILES
 - Write exactly one JSON object for the section you are asked for, matching its template. No comments, no trailing commas, no text before or after it.

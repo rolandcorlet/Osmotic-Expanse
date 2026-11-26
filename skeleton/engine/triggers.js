@@ -63,6 +63,10 @@ export function checkRules(mod, adv) {
   const quests = new Set((adv.quests || []).map((q) => q.id));
   const stats = new Set([...Object.keys(mod.ix.stat || {}), ...Object.keys(mod.ix.skill || {})]);
   const lists = [...sites.map((s) => [s.id, s.rules || []]), ['the adventure', adv.rules || []]];
+  // Who a rule names: a bestiary id or a creature's name, as placed here ("Glass eel", "k72 Drowned choir").
+  const beasts = Object.values(mod.ix.creature || {});
+  const knows = (w) => { const t = words(w).toLowerCase().replace(/^k\d+\s+/, ''); return !t || beasts.some((c) => c.id === t || String(c.name || '').toLowerCase() === t)
+    || sites.some((st) => (st.creatures || []).some((c) => c.id === t || String(c.name || '').toLowerCase() === t)); };
   for (const [where, rules] of lists) {
     rules.forEach((r, n) => {
       const at = `${where}: rule ${r.id || n + 1}`;
@@ -76,6 +80,7 @@ export function checkRules(mod, adv) {
       if (r.do === 'tick' && !clocks.has(r.clock)) errors.push(`${at}: there is no clock "${r.clock}" to tick.`);
       if (r.do === 'quest' && !quests.has(r.quest)) errors.push(`${at}: there is no quest "${r.quest}".`);
       if (r.do === 'add' && !(mod.ix.creature || {})[r.creature]) errors.push(`${at}: there is no creature "${r.creature}" in the bestiary.`);
+      for (const k of ['who', 'target']) if (r[k] && !knows(r[k])) errors.push(`${at}: there is no creature "${r[k]}" in this adventure or the bestiary.`);
       if (r.do === 'say' && !r.say) errors.push(`${at}: write the line to say.`);
       for (const c of parseIf(r.if)) {
         if (!CONDITIONS.includes(c.k)) errors.push(`${at}: "if ${c.k}" is not a condition the Engine knows (${CONDITIONS.join(', ')}).`);

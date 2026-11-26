@@ -256,8 +256,10 @@ THE TEMPLATES (one per file)
       "exits": ["nave"],
       "creatures?": [ { "id": "glass-eel", "count": 2, "hidden": true } ],
       "hazards?": [ { "name": "Cold current", "stat": "brawn", "skill": "swim", "at": 12, "fail": "Lose 3 Breath." } ],   // at: a difficulty in the system's units
-      "clues?": ["A broken lamp with a guild mark."] }
+      "clues?": ["A broken lamp with a guild mark."],
+      "rules?": [ { "id": "eels", "when": "fail swim", "do": "reveal", "who": "glass-eel", "say": "The current drags a diver to the eels." } ] }   // the Engine carries these out itself (engine/triggers.js): when enter | fail <stat or skill> | succeed <..> | round | down (who) | cleared | full <clock> | quest <id>; if from|visited <place>, down|standing <who>, quest <id>, passed|failed <x>, fight, no fight; do fight | flee | reveal | tick (clock) | quest | xp | add (creature, count) | say
   ],
+  "rules?": [ { "id": "flood", "when": "full tide", "do": "say", "say": "The city floods." } ],   // rules that hold everywhere in the adventure
   "quests": [ { "id": "bell", "text": "Raise the glass bell.", "doneAt?": ["dock"] } ],
   "clocks?": [ { "id": "tide", "name": "The Tide", "size": 6, "ticks": "Every time the divers rest or fail loudly.", "fills": "The city floods." } ],
   "npcs?": [ { "name": "Auntie Pell", "role": "Dock boss", "want": "Her share.", "voice": "Dry, slow.", "secret": "She sold the map twice." } ],

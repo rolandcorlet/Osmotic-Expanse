@@ -85,6 +85,17 @@ test('the converter writes every section, sends problems back once, and ends wit
   assert.equal(out.mod.module.id, 'saltglass-copy');
   assert.equal(out.mod.adventures.length, 1);
 });
+test('an adventure whose rule names a creature it does not have is sent back to be fixed', async () => {
+  const read = (f) => JSON.parse(readFileSync(new URL(`../modules/saltglass/${f}`, import.meta.url)));
+  const good = read('adventures/bell-under-brine.json');
+  const bad = JSON.parse(JSON.stringify(good));
+  bad.sites[0].rules = [...(bad.sites[0].rules || []), { id: 'ghost', when: 'enter', do: 'reveal', who: 'no-such-thing' }];
+  const sent = [];
+  const provider = scripted((msg) => { sent.push(msg); return { text: JSON.stringify(/has problems/.test(msg) ? good : bad) }; });
+  const out = await convert({ provider, mode: 'extend', source: 'x', existing: mod, sections: ['adventure'] });
+  assert.ok(sent.some((m) => /has problems/.test(m) && /no-such-thing/.test(m)), 'the broken rule was sent back');
+  assert.ok(out.ok, out.errors.join('\n'));
+});
 test('extend: new creatures are added to the bestiary and a new adventure uses them', async () => {
   const beasts = JSON.parse(readFileSync(new URL('../modules/saltglass/bestiary.json', import.meta.url)));
   const adv = JSON.parse(readFileSync(new URL('../modules/saltglass/adventures/bell-under-brine.json', import.meta.url)));

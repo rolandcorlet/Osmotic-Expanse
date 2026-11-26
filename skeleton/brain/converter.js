@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { DICE, TEMPLATES, checkModule, checkRules, checkHandbook, checkBestiary, checkLore, checkAdventure, FORMAT } from '../engine/schema.js';
 import { prepare, check } from '../engine/module.js';
 import { SYSTEMS, getSystem } from '../engine/dicesystems.js';
+import { checkRules as checkAdventureRules } from '../engine/triggers.js';
 
 export const GUIDE = readFileSync(new URL('./convert-guide.md', import.meta.url), 'utf8').replace('{{DICE}}', DICE);
 export const MODES = {
@@ -40,7 +41,15 @@ function checker(section, made) {
   if (section === 'handbook') return (x) => checkHandbook(x, made.rules);
   if (section === 'bestiary') return (x) => checkBestiary(x, made.rules);
   if (section === 'lore') return (x) => checkLore(x);
-  return (x) => checkAdventure(x, { bestiary: made.bestiary, rules: made.rules });
+  // An adventure's own rules are checked too (a rule about a creature or clock it does not have), so
+  // the model is sent them to fix with the rest.
+  return (x) => {
+    const errs = checkAdventure(x, { bestiary: made.bestiary, rules: made.rules });
+    if (errs.length || !(x.rules || (x.sites || []).some((st) => (st.rules || []).length))) return errs;
+    let mod = null;
+    try { mod = prepare({ module: made.module, rules: made.rules, handbook: made.handbook, bestiary: made.bestiary, lore: made.lore, adventures: [x] }); } catch (e) { return errs; }
+    return mod && mod.ix ? checkAdventureRules(mod, x) : errs;
+  };
 }
 
 // What has been made so far, briefly: the ids later sections must use.
@@ -72,7 +81,7 @@ const ASK = {
   handbook: 'Write handbook.json: the players\' book, with 2 to 4 ready-made characters (pregens) whose stats and skills are final values.',
   bestiary: 'Write bestiary.json: the creatures. Convert every creature in the source (up to 30); when inventing, make 5 to 10 across tiers 1 to 4.',
   lore: 'Write lore.json: the world, a few sections, and a glossary of the game\'s own words.',
-  adventure: 'Write one adventure file. When converting a campaign, convert its first chapter or adventure (or the one named in the notes); when inventing, write a first adventure for one evening.',
+  adventure: 'Write one adventure file. When converting a campaign, convert its first chapter or adventure (or the one named in the notes); when inventing, write a first adventure for one evening. Give places "rules" for what happens by itself (an ambush, a countdown, followers who flee, a quest done when a creature falls).',
 };
 
 // sections: which to write, in this order. existing: a module to extend (its sections are kept).
