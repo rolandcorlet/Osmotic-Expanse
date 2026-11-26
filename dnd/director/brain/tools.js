@@ -85,7 +85,7 @@ export function mapLine(T) {
 export const TOOLS = [
   {
     name: 'ask_for_roll',
-    description: 'Ask one or more characters for an ability check or a saving throw. The roll appears on their screen; you learn the result on your next turn. Stop and wait after asking. For a hazard or a monster spell with a saving throw, give the effect: damage dice and type, half on success, and/or a condition on a failure.',
+    description: 'Ask one or more characters for an ability check or a saving throw. Ask only once a player has said what their character tries (\"I search the desk\", \"I look where the lamp was\"), or when a hazard, a trap or an attack forces it. When you set a scene, or someone has just walked in or out, ask what they do and wait: no roll yet. The roll appears on their screen with your reason, and the story says it to the table; you learn the result on your next turn. Stop and wait after asking. For a hazard or a monster spell with a saving throw, give the effect: damage dice and type, half on success, and/or a condition on a failure.',
     parameters: obj({
       characters: A('Ids or names of the characters who roll. Several for a group check or an area effect.'),
       kind: S('"check" or "save".', { enum: ['check', 'save'] }),
@@ -100,6 +100,8 @@ export const TOOLS = [
       condition_on_fail: S('Optional: a condition a failed save imposes (prone, poisoned, frightened, paralyzed, restrained, blinded, charmed, stunned).'),
     }, ['characters', 'kind', 'dc', 'reason']),
     run(a, T) {
+      // Every roll is said to the player with what it is for (Roly, 27 Nov): no reason, no roll.
+      if (!String(a.reason || '').trim()) return { note: 'Nothing asked: say in reason what the roll is for, in a few words the player sees ("Search where the lamp was").' };
       const all = listOf(a.characters).map((x) => findPc(T.state, x)).filter(Boolean);
       // Naming someone outside the party (Nell, Grisk) asks nothing of anyone (part 2 bench, 20 Nov).
       if (!all.length) return { note: `Nothing asked: only the party's characters roll on their screens (${party(T.state)}). For a monster use monster_save, or monster_action for its attack; for anyone else you play, decide it or use roll_dice.` };

@@ -89,7 +89,7 @@ export const TOOLS = [
   },
   {
     name: 'ask_for_roll',
-    description: 'Ask one or more characters to roll a stat (+ skill) against a difficulty. The roll appears on their screens and they roll it; you will hear the result. Use this for anything uncertain the players try, and for hazards. Never ask for a roll in words only.',
+    description: 'Ask one or more characters to roll a stat (+ skill) against a difficulty. Ask only once a player has said what their character tries (\"I search the desk\", \"I look where the lamp was\"), or when a hazard, a trap or an attack forces it. When you set a scene, or someone has just walked in or out, ask what they do and wait: no roll yet. The roll appears on their screens with your reason, and the story says it to the table; they roll it and you will hear the result. Use this for anything uncertain the players try, and for hazards. Never ask for a roll in words only.',
     parameters: obj({
       characters: A('Ids or names of the characters who roll.'),
       stat: S('A stat id from the rules.'),
@@ -100,6 +100,8 @@ export const TOOLS = [
       on_fail_condition: S('A condition id put on a failure, or empty.'),
     }, ['characters', 'stat', 'difficulty', 'reason']),
     run(a, T) {
+      // Every roll is said to the player with what it is for (Roly, 27 Nov): no reason, no roll.
+      if (!String(a.reason || '').trim()) return { note: 'Nothing asked: say in reason what the roll is for, in a few words the player sees ("Search where the lamp was").' };
       const ids = charIds(T, a);
       if (!ids.length) return { note: `Nothing asked: name a character of the party: ${T.party()}. A creature does not roll on a screen; use creature_attack, or decide.` };
       const waiting = ids.filter((id) => T.state.requests.some((q) => q.charId === id));

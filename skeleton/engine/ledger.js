@@ -43,11 +43,30 @@ export function apply(state, action, ctx) {
   if (!h) no(`Unknown action "${action && action.type}".`);
   const s = structuredClone(state);
   const c = { ...ctx, events: [] };
+  const asked = new Set((state.requests || []).map((q) => q.id));
   h(s, action, c);
   // The adventure's own rules (engine/triggers.js), after every change. They never stop the game.
   try { runRules(s, c); } catch (e) { if (!(e instanceof RuleError)) throw e; }
+  try { announceRolls(s, c, asked); } catch (e) { /* never stops the game */ }
   s.seq += 1;
   return s;
+}
+
+// Every roll asked of a player is said in the story, with what it is for, whoever asked it (the Director, the
+// host or the Engine), so the table hears it too (Roly, 27 Nov).
+function announceRolls(s, ctx, before) {
+  const { mod } = ctx;
+  const groups = new Map();
+  for (const q of (s.requests || []).filter((x) => !before.has(x.id))) { const k = `${q.stat}|${q.skill}|${q.at}|${q.reason || ''}`; groups.set(k, [...(groups.get(k) || []), q]); }
+  for (const list of groups.values()) {
+    const q = list[0];
+    const names = list.map((x) => (s.chars[x.charId] || {}).name).filter(Boolean);
+    if (!names.length) continue;
+    const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+    const label = `${(mod.ix.stat[q.stat] || {}).name || q.stat}${q.skill ? ` + ${(mod.ix.skill[q.skill] || {}).name || q.skill}` : ''}`;
+    const why = String(q.reason || '').trim().replace(/\.$/, '');
+    story(s, ctx, 'event', `Roll asked: ${who}, ${label} (${ladderName(mod, q.at).replace(/\s*\([^)]*\)$/, '')})${why ? `, for this: ${why}` : ''}.`, 'Engine', { roll: true, ask: list.map((x) => x.id) });
+  }
 }
 
 // ------------------------------------------------------------------ the adventure's own rules
@@ -424,7 +443,13 @@ H['roll.ask'] = (s, a, ctx) => {
     s.requests.push({ id: nextId(s, 'q'), charId: id, stat, skill, at, reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, fail });
   }
 };
-H['roll.cancel'] = (s, a, ctx) => { hostOnly(ctx); s.requests = s.requests.filter((q) => q.id !== a.id); };
+H['roll.cancel'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  s.requests = s.requests.filter((q) => q.id !== a.id);
+  // Its announcement goes with it, if nobody else is still asked in it.
+  for (const e of s.story) if (Array.isArray(e.ask) && e.ask.includes(a.id)) e.ask = e.ask.filter((x) => x !== a.id);
+  s.story = s.story.filter((e) => !(Array.isArray(e.ask) && !e.ask.length));
+};
 
 H['roll.make'] = (s, a, ctx) => {
   const { mod } = ctx;
@@ -435,7 +460,9 @@ H['roll.make'] = (s, a, ctx) => {
   const r = rollSpec(mod, ctx, pool, q.at, a.dice);
   s.requests = s.requests.filter((x) => x.id !== q.id);
   const label = `${mod.ix.stat[q.stat].name}${q.skill ? ` + ${mod.ix.skill[q.skill].name}` : ''}`;
-  let text = `${ch.name} rolls ${label} (${pool.label}) against ${ladderName(mod, q.at)}: ${r.shown}, ${verdict(r)}.`;
+  // What the roll was for, in the result too (Roly, 27 Nov).
+  const forWhat = String(q.reason || '').trim().replace(/\.$/, '');
+  let text = `${ch.name} rolls ${label} (${pool.label}) against ${ladderName(mod, q.at)}: ${r.shown}, ${verdict(r)}${forWhat ? `, for this: ${forWhat}` : ''}.`;
   if (r.partial) text += ' They do it, at a cost.';
   if (r.surge) text += ` ${term(mod, 'surge')}! ${mod.rules.surge.effect}`;
   if (r.snags) text += ` ${r.snags} ${term(mod, 'snag')}${r.snags > 1 ? 's' : ''}: +${r.snags} ${term(mod, 'strain')}.`;

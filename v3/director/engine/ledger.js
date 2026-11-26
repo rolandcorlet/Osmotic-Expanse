@@ -1923,6 +1923,9 @@ const HANDLERS = {
       if (a.unhurried) req.note = `Baseline ${base} does not meet Threshold ${at}, so this needs dice.`;
       pushRequest(s, req);
       say(s, ctx, `${o.name} is asked to roll ${label}: ${pool.dice} dice against Threshold ${at}.`, 'ask');
+      // Said to the whole table too, with what it is for (Roly, 27 Nov: every roll announced, in every engine).
+      announce(s, ctx, o, `is asked to roll, for this: ${label} (${pool.dice} dice)`);
+      s.story[s.story.length - 1].ask = req.id;
     },
   },
   // v3: the host marks an organism's player as away (or back). The Director plays it while away.
@@ -2047,6 +2050,7 @@ const HANDLERS = {
       }
       s.requests = s.requests.filter((q) => q.id !== req.id);
       say(s, ctx, `The roll for ${req.label} is withdrawn.`, 'info');
+      s.story = (s.story || []).filter((e) => e.ask !== req.id); // its announcement goes with it
     },
   },
   'request.adjust': {

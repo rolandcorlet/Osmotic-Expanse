@@ -77,6 +77,20 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = 
   return L.join('\n');
 }
 
+// A roll to look, search or know asked before the player said they try anything like it, in a turn that also
+// asks them what they do (Roly, 27 Nov: a character walked outside, and the Director asked what he did and put up
+// an Investigation roll at once). The roll waits for the player's words: "I look around", "I search where the
+// lamp was".
+const OPEN_Q = /\b(what do(?:es)?\s+(?:you|[A-Z][\w'-]*(?:\s[A-Z][\w'-]*)?)\s+do|what(?:'s| is) (?:your|their|his|her) move|what now|what will you do|what would you like to do|how do you (?:proceed|respond))\b[^.!]*\?\s*$/i;
+const TRIES = /\b(look|search|investigat|examin|inspect|check|listen|stud(?:y|ies)|read|peer|scan|sniff|feel|probe|watch|observ|recall|rememb|know|sense|notic|spot|track|find|hunt|follow|scrutin|eye|sound out|size up)\w*/i;
+const INFO_SKILL = /investigat|percep|insight|search|look|listen|notice|spot|sense|lore|arcana|history|religion|nature|medicine|study|examin|occult|science|knowledge|read/i;
+function earlyRolls(before, after, narration, mod, sinceSeq) {
+  if (!OPEN_Q.test(String(narration).slice(-240))) return [];
+  const said = (before.story || []).filter((e) => e.kind === 'say' && e.seq > sinceSeq).map((e) => e.text).join(' ');
+  if (TRIES.test(said)) return [];
+  const old = new Set((before.requests || []).map((q) => q.id));
+  return (after.requests || []).filter((q) => !old.has(q.id) && q.by === 'ai' && q.skill && INFO_SKILL.test(`${q.skill} ${((mod.ix.skill || {})[q.skill] || {}).name || ''}`));
+}
 // A quest that ends at this place, not done yet, when every roll since the last narration succeeded and the
 // Director has not called complete_quest this turn.
 function questWon(s, mod, sinceSeq, calls) {
@@ -149,6 +163,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
   let silentNudged = false;
   let moveNudged = false;
   let questNudged = false;
+  let rollHeld = false;
   for (let step = 0; step < MAX_STEPS + 2 * Object.keys(state.creatures).length; step++) {
     usage.in += reply.usage.in; usage.out += reply.usage.out;
     if (reply.calls.length) {
@@ -167,6 +182,16 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     if (went) {
       moveNudged = true; narration = '';
       reply = await chat.send(`Your narration takes the party toward ${went.name}, but they are still at ${site(T.state, mod).name}. If they have arrived there or are close enough to see it, call move_party with place "${went.id}" now, then narrate again. If something stops them on the way, keep them where they are and say what stops them. End on one question.`);
+      continue;
+    }
+    // A look-or-know roll before the player tried anything, with "what do you do?" (earlyRolls): withdrawn, once.
+    const early = narration && !rollHeld && !T.state.fight ? earlyRolls(state, T.state, narration, mod, lastNarr ? lastNarr.seq : -1) : [];
+    if (early.length) {
+      rollHeld = true;
+      for (const q of early) T.do({ type: 'roll.cancel', id: q.id });
+      calls.push({ name: '(engine)', args: {}, result: { note: 'A roll asked before the player said what they try was withdrawn.' } });
+      narration = '';
+      reply = await chat.send('You asked for a roll before the player said what their character tries, and you also asked what they do. The Engine has withdrawn the roll: wait for their words (they may say "I look around" or "I search where the lamp was"; then ask for it). Narrate again without any roll, ending on your one question.');
       continue;
     }
     // Rolls that all succeeded where a quest ends, and no complete_quest (the Gull Rock bench, 27 Nov: three

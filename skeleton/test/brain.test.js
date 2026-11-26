@@ -154,3 +154,20 @@ test('a creature that attacked and was left in its turn has the turn ended by th
   assert.notEqual(out.state.fight && out.state.fight.order[out.state.fight.turn].key, `creature:${eel.id}`);
   assert.ok(out.flags.some((f) => /ended its turn/.test(f.text)));
 });
+
+test('a look-or-know roll before the player tries anything, with "what do you do?", is withdrawn; after "I look around" it stays', async () => {
+  const look = mod.rules.skills.find((x) => /look|sense|lore|notice|search/i.test(`${x.id} ${x.name}`));
+  for (const [said, kept] of [['I walk outside.', false], ['I step outside and look around where the lamp was.', true]]) {
+    const T = table(); const m = diver(T, 'p1', 0);
+    T.host({ type: 'narrate', text: 'The dock is quiet. What do you do?' });
+    T.as('p1', { type: 'say', text: said });
+    const provider = scripted([
+      { calls: [{ name: 'ask_for_roll', args: { characters: [m.id], stat: look.stat, skill: look.id, difficulty: 'Standard', reason: 'Search the quay' } }] },
+      { text: `The quay is wet and dark. ${m.name}, what do you do?` },
+      { text: `Rain on the quay. ${m.name}, what do you do?` },
+    ]);
+    const out = await directorTurn({ state: T.s, mod, provider, rng: makeRng(1), reason: 'a player spoke' });
+    assert.equal(out.state.requests.length, kept ? 1 : 0, said);
+    assert.equal(out.state.story.some((e) => /^Roll asked:/.test(e.text)), kept, said);
+  }
+});

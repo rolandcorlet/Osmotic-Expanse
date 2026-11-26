@@ -154,7 +154,7 @@ export function goodwillName(state, scenario) {
 export const TOOLS = [
   {
     name: 'ask_for_roll',
-    description: 'Ask one organism to roll (or pass on its Baseline). Use for anything uncertain an organism attempts. The player rolls on their own screen; the result comes back to you on the turn after. End your turn after calling this.',
+    description: 'Ask one organism to roll (or pass on its Baseline). Use for anything uncertain an organism attempts, once its player has said what it tries (\"I probe the wound lip\"), or when a hazard forces it: when you set a scene or a body has just moved, ask what it does and wait, with no roll yet. The story tells the table what the roll is for. The player rolls on their own screen; the result comes back to you on the turn after. End your turn after calling this.',
     parameters: obj({
       organism: S('Organism id, for example "wall".'),
       baseline: S('Which Baseline.', { enum: R.BASELINES }),

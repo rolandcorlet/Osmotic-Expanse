@@ -49,7 +49,7 @@ test('a roll asked for in words is sent back to use the tool', async () => {
   const provider = scripted([
     { text: 'Make a Perception check for me, Bryn. What do you see?' },
     { calls: [{ name: 'ask_for_roll', args: { characters: 'Bryn', kind: 'check', skill: 'perception', dc: 12, reason: 'Look' } }] },
-    { text: 'Something moves in the mill window. Bryn, what do you do?' },
+    { text: 'Something moves in the mill window. Bryn, what do you see?' },
   ]);
   const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1) });
   assert.equal(out.state.requests.length, 1);
@@ -387,4 +387,29 @@ test('a monster that acted and was left in its turn has the turn ended by the En
   const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1), reason: 'a monster is up' });
   assert.notEqual(out.state.fight && out.state.fight.order[out.state.fight.turn].key, key);
   assert.ok(out.calls.some((c) => c.name === '(engine)'));
+});
+
+test('a look-or-know roll before the player tries anything, with "what do you do?", is withdrawn; after "I look around" it stays', async () => {
+  for (const [said, kept] of [['I walk outside.', false], ['I step outside and look around where the lamp was.', true]]) {
+    const T = table();
+    const pc = hero(T, 'p1', 'Bryn');
+    T.host({ type: 'narrate', text: 'The inn is warm. Bryn, what do you do?' });
+    T.as('p1', { type: 'say', text: said });
+    const provider = scripted([
+      { calls: [{ name: 'ask_for_roll', args: { characters: ['Bryn'], kind: 'check', skill: 'investigation', dc: 12, reason: 'Search the yard' } }] },
+      { text: 'The yard is dark and wet. Bryn, what do you do?' },
+      { text: 'Rain drums on the yard. Bryn, what do you do?' },
+    ]);
+    const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1), reason: 'a player spoke' });
+    assert.equal(out.state.requests.filter((q) => q.pcId === pc.id).length, kept ? 1 : 0, said);
+    assert.equal(out.state.story.some((e) => /^Roll asked: Bryn/.test(e.text)), kept, said);
+  }
+});
+test('every roll asked is said in the story with what it is for, and its result says it too', () => {
+  const T = table();
+  const pc = hero(T, 'p1', 'Bryn');
+  T.host({ type: 'roll.ask', pcId: pc.id, kind: 'check', skill: 'perception', dc: 12, reason: 'Spot the goblins in the mill' });
+  assert.ok(T.s.story.some((e) => e.text === 'Roll asked: Bryn, a Perception check, for this: Spot the goblins in the mill.'));
+  T.as('p1', { type: 'roll.make', id: T.s.requests[0].id });
+  assert.match(T.s.story.at(-1).text, /Perception check.*\(Spot the goblins in the mill\)/);
 });

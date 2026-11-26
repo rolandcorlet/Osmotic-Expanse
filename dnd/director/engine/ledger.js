@@ -633,7 +633,13 @@ H['roll.ask'] = (s, a, ctx) => {
     s.requests.push({ id: nextId(s, 'q'), pcId: id, kind, ability, skill, dc, adv: a.adv === 'adv' || a.adv === 'dis' ? a.adv : '', reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, group: ids.length > 1 ? true : undefined, effect, batch, site: s.scene.siteId });
   }
 };
-H['roll.cancel'] = (s, a, ctx) => { hostOnly(ctx); s.requests = s.requests.filter((q) => q.id !== a.id); };
+H['roll.cancel'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  s.requests = s.requests.filter((q) => q.id !== a.id);
+  // Its announcement goes with it, if nobody else is still asked in it.
+  for (const e of s.story) if (Array.isArray(e.ask) && e.ask.includes(a.id)) e.ask = e.ask.filter((x) => x !== a.id);
+  s.story = s.story.filter((e) => !(Array.isArray(e.ask) && !e.ask.length));
+};
 
 H['roll.make'] = (s, a, ctx) => {
   const q = s.requests.find((x) => x.id === a.id);
@@ -682,7 +688,9 @@ H['roll.make'] = (s, a, ctx) => {
       delete b[q.batch];
     }
   }
-  let text = `${pc.name} ${success ? 'succeeds on' : 'fails'} a ${what}${advWord(r)}${r.fx.fail ? ' (automatically)' : ''}.`;
+  // What the roll was for, in the result too (Roly, 27 Nov: every roll said with what it is for).
+  const forWhat = String(q.reason || '').trim().replace(/\.$/, '');
+  let text = `${pc.name} ${success ? 'succeeds on' : 'fails'} ${aOrAn(what)}${advWord(r)}${r.fx.fail ? ' (automatically)' : ''}${forWhat && !/^(Roll initiative|.* is dying)/.test(forWhat) ? ` (${forWhat})` : ''}.`;
   if (q.effect && q.effect.concentration) {
     if (!success) dropConcentration(s, ctx, pc, 'failed the concentration save');
     else text = `${pc.name} keeps concentrating on ${pc.conc ? pc.conc.name : 'the spell'}.`;
@@ -2724,6 +2732,7 @@ export function apply(state, action, ctx) {
   s.seq += 1;
   s.t = ctx.now || 0;
   const c = { ...ctx, events: [] };
+  const asked = new Set((state.requests || []).map((q) => q.id));
   h(s, action, c);
   try { releaseGrapples(s, c); } catch (e) { /* never stops the game */ }
   // The adventure's own rules and the Engine's defaults (a fight starts, a foe flees, a clock ticks, a
@@ -2731,7 +2740,29 @@ export function apply(state, action, ctx) {
   runRules(s, c, action);
   // Everyone at the party's place has a square on the map. The map must never stop the game.
   try { placeEveryone(s, ctx); } catch (e) { /* a broken map is redrawn next time */ }
+  try { announceRolls(s, c, asked); } catch (e) { /* never stops the game */ }
   return s;
+}
+
+// Every roll asked of a player is said in the story, with what it is for, whoever asked it (the Director, the
+// DM, or the Engine: initiative, a death save, a monster's spell), so the table hears it too (Roly, 27 Nov).
+const aOrAn = (w) => `${/^[aeiou]/i.test(w) ? 'an' : 'a'} ${w}`;
+const rollWhat = (ctx, q) => (q.kind === 'initiative' ? 'initiative' : q.kind === 'death' ? 'a death saving throw'
+  : q.kind === 'save' ? aOrAn(`${R.ABILITY_NAMES[q.ability]} saving throw`) : q.skill ? aOrAn(`${(R.index(ctx.srd).skill[q.skill] || {}).name || q.skill} check`) : aOrAn(`${R.ABILITY_NAMES[q.ability]} check`));
+function announceRolls(s, ctx, before) {
+  const fresh = (s.requests || []).filter((q) => !before.has(q.id));
+  const groups = new Map();
+  for (const q of fresh) { const k = `${q.kind}|${q.ability}|${q.skill}|${q.reason || ''}`; groups.set(k, [...(groups.get(k) || []), q]); }
+  for (const list of groups.values()) {
+    const q = list[0];
+    const names = list.map((x) => (s.pcs[x.pcId] || {}).name).filter(Boolean);
+    if (!names.length) continue;
+    const who = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+    const what = rollWhat(ctx, q);
+    const why = String(q.reason || '').trim().replace(/\.$/, '');
+    const said = why && !new RegExp(q.kind === 'initiative' ? 'initiative' : q.kind === 'death' ? 'death sav' : '^$', 'i').test(why);
+    story(s, ctx, 'event', `Roll asked: ${who}, ${what}${said ? `, for this: ${why}` : ''}.`, 'Engine', { roll: true, ask: list.map((x) => x.id) });
+  }
 }
 
 // ---- what each screen may see ------------------------------------------------------------------
