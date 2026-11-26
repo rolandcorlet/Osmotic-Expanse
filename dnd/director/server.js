@@ -48,7 +48,7 @@ const LIB_DIR = join(here, 'library');
 const CONVERTED_DIR = join(LIB_DIR, 'converted');
 const ADVENTURES_DIR = join(LIB_DIR, 'adventures');
 if (!flag('--no-library')) {
-  for (const b of CV.loadBooks(CONVERTED_DIR)) { const a = CV.mergeBook(srd, b); console.log(`Converted book "${b.name}": ${a.monsters} monsters, ${a.spells} spells, ${a.rules} rules sections.`); }
+  for (const b of CV.loadBooks(CONVERTED_DIR)) { const a = CV.mergeBook(srd, b); console.log(`Converted book "${b.name}": ${a.monsters} monsters, ${a.spells} spells, ${a.rules} rules sections${a.options ? `, ${a.options} character options` : ''}.`); }
   for (const a of CV.loadAdventures(ADVENTURES_DIR)) {
     if (ADVENTURES.some((x) => x.id === a.id)) continue;
     ADVENTURES.push(a);
@@ -344,7 +344,7 @@ async function booksApi(path, method, body) {
     const added = eng ? CV.mergeBook(srd, eng) : { monsters: 0, spells: 0, rules: 0 };
     refreshSrd();
     convertJob = null; stagedPictures = [];
-    return { ok: true, saved: `"${meta.name}" is in your books${prev ? ' (it replaces the one saved before, which is set aside)' : ''}: ${added.monsters} monsters, ${added.spells} spells and ${added.rules} rules sections the Engine can use now.` };
+    return { ok: true, saved: `"${meta.name}" is in your books${prev ? ' (it replaces the one saved before, which is set aside)' : ''}: ${added.monsters} monsters, ${added.spells} spells${added.options ? `, ${added.options} character options` : ''} and ${added.rules} rules sections the Engine can use now${added.options ? ' (character creation lists the options)' : ''}.` };
   }
   if (path === '/discard' && method === 'POST') { if (!(convertJob && convertJob.busy)) convertJob = null; stagedPictures = []; return { ok: true }; }
   // Remove a converted book or adventure: out of the rules and the lists at once, its files set aside in

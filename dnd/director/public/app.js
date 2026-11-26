@@ -1526,11 +1526,12 @@ function booksResultHtml(J) {
       ${C.errors.length ? '<p class="small dim">The adventure can still be saved: the Director plays round what the checker flags, and you can fix the file in library/adventures.</p>' : ''}${saveRow('Save as an adventure')}`;
   }
   const E = R.entries || [];
-  const counts = { monster: 0, spell: 0, rule: 0 };
-  for (const e of E) counts[e.kind] += 1;
+  const counts = { monster: 0, spell: 0, rule: 0, race: 0, subrace: 0, background: 0, feat: 0 };
+  for (const e of E) counts[e.kind] = (counts[e.kind] || 0) + 1;
+  const optionChips = ['race', 'subrace', 'background', 'feat'].filter((k) => counts[k]).map((k) => `<span class="chip">${counts[k]} ${k}${counts[k] > 1 ? 's' : ''}</span>`).join('');
   const withGaps = E.filter((e) => e.gaps.length).length;
   const sel = E[B.sel] || null;
-  return `<h3>${esc(R.name || 'Converted')}<span class="right">${counts.monster ? `<span class="chip">${counts.monster} monster${counts.monster > 1 ? 's' : ''}</span>` : ''}${counts.spell ? `<span class="chip">${counts.spell} spell${counts.spell > 1 ? 's' : ''}</span>` : ''}${counts.rule ? `<span class="chip">${counts.rule} rules section${counts.rule > 1 ? 's' : ''}</span>` : ''}<span class="chip ${withGaps ? 'warn' : 'ok'}">${withGaps ? `${withGaps} to check` : 'all read'}</span></span></h3>
+  return `<h3>${esc(R.name || 'Converted')}<span class="right">${counts.monster ? `<span class="chip">${counts.monster} monster${counts.monster > 1 ? 's' : ''}</span>` : ''}${counts.spell ? `<span class="chip">${counts.spell} spell${counts.spell > 1 ? 's' : ''}</span>` : ''}${counts.rule ? `<span class="chip">${counts.rule} rules section${counts.rule > 1 ? 's' : ''}</span>` : ''}${optionChips}<span class="chip ${withGaps ? 'warn' : 'ok'}">${withGaps ? `${withGaps} to check` : 'all read'}</span></span></h3>
     ${(R.notes || []).length ? `<div class="small dim">${R.notes.map(esc).join(' ')}</div>` : ''}
     ${E.length ? `<div class="bk-split"><div class="scroll bk-list" data-scroll="bk-ent">${E.map((e, k) => `<button class="bk-row bk-pick${k === B.sel ? ' on' : ''}" data-act="bk.sel" data-n="${k}"><span class="grow">${esc(e.name)}</span><span class="faint small">${e.kind}</span>${e.gaps.length ? `<span class="chip warn">${e.gaps.length}</span>` : '<span class="ok-mark">✓</span>'}</button>`).join('')}</div>
       ${sel ? `<div class="bk-detail"><div class="bk-words"><div class="fl">The words</div><pre class="scroll" data-scroll="bk-w">${esc(sel.words || '(written by the AI from the text)')}</pre></div><div class="bk-eng"><div class="fl">For the Engine</div><div class="scroll receipt" data-scroll="bk-e">${sel.facts.map((f) => `<div class="ln"><span>${esc(f)}</span></div>`).join('')}${sel.gaps.map((g) => `<div class="note hot small">Not read: ${esc(g)}</div>`).join('')}</div></div></div>` : ''}</div>` : '<div class="empty">Nothing was read from that text. Try "What it is", or let the AI read it.</div>'}
@@ -1554,7 +1555,7 @@ function booksPicturesHtml(R) {
   return `<div class="bk-pics-h"><span class="fl">Pictures</span><span class="small faint">${kept} of ${P.length} kept${R.adventure ? ' · a map given to a place opens with a new game' : ''}</span></div><div class="bk-pics scroll" data-scroll="bk-pics">${P.map(card).join('')}</div>`;
 }
 function booksListHtml(L) {
-  const num = (c) => [c.monsters ? `${c.monsters} monsters` : '', c.spells ? `${c.spells} spells` : '', c.rules ? `${c.rules} rules sections` : ''].filter(Boolean).join(' · ') || 'empty';
+  const num = (c) => [c.monsters ? `${c.monsters} monsters` : '', c.spells ? `${c.spells} spells` : '', c.rules ? `${c.rules} rules sections` : '', c.options ? `${c.options} character options` : ''].filter(Boolean).join(' · ') || 'empty';
   // What can be done with one of yours: open its words again to convert them anew, or remove it (asked twice).
   const mine = (what, id, name, playing) => {
     const k = `${what}:${id}`;
