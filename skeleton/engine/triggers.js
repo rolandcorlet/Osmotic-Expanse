@@ -22,13 +22,14 @@
 //   from <place>, visited <place>, down <who>, standing <who>, quest <id>, passed <x>, failed <x>, fight, no fight
 // do:
 //   fight    a fight starts here     flee     `who` (or `target`) flees     reveal   `who` (or everyone hidden here)
+//   calm     `who` (or `target`) stops fighting: out of the fight, not beaten (the Tidewarden when the bell rings)
 //   tick     clock `clock` fills by `by` (1)      quest    quest `quest` is done      xp    each character earns `xp`
 //   add      `count` (1) of bestiary creature `creature` arrive here (hidden: `hidden`)
 //   say      only the line in `say`, for the Director (any rule may carry `say`)
 
 export const EVENTS = ['enter', 'fail', 'succeed', 'round', 'down', 'cleared', 'full', 'quest'];
 export const STATES = ['down', 'cleared', 'full', 'quest'];
-export const EFFECTS = ['fight', 'flee', 'reveal', 'tick', 'quest', 'xp', 'add', 'say'];
+export const EFFECTS = ['fight', 'flee', 'calm', 'reveal', 'tick', 'quest', 'xp', 'add', 'say'];
 export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'quest', 'passed', 'failed', 'fight', 'no fight'];
 
 const words = (v) => String(v == null ? '' : v).replace(/[:_]+/g, ' ').replace(/\s+/g, ' ').trim();
@@ -93,6 +94,6 @@ export function checkRules(mod, adv) {
 // One line in words, for the Director's briefing and the host's screen.
 export function ruleWords(r) {
   const when = { enter: 'when the party arrives', fail: `when a ${r.when.arg || ''} roll fails`, succeed: `when a ${r.when.arg || ''} roll succeeds`, round: 'each new round', down: `when ${r.who} is down`, cleared: 'when nothing here is left standing', full: `when ${r.when.arg} fills`, quest: `when ${r.when.arg} is done` }[r.when.ev] || r.when.ev;
-  const did = { fight: 'a fight starts', flee: `${r.target || r.who} flees`, reveal: `${r.target || r.who || 'whatever hides here'} is revealed`, tick: `${r.clock} ticks`, quest: `${r.quest} is done`, xp: `each earns ${r.xp}`, add: `${r.count || 1} ${r.creature} arrive`, say: 'the Director is told' }[r.do] || r.do;
+  const did = { fight: 'a fight starts', calm: `${r.target || r.who} stops fighting`, flee: `${r.target || r.who} flees`, reveal: `${r.target || r.who || 'whatever hides here'} is revealed`, tick: `${r.clock} ticks`, quest: `${r.quest} is done`, xp: `each earns ${r.xp}`, add: `${r.count || 1} ${r.creature} arrive`, say: 'the Director is told' }[r.do] || r.do;
   return `${when}${r.conds.length ? ` (if ${r.conds.map((c) => `${c.not ? 'not ' : ''}${c.k}${c.arg ? ` ${c.arg}` : ''}`).join(', ')})` : ''}: ${did}${r.say ? `. "${r.say}"` : ''}`;
 }

@@ -205,6 +205,14 @@
           "do": "reveal",
           "who": "choir-master",
           "say": "The choir-master lifts the keeper's key and sings."
+        },
+        {
+          "id": "rite-stopped",
+          "when": "down",
+          "who": "choir-master",
+          "do": "quest",
+          "quest": "stop-rite",
+          "say": "With the choir-master fallen, the hymn breaks apart and the drowned townsfolk sink back beneath the black water."
         }
       ]
     }

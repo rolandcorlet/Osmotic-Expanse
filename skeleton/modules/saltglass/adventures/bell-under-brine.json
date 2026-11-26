@@ -39,7 +39,8 @@
       "exits": ["nave"],
       "creatures": [ { "id": "tidewarden", "count": 1, "hidden": false } ],
       "rules": [
-        { "id": "loud-fight", "when": "round", "once": true, "do": "tick", "clock": "tide", "say": "Blade on glass: the whole chamber rings, and the tide answers." }
+        { "id": "loud-fight", "when": "round", "once": true, "do": "tick", "clock": "tide", "say": "Blade on glass: the whole chamber rings, and the tide answers." },
+        { "id": "bell-rung", "when": "succeed lore", "do": "calm", "who": "tidewarden", "say": "The bell rings true, one clear note through the glass. The Tidewarden lowers its blade of water and stands still, its watch over." }
       ] }
   ],
   "quests": [

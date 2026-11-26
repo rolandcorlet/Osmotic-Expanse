@@ -3,7 +3,7 @@
 // supplies the words (instructions.md is filled in from module.json and rules.json).
 
 import { readFileSync } from 'node:fs';
-import { toolbox, TOOLS, charLine } from './tools.js';
+import { toolbox, toolsFor, charLine } from './tools.js';
 import { term, ladderName } from '../engine/module.js';
 import { getSystem } from '../engine/dicesystems.js';
 import { currentKey } from '../engine/ledger.js';
@@ -19,6 +19,7 @@ export function instructions(mod) {
     name: mod.module.name, tagline: mod.module.tagline, tone: mod.module.tone,
     snag: T.snag, surge: T.surge, strain: T.strain, difficulty: T.difficulty, overflow: T.overflow.toLowerCase(), health: T.health,
     ladder: (mod.rules.ladder || []).map((r) => `${r.name} ${r.at}`).join(', '),
+    middle: ((mod.rules.ladder || [])[1] || (mod.rules.ladder || [])[0] || {}).name || 'the middle difficulty',
     actions: String(mod.rules.combat.actionsPerTurn),
     terms: Object.entries(mod.module.rawTerms || {}).map(([k, v]) => `${v} (${k})`).join(', ') || 'the plain words',
   };
@@ -51,6 +52,10 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = 
   for (const c of Object.values(s.chars)) L.push(`- ${charLine(mod, c)}`);
   if (!Object.keys(s.chars).length) L.push('- Nobody has a character yet. Welcome the table and ask who they will play.');
   if (s.quests.length) L.push(`\nQUESTS: ${s.quests.map((q) => `${q.id} ${q.text}${q.done ? ' (done)' : ''}`).join('; ')}`);
+  // Quests finished here (the Gull Rock bench, 26 Nov: the rite was stopped and the Choir Master fell, but nobody
+  // called complete_quest): the Director is told which, so it marks them done when the scene does it.
+  const here2 = (adv.quests || []).filter((q) => (q.doneAt || []).includes(here.id) && !(s.quests.find((x) => x.id === q.id) || {}).done);
+  if (here2.length) L.push(`QUESTS THAT END HERE (call complete_quest the moment the story finishes one): ${here2.map((q) => `${q.id} ${q.text}`).join('; ')}`);
   if (s.clocks.length) L.push(`CLOCKS: ${s.clocks.map((c) => { const d = (adv.clocks || []).find((x) => x.id === c.id); return `${c.id} ${c.name} ${c.filled}/${c.size}${d ? ` (ticks: ${d.ticks}; when full: ${d.fills})` : ''}`; }).join('; ')}`);
   if (s.fight) {
     const cur = currentKey(s);
@@ -123,7 +128,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     if (said && nobody && /\b(attack|punch|hit|stab|shove|grab|throttle|draw (?:my|his|her) (?:sword|knife|blade|gun))\b/i.test(said)) T.do({ type: 'seed.check', event: 'provoke', text: said });
     T.do({ type: 'seed.check' });
   }
-  const chat = provider.start({ system: instructions(mod), tools: TOOLS.map(({ name, description, parameters }) => ({ name, description, parameters })) });
+  const chat = provider.start({ system: instructions(mod), tools: toolsFor(mod) });
   const calls = [];
   const usage = { in: 0, out: 0 };
   let reply = await chat.send(briefing(T.state, mod, { reason, hostNote, lastSeq: lastNarr ? lastNarr.seq : -1 }));

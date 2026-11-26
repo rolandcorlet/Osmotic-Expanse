@@ -43,3 +43,16 @@ test('the simulation: one diver against the Bell Chamber wipes less once it is f
   assert.ok(on.runs > 0);
   assert.ok(on.wiped / on.runs < 0.9, JSON.stringify(on));
 });
+
+test('ringing the bell (a Lore success in the Bell Chamber) stops the Tidewarden fighting', () => {
+  const T = table(5);
+  const m = diver(T, 'p1', 0);
+  for (const id of ['causeway', 'nave', 'bell']) T.host({ type: 'site.move', siteId: id });
+  T.host({ type: 'fight.start' });
+  const w = Object.values(T.s.creatures).find((k) => k.base === 'tidewarden');
+  for (let k = 0; k < 30 && !T.s.creatures[w.id].calm; k++) {
+    T.host({ type: 'roll.ask', charIds: [m.id], stat: 'nerve', skill: 'lore', at: 8, reason: 'ring the bell' });
+    T.as('p1', { type: 'roll.make', id: T.s.requests[0].id });
+  }
+  assert.ok(T.s.creatures[w.id].calm && T.s.creatures[w.id].down);
+});

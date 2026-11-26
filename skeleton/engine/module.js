@@ -81,7 +81,13 @@ export function difficulty(mod, x) {
   if (x == null || String(x).trim() === '') return null;
   const n = Number(x);
   if (Number.isFinite(n)) return Math.round(n);
-  const rung = ((mod.rules && mod.rules.ladder) || []).find((r) => r.name.toLowerCase() === String(x || '').trim().toLowerCase());
+  const ladder = (mod.rules && mod.rules.ladder) || [];
+  const w = String(x || '').trim().toLowerCase().replace(/\s*\(.*\)$/, '').replace(/\s+[+-]?\d+%?$/, '');
+  // The exact name, or the one word that tells it apart ("Hard" for "Hard Peril": the Gull Rock bench, 26 Nov,
+  // 13 of 14 refusals), or a name with a number after it ("Hard 20").
+  const rung = ladder.find((r) => r.name.toLowerCase() === w)
+    || ladder.find((r) => r.name.toLowerCase() === w.replace(/\s+-?\d+$/, ''))
+    || (() => { const l = ladder.filter((r) => r.name.toLowerCase().split(/\s+/).includes(w) || r.name.toLowerCase().startsWith(`${w} `)); return l.length === 1 ? l[0] : null; })();
   return rung ? rung.at : null;
 }
 

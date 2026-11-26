@@ -55,6 +55,18 @@ export function toolbox({ state, mod, rng, now = 0 }) {
 const charRef = (T, x) => { const t = target(T.state, x); return t && t.kind === 'char' ? t.id : null; };
 const charIds = (T, a) => [].concat(a.characters || a.character || []).flatMap((x) => String(x).split(/,| and /)).map((x) => charRef(T, x.replace(/\(.*\)/, '').trim()) || charRef(T, (String(x).match(/^\s*(\w+)\s*\(/) || [])[1])).filter(Boolean);
 
+// The tools in this game's own words: a difficulty is named from its ladder (the Gull Rock bench, 26 Nov: told
+// "Standard" as the example, the Director wrote "Hard" for "Hard Peril" thirteen times).
+export function toolsFor(mod) {
+  const rungs = (mod && mod.rules && mod.rules.ladder) || [];
+  const names = rungs.map((r) => `"${r.name}" (${r.at})`).join(', ');
+  return TOOLS.map(({ name, description, parameters }) => {
+    const p = structuredClone(parameters);
+    if (name === 'ask_for_roll' && names && p.properties && p.properties.difficulty) p.properties.difficulty.description = `One of this game's difficulties, by its full name: ${names}; or a number in its own units.`;
+    return { name, description, parameters: p };
+  });
+}
+
 export const TOOLS = [
   {
     name: 'look_up_rules',
@@ -62,7 +74,7 @@ export const TOOLS = [
     parameters: obj({ query: S('A few words: "what does a snag cost", "glass eel", "the bell".') }, ['query']),
     run(a, T) {
       const hits = lookUp(T.mod, a.query);
-      return hits.length ? { found: hits.map((h) => ({ book: h.book, title: h.title, text: h.text.slice(0, 900) })) } : { note: 'Nothing in the books matches. Rule it the simplest way: a roll against a Standard difficulty.' };
+      return hits.length ? { found: hits.map((h) => ({ book: h.book, title: h.title, text: h.text.slice(0, 900) })) } : { note: `Nothing in the books matches. Rule it the simplest way: a roll against ${(((T.mod.rules.ladder || [])[1] || (T.mod.rules.ladder || [])[0]) || {}).name || 'the middle difficulty'}.` };
     },
   },
   {

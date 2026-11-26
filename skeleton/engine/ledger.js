@@ -87,6 +87,8 @@ function fireRule(s, ctx, r) {
   switch (r.do) {
     case 'fight': if (!s.fight) tryH('fight.start', {}); break;
     case 'flee': for (const k of creaturesNamed(s, ctx, r.site, target).filter((x) => !x.down)) tryH('creature.flee', { creature: k.id }); break;
+    // It stops fighting, still there (the Tidewarden once the bell is rung): out of the fight, not beaten, no reward.
+    case 'calm': for (const k of creaturesNamed(s, ctx, r.site, target).filter((x) => !x.down)) { k.down = true; k.calm = true; } break;
     case 'reveal': tryH('creature.reveal', { ids: target ? creaturesNamed(s, ctx, r.site, target).map((k) => k.id) : [] }); break;
     case 'tick': tryH('clock.tick', { id: r.clock, n: r.by || 1 }); break;
     case 'quest': tryH('quest.done', { id: r.quest }); break;

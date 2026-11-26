@@ -61,7 +61,15 @@ export function designedParty(adv) {
 export function planFight({ groups, designed, levels, ix }) {
   if (!groups.length || !levels.length) return null;
   const [lo, hi] = designed.size;
-  if (levels.length >= lo && levels.length <= hi && levels.every((l) => l === designed.level)) return null;
+  if (levels.length >= lo && levels.length <= hi && levels.every((l) => l === designed.level)) {
+    // The party it is written for, but a lone creature far heavier than this party (Saltglass's Tidewarden, tier 3,
+    // against two divers: 80% of simulated fights lost, 26 Nov): its blows are softened, as for a smaller party.
+    const one = groups.length === 1 && groups[0].count === 1 ? weightOf(ix[groups[0].id]) : 0;
+    if (!one || one <= partyPower(levels) * 1.5) return null;
+    const blows = one > partyPower(levels) * 2 ? 0.5 : 0.65;
+    const health = Math.max(0.5, Math.round(((partyPower(levels) * 1.5) / one) * 20) / 20);
+    return { counts: { [groups[0].key]: 1 }, health, blows, ratingAsWritten: rate(one, levels), ratingBefore: rate(one, levels), rating: rate(one * health * blows, levels) };
+  }
   const asWritten = weigh(groups, ix) / partyPower(Array(lo).fill(designed.level));
   let target = asWritten * partyPower(levels);
   if (levels.length < lo) target = Math.min(target, partyPower(levels) * 1.75);
