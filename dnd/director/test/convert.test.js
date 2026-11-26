@@ -440,3 +440,12 @@ test('an attack whose damage is all in the save after the hit is not "an attack 
   const adv = { id: 's', name: 'S', sites: [{ id: 'a', name: 'A', exits: [], foes: [{ monster: 'xx-spitter', count: 1 }] }], monsters: [spitter] };
   assert.ok(!checkAdventure(adv, { ...srd, monsters: [...srd.monsters, spitter] }).errors.some((e) => /no damage/.test(e.text)));
 });
+
+test('a last stat block stops at the book\'s licence pages', () => {
+  const text = ['BONE WARDEN', 'Medium undead, lawful evil', 'Armor Class 15', 'Hit Points 39 (6d8 + 12)', 'Speed 30 ft.',
+    'Challenge 1/4 (50 XP)', 'ACTIONS', 'Shortsword. Melee Weapon Attack: +4 to hit, reach 5 ft., one creature. Hit: 5 (1d6 + 2) slashing damage.',
+    '', '--- Page 5 ---', 'OPEN GAME LICENSE Version 1.0a', '', 'The following items are designated Product Identity. None.',
+    'License itself is not Open Game Content. Instructions on using the License are provided within it.'].join('\n');
+  const [m] = C.readStatBlocks(text).monsters;
+  assert.deepEqual(m.actions.map((a) => a.n), ['Shortsword']);
+});

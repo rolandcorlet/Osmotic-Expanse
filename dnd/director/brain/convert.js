@@ -77,6 +77,9 @@ export function readStatBlocks(text, { prefix = '', taken = new Set() } = {}) {
   for (let i = 1; i < L.length; i++) {
     if (/^(?:\d(?:st|nd|rd|th)[- ]level\s+\w+|\w+\s+cantrip)(\s*\(ritual\))?$/i.test(L[i]) && L.slice(i, i + 4).some((x) => /^Casting Time\s*:/i.test(x))) stops.push(i - 1);
     if (/^#{1,4}\s/.test(L[i])) stops.push(i);
+    // The book's legal pages: a last stat block ran on into the Open Game License (Vault of the Runemark's
+    // skeleton had "Product Identity" among its actions, 26 Nov).
+    if (/^(?:OPEN GAME LICEN[CS]E\b|Open Game License Version\b|This (?:material|product) is (?:being )?released (?:using|under)|COPYRIGHT NOTICE\b|Legal (?:Text|Information)$)/i.test(L[i])) stops.push(i);
   }
   const monsters = [];
   const leftovers = [];
