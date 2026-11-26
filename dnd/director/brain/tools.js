@@ -108,7 +108,8 @@ export const TOOLS = [
       const ids = all.filter((p) => p.hp > 0 && !p.dead).map((p) => p.id);
       if (!ids.length) return { note: `Nothing asked: ${down.map((p) => p.name).join(' and ')} ${down.length > 1 ? 'are' : 'is'} at 0 hit points. The death save is their only roll, and the Engine asks for it on their turn. To help them, ask someone else for a Medicine check (DC 10), then stabilize_character, or heal them.` };
       const effect = a.damage_on_fail || a.condition_on_fail ? { dmg: a.damage_on_fail || '', type: a.damage_type || '', half: truthy(a.half_on_success), cond: lower(a.condition_on_fail) } : null;
-      if (effect && effect.dmg && !/^\s*\d*d\d+(\s*[+-]\s*\d+)?\s*$/i.test(effect.dmg)) return { refused: `"${effect.dmg}" is not a dice amount like 2d6 or 3d8+2.` };
+      // A flat amount ("2") is a dice amount too (X Marks the Spot, 27 Nov: a bite for 2 necrotic was refused).
+      if (effect && effect.dmg && !/^\s*(\d*d\d+(\s*[+-]\s*\d+)?|\d+)\s*$/i.test(String(effect.dmg))) return { refused: `"${effect.dmg}" is not a dice amount like 2d6 or 3d8+2.` };
       // No skill or ability named (ten-run bench): read one from the words of the reason, if they name one.
       let skill = lower(a.skill).replace(/\s+/g, '-');
       // Initiative is not a check to ask for (bench part 4, 25 Nov: asked again right after start_combat had
@@ -436,6 +437,9 @@ export const TOOLS = [
     run(a, T) {
       // "No seed" said as a call (bench part 3, 27 Nov: seed "none"): nothing to do, not a broken rule.
       if (/^\s*(none|no|nothing|null|n\/a|-|no seed)?\s*$/i.test(String(a.seed == null ? '' : a.seed))) return { note: 'Nothing changed: no seed was named, so none came into play. Only call use_seed to bring one in.' };
+      // No seeds in this game at all (X Marks the Spot, 27 Nov: "Mavren's warning", a person the Director meant to
+      // bring in): nothing to bring, so a note that says how, not a refusal.
+      if (!(T.state.seeds || []).some((x) => x.on)) return { note: 'Nothing changed: this game has no story seeds. Bring people in by narrating them (and reveal_monsters for foes already here).' };
       const no = T.do({ type: 'seed.fire', seed: a.seed, why: a.why || '', fight: truthy(a.fight) });
       if (no) return { refused: no };
       const now = T.state.seedNow || {};

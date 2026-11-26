@@ -252,6 +252,9 @@ export const TOOLS = [
     run(a, T) {
       // "No seed" said as a call (bench part 3, 27 Nov: seed "none"): nothing to do, not a broken rule.
       if (/^\s*(none|no|nothing|null|n\/a|-|no seed)?\s*$/i.test(String(a.seed == null ? '' : a.seed))) return { note: 'Nothing changed: no seed was named, so none came into play. Only call use_seed to bring one in.' };
+      // No seeds in this game at all (X Marks the Spot, 27 Nov: "Mavren's warning", a person the Director meant to
+      // bring in): nothing to bring, so a note that says how, not a refusal.
+      if (!(T.state.seeds || []).some((x) => x.on)) return { note: 'Nothing changed: this game has no story seeds. Bring people in by narrating them (and reveal_creatures for creatures already here).' };
       const seq = T.state.seq;
       const no = T.do({ type: 'seed.fire', seed: a.seed, why: a.why || '' });
       if (no) return { refused: no };
