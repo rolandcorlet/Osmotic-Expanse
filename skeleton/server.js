@@ -131,7 +131,11 @@ function wantsDirector(action) {
   if (state.director.mode !== 'auto') return '';
   if (action.type === 'say') return `A player spoke: "${action.text}". Answer them.`;
   if (action.type === 'roll.make') return 'A roll came in. Say what it did.';
-  if (action.type === 'attack' || action.type === 'ability.use') return 'A character acted. Say what happened.';
+  if (action.type === 'attack' || action.type === 'ability.use') {
+    // A character who used every action has had their turn ended by the Engine (engine/ledger.js endSpentTurn).
+    const cur = state.fight && state.fight.order[state.fight.turn];
+    return `A character acted. Say what happened.${cur && cur.key.startsWith('creature:') ? ' Their turn is over and a creature is up: play its turn, then end_turn.' : ''}`;
+  }
   if (action.type === 'fight.next') {
     const cur = state.fight && state.fight.order[state.fight.turn];
     if (cur && cur.key.startsWith('creature:')) return 'A creature is up: play its turn, then end_turn.';

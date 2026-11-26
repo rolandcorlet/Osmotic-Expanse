@@ -154,10 +154,11 @@ async function runOnce(n) {
           const f = Object.values(s.creatures).find((k) => k.siteId === siteId && !k.down && !k.hidden);
           if (!f || !tryAct('player', pid, { type: 'attack', charId: id, target: `creature:${f.id}` })) break;
           did += 1;
-          say(`    ${s.story[s.story.length - 1].text}`);
+          say(`    ${[...s.story].reverse().find((e) => !e.quiet).text}`);
         }
         if (did) {
-          await director(`R${s.fight ? s.fight.round : '?'} after ${ch.name}`, 'A character acted. Say what happened.');
+          const next = s.fight && currentKey(s);
+          await director(`R${s.fight ? s.fight.round : '?'} after ${ch.name}`, `A character acted. Say what happened.${next && next.startsWith('creature:') ? ' Their turn is over and a creature is up: play its turn, then end_turn.' : ''}`);
           await makeRolls(`R${s.fight ? s.fight.round : '?'}`);
         }
         if (s.fight && `${s.fight.round}:${s.fight.turn}` === before) tryAct('host', null, { type: 'fight.next' });

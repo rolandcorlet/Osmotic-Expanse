@@ -52,7 +52,7 @@ function playOnce({ mod, adventure, siteId, heroes, seed }) {
     if (chars().some((c) => c.down)) anyDown = true;
     if (!chars().some((c) => !c.down)) return { won: false, wiped: true, anyDown: true, rounds: s.fight ? s.fight.round : 0 };
     if (!Object.values(s.creatures).some((k) => k.siteId === siteId && !k.down && !k.hidden)) return { won: true, wiped: false, anyDown, rounds: s.fight ? s.fight.round : 0 };
-    if (s.fight) tryAct('host', null, { type: 'fight.next' });
+    if (s.fight && currentKey(s) === key) tryAct('host', null, { type: 'fight.next' });
   }
   const standing = Object.values(s.creatures).some((k) => k.siteId === siteId && !k.down);
   return { won: !standing, wiped: false, anyDown, rounds: s.fight ? s.fight.round : 0, timedOut: !!s.fight };

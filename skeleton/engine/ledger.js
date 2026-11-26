@@ -45,11 +45,28 @@ export function apply(state, action, ctx) {
   const c = { ...ctx, events: [] };
   const asked = new Set((state.requests || []).map((q) => q.id));
   h(s, action, c);
+  endSpentTurn(state, s, c);
   // The adventure's own rules (engine/triggers.js), after every change. They never stop the game.
   try { runRules(s, c); } catch (e) { if (!(e instanceof RuleError)) throw e; }
   try { announceRolls(s, c, asked); } catch (e) { /* never stops the game */ }
   s.seq += 1;
   return s;
+}
+
+// A player character who has used every action this turn has nothing left to do in it (Gull Rock bench, 27 Nov:
+// with one action a turn, the Director tried to end the turn or strike back eighteen times while the turn sat
+// open waiting for the player's button). The Engine ends it, unless a roll for them is still waiting.
+function endSpentTurn(before, s, ctx) {
+  const key = before.fight && currentKey(before);
+  if (!s.fight || !key || !key.startsWith('char:') || currentKey(s) !== key) return;
+  const max = Number(((ctx.mod.rules || {}).combat || {}).actionsPerTurn) || 1;
+  const used = s.fight.used || 0;
+  if (used < max || used <= (before.fight.used || 0)) return;
+  if ((s.requests || []).some((q) => keyOf('char', q.charId) === key)) return;
+  const round = s.fight.round;
+  advance(s, ctx);
+  if (s.fight.round > round && ctx.events) ctx.events.push({ ev: 'round', site: s.scene.siteId });
+  story(s, ctx, 'event', `${nameOf(s, key)} has used every action this turn. ${nameOf(s, currentKey(s))} is up (round ${s.fight.round}).`, 'Engine', { quiet: true });
 }
 
 // Every roll asked of a player is said in the story, with what it is for, whoever asked it (the Director, the

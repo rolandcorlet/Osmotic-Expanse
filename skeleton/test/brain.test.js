@@ -178,3 +178,20 @@ test('a look-or-know roll before the player tries anything, with "what do you do
     assert.equal(out.state.story.some((e) => /^Roll asked:/.test(e.text)), kept, said);
   }
 });
+
+test('a player character who has used every action has the turn ended by the Engine (Gull Rock, 27 Nov)', () => {
+  const T = table(4); const m = diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
+  T.host({ type: 'fight.start' });
+  T.s.fight.turn = T.s.fight.order.findIndex((o) => o.key === `char:${m.id}`);
+  T.s.fight.used = 0;
+  const eel = Object.values(T.s.creatures).find((k) => k.siteId === 'causeway');
+  eel.hidden = false; eel.down = false; eel.health = 999;
+  const max = mod.rules.combat.actionsPerTurn;
+  for (let n = 0; n < max; n++) {
+    assert.equal(T.s.fight.order[T.s.fight.turn].key, `char:${m.id}`, 'still their turn until the last action');
+    T.as('p1', { type: 'attack', charId: m.id, target: `creature:${eel.id}` });
+    if (!T.s.fight) return;
+  }
+  assert.notEqual(T.s.fight.order[T.s.fight.turn].key, `char:${m.id}`);
+  assert.ok(T.s.story.some((e) => /has used every action this turn/.test(e.text)));
+});
