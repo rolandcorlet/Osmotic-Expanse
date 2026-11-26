@@ -3,12 +3,14 @@
 //   - the way in ("We go on to The Sunken Causeway."), expecting the party to move;
 //   - a try at each hazard ("We push on through the Cold current."), expecting a roll (soft);
 //   - a search for the place's clues, and a word with someone who is there;
-//   - a fight with the creatures there ("Enough. We attack the Glass eel!"), expecting a fight;
+//   - a fight with the creatures there ("Enough. We attack the Glass eel!"), expecting a fight, unless the
+//     place is in `avoid` (a fight meant to be won another way: the bench leaves out those the simulation
+//     says wipe the party);
 //   - finishing a quest at the place it is done at (quest.doneAt), once the walk has been everywhere before.
 //
 //   generateScript(mod, adventure, { places: 6, heroes: 2 }) -> [{ start }, { pid, say, expect, at, to }, ...]
 // Browser-safe, no state.
-export function generateScript(mod, adv, { places = 6, heroes = 2 } = {}) {
+export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new Set() } = {}) {
   const sites = (adv && adv.sites) || [];
   if (!sites.length) return [];
   const byId = Object.fromEntries(sites.map((x) => [x.id, x]));
@@ -29,7 +31,7 @@ export function generateScript(mod, adv, { places = 6, heroes = 2 } = {}) {
       if (seen.size < places) route.push({ id, from: e, back: true });
     }
   })(adv.start || sites[0].id, null);
-  const creatureName = (c) => ((mod.ix.creature || {})[c.id] || {}).name || c.name || c.id;
+  const creatureName = (c) => String(((mod.ix.creature || {})[c.id] || {}).name || c.name || c.id).replace(/^the\s+/i, '');
   const done = new Set();
   for (const [k, hop] of route.entries()) {
     const site = byId[hop.id];
@@ -40,7 +42,7 @@ export function generateScript(mod, adv, { places = 6, heroes = 2 } = {}) {
     const npc = (site.npcs || [])[0];
     if (npc) out.push({ pid: who(), say: `I ask ${String(npc.name || npc).split(/\s+/)[0]} what is going on here.`, expect: [], at: site.id });
     const foes = (site.creatures || []).filter((c) => (mod.ix.creature || {})[c.id]);
-    if (foes.length) out.push({ pid: pids[0], say: `Enough. We attack the ${creatureName(foes[0])}!`, expect: ['start_combat'], at: site.id });
+    if (foes.length && !avoid.has(site.id)) out.push({ pid: pids[0], say: `Enough. We attack the ${creatureName(foes[0])}!`, expect: ['start_combat'], at: site.id });
     questsHere(k, site);
   }
   return out;

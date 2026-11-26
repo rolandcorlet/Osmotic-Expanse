@@ -6,6 +6,7 @@
 
 import { damageFromRoll, strainPenalty, snagRow, maxHealth, statBonus, getSystem, makeSource } from './core.js';
 import { difficulty, ladderName, term } from './module.js';
+import * as TRIG from './triggers.js';
 
 export class RuleError extends Error {}
 const no = (msg) => { throw new RuleError(msg); };
@@ -39,9 +40,82 @@ export function apply(state, action, ctx) {
   const h = H[action && action.type];
   if (!h) no(`Unknown action "${action && action.type}".`);
   const s = structuredClone(state);
-  h(s, action, ctx);
+  const c = { ...ctx, events: [] };
+  h(s, action, c);
+  // The adventure's own rules (engine/triggers.js), after every change. They never stop the game.
+  try { runRules(s, c); } catch (e) { if (!(e instanceof RuleError)) throw e; }
   s.seq += 1;
   return s;
+}
+
+// ------------------------------------------------------------------ the adventure's own rules
+const lowerName = (x) => String(x || '').toLowerCase().replace(/\s+\d+$/, '');
+function creaturesNamed(s, ctx, siteId, who) {
+  const w = String(who || '').toLowerCase();
+  return Object.values(s.creatures).filter((k) => (!siteId || k.siteId === siteId) && (k.base === w || lowerName(k.name) === w || lowerName(k.name).includes(w)));
+}
+function holds(s, ctx, rule, c) {
+  const site = rule.site || s.scene.siteId;
+  let v = false;
+  switch (c.k) {
+    case 'from': v = s.scene.from === c.arg; break;
+    case 'visited': v = s.scene.visited.includes(c.arg); break;
+    case 'down': { const l = creaturesNamed(s, ctx, rule.site, c.arg); v = l.length > 0 && l.every((k) => k.down); break; }
+    case 'standing': v = creaturesNamed(s, ctx, rule.site, c.arg).some((k) => !k.down); break;
+    case 'quest': v = s.quests.some((q) => q.id === c.arg && q.done); break;
+    case 'passed': case 'failed': { const o = [...(s.outcomes || [])].reverse().find((x) => x.site === site && (x.stat === c.arg || x.skill === c.arg)); v = !!o && (c.k === 'passed' ? o.ok : !o.ok); break; }
+    case 'fight': v = !!s.fight; break;
+    case 'no fight': v = !s.fight; break;
+    default: v = false;
+  }
+  return c.not ? !v : v;
+}
+function stateHolds(s, ctx, r) {
+  const ev = r.when;
+  if (ev.ev === 'down') { const l = creaturesNamed(s, ctx, r.site, r.who); const n = l.filter((k) => k.down).length; return l.length > 0 && n >= (r.count || l.length); }
+  if (ev.ev === 'cleared') { const l = Object.values(s.creatures).filter((k) => k.siteId === (r.site || s.scene.siteId) && !k.hidden); return l.length > 0 && l.every((k) => k.down); }
+  if (ev.ev === 'full') { const c = s.clocks.find((x) => x.id === ev.arg); return !!c && c.filled >= c.size; }
+  if (ev.ev === 'quest') return s.quests.some((q) => q.id === ev.arg && q.done);
+  return false;
+}
+function fireRule(s, ctx, r) {
+  const host = { ...ctx, role: 'host', pid: null, ai: false };
+  const tryH = (type, a) => { try { H[type](s, a, host); return true; } catch (e) { if (e instanceof RuleError) return false; throw e; } };
+  const target = r.target || r.who;
+  switch (r.do) {
+    case 'fight': if (!s.fight) tryH('fight.start', {}); break;
+    case 'flee': for (const k of creaturesNamed(s, ctx, r.site, target).filter((x) => !x.down)) tryH('creature.flee', { creature: k.id }); break;
+    case 'reveal': tryH('creature.reveal', { ids: target ? creaturesNamed(s, ctx, r.site, target).map((k) => k.id) : [] }); break;
+    case 'tick': tryH('clock.tick', { id: r.clock, n: r.by || 1 }); break;
+    case 'quest': tryH('quest.done', { id: r.quest }); break;
+    case 'xp': tryH('xp.award', { amount: r.xp, why: r.say || 'what happened here' }); break;
+    case 'add': tryH('creature.add', { base: r.creature, count: r.count || 1, siteId: r.site || s.scene.siteId, hidden: !!r.hidden }); break;
+    default: break;
+  }
+  if (r.do !== 'xp' && r.xp) tryH('xp.award', { amount: r.xp, why: r.say || 'what happened here' });
+  story(s, ctx, 'event', `${r.say || TRIG.ruleWords(r)} [rule ${r.key}]`, 'Engine', { rule: r.key });
+}
+function runRules(s, ctx) {
+  const adv = adventureOf(s, ctx.mod);
+  if (!adv) return;
+  s.fired = s.fired || {};
+  // The first place's "enter": when the game begins (the first change made).
+  if (!s.fired['@start']) { s.fired['@start'] = s.seq + 1; ctx.events.unshift({ ev: 'enter', site: adv.start }); }
+  for (let pass = 0; pass < 6; pass++) {
+    const events = ctx.events.splice(0);
+    let fired = false;
+    for (const r of TRIG.rulesAt(adv, s.scene.siteId)) {
+      if (r.once && s.fired[r.key]) continue;
+      let set = false;
+      if (TRIG.STATES.includes(r.when.ev)) set = stateHolds(s, ctx, r);
+      else set = events.some((e) => e.ev === r.when.ev && (!r.when.arg || (e.args || []).includes(r.when.arg)) && (!e.site || !r.site || e.site === r.site));
+      if (!set || !r.conds.every((c) => holds(s, ctx, r, c))) continue;
+      s.fired[r.key] = s.seq + 1;
+      fireRule(s, ctx, r);
+      fired = true;
+    }
+    if (!fired && !ctx.events.length) break;
+  }
 }
 
 // ------------------------------------------------------------------ helpers
@@ -56,7 +130,10 @@ function addRoll(s, ctx, r) {
 }
 // A character or creature from an id ("c1", "k3", "char:c1"), or a name.
 export function target(s, ref) {
-  const r = str(ref).replace(/^(char|pc|creature|foe):/, '');
+  let r = str(ref).replace(/^(char|pc|creature|foe):/, '');
+  // An id with its name after it, as the briefing writes them: "k72 Drowned choir", "c2 (Moll Tarrow)".
+  const lead = /^([ck]\d+)\b[\s(:,-]/.exec(r);
+  if (lead && (s.chars[lead[1]] || s.creatures[lead[1]])) r = lead[1];
   if (s.chars[r]) return { kind: 'char', id: r, o: s.chars[r] };
   if (s.creatures[r]) return { kind: 'creature', id: r, o: s.creatures[r] };
   const low = r.toLowerCase();
@@ -334,6 +411,8 @@ H['roll.make'] = (s, a, ctx) => {
     if (q.fail.cond && !ch.conds.includes(q.fail.cond)) { ch.conds.push(q.fail.cond); text += ` ${ch.name} is ${mod.ix.cond[q.fail.cond].name}.`; }
   }
   addRoll(s, ctx, { who: ch.name, charId: ch.id, kind: 'check', label, reason: q.reason, ...r, snagRow: row ? row.name : '' });
+  s.outcomes = [...(s.outcomes || []), { site: s.scene.siteId, stat: q.stat, skill: q.skill || '', ok: !!r.success }].slice(-40);
+  if (ctx.events) ctx.events.push({ ev: r.success ? 'succeed' : 'fail', args: [q.stat, q.skill].filter(Boolean), site: s.scene.siteId });
   if (r.snags) markStrain(s, ctx, ch, r.snags);
   story(s, ctx, 'event', text, 'Engine', { roll: true });
 };
@@ -520,8 +599,10 @@ H['site.move'] = (s, a, ctx) => {
   if (s.fight) no('Not during a fight: end it first.');
   const here = siteOf(s, ctx.mod);
   if (ctx.ai && here && !(here.exits || []).includes(to.id)) no(`From ${here.name} the way leads to: ${(here.exits || []).map((x) => x).join(', ') || 'nowhere'}.`);
+  s.scene.from = s.scene.siteId;
   s.scene.siteId = to.id;
   placeSite(s, ctx, to.id);
+  if (ctx.events) ctx.events.push({ ev: 'enter', site: to.id });
   story(s, ctx, 'event', `The party reaches ${to.name}.`, 'Engine', { site: to.id });
 };
 H['clock.tick'] = (s, a, ctx) => {
@@ -596,7 +677,9 @@ H['fight.next'] = (s, a, ctx) => {
   if (!s.fight) no('No fight is on.');
   const cur = currentKey(s);
   if (!isHost(ctx)) { const p = s.players[ctx.pid]; if (!p || keyOf('char', p.charId) !== cur) no('Only the one whose turn it is can end it.'); }
+  const round = s.fight.round;
   advance(s, ctx);
+  if (s.fight && s.fight.round > round && ctx.events) ctx.events.push({ ev: 'round', site: s.scene.siteId });
   story(s, ctx, 'event', `${nameOf(s, cur)} ends their turn. ${nameOf(s, currentKey(s))} is up (round ${s.fight.round}).`, 'Engine', { quiet: true });
 };
 H['fight.end'] = (s, a, ctx) => {

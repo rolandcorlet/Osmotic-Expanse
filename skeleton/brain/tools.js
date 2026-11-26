@@ -43,7 +43,8 @@ export function toolbox({ state, mod, rng, now = 0 }) {
       const tool = TOOLS.find((t) => t.name === name);
       if (!tool) { T.refusals += 1; return { refused: `There is no tool called ${name}.` }; }
       let out;
-      try { out = tool.run(args || {}, T); } catch (e) { out = { refused: `That did not work: ${e.message}` }; }
+      // A slip in the tool itself (not the Engine saying no) is still answered, and marked for the fuzz.
+      try { out = tool.run(args || {}, T); } catch (e) { out = { refused: `That did not work: ${e.message}`, ...(e instanceof RuleError ? {} : { crashed: e.message }) }; }
       if (out && out.refused) T.refusals += 1;
       return out;
     },

@@ -22,8 +22,9 @@
 //   stall   a fight round in which the Director did not end the creature's turn, or a fight that never ended
 // Reported, not gated: expected outcome missing, no roll asked, style.
 // Files beside the log: <log>.status.json (running / finished / crashed, a heartbeat), <log>.exit.txt,
-// <log>.calls.jsonl (every tool call with its result).
+// <log>.calls.jsonl (each Director turn's state and tool calls, for tools/replay.mjs).
 import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadModule } from '../engine/module.js';
@@ -32,6 +33,7 @@ import { makeRng } from '../engine/dice.js';
 import { directorTurn } from '../brain/director.js';
 import { build } from '../brain/providers.js';
 import { generateScript } from '../engine/script.js';
+import { simulateAdventure } from '../engine/simulate.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
@@ -52,7 +54,12 @@ if (!mod) { console.log(`There is no module "${opt('--module', 'saltglass')}" in
 const advId = opt('--adventure', (mod.adventures[0] || {}).id);
 const adv = mod.ix.adventure[advId];
 if (!adv) { console.log(`There is no adventure "${advId}". Adventures: ${mod.adventures.map((a) => a.id).join(', ')}.`); process.exit(2); }
-const SCRIPT = generateScript(mod, adv, { places: Number(opt('--places', 6)) || 6, heroes: 2 });
+// The party: as many pregenerated characters as the game has, up to three (--heroes to choose).
+const HEROES = Math.max(1, Math.min(Number(opt('--heroes', 0)) || Math.min(3, (mod.handbook.pregens || []).length || 2), Math.max(1, (mod.handbook.pregens || []).length)));
+// A fight the simulation says wipes this party more often than not is meant to be won another way (ring
+// the bell, not fight the Tidewarden): the script does not pick it.
+const DEADLY = simulateAdventure({ mod, adventure: adv, heroes: HEROES, runs: 20 }).filter((r) => r.runs && r.wiped / r.runs > 0.5).map((r) => r.site);
+const SCRIPT = generateScript(mod, adv, { places: Number(opt('--places', 6)) || 6, heroes: HEROES, avoid: new Set(DEADLY) });
 
 // ---- the log and the files beside it
 const paths = logFile ? { log: logFile, status: `${logFile.replace(/\.log$/, '')}.status.json`, exit: `${logFile.replace(/\.log$/, '')}.exit.txt`, calls: `${logFile.replace(/\.log$/, '')}.calls.jsonl` } : null;
@@ -85,7 +92,7 @@ async function runOnce(n) {
   let s = newSession(mod, adv.id);
   const act = (role, pid, a) => { s = apply(s, a, ctx(role, pid)); return s; };
   const tryAct = (role, pid, a) => { try { act(role, pid, a); return true; } catch (e) { return false; } };
-  const pids = ['p1', 'p2'];
+  const pids = Array.from({ length: HEROES }, (_, i) => `p${i + 1}`);
   pids.forEach((pid, i) => { act('player', pid, { type: 'join', name: `Player ${i + 1}` }); act('player', pid, { type: 'char.pregen', index: i }); });
   const charOf = (pid) => s.chars[s.players[pid].charId];
   say(`  Party: ${pids.map((p) => charOf(p).name).join(', ')}`);
@@ -96,9 +103,11 @@ async function runOnce(n) {
     tally.turns += 1;
     writeStatus({ progressAt: new Date().toISOString(), at: `run ${n} ${label}` });
     try {
+      const before = s;
       const out = await directorTurn({ state: s, mod, provider: makeProvider(), rng, now: (now += 1000), reason });
       s = out.state;
-      for (const c of out.calls) if (paths) appendFileSync(paths.calls, `${JSON.stringify({ run: n, label, name: c.name, args: c.args, result: c.result })}\n`);
+      // For the replay (tools/replay.mjs): the state before the turn and each call with what it got.
+      if (paths && out.calls.length) appendFileSync(paths.calls, `${JSON.stringify({ v: 1, module: status.module, adventure: adv.id, run: n, label, state: gzipSync(JSON.stringify(before)).toString('base64'), calls: out.calls.map((c) => ({ name: c.name, args: c.args, was: c.result && c.result.refused ? 'refused' : 'ok' })) })}\n`);
       for (const f of out.flags) {
         if (f.kind === 'note') continue;
         if (tally[f.kind] != null) tally[f.kind] += 1;
@@ -169,6 +178,11 @@ async function runOnce(n) {
       tryAct('host', null, { type: 'fight.end' });
       tryAct('host', null, { type: 'site.move', siteId: step.at });
     }
+    // A fight the world has already had (the creatures came out earlier and are down): not checkable.
+    if (step.expect.includes('start_combat') && !Object.values(s.creatures).some((c) => c.siteId === s.scene.siteId && !c.down)) {
+      notes.push(`${label}: not checked: nothing is left standing here to fight`);
+      continue;
+    }
     const snaps = Object.fromEntries(step.expect.map((e) => [e, OUTCOME[e].snap()]));
     act('player', step.pid, { type: 'say', text: step.say });
     say(`  ${charOf(step.pid).name}: ${step.say}`);
@@ -190,7 +204,7 @@ async function runOnce(n) {
 
 const GATED = fake ? ['error'] : ['error', 'rule', 'leak', 'stall'];
 say(`# Skeleton bench ${new Date().toISOString()} module=${mod.module.name} adventure=${adv.id} provider=${fake ? 'fake' : provider} model=${fake ? '-' : model} runs=${runs}`);
-say(`Script: ${SCRIPT.filter((x) => x.say).length} lines written from "${adv.name}".`);
+say(`Script: ${SCRIPT.filter((x) => x.say).length} lines written from "${adv.name}", for ${HEROES} characters.${DEADLY.length ? ` Not fought (the simulation says it wipes the party: meant to be won another way): ${DEADLY.join(', ')}.` : ''}`);
 const results = [];
 for (let r = 1; r <= runs; r++) results.push(await runOnce(r));
 say('\n=== Summary ===');

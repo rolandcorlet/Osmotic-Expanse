@@ -13,6 +13,7 @@
 // The dice: a module chooses a system from engine/dicesystems.js (see DICE below); without one it uses
 // the d6 pool. A module also names the parts and says what a snag costs and what a surge earns.
 
+import { checkRules as checkAdventureRules } from './triggers.js';
 import { getSystem, SYSTEMS, catalogue, validWeapon } from './dicesystems.js';
 
 export const FORMAT = 'skeleton-module/1';
@@ -153,8 +154,10 @@ export const TEMPLATES = {
       "exits": ["nave"],
       "creatures?": [ { "id": "glass-eel", "count": 2, "hidden": true } ],
       "hazards?": [ { "name": "Cold current", "stat": "brawn", "skill": "swim", "at": 12, "fail": "Lose 3 Breath." } ],   // at: a difficulty in the system's units
-      "clues?": ["A broken lamp with a guild mark."] }
+      "clues?": ["A broken lamp with a guild mark."],
+      "rules?": [ { "id": "eels", "when": "fail swim", "do": "reveal", "who": "glass-eel", "say": "The current drags a diver to the eels." } ] }   // the Engine carries these out itself (engine/triggers.js): when enter | fail <stat or skill> | succeed <..> | round | down (who) | cleared | full <clock> | quest <id>; if from|visited <place>, down|standing <who>, quest <id>, passed|failed <x>, fight, no fight; do fight | flee | reveal | tick (clock) | quest | xp | add (creature, count) | say
   ],
+  "rules?": [ { "id": "flood", "when": "full tide", "do": "say", "say": "The city floods." } ],   // rules that hold everywhere in the adventure
   "quests": [ { "id": "bell", "text": "Raise the glass bell.", "doneAt?": ["dock"] } ],
   "clocks?": [ { "id": "tide", "name": "The Tide", "size": 6, "ticks": "Every time the divers rest or fail loudly.", "fills": "The city floods." } ],
   "npcs?": [ { "name": "Auntie Pell", "role": "Dock boss", "want": "Her share.", "voice": "Dry, slow.", "secret": "She sold the map twice." } ],
@@ -339,7 +342,7 @@ export function checkAll(mod) {
     ...checkLore(mod.lore),
   ];
   if (!Array.isArray(mod.adventures) || !mod.adventures.length) errors.push('The module needs at least one adventure.');
-  for (const a of mod.adventures || []) errors.push(...checkAdventure(a, mod));
+  for (const a of mod.adventures || []) errors.push(...checkAdventure(a, mod), ...(mod.ix ? checkAdventureRules(mod, a).map((e) => `adventure "${a.id}" ${e}`) : []));
   return { ok: errors.length === 0, errors };
 }
 

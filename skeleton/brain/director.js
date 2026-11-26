@@ -7,6 +7,7 @@ import { toolbox, TOOLS, charLine } from './tools.js';
 import { term, ladderName } from '../engine/module.js';
 import { getSystem } from '../engine/dicesystems.js';
 import { currentKey } from '../engine/ledger.js';
+import { rulesAt, ruleWords } from '../engine/triggers.js';
 
 const TEMPLATE = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 14;
@@ -40,6 +41,9 @@ export function briefing(s, mod, { reason = '', hostNote = '' } = {}) {
   if (here.notes) L.push(`Your notes: ${here.notes}`);
   for (const h of here.hazards || []) L.push(`Hazard: ${h.name}: ${h.stat}${h.skill ? ` + ${h.skill}` : ''} against ${ladderName(mod, h.at)}; on a failure: ${h.fail || 'it costs them'}.`);
   if ((here.clues || []).length) L.push(`Clues to find: ${here.clues.join(' / ')}`);
+  // The adventure's own rules here: the Engine carries them out itself; the Director only narrates them.
+  const rules = rulesAt(adv, here.id).filter((r) => !(r.once && (s.fired || {})[r.key]));
+  if (rules.length) L.push(`Rules here (the Engine does these by itself when they happen; just narrate them): ${rules.map(ruleWords).join(' | ')}`);
   const ks = Object.values(s.creatures).filter((k) => k.siteId === s.scene.siteId);
   if (ks.length) L.push(`Creatures here: ${ks.map((k) => { const b = mod.ix.creature[k.base]; return `${k.id} ${k.name}${k.down ? ' (DOWN, out of the fight)' : k.hidden ? ' (hidden: reveal_creatures when found)' : ''}: ${k.health}/${k.healthMax} ${term(mod, 'health')}${k.conds.length ? `, ${k.conds.join(', ')}` : ''}; attacks ${b.attacks.map((x) => x.name).join(', ')}; tactics: ${b.tactics || ''}`; }).join(' | ')}`);
   L.push(`\nTHE PARTY:`);
