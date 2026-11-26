@@ -3,6 +3,7 @@
 
 import { getSystem, chance, ownDiceHint, SYSTEMS } from '/engine/dicesystems.js';
 import * as SEEDS from '/engine/seeds.js';
+import { initScene, updateScene, rollD20, effectsMode, setEffects } from '/scene.js';
 
 const ROLE = location.pathname.startsWith('/host') ? 'host' : location.pathname.startsWith('/table') ? 'table' : 'player';
 const KEY = new URLSearchParams(location.search).get('key') || '';
@@ -200,13 +201,16 @@ function bookSections(hidden) {
 }
 
 // ---------------------------------------------------------------- Colours tab
-const COLOUR_VARS = ['--bg', '--panel', '--panel2', '--line', '--ink', '--dim', '--faint', '--accent', '--accent2', '--ok', '--no', '--warn-c', '--input', '--btn', '--snag', '--six'];
+const COLOUR_VARS = ['--bg', '--panel', '--panel2', '--line', '--ink', '--dim', '--faint', '--accent', '--accent2', '--ok', '--no', '--warn-c', '--input', '--btn', '--snag', '--six',
+  '--sky-night', '--sky-dawn', '--sky-day', '--sky-dusk', '--fx-leaf', '--fx-ember', '--fx-snow', '--fx-rain', '--fx-fog', '--fx-dust', '--fx-candle', '--fx-water', '--fx-star'];
 function applyColours() { const c = store.get('colours', {}); for (const [k, v] of Object.entries(c)) document.documentElement.style.setProperty(k, v); }
 function coloursView() {
   const cs = getComputedStyle(document.documentElement);
   return h('div', { class: 'view v-one' }, h('div', { class: 'card scroll' }, h('h2', {}, 'Colours'), h('small', {}, 'Every colour on this screen. Saved on this device only.'),
     COLOUR_VARS.map((k) => { const v = cs.getPropertyValue(k).trim(); return h('div', { class: 'swatch' }, h('span', {}, k.slice(2)), h('input', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(v) ? v : '#000000', oninput: (e) => { const c = store.get('colours', {}); c[k] = e.target.value; store.set('colours', c); document.documentElement.style.setProperty(k, e.target.value); } }), h('small', {}, v)); }),
-    h('div', { class: 'row' }, h('button', { onclick: () => { store.set('colours', {}); for (const k of COLOUR_VARS) document.documentElement.style.removeProperty(k); render(); } }, 'Back to the defaults'))));
+    h('div', { class: 'row' }, h('button', { onclick: () => { store.set('colours', {}); for (const k of COLOUR_VARS) document.documentElement.style.removeProperty(k); render(); } }, 'Back to the defaults')),
+    ROLE === 'host' ? null : h('div', {}, h('h2', {}, 'Effects'), h('small', {}, 'The living backdrop: the place\'s weather and light, the glow on your turn, the dice. Light keeps the glows but stops the drifting and the tilt; it saves battery.'),
+      h('div', { class: 'row' }, ['full', 'light', 'off'].map((m) => h('button', { class: effectsMode() === m ? 'go' : '', onclick: () => { setEffects(m); render(); } }, `${m[0].toUpperCase()}${m.slice(1)}`))))));
 }
 
 // ---------------------------------------------------------------- the player's phone
@@ -541,8 +545,29 @@ function render() {
   if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* number inputs */ } } }
 }
 
+// ---------------------------------------------------------------- the living backdrop (public/scene.js)
+// The place's own words pick the weather and light; this game has no clock, so outdoors is daylight. Your turn
+// glows, a bad wound pulses, and a single d20 (in the d20 systems) tumbles to its number.
+let sceneRoll = null;
+function scene() {
+  const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+  const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
+  const c = ROLE === 'player' ? me() : null;
+  updateScene({
+    place: { name: site.name, region: '', read: site.read }, hour: null, fight: !!S.fight,
+    myTurn: !!c && curKey() === `char:${c.id}`, hp: c && c.healthMax ? Math.max(0, c.health) / c.healthMax : null, down: !!c && c.down,
+    rested: S.story.filter((e) => /^A long rest\b/.test(e.text)).length,
+  });
+  const r = S.rolls[S.rolls.length - 1];
+  if (!r || r.id === sceneRoll) return;
+  const first = sceneRoll === null; sceneRoll = r.id;
+  const f = r.faces || [];
+  if (!first && c && r.charId === c.id && f.length === 1 && f[0].sides === 20) rollD20(f[0].v, { label: r.label, crit: f[0].v === 20, fumble: f[0].v === 1 });
+}
+
 // ---------------------------------------------------------------- start
 applyColours();
+if (ROLE !== 'host') initScene({ store });
 (async () => {
   HELLO = await (await fetch(`/api/hello${KEY ? `?key=${encodeURIComponent(KEY)}` : ''}`)).json();
   if (ROLE === 'host' && HELLO.role !== 'host') { document.getElementById('main').replaceChildren(h('div', { class: 'card' }, 'This host link needs its key: use the address the host computer printed when it started.')); return; }
@@ -554,6 +579,7 @@ applyColours();
     S = next;
     if (reload) { location.reload(); return; }
     render(); speakNew();
+    if (ROLE !== 'host') scene();
   });
   es.addEventListener('director', (e) => { ui.director = JSON.parse(e.data); if (ui.tab === 'play') render(); });
   es.addEventListener('convert', (e) => { ui.convert.log.push(JSON.parse(e.data)); if (ui.tab === 'convert') render(); });

@@ -8,6 +8,7 @@ import { initMap, mapTabHtml, MAP_ACT, mapField, mapChip, mapFeet } from './map.
 import { checkAdventure } from '/engine/check.js';
 import * as TRIG from '/engine/triggers.js';
 import * as SEEDS from '/engine/seeds.js';
+import { initScene, updateScene, rollD20, effectsMode, setEffects } from './scene.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -199,7 +200,13 @@ function onState(data) {
   }
   const last = state.rolls[state.rolls.length - 1];
   if (last && last.id !== ui.lastRollId) {
-    if (ui.lastRollId !== null) { showFx(last); ui.freshId = last.id; setTimeout(() => { if (ui.freshId === last.id) ui.freshId = null; }, 900); }
+    if (ui.lastRollId !== null) {
+      // Your own d20 tumbles to its number first; a hit or a miss follows it.
+      const me = role === 'player' && myPc();
+      const d20 = me && last.pcId === me.id && ['check', 'save', 'attack', 'initiative', 'death'].includes(last.kind) && (last.dice || []).length ? keptDie(last) : null;
+      if (d20 != null) { rollD20(d20, { label: last.label, crit: d20 === 20, fumble: d20 === 1 }); setTimeout(() => showFx(last), 650); } else showFx(last);
+      ui.freshId = last.id; setTimeout(() => { if (ui.freshId === last.id) ui.freshId = null; }, 900);
+    }
     ui.lastRollId = last.id;
   } else if (!last) ui.lastRollId = '';
   const p = myPc();
@@ -210,13 +217,33 @@ function onState(data) {
   if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
   voiceFollows();
   render();
+  if (role === 'player' || role === 'table') updateScene(sceneInfo());
   if (asked) requestAlert(asked);
+}
+// The kept d20 of a roll (the higher with advantage, the lower with disadvantage).
+function keptDie(r) { const d = r.dice || []; return d.length === 2 && r.mode ? (r.mode === 'adv' ? Math.max(...d) : Math.min(...d)) : d[0]; }
+// What the living backdrop needs (public/scene.js): the place, the clock, the fight, and this player's state.
+function sceneInfo() {
+  const site = ((adv && adv.sites) || []).find((x) => x.id === (state.scene || {}).siteId) || {};
+  const p = role === 'player' ? myPc() : null;
+  const f = state.fight;
+  const cur = f && f.phase === 'turns' && f.order && f.order[f.turn] ? f.order[f.turn].key : '';
+  return {
+    place: { name: site.name, region: site.region, read: site.read },
+    hour: state.time ? state.time.hour : null,
+    fight: !!f,
+    myTurn: !!p && cur === `pc:${p.id}`,
+    hp: p && p.maxHp ? Math.max(0, p.hp) / p.maxHp : null,
+    down: !!p && (p.dead || p.hp <= 0),
+    rested: (state.story || []).filter((e) => /takes a long rest|finishes its rest|finishes a long rest/i.test(e.text)).length,
+  };
 }
 const buzz = () => { try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) { /* fine */ } };
 
 async function boot() {
   applyColours();
   document.body.classList.add(`role-${role}`);
+  if (role === 'player' || role === 'table') initScene({ store: { get: (k) => store.get(`dnd.${k}`), set: (k, v) => store.set(`dnd.${k}`, v) } });
   if (LOCAL) {
     const { createLocal } = await import('./local.js');
     srd = LOCAL.srd; ix = R.index(srd);
@@ -392,8 +419,10 @@ function storyCard({ n = 60, title = 'The story', input = '', fill = true } = {}
 }
 
 // ------------------------------------------------------------------ colours
-const DEFAULTS = { '--bg': '#14110e', '--panel': '#1e1a16', '--panel2': '#29231d', '--line': '#3d342b', '--ink': '#efe6d8', '--dim': '#b2a38f', '--faint': '#7d705f', '--accent': '#d4a84a', '--ok': '#6fbf73', '--no': '#e0675c', '--warn-c': '#e09a4a', '--input': '#110e0b', '--btn': '#332b23' };
-const COLOURS = [['--bg', 'Background'], ['--panel', 'Panels'], ['--panel2', 'Inner panels'], ['--line', 'Lines'], ['--ink', 'Text'], ['--dim', 'Quiet text'], ['--faint', 'Faint text'], ['--accent', 'Accent (gold)'], ['--ok', 'Good'], ['--no', 'Bad'], ['--warn-c', 'Warning'], ['--input', 'Fields'], ['--btn', 'Buttons']];
+const DEFAULTS = { '--bg': '#14110e', '--panel': '#1e1a16', '--panel2': '#29231d', '--line': '#3d342b', '--ink': '#efe6d8', '--dim': '#b2a38f', '--faint': '#7d705f', '--accent': '#d4a84a', '--ok': '#6fbf73', '--no': '#e0675c', '--warn-c': '#e09a4a', '--input': '#110e0b', '--btn': '#332b23',
+  '--sky-night': '#0b1020', '--sky-dawn': '#6b4a6e', '--sky-day': '#3d6a8e', '--sky-dusk': '#8a4b2e', '--fx-leaf': '#c98a3a', '--fx-ember': '#ff8a3c', '--fx-snow': '#eef4ff', '--fx-rain': '#9fb6d0', '--fx-fog': '#c8c8c0', '--fx-dust': '#9a8a70', '--fx-candle': '#e0a040', '--fx-water': '#a8d4e6', '--fx-star': '#fff6d8' };
+const COLOURS = [['--bg', 'Background'], ['--panel', 'Panels'], ['--panel2', 'Inner panels'], ['--line', 'Lines'], ['--ink', 'Text'], ['--dim', 'Quiet text'], ['--faint', 'Faint text'], ['--accent', 'Accent (gold)'], ['--ok', 'Good'], ['--no', 'Bad'], ['--warn-c', 'Warning'], ['--input', 'Fields'], ['--btn', 'Buttons'],
+  ['--sky-night', 'Sky: night'], ['--sky-dawn', 'Sky: dawn'], ['--sky-day', 'Sky: day'], ['--sky-dusk', 'Sky: dusk'], ['--fx-leaf', 'Leaves'], ['--fx-ember', 'Embers'], ['--fx-snow', 'Snow'], ['--fx-rain', 'Rain'], ['--fx-fog', 'Fog'], ['--fx-dust', 'Dust'], ['--fx-candle', 'Candle and campfire'], ['--fx-water', 'Water glints'], ['--fx-star', 'Stars and motes']];
 const THEMES = {
   Tavern: DEFAULTS,
   Dungeon: { '--bg': '#0f1114', '--panel': '#171a1f', '--panel2': '#1f242b', '--line': '#2f3640', '--ink': '#e3e7ec', '--dim': '#97a1ad', '--faint': '#66707c', '--accent': '#8fb8de', '--ok': '#66c08a', '--no': '#e2685f', '--warn-c': '#dda24c', '--input': '#0c0e11', '--btn': '#242a33' },
@@ -407,7 +436,9 @@ function coloursHtml() {
   return `<div class="stack"><section class="card"><h3>Colours<span class="right"><button class="btn sm" data-act="col.reset">Reset</button></span></h3>
     <div class="row">${Object.keys(THEMES).map((n) => `<button class="btn" data-act="col.theme" data-n="${n}">${n}</button>`).join('')}</div>
     <div class="fields four">${COLOURS.map(([k, n]) => `<label class="fld"><span class="fl">${n}</span><div class="row nw"><input type="color" value="${c[k]}" data-colour="${k}"><span class="small dim">${c[k]}</span></div></label>`).join('')}</div>
-    <div class="note">Colours are saved on this device only.</div></section></div>`;
+    <div class="note">Colours are saved on this device only.</div></section>
+    ${role === 'player' || role === 'table' ? `<section class="card"><h3>Effects</h3><p class="small dim">The living backdrop: the sky by the game's clock, the place's weather and light, the glow on your turn, the dice. Light keeps the glows but stops the drifting and the tilt; it saves battery.</p>
+      <div class="seg">${['full', 'light', 'off'].map((m) => `<button class="${effectsMode() === m ? 'on' : ''}" data-act="fx.mode" data-m="${m}">${m[0].toUpperCase()}${m.slice(1)}</button>`).join('')}</div></section>` : ''}</div>`;
 }
 
 // ------------------------------------------------------------------ getting in
@@ -1686,6 +1717,7 @@ const ACT = {
     Object.assign(ui.books, { text: out.text, name: out.name, kind: out.kind, file: `"${out.name}" as converted before: convert it, then save to replace it`, replaceName: out.name });
   },
   'bk.refresh': async () => { await booksLoad(); },
+  'fx.mode': (d) => { setEffects(d.m); },
   'col.reset': () => { store.del('dnd.colours'); applyColours(); },
   'col.theme': (d) => { store.set('dnd.colours', JSON.stringify(THEMES[d.n] || DEFAULTS)); applyColours(); },
   'key.go': () => { const q = new URLSearchParams(location.search); q.set('key', ui.keyTry.trim().toUpperCase()); location.href = `${location.pathname}?${q}`; },

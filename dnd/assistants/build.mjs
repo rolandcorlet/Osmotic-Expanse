@@ -19,7 +19,7 @@ const require = createRequire(import.meta.url);
 let esbuild;
 try { esbuild = require('esbuild'); } catch (e) { esbuild = require(process.env.ESBUILD_PATH || '/tmp/esb/node_modules/esbuild'); }
 
-const css = readFileSync(join(director, 'public', 'app.css'), 'utf8');
+const css = readFileSync(join(director, 'public', 'app.css'), 'utf8') + readFileSync(join(director, 'public', 'scene.css'), 'utf8'); // and the living backdrop
 const FAVICON = readFileSync(join(director, 'public', 'index.html'), 'utf8').match(/<link rel="icon" href="([^"]+)">/)[1];
 
 const PAGES = [
@@ -46,6 +46,7 @@ for (const p of PAGES) {
   const res = await esbuild.build({
     stdin: { contents: entry, resolveDir: director, loader: 'js' },
     bundle: true, write: false, format: 'iife', target: 'es2020', minify: true, legalComments: 'none', plugins: [alias],
+    external: ['/pdfread.js', '/vendor/*'], // the Books tab's PDF reader is served by the host, not built in
   });
   const js = res.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
   const html = `<!doctype html>
