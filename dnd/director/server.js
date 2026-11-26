@@ -245,7 +245,7 @@ async function booksApi(path, method, body) {
         ...(lib ? [{ id: 'library', name: 'Your imported books', kind: (lib.books || []).map((b) => b.kind).join(', '), counts: { monsters: lib.added.monsters, spells: lib.added.spells, rules: lib.added.rules }, gaps: null, fixed: true }] : []),
         ...CV.listBooks(CONVERTED_DIR),
       ],
-      adventures: ADVENTURES.map((a) => ({ id: a.id, name: a.name, levels: a.levels, converted: !!a.converted, places: (a.sites || []).length })),
+      adventures: ADVENTURES.map((a) => ({ id: a.id, name: a.name, levels: a.levels, converted: !!a.converted, places: (a.sites || []).length, monsters: (a.monsters || []).length, playing: !!(state && state.adventure === a.id) })),
       job: jobView(),
     };
   }
@@ -314,30 +314,80 @@ async function booksApi(path, method, body) {
       else kept.push({ ...pic, kind: p.kind || '', about: p.about || '', page: p.page });
     }
     if (adventure) {
+      // Saved under its name: the same name again replaces it (the old one set aside), a built-in one never.
+      const same = ADVENTURES.find((x) => x.converted && x.name.toLowerCase() === name.toLowerCase());
+      const id = same ? same.id : CV.slug(name);
+      if (ADVENTURES.some((x) => x.id === id && !x.converted)) return { ok: false, error: `An adventure called "${id}" is built in: give this one another name.` };
+      if (state && state.adventure === id) return { ok: false, error: `"${name}" is the adventure being played: start a new game of another one first, or save this under another name.` };
+      const old = ADVENTURES.find((x) => x.id === id);
+      if (old) { CV.removeAdventure(ADVENTURES_DIR, id); CV.unmergeAdventure(srd, id); }
       if (kept.length) adventure.pictures = kept;
-      const adv = CV.saveAdventure(ADVENTURES_DIR, { ...adventure, name }, convertJob.original, files);
+      const adv = CV.saveAdventure(ADVENTURES_DIR, { ...adventure, id, name }, convertJob.original, files);
       const at = ADVENTURES.findIndex((x) => x.id === adv.id);
-      if (at >= 0 && !ADVENTURES[at].converted) return { ok: false, error: `An adventure called "${adv.id}" is built in: give this one another name.` };
       if (at >= 0) ADVENTURES[at] = adv; else ADVENTURES.push(adv);
       mergeAdventureMonsters(srd, [adv]);
       refreshSrd();
       convertJob = null; stagedPictures = [];
       const maps = (adv.travelPicture ? 1 : 0) + adv.sites.filter((s) => s.picture).length;
-      return { ok: true, saved: `"${adv.name}" is in the adventure list${maps ? `, with ${maps} map${maps > 1 ? 's' : ''} that a new game opens with` : ''}.` };
+      return { ok: true, saved: `"${adv.name}" is in the adventure list${old ? ' (it replaces the one saved before, which is set aside)' : ''}${maps ? `, with ${maps} map${maps > 1 ? 's' : ''} that a new game opens with` : ''}.` };
+    }
+    // A book: the same name again replaces it (the old one set aside), unless its monsters are in play.
+    const prev = CV.listBooks(CONVERTED_DIR).find((b) => b.name.toLowerCase() === name.toLowerCase() || b.id === CV.slug(name));
+    if (prev) {
+      const busy = inPlay((m) => m.conv === prev.id);
+      if (busy) return { ok: false, error: `"${prev.name}" has ${busy} in the game being played: save this under another name, or replace it after the game.` };
+      CV.removeBook(CONVERTED_DIR, prev.id);
+      CV.unmergeBook(srd, prev.id);
     }
     const meta = CV.saveBook(CONVERTED_DIR, { name, kind: r.kind, original: convertJob.original, book: r.book, pictures: kept, files });
     const eng = CV.loadBooks(CONVERTED_DIR).find((b) => b.id === meta.id);
     const added = eng ? CV.mergeBook(srd, eng) : { monsters: 0, spells: 0, rules: 0 };
     refreshSrd();
     convertJob = null; stagedPictures = [];
-    return { ok: true, saved: `"${meta.name}" is in your books: ${added.monsters} monsters, ${added.spells} spells and ${added.rules} rules sections the Engine can use now.` };
+    return { ok: true, saved: `"${meta.name}" is in your books${prev ? ' (it replaces the one saved before, which is set aside)' : ''}: ${added.monsters} monsters, ${added.spells} spells and ${added.rules} rules sections the Engine can use now.` };
   }
   if (path === '/discard' && method === 'POST') { if (!(convertJob && convertJob.busy)) convertJob = null; stagedPictures = []; return { ok: true }; }
+  // Remove a converted book or adventure: out of the rules and the lists at once, its files set aside in
+  // _removed (never deleted), unless the game being played uses it.
   if (path === '/remove' && method === 'POST') {
-    const ok = CV.removeBook(CONVERTED_DIR, String(body.id || ''));
-    return ok ? { ok: true, saved: 'Set aside (library/converted/_removed). It leaves the rules when the Director restarts.' } : { ok: false, error: 'There is no converted book by that name.' };
+    const id = String(body.id || '');
+    if (body.what === 'adventure') {
+      const a = ADVENTURES.find((x) => x.id === id && x.converted);
+      if (!a) return { ok: false, error: 'There is no converted adventure by that name.' };
+      if (state && state.adventure === id) return { ok: false, error: `"${a.name}" is the adventure being played: start a new game of another one first.` };
+      CV.removeAdventure(ADVENTURES_DIR, id);
+      CV.unmergeAdventure(srd, id);
+      ADVENTURES.splice(ADVENTURES.indexOf(a), 1);
+      refreshSrd();
+      return { ok: true, saved: `"${a.name}" is removed (set aside in library/adventures/_removed).` };
+    }
+    const b = CV.listBooks(CONVERTED_DIR).find((x) => x.id === id);
+    if (!b) return { ok: false, error: 'There is no converted book by that name.' };
+    const busy = inPlay((m) => m.conv === id);
+    if (busy) return { ok: false, error: `"${b.name}" has ${busy} in the game being played: remove it after the game.` };
+    CV.removeBook(CONVERTED_DIR, id);
+    CV.unmergeBook(srd, id);
+    refreshSrd();
+    return { ok: true, saved: `"${b.name}" is removed from the rules (set aside in library/converted/_removed).` };
+  }
+  // The words a book or an adventure was converted from, back in the box to convert again.
+  if (path === '/open' && method === 'POST') {
+    const what = body.what === 'adventure' ? 'adventure' : 'book';
+    const id = String(body.id || '');
+    const item = what === 'adventure' ? ADVENTURES.find((x) => x.id === id && x.converted) : CV.listBooks(CONVERTED_DIR).find((x) => x.id === id);
+    if (!item) return { ok: false, error: 'There is nothing saved by that name.' };
+    const text = CV.originalOf(what === 'adventure' ? ADVENTURES_DIR : CONVERTED_DIR, what, id);
+    if (text == null) return { ok: false, error: 'Its words were not kept, so it cannot be converted again: add the file again.' };
+    return { ok: true, name: item.name, kind: what === 'adventure' ? 'campaign' : (CV.KINDS.some(([k]) => k === item.kind) ? item.kind : 'auto'), text };
   }
   return { ok: false, error: 'Not found.' };
+}
+// The monsters of the game being played that a converted book provides (refused to remove or replace).
+function inPlay(fromBook) {
+  if (!state) return '';
+  const ix = new Map(srd.monsters.map((m) => [m.id, m]));
+  const names = [...new Set(Object.values(state.foes || {}).filter((f) => !f.dead && ix.get(f.mid) && fromBook(ix.get(f.mid))).map((f) => f.name))];
+  return names.length ? names.slice(0, 3).join(', ') + (names.length > 3 ? ' and more' : '') : '';
 }
 function jobView(full = false) {
   if (!convertJob) return null;

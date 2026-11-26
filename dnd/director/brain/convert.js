@@ -58,7 +58,7 @@ export function sniffKind(text) {
 // Class, Hit Points, Speed, the six scores, the lines after them, then traits, Actions, Bonus Actions,
 // Reactions and Legendary Actions, each entry "Name. What it does."
 export function readStatBlocks(text, { prefix = '', taken = new Set() } = {}) {
-  const L = clean(text).split('\n').map((x) => x.trim());
+  const L = clean(text).split('\n').map((x) => twice(x.trim())); // "ActionsActions": a heading drawn twice
   const starts = [];
   for (let i = 0; i < L.length; i++) {
     if (!new RegExp(`^(${SIZES})\\b[^,]*,`, 'i').test(L[i])) continue;
@@ -79,17 +79,52 @@ export function readStatBlocks(text, { prefix = '', taken = new Set() } = {}) {
   starts.forEach((s, n) => {
     const end = Math.min(n + 1 < starts.length ? starts[n + 1].name : L.length, ...stops.filter((x) => x > s.size));
     const lines = L.slice(s.size, end).filter(Boolean);
-    const m = statBlock(L[s.name], lines);
+    const m = statBlock(twice(L[s.name]), lines);
     if (!m) { leftovers.push([L[s.name], ...lines].join('\n')); return; }
-    let id = slug(m.name);
-    if (taken.has(id)) id = `${prefix || 'x'}-${id}`;
-    taken.add(id);
-    m.id = id;
+    // The same creature twice (its page as text and as a picture, or an appendix repeating it): the fuller
+    // reading is kept, once.
+    const same = monsters.findIndex((x) => slug(x.name) === slug(m.name));
     m.words = [L[s.name], ...lines].join('\n');
+    if (same >= 0) { if (fullness(m) > fullness(monsters[same])) { m.id = monsters[same].id; monsters[same] = m; } return; }
+    m.id = uniqueId(slug(m.name), taken, prefix);
     monsters.push(m);
   });
   if (!starts.length && /Armou?r Class/i.test(text)) leftovers.push(clean(text));
   return { monsters, leftovers };
+}
+// "Dire WolfDire Wolf" (a heading drawn twice) is the Dire Wolf.
+const twice = (t) => { const s = String(t || '').trim(); const n = s.length; return n >= 6 && n % 2 === 0 && s.slice(0, n / 2) === s.slice(n / 2) ? s.slice(0, n / 2).trim() : s; };
+// How much of a stat block was read: its six scores, its actions and traits.
+export const fullness = (m) => (m.ab && m.ab.some((v) => v !== 10) ? 10 : 0) + Math.min(6, (m.actions || []).length) * 4 + Math.min(4, (m.traits || []).length) + (m.hp ? 1 : 0);
+// An id nobody has yet: the name's, then with the book's prefix, then numbered.
+function uniqueId(id, taken, prefix) {
+  let out = id;
+  if (taken.has(out)) out = `${prefix || 'x'}-${id}`;
+  for (let n = 2; taken.has(out); n++) out = `${prefix || 'x'}-${id}-${n}`;
+  taken.add(out);
+  return out;
+}
+// A saved adventure's monsters with one per id (the fullest), so the places' foes still find theirs.
+export function oneById(list) {
+  const by = new Map();
+  for (const m of list || []) if (m && m.id && (!by.has(m.id) || fullness(m) > fullness(by.get(m.id)))) by.set(m.id, m);
+  return [...by.values()];
+}
+// One of each creature, the fullest reading kept; ids made unique. A name read twice over ("WolfWolf") gives
+// way to the clean one's id.
+export function oneEach(list) {
+  const by = new Map();
+  for (const m of list || []) {
+    const name = twice(m.name || m.id);
+    const clean = name === String(m.name || '').trim();
+    const k = slug(name);
+    const had = by.get(k);
+    if (!had) { by.set(k, { m: { ...m, name }, id: m.id, clean }); continue; }
+    if (fullness(m) > fullness(had.m)) had.m = { ...m, name };
+    if (!had.clean && clean) { had.id = m.id; had.clean = true; }
+  }
+  const seen = new Set();
+  return [...by.values()].map(({ m, id }) => { let x = id; for (let n = 2; seen.has(x); n++) x = `${id}-${n}`; seen.add(x); return { ...m, id: x }; });
 }
 
 // "RUNE WRAITH" (a heading in capitals) is the Rune Wraith; a name as written otherwise stays as it is.
@@ -132,6 +167,9 @@ function statBlock(name, lines) {
   let cur = null;
   let pastStats = false;
   for (const line of lines.slice(1)) {
+    // A page's furniture inside a block that runs on over the page: its footer, its number, its marker.
+    if (/^(?:Not for resale|Permission (?:is )?granted to|Copyright\b|©)|^--- Page \d+ ---$|^\d{1,3}$/i.test(line)) { cur = null; continue; }
+    if (/^\[[^\]]*\bpicture \d+\b[^\]]*\]$/.test(line)) break; // the words of a picture follow: another source
     if (!pastStats) { if (/^Challenge\b|^Proficiency Bonus\b/i.test(line)) { pastStats = true; continue; } if (statLine.test(line)) continue; }
     const h = HEAD.exec(line);
     if (h) {
@@ -379,7 +417,8 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
     read.push(...got);
     for (const m of sb.monsters.filter(weak)) if (!got.some((g) => slug(g.name) === slug(m.name))) { const { words, ...x } = m; read.push(x); }
   }
-  const own = read.map((m) => ({ ...m, id: srdIds.has(m.id) ? `${prefix}-${m.id}` : m.id.startsWith(`${prefix}-`) ? m.id : `${prefix}-${m.id}` }));
+  const own = oneEach(read.map((m) => ({ ...m, id: srdIds.has(m.id) ? `${prefix}-${m.id}` : m.id.startsWith(`${prefix}-`) ? m.id : `${prefix}-${m.id}` })));
+  const wordsOf = new Map(sb.monsters.map((m) => [slug(m.name), m.words]));
   // 1. what each part holds
   const found = { places: [], people: [], monsters: [], quests: [] };
   for (let i = 0; i < parts.length; i++) {
@@ -422,7 +461,9 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
     } catch { /* kept as it was: the checker's findings are shown */ }
   }
   check = checkAdventure(adv, book);
-  return { adventure: adv, check };
+  // The campaign's own monsters as the screen shows a book's: each with its words beside what the Engine uses.
+  const entries = summarise({ monsters: (adv.monsters || []).map((m) => ({ ...m, words: wordsOf.get(slug(m.name)) || '' })), spells: [], rules: [] }).entries;
+  return { adventure: adv, check, entries };
 }
 
 // ---- 5. saving and loading ---------------------------------------------------------------------------
@@ -462,13 +503,47 @@ export function removeBook(dir, id) {
 // A converted book joins the rules the Engine uses: monsters and spells the SRD (and the library) lack,
 // and its rules text for look-ups. Returns what it added.
 export function mergeBook(srd, book) {
-  const add = (list, items) => { const ids = new Set(list.map((x) => x.id)); let n = 0; for (const x of items || []) if (x && x.id && !ids.has(x.id)) { list.push({ ...x, lib: book.name }); ids.add(x.id); n++; } return n; };
+  const add = (list, items) => { const ids = new Set(list.map((x) => x.id)); let n = 0; for (const x of items || []) if (x && x.id && !ids.has(x.id)) { list.push({ ...x, lib: book.name, conv: book.id }); ids.add(x.id); n++; } return n; };
   const added = { monsters: add(srd.monsters, book.monsters), spells: add(srd.spells, book.spells) };
-  const rules = [...(srd.libRules || []), ...(book.rules || []).map((r) => ({ ...r, book: r.book || book.name }))];
+  const rules = [...(srd.libRules || []), ...(book.rules || []).map((r) => ({ ...r, book: r.book || book.name, conv: book.id }))];
   Object.defineProperty(srd, 'libRules', { value: rules, enumerable: false, configurable: true, writable: true });
   added.rules = (book.rules || []).length;
   if (Object.prototype.hasOwnProperty.call(srd, '_ix')) delete srd._ix;
   return added;
+}
+
+// A converted book leaves the rules at once (removed, or replaced by a new conversion).
+export function unmergeBook(srd, id) {
+  const keep = (x) => !(x && x.conv === id);
+  const before = srd.monsters.length + srd.spells.length;
+  srd.monsters.splice(0, srd.monsters.length, ...srd.monsters.filter(keep));
+  srd.spells.splice(0, srd.spells.length, ...srd.spells.filter(keep));
+  if (srd.libRules) Object.defineProperty(srd, 'libRules', { value: srd.libRules.filter(keep), enumerable: false, configurable: true, writable: true });
+  if (Object.prototype.hasOwnProperty.call(srd, '_ix')) delete srd._ix;
+  return before - srd.monsters.length - srd.spells.length;
+}
+// A converted adventure's own monsters leave the rules (removed, or replaced by a new conversion).
+export function unmergeAdventure(srd, id) {
+  const n = srd.monsters.length;
+  srd.monsters.splice(0, srd.monsters.length, ...srd.monsters.filter((m) => m.adventure !== id));
+  if (Object.prototype.hasOwnProperty.call(srd, '_ix')) delete srd._ix;
+  return n - srd.monsters.length;
+}
+// Set aside, never deleted: library/adventures/_removed/<id>-<time>.* (its words and pictures with it).
+export function removeAdventure(dir, id) {
+  const k = slug(id);
+  if (!existsSync(join(dir, `${k}.json`))) return false;
+  const to = join(dir, '_removed');
+  mkdirSync(to, { recursive: true });
+  const stamp = Date.now();
+  for (const f of [`${k}.json`, `${k}.original.txt`, `${k}.pictures`]) if (existsSync(join(dir, f))) renameSync(join(dir, f), join(to, f.replace(k, `${k}-${stamp}`)));
+  return true;
+}
+// The words a book or an adventure was converted from, to convert again.
+export function originalOf(dir, what, id) {
+  const k = slug(id);
+  const f = what === 'adventure' ? join(dir, `${k}.original.txt`) : join(dir, k, 'original.txt');
+  return existsSync(f) ? readFileSync(f, 'utf8') : null;
 }
 
 export function saveAdventure(dir, adv, original = '', files = []) {
@@ -482,7 +557,8 @@ export function saveAdventure(dir, adv, original = '', files = []) {
 }
 export function loadAdventures(dir) {
   if (!existsSync(dir)) return [];
-  return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites));
+  return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites))
+    .map((a) => (Array.isArray(a.monsters) ? { ...a, monsters: oneById(a.monsters) } : a));
 }
 
 // ---- pictures ---------------------------------------------------------------------------------------
@@ -550,6 +626,8 @@ export async function seePictures({ ask, pictures, near = () => '', canSee = nul
       o.grid = Number(g.cols) > 0 && Number(g.rows) > 0 ? { cols: Math.min(200, Math.trunc(g.cols)), rows: Math.min(200, Math.trunc(g.rows)) } : null;
       o.text = WORDY.has(o.kind) ? String(r.text || '').replace(/\r/g, '').trim().slice(0, 12000) || before.text : '';
       o.ocr = !!before.text && o.text === before.text;
+      // A stat block the word reader found stays one, whatever a model that may not really see says.
+      if (/Armou?r Class/i.test(before.text) && /Hit Points/i.test(before.text) && !/Armou?r Class/i.test(o.text)) { o.kind = 'stat-block'; o.text = before.text; o.ocr = true; }
       o.seen = true;
       looked++;
     } catch (e) {
@@ -568,8 +646,22 @@ const defaultUse = (o) => (o.kind === 'decoration' || o.kind === 'stat-block' ||
 
 // The words the AI read in the pictures, put into the text after their page, so the readers and the
 // campaign writer see them where the book has them. A map leaves a line, so the campaign knows of it.
+// A picture whose words are already on its page (a scanned page over a text layer, a stat block the PDF also
+// has as text) adds only its line, or the campaign would read every monster twice (X Marks the Spot).
+const tokens = (t) => String(t || '').toLowerCase().match(/[a-z0-9]+/g) || [];
+export function alreadyIn(words, pageText) {
+  const w = tokens(words);
+  if (w.length < 8) return false;
+  const have = new Map();
+  for (const t of tokens(pageText)) have.set(t, (have.get(t) || 0) + 1);
+  let hit = 0;
+  for (const t of w) { const n = have.get(t) || 0; if (n) { hit++; have.set(t, n - 1); } }
+  return hit / w.length >= 0.7;
+}
 export function addPictureWords(text, pics) {
-  const line = (p) => (p.text ? `\n[${PIC_KIND[p.kind] || 'Picture'}, picture ${p.n}${p.about ? `: ${p.about}` : ''}]\n${p.text}\n` : `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}${p.place ? ` (${p.place})` : ''}]\n`);
+  const pageOf = (n) => { const m = new RegExp(`^--- Page ${n} ---$([\\s\\S]*?)(?=^--- Page \\d+ ---$|(?![\\s\\S]))`, 'm').exec(String(text)); return m ? m[1] : ''; };
+  for (const p of pics || []) if (p.text && alreadyIn(p.text, pageOf(p.page))) p.inText = true;
+  const line = (p) => (p.inText ? `\n[${PIC_KIND[p.kind] || 'Picture'}, picture ${p.n}${p.about ? `: ${p.about}` : ''}; its words are in the text above]\n` : p.text ? `\n[${PIC_KIND[p.kind] || 'Picture'}, picture ${p.n}${p.about ? `: ${p.about}` : ''}]\n${p.text}\n` : `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}${p.place ? ` (${p.place})` : ''}]\n`);
   const add = (pics || []).filter((p) => p.text || (p.seen && (p.kind === 'map' || p.kind === 'travel' || p.kind === 'handout')));
   if (!add.length) return text;
   const marks = [...String(text).matchAll(/^--- Page (\d+) ---$/gm)].map((m) => ({ page: Number(m[1]), at: m.index }));
@@ -662,7 +754,7 @@ export async function convertText({ text, kind = 'auto', name = '', how = 'both'
     const r = await aiCampaign({ ask, text: words, name, srd, onProgress });
     const placed = matchMaps(r.adventure, pics);
     if (placed.length) notes.push(`Maps given to their places: ${placed.join('; ')}.`);
-    return { kind: k, sniffed, name: r.adventure.name, adventure: r.adventure, check: r.check, entries: [], notes, pictures: pics, words: pics.length ? words : undefined };
+    return { kind: k, sniffed, name: r.adventure.name, adventure: r.adventure, check: r.check, entries: r.entries || [], notes, pictures: pics, words: pics.length ? words : undefined };
   }
   if (k === 'json') {
     const j = readJson(words);

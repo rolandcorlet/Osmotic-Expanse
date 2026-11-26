@@ -113,12 +113,15 @@ export function pageText(items, vp) {
   const W = vp.width;
   const H = vp.height;
   // Items in the viewport's top-left frame: x across, y down.
-  const its = items.filter((i) => i.str && i.str.trim()).map((i) => {
+  const all = items.filter((i) => i.str && i.str.trim()).map((i) => {
     const [, , , d, e, f] = i.transform;
     const h = Math.abs(d) || Math.abs(i.height) || 10;
     const [x, y] = vp.convertToViewportPoint(e, f);
     return { s: i.str, x, y, w: i.width, h };
   });
+  // A heading drawn twice, a shadow under the letters ("Dire WolfDire Wolf"): the same words at nearly the
+  // same place are kept once.
+  const its = all.filter((i, k) => !all.slice(0, k).some((o) => o.s === i.s && Math.abs(o.x - i.x) < Math.max(3, i.h * 0.3) && Math.abs(o.y - i.y) < Math.max(3, i.h * 0.3)));
   if (!its.length) return '';
   const mid = W / 2;
   const chars = (a) => a.reduce((n, i) => n + i.s.length, 0);
@@ -158,10 +161,12 @@ function lines(items) {
       end = it.x + it.w;
     }
     if (k > 0) out += r.y - rows[k - 1].y > step * 1.6 ? '\n\n' : '\n';
-    out += line.replace(/\s+/g, ' ').trim();
+    out += twice(line.replace(/\s+/g, ' ').trim());
   });
   return out;
 }
+// "Appendix A: CreaturesAppendix A: Creatures": a line that is the same words twice over is one of them.
+export const twice = (t) => { const n = t.length; return n >= 6 && n % 2 === 0 && t.slice(0, n / 2) === t.slice(n / 2) ? t.slice(0, n / 2).trim() : t; };
 const median = (a) => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 
 // ---- where the pictures are ---------------------------------------------------------------------------

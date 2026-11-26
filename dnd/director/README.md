@@ -179,7 +179,12 @@ not be read. Saving puts a book in `library/converted/<name>/` (the words you pa
 version and its gaps) and it joins the rules at once; a campaign goes to `library/adventures/` and joins
 the adventure list (start it from **Saves → New game**); a new game of it opens with its maps on the Map tab.
 Pictures are kept beside the book or adventure (`pictures/`, `<id>.pictures/`) and served from the maps
-store. **Your books** lists everything the Engine reads.
+store. A campaign's result lists **its own monsters** (those from pictures too) with what the Engine read
+of each. The same creature found twice (its page as text and as a picture) is kept once, the fuller
+reading. **Your books** lists everything the Engine reads. Each book or adventure you converted has
+**Open again** (its words back in the box, to convert anew and save over it under the same name) and
+**Remove** (asked twice; out of the rules and the list at once, its files set aside in `_removed/`, not
+deleted; refused while the game being played uses it). Saving under a name you already have replaces that one.
 Removing a converted book sets it aside in `library/converted/_removed/`. All of it stays on your computer.
 
 ## The book library (private)

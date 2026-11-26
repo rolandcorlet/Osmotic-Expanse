@@ -196,6 +196,7 @@ test('a PDF\'s pictures: the AI reads the words in a scanned stat block, and a m
   assert.match(seen[1].user, /scanned/);
   assert.deepEqual(c.pictures.map((p) => [p.n, p.kind, p.use]), [[1, 'map', 'site:old-mill'], [2, 'stat-block', 'skip'], [3, 'decoration', 'skip']]);
   assert.equal(c.adventure.monsters[0].name, 'Mire Hound', 'the scanned stat block was read with the text');
+  assert.deepEqual(c.entries.map((e) => [e.name, e.kind]), [['Mire Hound', 'monster']], 'its own monsters, shown on the screen');
   assert.equal(c.adventure.sites[1].foes[0].monster, c.adventure.monsters[0].id);
   assert.ok(c.notes.some((n) => /Maps given to their places: The Old Mill → The Old Mill/.test(n)));
   assert.ok(c.words.indexOf('Mire Hound') > c.words.indexOf('--- Page 3 ---') && c.words.indexOf('Mire Hound') < c.words.indexOf('--- Page 4 ---'), 'the picture\'s words sit on its own page');
@@ -345,4 +346,65 @@ test('a campaign\'s stat block the reader cannot read goes to the AI, so the mon
   assert.match(asked, /Marsh Hag/);
   assert.deepEqual(c.adventure.monsters.map((m) => [m.id, m.hp]), [['tf-marsh-hag', 52]]);
   assert.equal(c.adventure.sites[0].foes[0].monster, 'tf-marsh-hag');
+});
+
+// ---- the same creature twice, headings drawn twice, and taking a book or an adventure out again ----------
+test('a PDF heading drawn twice is read once, and the same stat block read twice gives one monster', async () => {
+  const P = await import('../public/pdfread.js');
+  assert.equal(P.twice('Dire WolfDire Wolf'), 'Dire Wolf');
+  assert.equal(P.twice('Appendix A: CreaturesAppendix A: Creatures'), 'Appendix A: Creatures');
+  assert.equal(P.twice('Bang'), 'Bang');
+  const vp = { width: 612, height: 792, convertToViewportPoint: (x, y) => [x, 792 - y] };
+  const item = (s, x, y) => ({ str: s, transform: [10, 0, 0, 10, x, y], width: s.length * 5, height: 10 });
+  assert.equal(P.pageText([item('Dire Wolf', 50, 700), item('Dire Wolf', 51, 700.5), item('Large beast, unaligned', 50, 688)], vp), 'Dire Wolf\nLarge beast, unaligned');
+  // The reader: a name read twice over, an ACTIONS heading twice, the same block again with its actions lost.
+  const wolf = BLOCKS.split('\n\n')[0].replace(/^Bog Hag/, 'Bog HagBog Hag').replace('\nActions\n', '\nActionsActions\n');
+  const weak = BLOCKS.split('\n\n')[0].split('\nActions\n')[0];
+  const r = C.readStatBlocks(`${weak}\n\n${wolf}\n\nNot for resale. Permission granted to print or photocopy this document for personal use only.`);
+  assert.deepEqual(r.monsters.map((m) => [m.id, m.name, m.actions.length]), [['bog-hag', 'Bog Hag', 4]]);
+  assert.ok(!r.monsters[0].actions.some((a) => /resale/i.test(a.n)), 'the page footer is not an action');
+  // Saved adventures with doubles: one per id when loaded; a new conversion keeps one of each name.
+  const dup = [{ id: 'x-wolf', name: 'Wolf', ab: [12, 15, 12, 3, 12, 6], actions: [] }, { id: 'x-wolf', name: 'Wolf', ab: [12, 15, 12, 3, 12, 6], actions: [{ n: 'Bite', d: '' }] }];
+  assert.deepEqual(C.oneById(dup).map((m) => m.actions.length), [1]);
+  assert.deepEqual(C.oneEach([{ id: 'x-wolfwolf', name: 'WolfWolf', ab: [12, 15, 12, 3, 12, 6], actions: [{ n: 'Bite', d: '' }] }, { id: 'x-wolf', name: 'Wolf', ab: [10, 10, 10, 10, 10, 10], actions: [] }]).map((m) => [m.id, m.name, m.actions.length]), [['x-wolf', 'Wolf', 1]]);
+});
+
+test('a picture whose words are already on its page adds nothing twice; a blind model cannot undo a stat block', async () => {
+  const page = `--- Page 1 ---\n${BLOCKS.split('\n\n')[0]}\n\n--- Page 2 ---\nThe end.`;
+  const pics = [{ n: 1, page: 1, kind: 'stat-block', about: 'Bog Hag', text: BLOCKS.split('\n\n')[0], seen: true }];
+  const out = C.addPictureWords(page, pics);
+  assert.equal((out.match(/Armor Class 16/g) || []).length, 1, 'the stat block once');
+  assert.match(out, /\[Stat block, picture 1: Bog Hag; its words are in the text above\]/);
+  const blind = async (system) => (system === C.SEE_GUIDE ? '{"kind":"art","about":"a picture of a hag"}' : '[]');
+  const r = await C.convertText({ text: '--- Page 2 ---\n', kind: 'monsters', srd, ask: blind, pictures: [{ n: 1, page: 2, w: 600, h: 1000, mime: 'image/jpeg', data: 'AAAA', words: OCR_WIGHT }] });
+  assert.deepEqual(r.pictures.map((p) => [p.kind, p.ocr]), [['stat-block', true]]);
+  assert.equal(r.book.monsters[0].name, 'Bog Wight');
+});
+
+test('a converted book or adventure is taken out of the rules at once, its files set aside, and its words can be opened again', async () => {
+  const { mergeAdventureMonsters } = await import('../engine/merge.js');
+  const lib = mkdtempSync(join(tmpdir(), 'lib-'));
+  const copy = JSON.parse(JSON.stringify(srd));
+  const r = C.readStatBlocks(BLOCKS);
+  const meta = C.saveBook(join(lib, 'converted'), { name: 'Fen Book', kind: 'monsters', original: BLOCKS, book: { monsters: r.monsters, spells: [], rules: [{ name: 'Fog', text: 'Fog rules.' }] } });
+  const eng = C.loadBooks(join(lib, 'converted')).find((b) => b.id === meta.id);
+  const n = copy.monsters.length;
+  C.mergeBook(copy, eng);
+  assert.ok(copy.monsters.length > n && copy.libRules.some((x) => x.conv === meta.id));
+  assert.equal(C.originalOf(join(lib, 'converted'), 'book', meta.id), BLOCKS);
+  C.unmergeBook(copy, meta.id);
+  assert.equal(copy.monsters.length, n);
+  assert.ok(!copy.libRules.some((x) => x.conv === meta.id));
+  assert.ok(C.removeBook(join(lib, 'converted'), meta.id));
+  assert.equal(C.listBooks(join(lib, 'converted')).length, 0);
+  // An adventure, with its words and pictures.
+  const dir = join(lib, 'adventures');
+  const adv = C.saveAdventure(dir, { id: 'fen', name: 'Fen', sites: [{ id: 'a', name: 'A' }], monsters: [{ id: 'fen-bog-hag', name: 'Bog Hag', ab: [16, 12, 13, 12, 14, 13], actions: [] }] }, 'the words', [{ name: '0123456789abcdef01234567.jpg', bytes: Buffer.from([0xff, 0xd8, 0xff]) }]);
+  mergeAdventureMonsters(copy, [adv]);
+  assert.ok(copy.monsters.some((m) => m.adventure === 'fen'));
+  assert.equal(C.originalOf(dir, 'adventure', 'fen'), 'the words');
+  assert.equal(C.unmergeAdventure(copy, 'fen'), 1);
+  assert.ok(C.removeAdventure(dir, 'fen'));
+  assert.deepEqual(C.loadAdventures(dir), []);
+  assert.equal(readdirSync(join(dir, '_removed')).length, 3, 'its file, its words and its pictures, set aside');
 });

@@ -1460,7 +1460,7 @@ async function booksApi(path, body) {
 // A fresh start: what was converted and the file it came from, its pictures with it (saved, discarded or
 // cleared, nothing of the last PDF is carried into the next conversion).
 function booksReset() {
-  Object.assign(ui.books, { text: '', name: '', file: '', pictures: [], pdf: null, job: null, sel: null, saveName: '' });
+  Object.assign(ui.books, { text: '', name: '', file: '', pictures: [], pdf: null, job: null, sel: null, saveName: '', replaceName: '', confirm: '' });
 }
 async function booksLoad() {
   const B = ui.books;
@@ -1475,7 +1475,7 @@ function booksWatch() {
     const B = ui.books;
     const out = await booksApi('/job');
     B.job = out.job || null;
-    if (B.job && B.job.result && !B.saveName) B.saveName = B.job.result.name || B.name;
+    if (B.job && B.job.result && !B.saveName) B.saveName = B.replaceName || B.job.result.name || B.name; // opened again: saved over itself
     if (B.job && B.job.result && B.sel == null) B.sel = (B.job.result.entries || []).length ? 0 : null;
     if (B.job && B.job.busy) booksWatch();
     if (ui.tab === 'books') render();
@@ -1508,13 +1508,20 @@ function booksResultHtml(J) {
   if (J.error) return `<h3>That did not convert<span class="right"><button class="btn sm" data-act="bk.discard">Back</button></span></h3><div class="note hot">${esc(J.error)}</div>`;
   const R = J.result || {};
   const pics = booksPicturesHtml(R);
-  const saveRow = (label) => `${pics}<div class="row nw bk-save"><label class="fld grow"><span class="fl">Save as</span><input type="text" data-bind="books.saveName" value="${esc(B.saveName)}" maxlength="80"></label><button class="btn primary" data-act="books.save">${label}</button><button class="btn" data-act="bk.discard">Discard</button></div>`;
+  const L0 = B.list || {};
+  const nm = String(B.saveName || R.name || '').trim().toLowerCase();
+  const clash = R.adventure ? (L0.adventures || []).find((a) => a.converted && a.name.toLowerCase() === nm) : (L0.books || []).find((b) => !b.fixed && b.name.toLowerCase() === nm);
+  const saveRow = (label) => `${pics}${clash ? `<div class="small" style="color:var(--warn-c)">Saving replaces your ${R.adventure ? 'adventure' : 'book'} "${esc(clash.name)}" (the old one is set aside, not deleted).</div>` : ''}<div class="row nw bk-save"><label class="fld grow"><span class="fl">Save as</span><input type="text" data-bind="books.saveName" value="${esc(B.saveName)}" maxlength="80"></label><button class="btn primary" data-act="books.save">${label}</button><button class="btn" data-act="bk.discard">Discard</button></div>`;
   if (R.adventure) {
     const A = R.adventure;
     const C = R.check || { errors: [], warnings: [] };
-    return `<h3>${esc(A.name)}<span class="right"><span class="chip">${(A.sites || []).length} places</span><span class="chip ${C.errors.length ? 'no' : 'ok'}">${C.errors.length} errors</span><span class="chip ${C.warnings.length ? 'warn' : ''}">${C.warnings.length} warnings</span></span></h3>
+    const M = R.entries || [];
+    // Its own monsters, with what the Engine read of each: a stat block from a picture shows here too.
+    const monsters = M.length ? `<div class="fl bk-sub">Its own monsters (${M.length})</div>${M.map((e) => `<div class="bk-row"><div class="grow"><b>${esc(e.name)}</b><div class="small dim">${esc(e.facts.slice(0, 3).join(' · '))}</div>${e.gaps.map((g) => `<div class="small" style="color:var(--warn-c)">Not read: ${esc(g)}</div>`).join('')}</div>${e.gaps.length ? `<span class="chip warn">${e.gaps.length}</span>` : '<span class="ok-mark">✓</span>'}</div>`).join('')}` : '<div class="small dim bk-sub">No monsters of its own: its places use the rules\' monsters.</div>';
+    return `<h3>${esc(A.name)}<span class="right"><span class="chip">${(A.sites || []).length} places</span><span class="chip">${M.length} monsters</span><span class="chip ${C.errors.length ? 'no' : 'ok'}">${C.errors.length} errors</span><span class="chip ${C.warnings.length ? 'warn' : ''}">${C.warnings.length} warnings</span></span></h3>
       <div class="small dim">${esc(A.blurb || '')}${(R.notes || []).length ? ` ${R.notes.map(esc).join(' ')}` : ''}</div>
       <div class="scroll grow bk-list" data-scroll="bk-adv">${(A.sites || []).map((x) => `<div class="bk-row"><div class="grow"><b>${esc(x.name || x.id)}</b> <span class="faint small">${esc(x.id)} · level ${x.level || '?'}</span><div class="small dim">${esc(String(x.read || x.notes || '').slice(0, 180))}</div><div class="small">${(x.foes || []).map((f) => `<span class="chip">${f.count || 1} × ${esc(f.name || f.monster)}</span>`).join(' ')} ${(x.exits || []).map((e) => `<span class="chip">→ ${esc(e.to)}</span>`).join(' ')}</div></div></div>`).join('')}
+        ${monsters}
         ${C.errors.map((e) => `<div class="note hot small"><b>${esc(e.where)}</b>: ${esc(e.text)}</div>`).join('')}${C.warnings.map((e) => `<div class="small" style="color:var(--warn-c)"><b>${esc(e.where)}</b>: ${esc(e.text)}</div>`).join('')}</div>
       ${C.errors.length ? '<p class="small dim">The adventure can still be saved: the Director plays round what the checker flags, and you can fix the file in library/adventures.</p>' : ''}${saveRow('Save as an adventure')}`;
   }
@@ -1548,12 +1555,18 @@ function booksPicturesHtml(R) {
 }
 function booksListHtml(L) {
   const num = (c) => [c.monsters ? `${c.monsters} monsters` : '', c.spells ? `${c.spells} spells` : '', c.rules ? `${c.rules} rules sections` : ''].filter(Boolean).join(' · ') || 'empty';
+  // What can be done with one of yours: open its words again to convert them anew, or remove it (asked twice).
+  const mine = (what, id, name, playing) => {
+    const k = `${what}:${id}`;
+    if (ui.books.confirm === k) return `<span class="small">Remove "${esc(name)}"?</span><button class="btn sm danger" data-act="bk.remove" data-id="${esc(id)}" data-what="${what}">Remove</button><button class="btn sm" data-act="bk.unconfirm">Keep</button>`;
+    return `<button class="btn sm" data-act="bk.open" data-id="${esc(id)}" data-what="${what}" title="Put the words it was converted from back in the box, to convert them again and save over it">Open again</button><button class="btn sm danger" data-act="bk.confirm" data-k="${esc(k)}" ${playing ? 'disabled title="It is the adventure being played"' : 'title="Out of the rules and this list at once; its files are set aside, not deleted"'}>Remove</button>`;
+  };
   return `<h3>Your books<span class="right"><button class="btn sm" data-act="bk.refresh">Refresh</button></span></h3>
     <p class="small dim">Everything the Engine reads its rules from. Each book is kept as you gave it, with an engine version beside it.</p>
-    <div class="scroll grow bk-list" data-scroll="bk-books">${(L.books || []).map((b) => `<div class="bk-row"><div class="grow"><b>${esc(b.name)}</b> <span class="faint small">${esc(b.kind || '')}</span><div class="small dim">${num(b.counts || {})}${b.gaps ? ` · <span style="color:var(--warn-c)">${b.gaps} not read</span>` : ''}${b.savedAt ? ` · ${esc(new Date(b.savedAt).toLocaleDateString())}` : ''}</div></div>${b.fixed ? '<span class="chip">built in</span>' : `<button class="btn sm danger" data-act="bk.remove" data-id="${esc(b.id)}">Remove</button>`}</div>`).join('') || '<div class="empty">Loading…</div>'}
+    <div class="scroll grow bk-list" data-scroll="bk-books">${(L.books || []).map((b) => `<div class="bk-row"><div class="grow"><b>${esc(b.name)}</b> <span class="faint small">${esc(b.kind || '')}</span><div class="small dim">${num(b.counts || {})}${b.gaps ? ` · <span style="color:var(--warn-c)">${b.gaps} not read</span>` : ''}${b.savedAt ? ` · ${esc(new Date(b.savedAt).toLocaleDateString())}` : ''}</div></div>${b.fixed ? '<span class="chip">built in</span>' : `<span class="row nw bk-mine">${mine('book', b.id, b.name, false)}</span>`}</div>`).join('') || '<div class="empty">Loading…</div>'}
       <div class="fl bk-sub">Adventures</div>
-      ${(L.adventures || []).map((a) => `<div class="bk-row"><div class="grow"><b>${esc(a.name)}</b> <span class="faint small">${esc(a.levels || '')}</span><div class="small dim">${a.places} place${a.places === 1 ? '' : 's'}${a.converted ? ' · converted' : ''}</div></div>${a.converted ? '<span class="chip ok">yours</span>' : '<span class="chip">built in</span>'}</div>`).join('')}</div>
-    <p class="small dim">A converted adventure is started from <b>Saves → New game</b>. Removed books are set aside in library/converted/_removed, never deleted.</p>`;
+      ${(L.adventures || []).map((a) => `<div class="bk-row"><div class="grow"><b>${esc(a.name)}</b> <span class="faint small">${esc(a.levels || '')}</span><div class="small dim">${a.places} place${a.places === 1 ? '' : 's'}${a.converted && a.monsters ? ` · ${a.monsters} monsters of its own` : ''}${a.converted ? ' · converted' : ''}${a.playing ? ' · <b>being played</b>' : ''}</div></div>${a.converted ? `<span class="row nw bk-mine">${mine('adventure', a.id, a.name, a.playing)}</span>` : '<span class="chip">built in</span>'}</div>`).join('')}</div>
+    <p class="small dim">A converted adventure is started from <b>Adventure → New game</b>. <b>Open again</b> puts a book's words back in the box: convert them and save under the same name to replace it. Removed ones leave at once; their files are set aside in library/…/_removed, not deleted.</p>`;
 }
 
 function memoryHtml() {
@@ -1622,7 +1635,15 @@ const ACT = {
     reloadAdventure();
   },
   'bk.discard': async () => { await booksApi('/discard', {}); booksReset(); },
-  'bk.remove': async (d) => { const out = await booksApi('/remove', { id: d.id }); toast(out.ok ? out.saved : out.error || 'That was not removed.', !!out.ok); await booksLoad(); },
+  'bk.confirm': (d) => { ui.books.confirm = d.k; },
+  'bk.unconfirm': () => { ui.books.confirm = ''; },
+  'bk.remove': async (d) => { ui.books.confirm = ''; const out = await booksApi('/remove', { id: d.id, what: d.what }); toast(out.ok ? out.saved : out.error || 'That was not removed.', !!out.ok); await booksLoad(); if (out.ok && d.what === 'adventure') reloadAdventure(); },
+  'bk.open': async (d) => {
+    const out = await booksApi('/open', { id: d.id, what: d.what });
+    if (!out.ok) { toast(out.error || 'That could not be opened.'); return; }
+    booksReset();
+    Object.assign(ui.books, { text: out.text, name: out.name, kind: out.kind, file: `"${out.name}" as converted before: convert it, then save to replace it`, replaceName: out.name });
+  },
   'bk.refresh': async () => { await booksLoad(); },
   'col.reset': () => { store.del('dnd.colours'); applyColours(); },
   'col.theme': (d) => { store.set('dnd.colours', JSON.stringify(THEMES[d.n] || DEFAULTS)); applyColours(); },
