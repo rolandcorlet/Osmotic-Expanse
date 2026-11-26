@@ -31,3 +31,7 @@
 *.jar  binary
 *.zip  binary
 *.sav  binary
+*.gz   binary
+
+# Vendored libraries are kept byte for byte (the OCR engine's code holds its program as text).
+dnd/director/public/vendor/tesseract/** -text

@@ -202,12 +202,14 @@ function onState(data) {
     ui.lastRollId = last.id;
   } else if (!last) ui.lastRollId = '';
   const p = myPc();
-  if (role === 'player' && p) for (const q of state.requests) if (q.pcId === p.id && !ui.seenReq[q.id]) { ui.seenReq[q.id] = true; if (ui.tab !== 'play') { ui.tab = 'play'; } buzz(); }
+  let asked = null;
+  if (role === 'player' && p) for (const q of state.requests) if (q.pcId === p.id && !ui.seenReq[q.id]) { ui.seenReq[q.id] = true; if (ui.tab !== 'play') { ui.tab = 'play'; } buzz(); asked = q; }
   const prop = state.director && state.director.proposal;
   if (prop && prop.id !== ui.dir.editId) { ui.dir.edit = prop.narration; ui.dir.editId = prop.id; }
   if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
   voiceFollows();
   render();
+  if (asked) requestAlert(asked);
 }
 const buzz = () => { try { if (navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch (e) { /* fine */ } };
 
@@ -291,6 +293,7 @@ function render() {
     <div class="tabs">${tabs}</div>`);
   patch($('#nav'), role !== 'home' && state ? tabs : '');
   patch($('#main'), mainHtml());
+  watchRequest();
 }
 
 function mainHtml() {
@@ -661,12 +664,61 @@ function spellsTabHtml(p) {
 }
 
 // ------------------------------------------------------------- roll requests
+const reqWhat = (q) => (q.kind === 'initiative' ? 'Roll initiative' : q.kind === 'death' ? 'Death saving throw' : q.kind === 'save' ? `${ABN[q.ability]} saving throw` : q.skill ? `${skillName(q.skill)} check` : `${ABN[q.ability]} check`);
+// A roll asked of this player can't be missed, wherever they had scrolled to: the screen's edge flashes, a
+// banner drops in, the page goes back up to the request and the card shakes. While it waits and is out of
+// sight, a "Roll waiting" pill stays at the top (watchRequest, after every render).
+const calmMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function toRequest() {
+  const card = document.querySelector('.req-card');
+  if (!card) return;
+  const how = calmMotion() ? 'auto' : 'smooth';
+  window.scrollTo({ top: 0, behavior: how });
+  for (let el = card.parentElement; el && el !== document.body; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTo({ top: 0, behavior: how });
+  card.scrollIntoView({ behavior: how, block: 'start' });
+  card.classList.remove('req-pulse'); void card.offsetWidth; card.classList.add('req-pulse');
+  const roll = card.querySelector('[data-act="roll"]');
+  if (roll) roll.focus({ preventScroll: true });
+}
+function requestAlert(q) {
+  document.querySelectorAll('.req-flash, .req-banner').forEach((x) => x.remove());
+  const flash = document.createElement('div');
+  flash.className = 'req-flash';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 2600);
+  const bar = document.createElement('button');
+  bar.className = 'req-banner';
+  bar.innerHTML = `<b>${esc(reqWhat(q))}</b><span>${q.reason ? esc(q.reason) : 'The DM asks you to roll.'}</span>`;
+  bar.onclick = () => { toRequest(); bar.remove(); };
+  document.body.appendChild(bar);
+  setTimeout(() => bar.classList.add('gone'), 3200);
+  setTimeout(() => bar.remove(), 3700);
+  setTimeout(toRequest, 350);
+}
+let reqSeen = null; let reqCard = null;
+function watchRequest() {
+  let pill = document.getElementById('req-pill');
+  const card = role === 'player' ? document.querySelector('.req-card') : null;
+  if (!card) { if (pill) pill.hidden = true; if (reqSeen) { reqSeen.disconnect(); reqSeen = null; reqCard = null; } return; }
+  if (!pill) {
+    pill = document.createElement('button');
+    pill.id = 'req-pill'; pill.className = 'req-pill'; pill.hidden = true;
+    pill.onclick = () => toRequest();
+    document.body.appendChild(pill);
+  }
+  pill.textContent = `🎲 ${card.querySelector('h3') ? card.querySelector('h3').firstChild.textContent : 'A roll'} is waiting ↑`;
+  if (reqCard === card) return;
+  if (reqSeen) reqSeen.disconnect();
+  reqCard = card;
+  reqSeen = new IntersectionObserver((list) => { for (const e of list) document.getElementById('req-pill').hidden = e.isIntersecting; });
+  reqSeen.observe(card);
+}
 function requestCard(q, p) {
-  const what = q.kind === 'initiative' ? 'Roll initiative' : q.kind === 'death' ? 'Death saving throw' : q.kind === 'save' ? `${ABN[q.ability]} saving throw` : q.skill ? `${skillName(q.skill)} check` : `${ABN[q.ability]} check`;
+  const what = reqWhat(q);
   const bonus = q.kind === 'initiative' ? p.mods.dex : q.kind === 'death' ? 0 : q.kind === 'save' ? R.saveBonus(p, q.ability) : q.skill ? R.skillBonus(p, q.skill, srd).bonus : p.mods[q.ability];
   const fx = R.selfEffects(p, q.kind === 'save' ? 'save' : 'check', q.ability);
   const advNow = ui.adv || q.adv || '';
-  return `<section class="card ask${q.kind === 'death' ? ' danger' : ''}"><h3>${esc(what)}<span class="right"><span class="chip on">d20 ${sg(bonus)}</span></span></h3>
+  return `<section class="card ask req-card${q.kind === 'death' ? ' danger' : ''}" data-req="${esc(q.id)}"><h3>${esc(what)}<span class="right"><span class="chip on">d20 ${sg(bonus)}</span></span></h3>
     ${q.reason ? `<p class="tale">${esc(q.reason)}</p>` : ''}
     ${fx.why.length ? `<div class="note hot">${fx.fail ? 'You fail this automatically' : `Your ${fx.adv && !fx.dis ? 'advantage' : 'disadvantage'}`}: ${esc(fx.why.join(', '))}.</div>` : ''}
     ${q.kind !== 'death' ? `<div class="row"><div class="seg">${[['', 'Normal'], ['adv', 'Advantage'], ['dis', 'Disadvantage']].map(([id, n]) => `<button class="${advNow === id ? 'on' : ''}" data-act="advset" data-v="${id}">${n}</button>`).join('')}</div><span class="small dim">if the DM or a feature says so</span></div>` : ''}
@@ -1405,6 +1457,11 @@ async function booksApi(path, body) {
     return await res.json();
   } catch (e) { toast('Cannot reach the Director host. Is it still running?'); return { ok: false }; }
 }
+// A fresh start: what was converted and the file it came from, its pictures with it (saved, discarded or
+// cleared, nothing of the last PDF is carried into the next conversion).
+function booksReset() {
+  Object.assign(ui.books, { text: '', name: '', file: '', pictures: [], pdf: null, job: null, sel: null, saveName: '' });
+}
 async function booksLoad() {
   const B = ui.books;
   const out = await booksApi('/');
@@ -1438,7 +1495,7 @@ function booksHtml() {
     </div>
     <textarea class="grow bk-paste" data-k="bk.text" data-bind="books.text" spellcheck="false" placeholder="Paste here: monster stat blocks, spells, a chapter of rules, or a whole campaign. Or add a file below.&#10;&#10;The book reader reads the usual 5e layout at once (a name, &quot;Medium fey, neutral evil&quot;, Armor Class, Hit Points... or a spell's Casting Time, Range, Components and Duration). The AI reads anything else, and turns a campaign into an adventure, place by place.">${esc(B.text)}</textarea>
     <div class="row nw"><label class="btn">Add a file<input type="file" accept=".pdf,.txt,.md,.json,application/pdf,text/plain" data-booksfile="1" hidden></label><span class="small faint grow">${B.pdf ? `${esc(B.pdf.step)}${B.pdf.of ? ` (page ${B.pdf.at} of ${B.pdf.of})` : ''}…` : `${B.file ? `${esc(B.file)} · ` : ''}${n ? `${n.toLocaleString()} characters` : 'A PDF, plain text, Markdown or JSON'}`}</span>${n ? '<button class="btn" data-act="bk.clear">Clear</button>' : ''}<button class="btn primary" data-act="bk.convert" ${(!B.text.trim() && !(B.pictures || []).length) || (J && J.busy) || B.busy || B.pdf ? 'disabled' : ''}>Convert</button></div>
-    ${(B.pictures || []).length ? `<div class="bk-strip" title="The pictures from the PDF: the AI looks at each one when you convert.">${B.pictures.slice(0, 40).map((x) => `<img src="${x.data}" alt="" title="page ${x.page}${x.scanned ? ' (a scanned page)' : ''}">`).join('')}${B.pictures.length > 40 ? `<span class="small faint">+${B.pictures.length - 40}</span>` : ''}</div>` : ''}
+    ${(B.pictures || []).length ? `<div class="bk-strip" title="The pictures from the PDF: the AI looks at each one when you convert.">${B.pictures.slice(0, 40).map((x) => `<img src="${x.data}" alt="" class="${x.words ? 'has-words' : ''}" title="page ${x.page}${x.scanned ? ' (a scanned page)' : ''}${x.words ? `. Its words were read: ${esc(x.words.split('\n')[0].slice(0, 60))}…` : ''}">`).join('')}${B.pictures.length > 40 ? `<span class="small faint">+${B.pictures.length - 40}</span>` : ''}</div>` : ''}
     <p class="small dim bk-foot">Nothing is changed or saved until you choose to: you see what the Engine would get first. The words you paste are kept beside the converted version, on this computer only.</p></section>`;
   return `<div class="lay-two bk">${left}<section class="card fill bk-out">${J ? booksResultHtml(J) : booksListHtml(L)}</section></div>`;
 }
@@ -1479,10 +1536,11 @@ function booksPicturesHtml(R) {
   if (!P.length) return '';
   const uses = R.uses || [['keep', 'Keep'], ['skip', 'Leave out']];
   const kept = P.filter((p) => p.use !== 'skip').length;
+  const src = (p) => `/api/books/picture?n=${p.n}&j=${encodeURIComponent(R.job || '')}&${auth()}`; // j: this conversion's, so no picture from the last is shown from the cache
   const card = (p) => `<div class="bk-pic${p.use === 'skip' ? ' off' : ''}">
-      <a href="/api/books/picture?n=${p.n}&${auth()}" target="_blank" rel="noopener" title="Open it full size"><img src="/api/books/picture?n=${p.n}&${auth()}" alt="" loading="lazy"></a>
+      <a href="${src(p)}" target="_blank" rel="noopener" title="Open it full size"><img src="${src(p)}" alt="" loading="lazy"></a>
       <div class="bk-pic-f">
-        <div class="small bk-pic-t" title="${esc(p.about || '')}"><b>Page ${p.page}</b> ${p.seen ? esc(p.about || '') : '<span class="faint">not looked at</span>'}${p.text ? ` <span class="chip ok" title="${esc(p.text.slice(0, 400))}">words read</span>` : ''}</div>
+        <div class="small bk-pic-t" title="${esc(p.about || '')}"><b>Page ${p.page}</b> ${p.seen || p.ocr ? esc(p.about || '') : '<span class="faint">not looked at</span>'}${p.text ? ` <span class="chip ok" title="${esc(p.text.slice(0, 400))}">${p.ocr ? 'words read, no AI' : 'words read'}</span>` : ''}</div>
         <select data-bkkind="${p.n}" title="What it is">${PIC_KINDS.map(([k, t]) => `<option value="${k}" ${k === (p.kind || '') ? 'selected' : ''}>${t}</option>`).join('')}</select>
         <select data-bkuse="${p.n}" title="What to do with it">${uses.map(([u, t]) => `<option value="${esc(u)}" ${u === p.use ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
       </div></div>`;
@@ -1552,18 +1610,18 @@ const ACT = {
     B.job = { busy: true, step: 'Reading', at: 0, of: 0 }; B.sel = null; B.saveName = '';
     booksWatch();
   },
-  'bk.clear': () => { ui.books.text = ''; ui.books.file = ''; ui.books.pictures = []; },
+  'bk.clear': () => booksReset(),
   'bk.sel': (d) => { ui.books.sel = Number(d.n); },
   'books.save': async () => { // not 'bk.save': that is the offline app's "Download a copy"
     const B = ui.books;
     const out = await booksApi('/save', { name: B.saveName || B.name });
     if (!out.ok) { toast(out.error || 'That was not saved.'); return; }
     toast(out.saved || 'Saved.', true);
-    B.job = null; B.sel = null; B.saveName = '';
+    booksReset();
     await booksLoad();
     reloadAdventure();
   },
-  'bk.discard': async () => { await booksApi('/discard', {}); ui.books.job = null; ui.books.sel = null; ui.books.saveName = ''; },
+  'bk.discard': async () => { await booksApi('/discard', {}); booksReset(); },
   'bk.remove': async (d) => { const out = await booksApi('/remove', { id: d.id }); toast(out.ok ? out.saved : out.error || 'That was not removed.', !!out.ok); await booksLoad(); },
   'bk.refresh': async () => { await booksLoad(); },
   'col.reset': () => { store.del('dnd.colours'); applyColours(); },
@@ -1789,6 +1847,7 @@ function onField(e) {
   if (t.dataset.racecantrip) { if (e.type === 'change') { ui.build.spells = { ...(ui.build.spells || {}), raceCantrip: t.value }; saveDraft(); render(); } return; }
   if (t.dataset.notes) { if (e.type === 'change') send({ type: 'pc.notes', pcId: t.dataset.notes, text: t.value }); return; }
   if (t.dataset.hostnotes) { ui.host.note = t.value; return; }
+  if (t.dataset.bind === 'books.text' && (ui.books.pictures || []).length && !/^--- Page \d+ ---$/m.test(t.value)) { ui.books.pictures = []; ui.books.file = ''; }
   if (t.dataset.bkuse || t.dataset.bkkind) {
     if (e.type !== 'change') return;
     const n = Number(t.dataset.bkuse || t.dataset.bkkind);
@@ -1814,7 +1873,13 @@ function onField(e) {
     if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
       B.pdf = { step: 'Opening the PDF', at: 0, of: 0 }; B.pictures = []; B.file = f.name; render();
       Promise.all([import('/pdfread.js'), f.arrayBuffer()]).then(([P, buf]) => P.readPdf(buf, { onProgress: (p) => { B.pdf = p; if (ui.tab === 'books') render(); } }))
-        .then((r) => { B.text = r.text; B.pictures = r.pictures; B.pdf = null; B.file = `${f.name}: ${r.pages.length} pages, ${r.pictures.length} picture${r.pictures.length === 1 ? '' : 's'}${r.pages.some((x) => x.scanned) ? `, ${r.pages.filter((x) => x.scanned).length} scanned` : ''}`; render(); })
+        .then((r) => {
+          const worded = r.pictures.filter((x) => x.words).length;
+          B.text = r.text; B.pictures = r.pictures; B.pdf = null;
+          B.file = `${f.name}: ${r.pages.length} pages, ${r.pictures.length} picture${r.pictures.length === 1 ? '' : 's'}${r.pages.some((x) => x.scanned) ? `, ${r.pages.filter((x) => x.scanned).length} scanned` : ''}${worded ? `, words read in ${worded}` : ''}`;
+          if (r.ocr) toast(r.ocr);
+          render();
+        })
         .catch((err) => { B.pdf = null; toast(`That PDF could not be read: ${err.message}`); render(); });
       t.value = '';
       return;

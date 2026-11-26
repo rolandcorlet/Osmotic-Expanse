@@ -200,6 +200,11 @@ const FILES = {
   '/pdfread.js': ['public/pdfread.js', 'text/javascript'],
   '/vendor/pdfjs/pdf.min.mjs': ['public/vendor/pdfjs/pdf.min.mjs', 'text/javascript'],
   '/vendor/pdfjs/pdf.worker.min.mjs': ['public/vendor/pdfjs/pdf.worker.min.mjs', 'text/javascript'],
+  // Tesseract.js reads the words in a PDF's pictures when no AI can see them (public/vendor/tesseract).
+  '/vendor/tesseract/tesseract.esm.min.js': ['public/vendor/tesseract/tesseract.esm.min.js', 'text/javascript'],
+  '/vendor/tesseract/worker.min.js': ['public/vendor/tesseract/worker.min.js', 'text/javascript'],
+  '/vendor/tesseract/tesseract-core-simd-lstm.wasm.js': ['public/vendor/tesseract/tesseract-core-simd-lstm.wasm.js', 'text/javascript'],
+  '/vendor/tesseract/eng.traineddata.gz': ['public/vendor/tesseract/eng.traineddata.gz', 'application/octet-stream'],
   // The three screens as their own pages (the same app, its role fixed by the page).
   '/player.html': ['public/player.html', 'text/html'],
   '/table.html': ['public/table.html', 'text/html'],
@@ -254,7 +259,7 @@ async function booksApi(path, method, body) {
       if (stagedPictures.length >= MAX_STAGED) return { ok: false, error: `That is more than ${MAX_STAGED} pictures: split the PDF into parts.` };
       const w = Math.trunc(Number(p.w)); const h = Math.trunc(Number(p.h));
       if (!(w > 0 && h > 0 && w <= 10000 && h <= 10000)) continue;
-      stagedPictures.push({ n: stagedPictures.length + 1, page: Math.max(1, Math.trunc(Number(p.page) || 1)), w, h, mime: m[1], data: m[2], scanned: !!p.scanned });
+      stagedPictures.push({ n: stagedPictures.length + 1, page: Math.max(1, Math.trunc(Number(p.page) || 1)), w, h, mime: m[1], data: m[2], scanned: !!p.scanned, words: String(p.words || '').slice(0, 20000) });
     }
     return { ok: true, count: stagedPictures.length };
   }
@@ -281,7 +286,7 @@ async function booksApi(path, method, body) {
     convertJob = { busy: true, step: 'Reading', at: 0, of: 0, error: '', result: null, original: text, startedAt: Date.now(), staged };
     const canSee = staged.length && ai && director.canSee ? await director.canSee() : null;
     CV.convertText({ text, kind: body.kind, name: String(body.name || '').slice(0, 80), how: body.how || 'both', ask: ai, srd, pictures: staged, canSee, onProgress: (p) => { Object.assign(convertJob, p); } })
-      .then((r) => { if (r.words) { convertJob.original = r.words; delete r.words; } r.uses = CV.pictureUses(r); convertJob.result = r; })
+      .then((r) => { if (r.words) { convertJob.original = r.words; delete r.words; } r.uses = CV.pictureUses(r); r.job = String(convertJob.startedAt); convertJob.result = r; })
       .catch((e) => { convertJob.error = e.message || String(e); })
       .finally(() => { convertJob.busy = false; convertJob.step = ''; });
     return { ok: true };
@@ -316,7 +321,7 @@ async function booksApi(path, method, body) {
       if (at >= 0) ADVENTURES[at] = adv; else ADVENTURES.push(adv);
       mergeAdventureMonsters(srd, [adv]);
       refreshSrd();
-      convertJob = null;
+      convertJob = null; stagedPictures = [];
       const maps = (adv.travelPicture ? 1 : 0) + adv.sites.filter((s) => s.picture).length;
       return { ok: true, saved: `"${adv.name}" is in the adventure list${maps ? `, with ${maps} map${maps > 1 ? 's' : ''} that a new game opens with` : ''}.` };
     }
@@ -324,10 +329,10 @@ async function booksApi(path, method, body) {
     const eng = CV.loadBooks(CONVERTED_DIR).find((b) => b.id === meta.id);
     const added = eng ? CV.mergeBook(srd, eng) : { monsters: 0, spells: 0, rules: 0 };
     refreshSrd();
-    convertJob = null;
+    convertJob = null; stagedPictures = [];
     return { ok: true, saved: `"${meta.name}" is in your books: ${added.monsters} monsters, ${added.spells} spells and ${added.rules} rules sections the Engine can use now.` };
   }
-  if (path === '/discard' && method === 'POST') { if (!(convertJob && convertJob.busy)) convertJob = null; return { ok: true }; }
+  if (path === '/discard' && method === 'POST') { if (!(convertJob && convertJob.busy)) convertJob = null; stagedPictures = []; return { ok: true }; }
   if (path === '/remove' && method === 'POST') {
     const ok = CV.removeBook(CONVERTED_DIR, String(body.id || ''));
     return ok ? { ok: true, saved: 'Set aside (library/converted/_removed). It leaves the rules when the Director restarts.' } : { ok: false, error: 'There is no converted book by that name.' };
@@ -467,7 +472,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && FILES[url.pathname]) {
       const [file, type] = FILES[url.pathname];
-      res.writeHead(200, { 'content-type': `${type}; charset=utf-8`, 'cache-control': 'no-store' });
+      // The vendored libraries do not change between versions of the Director: the browser keeps them a day.
+      const lib = url.pathname.startsWith('/vendor/');
+      res.writeHead(200, { 'content-type': type.startsWith('text/') ? `${type}; charset=utf-8` : type, 'cache-control': lib ? 'public, max-age=86400' : 'no-store' });
       res.end(readFileSync(join(here, file)));
       return;
     }

@@ -4,8 +4,11 @@
 //   - the pictures on each page, cut out of the page's render: maps, stat blocks set as pictures, art. A
 //     picture filling the page behind the others or behind a page of text (parchment), and small
 //     ornaments, are left out;
-//   - a page that is all picture and almost no text is a scan: the whole page is kept, for the AI to read.
-// readPdf(arrayBuffer, { onProgress }) -> { pages: [{ n, text, scanned }], pictures: [{ page, w, h, data, scanned }], text }
+//   - a page that is all picture and almost no text is a scan: the whole page is kept, for the AI to read;
+//   - the words in each picture, read by Tesseract.js (public/vendor/tesseract) with no AI: a stat block or a
+//     page set as a picture, a handout. Pictures with no real words (art, a map's room letters) get none.
+// readPdf(arrayBuffer, { onProgress, ocr }) ->
+//   { pages: [{ n, text, scanned }], pictures: [{ page, w, h, data, scanned, words, conf }], text, ocr }
 let lib = null;
 async function pdfjs() {
   if (!lib) {
@@ -15,11 +18,45 @@ async function pdfjs() {
   return lib;
 }
 
-export async function readPdf(buffer, { onProgress = () => {}, maxPictures = 120, scale = 1.6, maxSide = 1600 } = {}) {
+// Tesseract.js, loaded the first time a picture needs reading. null if it cannot run in this browser.
+let reader = null;
+async function wordReader() {
+  if (reader) return reader;
+  const T = await import('/vendor/tesseract/tesseract.esm.min.js');
+  const at = (f) => new URL(`/vendor/tesseract/${f}`, location.href).href;
+  const w = await (T.default || T).createWorker('eng', 1, { workerPath: at('worker.min.js'), corePath: at('tesseract-core-simd-lstm.wasm.js'), langPath: at(''), workerBlobURL: false, gzip: true, logger: () => {} });
+  reader = { worker: w };
+  return reader;
+}
+// The words a picture holds, if it holds real ones: enough words of three letters or more, read with
+// confidence. Art and a map's room letters give none.
+// Lines of rule marks and specks ("EE ————", "|") are left out.
+export function realWords(text, conf) {
+  const lines = String(text || '').split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim());
+  const kept = lines.filter((l) => { const real = (l.match(/[A-Za-z0-9]/g) || []).length; const marks = l.replace(/[\sA-Za-z0-9()+-]/g, '').length; return !l || (real >= 3 && real >= marks * 2); });
+  const t = kept.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  const words = (t.match(/[A-Za-z]{3,}/g) || []).length;
+  return conf >= 55 && words >= 8 ? t : '';
+}
+const SIZE_LINE = /^(?:Tiny|Small|Medium|Large|Huge|Gargantuan)\b[^,\n]*,/im;
+// A stat block whose name (often in a fancy face) was not read: the name line from the top of the picture.
+export function needsName(words) {
+  if (!SIZE_LINE.test(words) || !/Armou?r Class|Hit Points/i.test(words)) return false;
+  const lines = words.split('\n').map((l) => l.trim()).filter(Boolean);
+  const at = lines.findIndex((l) => SIZE_LINE.test(l));
+  return at <= 0;
+}
+export function nameFrom(band) {
+  const line = String(band || '').split('\n').map((l) => l.trim()).find((l) => (l.match(/[A-Za-z]/g) || []).length >= 3 && !SIZE_LINE.test(l) && !/Armou?r Class|Hit Points/i.test(l));
+  return line ? line.replace(/[^A-Za-z' -]/g, '').replace(/\s+/g, ' ').trim() : '';
+}
+
+export async function readPdf(buffer, { onProgress = () => {}, maxPictures = 120, scale = 2.5, maxSide = 1600, ocr = true, ocrSide = 2600 } = {}) {
   const P = await pdfjs();
   const doc = await P.getDocument({ data: buffer, isEvalSupported: false, disableFontFace: false }).promise;
   const pages = [];
   const pictures = [];
+  let ocrOk = null; let ocrWhy = '';
   for (let n = 1; n <= doc.numPages; n++) {
     onProgress({ step: 'Reading the PDF', at: n, of: doc.numPages });
     const page = await doc.getPage(n);
@@ -34,7 +71,32 @@ export async function readPdf(buffer, { onProgress = () => {}, maxPictures = 120
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
       for (const b of boxes.slice(0, maxPictures - pictures.length)) {
         const c = cut(canvas, b, scale, maxSide);
-        if (c) pictures.push({ page: n, w: c.width, h: c.height, data: c.toDataURL('image/jpeg', 0.82), scanned });
+        if (!c) continue;
+        const pic = { page: n, w: c.width, h: c.height, data: c.toDataURL('image/jpeg', 0.82), scanned, words: '', conf: 0 };
+        pictures.push(pic);
+        if (ocr && ocrOk !== false) {
+          // Read at the render's own size (sharper than the picture kept for the screen).
+          onProgress({ step: 'Reading the words in the pictures', at: n, of: doc.numPages });
+          try {
+            const R = await wordReader();
+            const big = cut(canvas, b, scale, ocrSide, 2);
+            const { data } = await R.worker.recognize(big);
+            pic.words = realWords(data.text, data.confidence);
+            pic.conf = Math.round(data.confidence || 0);
+            if (pic.words && needsName(pic.words)) {
+              // The heading alone, from a band across the top, is read where the whole picture missed it.
+              const top = document.createElement('canvas');
+              top.width = big.width; top.height = Math.min(big.height, Math.max(90, Math.round(big.height * 0.1)));
+              top.getContext('2d').drawImage(big, 0, 0, big.width, top.height, 0, 0, top.width, top.height);
+              const band = await R.worker.recognize(top);
+              top.width = 0; top.height = 0;
+              const name = nameFrom(band.data.text);
+              if (name) pic.words = `${name}\n${pic.words}`;
+            }
+            big.width = 0; big.height = 0;
+            ocrOk = true;
+          } catch (e) { ocrOk = false; ocrWhy = String((e && e.message) || e).slice(0, 160); }
+        }
       }
       canvas.width = 0; canvas.height = 0;
     }
@@ -42,7 +104,8 @@ export async function readPdf(buffer, { onProgress = () => {}, maxPictures = 120
     page.cleanup();
   }
   await doc.destroy();
-  return { pages, pictures, text: pages.map((p) => `--- Page ${p.n} ---\n${p.text}`).join('\n\n') };
+  if (reader) { try { await reader.worker.terminate(); } catch { /* gone already */ } reader = null; }
+  return { pages, pictures, text: pages.map((p) => `--- Page ${p.n} ---\n${p.text}`).join('\n\n'), ocr: ocrOk === false ? `The words in the pictures could not be read here (${ocrWhy}).` : '' };
 }
 
 // ---- text in reading order ---------------------------------------------------------------------
@@ -164,11 +227,12 @@ function joinTiles(list) {
   }
   return boxes;
 }
-function cut(canvas, b, scale, maxSide) {
+// grow: how much a small picture may be enlarged (the word reader misses small headings otherwise).
+function cut(canvas, b, scale, maxSide, grow = 1) {
   const sx = Math.floor(b.x * scale); const sy = Math.floor(b.y * scale);
   const sw = Math.min(canvas.width - sx, Math.ceil(b.w * scale)); const sh = Math.min(canvas.height - sy, Math.ceil(b.h * scale));
   if (sw < 20 || sh < 20) return null;
-  const k = Math.min(1, maxSide / Math.max(sw, sh));
+  const k = Math.min(grow, maxSide / Math.max(sw, sh));
   const c = document.createElement('canvas');
   c.width = Math.round(sw * k); c.height = Math.round(sh * k);
   c.getContext('2d').drawImage(canvas, sx, sy, sw, sh, 0, 0, c.width, c.height);

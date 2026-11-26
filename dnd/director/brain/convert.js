@@ -92,6 +92,8 @@ export function readStatBlocks(text, { prefix = '', taken = new Set() } = {}) {
   return { monsters, leftovers };
 }
 
+// "RUNE WRAITH" (a heading in capitals) is the Rune Wraith; a name as written otherwise stays as it is.
+const titleCase = (t) => (/[a-z]/.test(t) || !/[A-Z]/.test(t) ? t : t.toLowerCase().replace(/(^|[\s(-])([a-z])/g, (m, a, b) => a + b.toUpperCase()));
 function statBlock(name, lines) {
   const head = /^(Tiny|Small|Medium|Large|Huge|Gargantuan)\s+([^,(]+?)(?:\s*\(([^)]*)\))?\s*,\s*(.+)$/i.exec(lines[0]);
   if (!head) return null;
@@ -102,7 +104,13 @@ function statBlock(name, lines) {
   if (!ac || !hp) return null;
   // The six scores: "16 (+3) 12 (+1) ..." after STR DEX CON..., on one line or six.
   const scoreStart = all.search(/\bSTR\b/);
-  const scores = [...all.slice(Math.max(0, scoreStart)).matchAll(/(\d{1,2})\s*\(\s*[+-]?\s*\d+\s*\)/g)].slice(0, 6).map((x) => Number(x[1]));
+  // A score that disagrees with its modifier was misread ("2 (-1)" for 9, by a text reader): the modifier wins.
+  const scores = [...all.slice(Math.max(0, scoreStart)).matchAll(/(\d{1,2})\s*\(\s*([+\-–−]?)\s*(\d{1,2})\s*\)?/g)].slice(0, 6).map((x) => {
+    const s = Number(x[1]);
+    if (!x[2]) return s;
+    const mod = (x[2] === '+' ? 1 : -1) * Number(x[3]);
+    return Math.floor((s - 10) / 2) === mod ? s : 10 + 2 * mod;
+  });
   const crm = /Challenge\s+([\d/]+)(?:\s*\(([\d,]+)\s*XP\))?/i.exec(all);
   const cr = crm ? crNum(crm[1]) : 0;
   const pbm = /Proficiency Bonus\s*\+?(\d+)/i.exec(all);
@@ -111,7 +119,7 @@ function statBlock(name, lines) {
   const saves = Object.fromEntries(Object.entries(bonuses('Saving Throws')).map(([k, v]) => [k.slice(0, 3).toLowerCase(), v]).filter(([k]) => ABS.includes(k)));
   // Sections: traits first, then each heading's entries.
   const out = {
-    name: name.replace(/\s+/g, ' ').trim(), size: head[1][0].toUpperCase() + head[1].slice(1).toLowerCase(), type: head[2].trim().toLowerCase(), sub: (head[3] || '').trim(),
+    name: titleCase(name.replace(/\s+/g, ' ').trim()), size: head[1][0].toUpperCase() + head[1].slice(1).toLowerCase(), type: head[2].trim().toLowerCase(), sub: (head[3] || '').trim(),
     align: head[4].trim(), ac: Number(ac[1]), acNote: (ac[2] || '').trim(), hp: Number(hp[1]), hd: (hp[2] || '').replace(/\s+/g, ''),
     speed: grab(/^Speed\s+(.+)$/im), ab: scores.length === 6 ? scores : [10, 10, 10, 10, 10, 10], saves, skills: bonuses('Skills'),
     vuln: listOf('Damage Vulnerabilities'), res: listOf('Damage Resistances'), imm: listOf('Damage Immunities'), cimm: listOf('Condition Immunities'),
@@ -119,7 +127,7 @@ function statBlock(name, lines) {
     traits: [], actions: [],
   };
   const statLine = /^(Armou?r Class|Hit Points|Speed|STR\b|DEX\b|CON\b|INT\b|WIS\b|CHA\b|Saving Throws|Skills|Damage|Condition Immunities|Senses|Languages|Challenge|Proficiency Bonus|\d{1,2}\s*\()/i;
-  const HEAD = /^(Actions|Bonus Actions|Reactions|Legendary Actions|Mythic Actions|Lair Actions)\s*$/i;
+  const HEAD = /^(Actions|Bonus Actions|Reactions|Legendary Actions|Mythic Actions|Lair Actions)[^A-Za-z]*$/i; // "ACTIONS ~~~ 0": a text reader's specks after it
   let sec = 'traits';
   let cur = null;
   let pastStats = false;
@@ -359,7 +367,19 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
   // The campaign's own stat blocks: the book reader first, the AI for those it cannot read.
   const prefix = slug(name || 'adv').split('-').map((w) => w[0]).join('').slice(0, 4) || 'adv';
   const srdIds = new Set((srd.monsters || []).map((m) => m.id));
-  const own = readStatBlocks(text, { prefix, taken: new Set(srdIds) }).monsters.map(({ words, ...m }) => ({ ...m, id: srdIds.has(m.id) ? `${prefix}-${m.id}` : m.id.startsWith(`${prefix}-`) ? m.id : `${prefix}-${m.id}` }));
+  // Stat blocks the reader cannot read, or reads without their scores or actions (one read from a picture
+  // with slips in it), go to the AI, so every monster the campaign fights with comes with its numbers.
+  const sb = readStatBlocks(text, { prefix, taken: new Set(srdIds) });
+  const weak = (m) => m.ab.every((v) => v === 10) || !(m.actions || []).length;
+  const read = sb.monsters.filter((m) => !weak(m)).map(({ words, ...m }) => m);
+  const again = [...sb.leftovers, ...sb.monsters.filter(weak).map((m) => m.words)];
+  if (again.length) {
+    let got = [];
+    try { got = (await aiReadEntries({ ask, kind: 'monsters', text: again.join('\n\n'), prefix, taken: new Set([...srdIds, ...read.map((m) => m.id)]), onProgress })).entries.map(({ words, ...m }) => m); } catch { /* kept as the reader read them */ }
+    read.push(...got);
+    for (const m of sb.monsters.filter(weak)) if (!got.some((g) => slug(g.name) === slug(m.name))) { const { words, ...x } = m; read.push(x); }
+  }
+  const own = read.map((m) => ({ ...m, id: srdIds.has(m.id) ? `${prefix}-${m.id}` : m.id.startsWith(`${prefix}-`) ? m.id : `${prefix}-${m.id}` }));
   // 1. what each part holds
   const found = { places: [], people: [], monsters: [], quests: [] };
   for (let i = 0; i < parts.length; i++) {
@@ -486,12 +506,29 @@ map: a map of one place the party can be in (a building, a dungeon level, a cave
 grid: for a map with squares drawn on it, how many squares across and down; else 0 and 0.
 In "text", write a stat block in the usual layout: the name on its own line, then "Armor Class 13", "Hit Points 22 (4d8 + 4)", "Speed 30 ft.", the six scores "STR DEX CON INT WIS CHA" with their numbers, then Senses, Languages, Challenge, and each trait and action as "Name. Words."`;
 
+// A picture's words as the browser's word reader (Tesseract, public/pdfread.js) read them, with no AI: a
+// stat block is known by its Armor Class and Hit Points; a scanned page or a long text is a page.
+export function fromWords(o, words) {
+  const w = String(words || '').replace(/\r/g, '').trim().slice(0, 12000);
+  if (!w) return o;
+  const first = w.split('\n').map((l) => l.trim()).find(Boolean) || '';
+  if (/Armou?r Class/i.test(w) && /Hit Points/i.test(w)) { o.kind = 'stat-block'; o.about = `Stat block: ${first.slice(0, 60)}`; } else if (o.kind === 'page' || w.length > 600) { o.kind = 'page'; o.about = `Words: ${first.slice(0, 60)}`; } else o.about = `Words: ${first.slice(0, 60)}`;
+  o.text = w;
+  o.ocr = true;
+  return o;
+}
+
 export async function seePictures({ ask, pictures, near = () => '', canSee = null, onProgress = () => {} }) {
-  const out = pictures.map((p) => ({ n: p.n, page: p.page, w: p.w, h: p.h, kind: p.scanned ? 'page' : '', about: '', place: '', grid: null, text: '', seen: false, use: 'keep' }));
+  const out = pictures.map((p) => fromWords({ n: p.n, page: p.page, w: p.w, h: p.h, kind: p.scanned ? 'page' : '', about: '', place: '', grid: null, text: '', seen: false, use: 'keep' }, p.words));
   const notes = [];
   if (!pictures.length) return { pictures: out, notes };
+  const read = out.filter((o) => o.ocr);
+  const readNote = () => (read.length ? `The words in ${read.length} picture${read.length > 1 ? 's' : ''} (${read.map((o) => o.about.replace(/^(?:Stat block|Words): /, '')).slice(0, 4).join('; ')}) were read without the AI and joined the text.` : '');
   if (!ask || canSee === false) {
-    notes.push(`${pictures.length} picture${pictures.length > 1 ? 's were' : ' was'} kept, not looked at: ${ask ? 'the AI set up on the Director tab cannot see pictures (choose one that can, such as Gemini, Claude, GPT-4o, or an Ollama vision model like gemma3 or qwen2.5vl)' : 'set up an AI on the Director tab to have them looked at'}. Say what each one is below.`);
+    for (const o of out) o.use = defaultUse(o);
+    const rest = out.length - read.length;
+    if (read.length) notes.push(readNote());
+    if (rest) notes.push(`${rest} picture${rest > 1 ? 's were' : ' was'} kept, not looked at: ${ask ? 'the AI set up on the Director tab cannot see pictures (choose one that can, such as Gemini, Claude, GPT-4o, or an Ollama vision model like gemma3 or qwen2.5vl)' : 'set up an AI on the Director tab to have them looked at'}. Say what each one is below.`);
     return { pictures: out, notes };
   }
   let looked = 0;
@@ -503,13 +540,16 @@ export async function seePictures({ ask, pictures, near = () => '', canSee = nul
     onProgress({ step: 'Looking at the pictures', at: i + 1, of: pictures.length });
     try {
       const words = String(near(p.page) || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
-      const r = parseJson(await ask(SEE_GUIDE, `${p.scanned ? `Page ${p.page} of the book, scanned: the whole page is this picture.` : `A picture on page ${p.page} of the book, ${p.w} by ${p.h} pixels.`}\nThe words on that page: ${words || '(none)'}`, [{ mime: p.mime || 'image/jpeg', data: p.data }]));
+      const ocr = o.ocr ? `\nThe words a text reader found in the picture (it makes mistakes: correct them from what you see): ${o.text.slice(0, 4000)}` : '';
+      const r = parseJson(await ask(SEE_GUIDE, `${p.scanned ? `Page ${p.page} of the book, scanned: the whole page is this picture.` : `A picture on page ${p.page} of the book, ${p.w} by ${p.h} pixels.`}\nThe words on that page: ${words || '(none)'}${ocr}`, [{ mime: p.mime || 'image/jpeg', data: p.data }]));
+      const before = { text: o.text };
       o.kind = PIC_KIND[r.kind] ? r.kind : p.scanned ? 'page' : 'art';
       o.about = String(r.about || '').replace(/\s+/g, ' ').trim().slice(0, 200);
       o.place = o.kind === 'map' || o.kind === 'travel' ? String(r.place || '').replace(/\s+/g, ' ').trim().slice(0, 80) : '';
       const g = r.grid || {};
       o.grid = Number(g.cols) > 0 && Number(g.rows) > 0 ? { cols: Math.min(200, Math.trunc(g.cols)), rows: Math.min(200, Math.trunc(g.rows)) } : null;
-      o.text = WORDY.has(o.kind) ? String(r.text || '').replace(/\r/g, '').trim().slice(0, 12000) : '';
+      o.text = WORDY.has(o.kind) ? String(r.text || '').replace(/\r/g, '').trim().slice(0, 12000) || before.text : '';
+      o.ocr = !!before.text && o.text === before.text;
       o.seen = true;
       looked++;
     } catch (e) {
@@ -520,7 +560,8 @@ export async function seePictures({ ask, pictures, near = () => '', canSee = nul
   }
   for (const o of out) o.use = defaultUse(o);
   if (looked) notes.push(`The AI looked at ${looked} picture${looked > 1 ? 's' : ''}${out.some((o) => o.text) ? `; the words in ${out.filter((o) => o.text).length} of them were read with the text` : ''}.`);
-  if (failed) notes.push(looked ? `${failed} picture${failed > 1 ? 's' : ''} could not be looked at (${why}): say what they are below.` : `The AI could not look at the pictures (${why}). Say what each one is below.`);
+  if (failed && !looked && read.length) notes.push(readNote());
+  if (failed) notes.push(looked ? `${failed} picture${failed > 1 ? 's' : ''} could not be looked at (${why}): say what they are below.` : `The AI could not look at the pictures (${why}). ${read.length ? 'Say what the others are below.' : 'Say what each one is below.'}`);
   return { pictures: out, notes };
 }
 const defaultUse = (o) => (o.kind === 'decoration' || o.kind === 'stat-block' || (o.kind === 'page' && o.text) ? 'skip' : 'keep');
@@ -528,8 +569,8 @@ const defaultUse = (o) => (o.kind === 'decoration' || o.kind === 'stat-block' ||
 // The words the AI read in the pictures, put into the text after their page, so the readers and the
 // campaign writer see them where the book has them. A map leaves a line, so the campaign knows of it.
 export function addPictureWords(text, pics) {
-  const line = (p) => (p.text ? `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}]\n${p.text}\n` : `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}${p.place ? ` (${p.place})` : ''}]\n`);
-  const add = (pics || []).filter((p) => p.seen && (p.text || p.kind === 'map' || p.kind === 'travel' || p.kind === 'handout'));
+  const line = (p) => (p.text ? `\n[${PIC_KIND[p.kind] || 'Picture'}, picture ${p.n}${p.about ? `: ${p.about}` : ''}]\n${p.text}\n` : `\n[${PIC_KIND[p.kind]}, picture ${p.n}${p.about ? `: ${p.about}` : ''}${p.place ? ` (${p.place})` : ''}]\n`);
+  const add = (pics || []).filter((p) => p.text || (p.seen && (p.kind === 'map' || p.kind === 'travel' || p.kind === 'handout')));
   if (!add.length) return text;
   const marks = [...String(text).matchAll(/^--- Page (\d+) ---$/gm)].map((m) => ({ page: Number(m[1]), at: m.index }));
   if (!marks.length) return `${text}\n\n${add.map(line).join('')}`;

@@ -284,3 +284,65 @@ test('a PDF page\'s pictures: the parchment behind it is left out, and does not 
   assert.deepEqual(pictureBoxes([parchment], { ...page, plain: 200 }).boxes, [parchment]);
   assert.deepEqual(pictureBoxes([parchment, { x: 5, y: 5, w: 600, h: 780 }], { ...page, plain: 0 }), { boxes: [{ x: 0, y: 0, w: 612, h: 792 }], scanned: true });
 });
+
+// ---- the words in pictures, read with no AI (Tesseract in the browser) ------------------------------
+const OCR_WIGHT = `BOG WIGHT
+Medium undead, neutral evil
+Armour Class 14 (studded leather)
+Hit Points 45 (6d8 + 18)
+Speed 30 ft.
+STR DEX CON INT WIS CHA
+15 (+2) 14(+2) 16(+3) 10(+0) 2(-1) 15 (+2)
+Damage Resistances necrotic
+Senses darkvision 60 ft., passive Perception 13
+Languages the languages it knew in life
+Challenge 3 (700 XP)
+ACTIONS
+Multiattack. The wight makes two longsword attacks.
+Longsword. Melee Weapon Attack: +4 to hit, reach 5 ft., one target. Hit: 6 (1d8 + 2) slashing damage.`;
+
+test('the word reader\'s text: a stat block in a picture is read with no AI, its slips forgiven', async () => {
+  const P = await import('../public/pdfread.js');
+  assert.equal(P.realWords('EE ————\n|\nMedium undead, neutral evil\nArmour Class 14\n15 (+2) 14(+2) 16(+3)\nHit Points 45 and more words here', 80), 'Medium undead, neutral evil\nArmour Class 14\n15 (+2) 14(+2) 16(+3)\nHit Points 45 and more words here');
+  assert.equal(P.realWords('scribbles of a dragon picture with words', 30), '', 'low confidence: art, not words');
+  assert.equal(P.needsName('Medium undead, neutral evil\nArmour Class 14\nHit Points 45'), true);
+  assert.equal(P.needsName(OCR_WIGHT), false);
+  assert.equal(P.nameFrom('—— ==\nRUNE WRAITH\nMedium undead, neutral evil'), 'RUNE WRAITH');
+  const r = await C.convertText({ text: '--- Page 1 ---\nThe wights of the bog.\n\n--- Page 2 ---\n', kind: 'auto', name: 'Bog', srd, pictures: [{ n: 1, page: 2, w: 600, h: 1000, mime: 'image/jpeg', data: 'AAAA', scanned: false, words: OCR_WIGHT }] });
+  assert.deepEqual(r.pictures.map((p) => [p.kind, p.use, p.ocr]), [['stat-block', 'skip', true]]);
+  assert.ok(r.notes.some((n) => /The words in 1 picture \(BOG WIGHT\) were read without the AI/.test(n)), r.notes.join(' '));
+  const w = r.book.monsters.find((m) => m.name === 'Bog Wight');
+  assert.ok(w, 'a heading in capitals is the Bog Wight');
+  assert.deepEqual(w.ab, [15, 14, 16, 10, 8, 15], '"2 (-1)" was a misread 8 or 9: the modifier wins');
+  assert.deepEqual(r.entries.find((e) => e.name === 'Bog Wight').gaps, []);
+});
+
+test('an AI that can see is given the word reader\'s text to correct; if it fails, that text stands', async () => {
+  const pics = [{ n: 1, page: 2, w: 600, h: 1000, mime: 'image/jpeg', data: 'AAAA', scanned: false, words: OCR_WIGHT }];
+  let prompt = '';
+  const sees = async (system, user) => { if (system === C.SEE_GUIDE) { prompt = user; return JSON.stringify({ kind: 'stat-block', about: 'Bog Wight', text: OCR_WIGHT.replace('2(-1)', '9 (-1)') }); } return '[]'; };
+  const a = await C.convertText({ text: '--- Page 2 ---\n', kind: 'monsters', srd, ask: sees, pictures: pics, canSee: true });
+  assert.match(prompt, /The words a text reader found in the picture.*BOG WIGHT/s);
+  assert.equal(a.pictures[0].ocr, false, 'the AI\'s own reading');
+  assert.deepEqual(a.book.monsters[0].ab, [15, 14, 16, 10, 9, 15]);
+  const blind = async (system) => { if (system === C.SEE_GUIDE) throw new Error('no images here'); return '[]'; };
+  const b = await C.convertText({ text: '--- Page 2 ---\n', kind: 'monsters', srd, ask: blind, pictures: pics });
+  assert.deepEqual(b.pictures.map((p) => [p.kind, p.ocr]), [['stat-block', true]]);
+  assert.equal(b.book.monsters[0].name, 'Bog Wight');
+});
+
+test('a campaign\'s stat block the reader cannot read goes to the AI, so the monster comes with its numbers', async () => {
+  const broken = 'Marsh Hag\nMedium fey, chaotic evil\nArmor Class 15\nHit Points 52 (8d8 + 16)\nSpeed 30 ft.\nChallenge 3 (700 XP)';
+  let asked = '';
+  const ask = async (system, user) => {
+    if (/monster stat block/.test(system)) { asked = user; return '[{"name":"Marsh Hag","size":"Medium","type":"fey","align":"chaotic evil","ac":15,"hp":52,"speed":"30 ft.","ab":[16,12,14,12,13,14],"cr":3,"actions":[{"n":"Claws","d":"Melee Weapon Attack: +5 to hit, reach 5 ft., one target. Hit: 10 (2d6 + 3) slashing damage."}]}]'; }
+    if (/List what it holds/.test(user)) return '{"places":[{"name":"The Fen"}],"people":[],"monsters":[],"quests":["Stop the hag"]}';
+    if (/frame/.test(user)) return '{"id":"fen","name":"The Fen","levels":"1","party":{"size":[4,5],"level":1},"quests":["Stop the hag."],"sites":[{"id":"fen","name":"The Fen","level":1,"exits":[]}]}';
+    if (/Write the whole site/.test(user)) return `{"read":"Reeds.","notes":"The hag.","foes":[{"monster":"${/own monsters: ([a-z-]+)/.exec(user)[1]}","count":1,"name":"The hag"}]}`;
+    return '{}';
+  };
+  const c = await C.convertText({ text: `The Fen\n\nA bog.\n\n${broken}`, kind: 'campaign', name: 'The Fen', srd, ask });
+  assert.match(asked, /Marsh Hag/);
+  assert.deepEqual(c.adventure.monsters.map((m) => [m.id, m.hp]), [['tf-marsh-hag', 52]]);
+  assert.equal(c.adventure.sites[0].foes[0].monster, 'tf-marsh-hag');
+});

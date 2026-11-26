@@ -42,7 +42,9 @@ as in the Osmotic Expanse Director (save ids start with `dnd-`, in the same `oxd
   slots are all worked out from the choices.
 - **Rolls**: the DM or the AI asks for a check or save with a DC; it appears on that player's phone;
   the Engine rolls it (or takes the number from real dice) with advantage, disadvantage and every
-  condition and exhaustion level applied. Players never see a DC or a monster's numbers.
+  condition and exhaustion level applied. Players never see a DC or a monster's numbers. A roll can't be
+  missed: the edge of the player's screen flashes, a banner drops in, the phone buzzes, and the page goes
+  back up to the request, which shakes. While it waits out of sight, a "roll waiting" pill stays at the top.
 - **Combat**: initiative, turn order, the action and bonus action, attacks against AC with
   critical hits, Extra Attack, Sneak Attack, Divine Smite, Rage, resistances and immunities,
   Undead Fortitude, monster recharges, saving-throw abilities such as breath weapons, concentration
@@ -151,12 +153,19 @@ On the DM screen, **Books** converts what you paste or add as a file (a PDF, tex
 - **A PDF** is read in the browser (pdf.js): the text in reading order (two columns one after the other,
   words split across lines joined), and the pictures on its pages: maps, stat blocks set as pictures,
   handouts, art, and whole scanned pages. A parchment background behind a page of text is left out.
+- **The words in the pictures are read in the browser** (Tesseract.js, with no AI and no internet): a stat
+  block or a page printed as a picture joins the text and is read like the rest, so its monster comes with
+  its numbers. Art and maps give no words. Pictures whose words were read have a green edge.
 - **The pictures are looked at by the AI** when the model chosen on the Director tab can see (Gemini,
   Claude, GPT-4o and the like, or an Ollama vision model such as gemma3 or qwen2.5vl). The words in a
   stat block, a scanned page or a handout join the text where the book has them, so they are read like
   the rest; a campaign's maps go to the places they show (by name), and a region map becomes the travel
-  map. Without a model that can see, the pictures are kept and you say what each one is. Either way, each
-  picture has **What it is** and **Use as** (keep, leave out, the travel map, or a place's map) before saving.
+  map; it is given the words read in the browser to correct. Without a model that can see, the pictures
+  are kept and you say what each one is. Either way, each picture has **What it is** and **Use as** (keep,
+  leave out, the travel map, or a place's map) before saving. Saving, discarding or **Clear** starts afresh:
+  nothing of the last PDF is carried into the next.
+- **A campaign's stat blocks** that the book reader cannot read, or reads without their scores or actions,
+  go to the AI, so every monster the adventure fights with has its numbers.
 - **Monster stat blocks and spells** in the usual 5e layout are read at once by the book reader, with no AI;
   anything in another layout is read by the AI chosen on the Director tab.
 - **Rules text** (a chapter of a core rulebook, house rules) is cut into sections by its headings, for the

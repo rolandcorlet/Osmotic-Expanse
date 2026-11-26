@@ -255,7 +255,11 @@ function readMulti(text, mon) {
     }
     const hit = acts.find((x) => stem(x.n) === w) || acts.find((x) => stem(x.n).startsWith(w) || w.startsWith(stem(x.n)))
       || acts.find((x) => stem(x.n).split(' ').includes(w) || w.split(' ').includes(stem(x.n)));
-    return hit ? hit.n : null;
+    if (hit) return hit.n;
+    // "its runic blade" for the Rune Blade: the one attack that shares a word with it.
+    const words = w.split(' ').filter((x) => x.length > 3);
+    const near = attacks.filter((x) => stem(x.n).split(' ').some((y) => words.includes(y)));
+    return near.length === 1 ? near[0].n : null;
   };
   const add = (ch, name, n) => {
     if (!name || !n) return;
@@ -299,7 +303,7 @@ function readMulti(text, mon) {
             const n = /\dd\d/.test(m[1]) ? m[1] : num(m[1]); const nm = find(m[2]);
             if (n && nm) add(cur, nm, n);
           }
-          for (const m of seg.matchAll(new RegExp(`\\bmakes? (${NW}) (?:melee |ranged |weapon )?attacks? with (?:its |his |her )?([\\w' -]+?)(?=,| and |\\.| or |$)`, 'gi'))) add(cur, find(m[2]), num(m[1]));
+          for (const m of seg.matchAll(new RegExp(`\\bmakes? (${NW}) (?:(?:melee|ranged|weapon) )*attacks? with (?:its |his |her )?([\\w' -]+?)(?=,| and |\\.| or |$)`, 'gi'))) add(cur, find(m[2]), num(m[1]));
           for (const m of seg.matchAll(new RegExp(`\\band (${NW}) ([\\w' -]+?) attacks?\\b`, 'gi'))) add(cur, find(m[2]), num(m[1]));
         }
         const heads = /as many ([\w' -]+?) attacks as it has (\w+)/i.exec(seg);
