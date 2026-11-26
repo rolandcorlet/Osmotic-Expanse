@@ -195,6 +195,7 @@ const FILES = {
   '/engine/names.js': ['engine/names.js', 'text/javascript'],
   '/engine/triggers.js': ['engine/triggers.js', 'text/javascript'],
   '/engine/scale.js': ['engine/scale.js', 'text/javascript'],
+  '/engine/seeds.js': ['engine/seeds.js', 'text/javascript'],
   '/engine/book.js': ['engine/book.js', 'text/javascript'],
   '/map.js': ['public/map.js', 'text/javascript'],
   '/pdfread.js': ['public/pdfread.js', 'text/javascript'],

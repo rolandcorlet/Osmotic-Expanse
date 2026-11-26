@@ -6,6 +6,7 @@ import { TOOLS, toolbox, statLine } from './tools.js';
 import { rulesHere } from '../engine/ledger.js';
 import * as R from '../engine/rules.js';
 import * as MAP from '../engine/map.js';
+import * as SEEDS from '../engine/seeds.js';
 import { ProviderError } from './net.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
@@ -93,8 +94,13 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
   if (s.quests.length) out.push(`\nQUESTS: ${s.quests.map((q) => `${q.id} ${q.done ? '(done) ' : ''}${q.text}`).join('; ')}`);
   void open;
   if (s.loot.length) out.push(`PARTY LOOT NOT YET CLAIMED: ${s.loot.map((x) => `${x.qty > 1 ? `${x.qty} ` : ''}${x.name}`).join(', ')}.`);
-  const seeds = (s.seeds || []).filter((x) => x.on);
-  if (seeds.length) out.push(`\nTHE DM'S OWN STORY SEEDS (weave in when they fit):\n${seeds.map((x) => x.text).join('\n---\n')}`);
+  // A seed that has just come into play (the Engine's moment or the Director's choice): play it now.
+  const now = s.seedNow && s.seedNow.seq > since ? (s.seeds || []).find((x) => x.id === s.seedNow.id) : null;
+  if (now) out.push(`\nA STORY SEED COMES INTO PLAY NOW (${s.seedNow.by === 'engine' ? `its moment came: ${s.seedNow.why}` : 'your choice'}). Bring it into the scene this turn${s.seedNow.foes.length ? `; these have arrived and are in MONSTERS HERE: ${s.seedNow.foes.join(', ')}` : ''}${s.fight ? ' (the fight is on)' : ''}:\n${now.text}`);
+  // The DM's seeds still free here, each with when it comes in: the Engine brings in its moments by itself;
+  // the Director may call use_seed for trouble it sees (a shopkeeper harassed) or when one simply fits.
+  const seeds = (s.seeds || []).filter((x) => x.on && (!now || x.id !== now.id) && SEEDS.seedFree(x, s, site.id));
+  if (seeds.length) out.push(`\nTHE DM'S OWN STORY SEEDS (call use_seed with the seed's id to bring one in when its moment comes or it fits; the Engine brings in "lost" and "camp" seeds by itself):\n${seeds.map((x) => `[${x.id}] ${SEEDS.whenWords(SEEDS.seedPlan(x.text))}:\n${x.text}`).join('\n---\n')}`);
   if (chapters.length) out.push(`\nTHE STORY SO FAR:\n${chapters.map((c) => `- ${c.site}: ${c.text}`).join('\n')}`);
 
   const recent = s.story.slice(-16);
@@ -183,9 +189,23 @@ export function beforeTurn(T, state) {
     const lastNarr = [...(state.story || [])].reverse().find((e) => e.kind === 'narration');
     const fresh = (state.story || []).filter((e) => e.kind === 'say' && e.pcId && (!lastNarr || e.seq > lastNarr.seq));
     const line = fresh.find((e) => declaresAttack(e.text, T.state));
+    // An attack where nobody here is a foe (the party turns on a shopkeeper): a seed for picking trouble
+    // may bring someone out to stop them (engine/seeds.js).
+    const foesHere = Object.values(T.state.foes || {}).some((f) => f.siteId === T.state.scene.siteId && !f.dead && !f.calm);
+    if (line && !foesHere) seedDid(T, out, '(trouble picked)', { type: 'seed.check', event: 'provoke', text: line.text });
     if (line) did('(a player attacks)', { type: 'rule.event', event: 'attack', by: `pc:${line.pcId}` });
   }
+  // Is the party getting anywhere? (a "lost" seed after so many turns of nothing moving on)
+  if (state.started) seedDid(T, out, '(the story checks itself)', { type: 'seed.check' });
   return out;
+}
+
+// A seed check is shown among the calls only when a seed came into play or was rolled for.
+function seedDid(T, out, name, action) {
+  const before = (T.state.seedLog || []).length;
+  T.do(action);
+  const rows = (T.state.seedLog || []).slice(before);
+  if (rows.length) out.push({ name, args: action, result: { story_seeds: rows.map((r) => `${r.title}: ${r.fired ? 'comes into play' : `rolled ${r.roll} against ${r.chance}%, not this time`}`) } });
 }
 
 // ---- checking what the model wants to say -------------------------------------------------------

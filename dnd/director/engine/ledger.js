@@ -11,6 +11,7 @@ import * as MAP from './map.js';
 import * as NAMES from './names.js';
 import * as TRIG from './triggers.js';
 import * as SCALE from './scale.js';
+import * as SEEDS from './seeds.js';
 
 export class RuleError extends Error {}
 // Every "no" the Engine could say is one of three kinds, sorted here once for every screen and every tool
@@ -849,6 +850,8 @@ H['fight.end'] = (s, a, ctx) => {
     story(s, ctx, 'event', `The fight is over. Each of you earns ${each} XP.`, 'Engine');
     levelReady(s, ctx);
   } else story(s, ctx, 'event', 'The fight is over.', 'Engine');
+  // A camp attacked in the night (a seed): the rest goes on once the fight is over.
+  if (s.restAfter) { delete s.restAfter; if (alive.some((p) => p.hp > 0)) H['rest.long'](s, { after: true }, { ...ctx, role: 'host', pid: null }); }
 };
 function levelReady(s, ctx) {
   for (const p of Object.values(s.pcs)) {
@@ -1666,6 +1669,12 @@ H['rest.short'] = (s, a, ctx) => {
 H['rest.long'] = (s, a, ctx) => {
   if (s.fight) refuse('You cannot rest during a fight.', [], 'End the fight first (end_combat) when it is over.');
   const who = a.pcId ? [ownPc(s, ctx, a.pcId)] : (hostOnly(ctx), Object.values(s.pcs));
+  // A night in the open: a camp seed may come up (engine/seeds.js). Its foes attack, and once the fight is
+  // over the party finishes its rest (the DM's choice: the rest is not lost).
+  if (!a.pcId && !a.after && !SEEDS.safePlace(site(s, ctx))) {
+    const came = seedMoment(s, ctx, 'camp', { fight: true });
+    if (came && came.length && s.fight) { s.restAfter = true; story(s, ctx, 'event', 'The night is broken: the camp is attacked. The party will finish its rest once the fight is over.', 'Engine'); return; }
+  }
   for (const pc of who) {
     if (pc.dead) continue;
     pc.hp = pc.maxHp; pc.tempHp = 0;
@@ -1678,7 +1687,7 @@ H['rest.long'] = (s, a, ctx) => {
     pc.conc = null; pc.raging = false;
   }
   if (!a.pcId) { s.time.hour += 8; while (s.time.hour >= 24) { s.time.hour -= 24; s.time.day += 1; } }
-  story(s, ctx, 'event', a.pcId ? `${who[0].name} finishes a long rest.` : 'The party takes a long rest and wakes refreshed.', 'Engine');
+  story(s, ctx, 'event', a.pcId ? `${who[0].name} finishes a long rest.` : a.after ? 'The party finishes its rest and wakes refreshed.' : 'The party takes a long rest and wakes refreshed.', 'Engine');
 };
 H['time.pass'] = (s, a, ctx) => {
   hostOnly(ctx);
@@ -1824,6 +1833,73 @@ H['seed.save'] = (s, a, ctx) => {
 };
 H['seed.toggle'] = (s, a, ctx) => { hostOnly(ctx); const x = s.seeds.find((y) => y.id === a.id); if (!x) no('No such story.'); x.on = !x.on; };
 H['seed.remove'] = (s, a, ctx) => { hostOnly(ctx); s.seeds = s.seeds.filter((y) => y.id !== a.id); };
+
+// Seeds in play (engine/seeds.js): the Engine brings one in at its moment (lost, a camp somewhere unsafe,
+// trouble picked with someone who is not a foe) and rolls its chance; the Director may bring one in on
+// its own judgement (use_seed). Either way it is logged (s.seedLog, on the Seeds tab), whoever chose it.
+function findSeed(s, key) {
+  const k = String(key || '').trim().toLowerCase();
+  return s.seeds.find((x) => x.id === key) || s.seeds.find((x) => x.title.toLowerCase() === k) || NAMES.pick(s.seeds, key, (x) => [x.id, x.title]);
+}
+function seedLogRow(s, ctx, seed, row) {
+  s.seedLog = (s.seedLog || []).concat({ id: seed.id, title: seed.title, day: s.time.day, hour: s.time.hour, site: s.scene.siteId, seq: s.seq, t: ctx.now || 0, ...row }).slice(-60);
+}
+// The seed happens: its foes arrive (sized so it stays a minor meeting), and the Director is told to play it.
+function fireSeed(s, ctx, seed, { by, why = '', roll = null, chance = 100, fight = false }) {
+  const p = SEEDS.seedPlan(seed.text);
+  const host = { ...ctx, role: 'host', pid: null, ai: false, assumed: null };
+  const levels = Object.values(s.pcs).filter((x) => !x.dead).map((x) => x.level || 1);
+  const ix = R.index(ctx.srd);
+  const wanted = p.choose ? SEEDS.wildFoes(site(s, ctx), levels, ctx.srd, ctx.rng) : p.monsters.filter((m) => ix.monster[m.id]);
+  const { groups, hp } = SEEDS.sizeFoes(wanted, levels, ctx.srd, p.kind === 'provoke' ? 'medium' : 'easy');
+  const before = new Set(Object.keys(s.foes));
+  for (const g of groups) {
+    try { H['foe.add'](s, { monster: g.id, count: g.count, name: g.name, hidden: false, note: `from the story "${seed.title}"` }, host); } catch (e) { /* a monster the book lacks */ }
+  }
+  const added = Object.values(s.foes).filter((f) => !before.has(f.id));
+  if (hp !== 1) for (const f of added) { f.maxHp = Math.max(1, Math.round(f.maxHp * hp)); f.hp = f.maxHp; }
+  const names = added.map((f) => f.name);
+  seedLogRow(s, ctx, seed, { fired: true, by, why: str(why, 200), roll, chance, foes: names });
+  s.seedNow = { id: seed.id, title: seed.title, kind: p.kind, by, why: str(why, 200), foes: names, seq: s.seq };
+  log(s, ctx, `Story seed "${seed.title}" comes into play (${by === 'engine' ? (roll != null ? `rolled ${roll} against ${chance}%` : 'its moment came') : `the Director's choice${why ? `: ${why}` : ''}`})${names.length ? `: ${names.join(', ')}` : ''}.`, 'note-host');
+  if (fight && added.length && !s.fight) H['fight.start'](s, { foeIds: added.map((f) => f.id) }, host);
+  return added;
+}
+// The Engine's own moments: roll each free seed for this moment; the first to come up happens.
+function seedMoment(s, ctx, kind, { text = '', fight = false } = {}) {
+  const free = s.seeds.filter((x) => SEEDS.seedFree(x, s, s.scene.siteId)).map((x) => ({ seed: x, p: SEEDS.seedPlan(x.text) })).filter((x) => x.p.kind === kind);
+  const fit = kind === 'provoke' ? free.filter((x) => !x.p.who || String(text).toLowerCase().includes(x.p.who.toLowerCase().split(/\s+/).filter((w) => w.length > 2).pop() || '\u0000') || !text) : free;
+  for (const { seed, p } of fit) {
+    const roll = p.chance < 100 ? 1 + Math.floor(ctx.rng() * 100) : null;
+    if (roll != null && roll > p.chance) { seedLogRow(s, ctx, seed, { fired: false, by: 'engine', roll, chance: p.chance, why: kind }); log(s, ctx, `Story seed "${seed.title}": rolled ${roll} against ${p.chance}%, not this time.`, 'note-host'); continue; }
+    return fireSeed(s, ctx, seed, { by: 'engine', why: kind === 'lost' ? `the party had been getting nowhere for ${p.turns} turns` : kind === 'camp' ? 'the party camped somewhere unsafe' : 'the party picked a fight', roll, chance: p.chance, fight });
+  }
+  return null;
+}
+// The Director brings a seed in (on its judgement, or for trouble the Engine cannot see: a shopkeeper harassed).
+H['seed.fire'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const seed = findSeed(s, a.seed);
+  if (!seed) refuse(`There is no story seed "${a.seed}".`, s.seeds.filter((x) => x.on).map((x) => x.title));
+  if (!seed.on) nop(`"${seed.title}" is switched off on the Seeds tab.`);
+  if (!SEEDS.seedFree(seed, s, s.scene.siteId)) nop(`"${seed.title}" cannot happen here now (used up, or written for another place).`);
+  const p = SEEDS.seedPlan(seed.text);
+  fireSeed(s, ctx, seed, { by: ctx.ai ? 'director' : 'host', why: a.why || '', fight: !!a.fight && p.kind !== 'lost' });
+};
+// Before each Director turn: is the party getting anywhere? A turn in which nothing moves on (no new place,
+// quest, foe beaten, treasure or experience) adds one; a lost seed's turns, and its chance is rolled.
+H['seed.check'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  if (a.event === 'provoke') { if (!s.fight) seedMoment(s, ctx, 'provoke', { text: a.text || '' }); return; }
+  const key = [(s.scene.visited || []).length, s.scene.siteId, s.quests.filter((q) => q.done).length, Object.values(s.foes).filter((f) => f.dead).length,
+    s.loot.length, Object.values(s.pcs).reduce((n, p) => n + (p.xp || 0) + (p.inventory || []).length, 0), s.fight ? 1 : 0].join('|');
+  if (key !== s.driftKey) { s.driftKey = key; s.drift = 0; return; }
+  s.drift = (s.drift || 0) + 1;
+  const due = s.seeds.filter((x) => SEEDS.seedFree(x, s, s.scene.siteId)).map((x) => SEEDS.seedPlan(x.text)).filter((p) => p.kind === 'lost' && s.drift >= p.turns);
+  if (!due.length || s.fight) return;
+  seedMoment(s, ctx, 'lost');
+  s.drift = 0; // rolled, whether it came up or not: the next roll after as many turns again
+};
 
 
 // ---- the map ----------------------------------------------------------------------------------------
@@ -2627,7 +2703,7 @@ export function viewFor(state, role, pid) {
   if (role === 'host') return state;
   const s = clone(state);
   delete s.notes;
-  delete s.seeds;
+  delete s.seeds; delete s.seedLog; delete s.seedNow; delete s.drift; delete s.driftKey; delete s.restAfter;
   s.clocks = (s.clocks || []).filter((c) => !c.hidden && (!c.siteId || c.siteId === s.scene.siteId)).map((c) => ({ ...c, note: c.done ? c.note : '' }));
   s.log = s.log.filter((l) => l.kind !== 'note-host');
   s.foes = Object.fromEntries(Object.values(s.foes).filter((f) => !f.hidden && f.siteId === s.scene.siteId).map((f) => [f.id, {

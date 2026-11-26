@@ -11,6 +11,8 @@
 //   node tools/bench.mjs --part 2              part 2: from the Mill Road to the watchtower, Grisk, Nell and the lantern
 //   node tools/bench.mjs --part 3              part 3: the Greyfen, the drowned chapel, the crypt, Brother Aldane, the lantern rehung
 //   node tools/bench.mjs --part 4              part 4: The Ashen Crown, session 1: the ambush at Highbridge Gorge, Oakhurst, Blackreed Mill
+//   node tools/bench.mjs --part 6              part 6: story seeds in play (The Lantern): trouble picked at the inn, a party
+//                                              getting nowhere, and a camp on the Mill Road attacked in the night
 //   --no-library                               play on the SRD alone, without your private book library
 //   --level <n>                                the heroes' starting level (default: the story's: parts 1, 2 and 4 at 1st,
 //                                              part 3 at 2nd; they level up as the XP comes)
@@ -90,13 +92,13 @@ const thinking = opt('--thinking', cfg.thinking || 'default');
 const runs = Math.max(1, Number(opt('--runs', 1)));
 // --script gen: a script written from the adventure itself (engine/script-gen.js), for any campaign.
 const gen = opt('--script', '') === 'gen';
-const part = gen ? 5 : ['2', '3', '4'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
+const part = gen ? 5 : ['2', '3', '4', '6'].includes(opt('--part', '1')) ? Number(opt('--part', '1')) : 1;
 // The heroes' level in each part: the level the story has reached by then (26 Nov), not one raised for
 // safety. The Lantern is 1st level to the watchtower and 2nd after it (its milestone rule), 3rd after the
 // chapel; The Ashen Crown's first session is 1st level; a generated script starts at the adventure's own
 // level. On the way the players level up whenever the XP is there (levelUps below), as a table would.
 // Fights are fitted to the small party (engine/scale.js). --level overrides.
-const LEVELS = { 1: 1, 2: 1, 3: 2, 4: 1, 5: 0 };
+const LEVELS = { 1: 1, 2: 1, 3: 2, 4: 1, 5: 0, 6: 1 };
 const startLevel = LEVELS[part] || 0;
 let level = Math.min(20, Math.max(1, Math.round(Number(opt('--level', startLevel))) || startLevel || 1));
 const logFile = opt('--log', '');
@@ -304,6 +306,29 @@ const SCRIPT4 = [
   { pid: 'p2', say: 'I search the mill\'s strongroom for papers and the shipments.', expect: ['ask_for_roll'], at: 'blackreed' },
 ];
 
+// Part 6 (26 Nov): the DM's story seeds in play. Three seeds are written on the Seeds tab: the Reeve's men
+// who step in when the party starts trouble at the inn (the Director sees it and calls use_seed), a tinker
+// who finds a party getting nowhere (the Engine, after three idle turns), and wolves at a camp on the open
+// road (the Engine, 100%), after which the party finishes its rest.
+const SEEDS6 = [
+  '# Seed: The Reeve\'s men\nWhere: thornwick\nWhen: the party picks a fight with the innkeeper\nHook: Two of the Reeve\'s men drinking in the corner stand up and step in.\nTruth: The Reeve keeps the peace at the Ford.\nEncounter: guard x2\nEnding: The party backs down, or is thrown out.',
+  '# Seed: The tinker\nWhen: lost after 3 turns\nHook: A tinker with a mule cart comes in out of the rain with news of goblin tracks on the Mill Road.\nEncounter: none\nEnding: The party takes the road north.',
+  '# Seed: Wolves in the night\nWhere: any\nWhen: camp in the wild\nChance: 100%\nLimit: daily\nHook: Wolves circle the camp in the dark.\nEncounter: wolf x2',
+];
+const SCRIPT6 = [
+  { start: true, expect: [] },
+  { pid: 'p1', say: 'I grab the innkeeper by the collar, haul him over the bar and tell him the ale is free tonight or I break every barrel.', expect: ['trouble_seed'], at: 'thornwick' },
+  { pid: 'p2', say: 'Enough, Bryn. Let him go. We sit down by the fire.', expect: [] },
+  { pid: 'p1', say: 'We order a jug of ale and play dice by the fire.', expect: [] },
+  { pid: 'p2', say: 'I tell a long story about my old temple.', expect: [] },
+  { pid: 'p1', say: 'We play another round of dice.', expect: [] },
+  { pid: 'p2', say: 'We have another drink and wait to see who comes in.', expect: ['lost_seed'] },
+  { pid: 'p1', say: 'We take the Mill Road north before it gets dark.', expect: ['move_party'] },
+  { pid: 'p2', say: 'Night falls. We make camp off the road and take a long rest.', expect: ['camp_seed'], at: 'mill-road' },
+  { fight: 'mill-road' },
+  { pid: 'p1', say: 'At dawn we pack up the camp and look around.', expect: ['rested'] },
+];
+
 // --script gen: walk the adventure's places (--places, 6 by default) and say what players say there.
 const SCRIPT_GEN = gen ? generateScript(adventure, { places: Number(opt('--places', 6)) || 6, heroes: HEROES_RUN.length, route: opt('--route', 'walk') }) : [];
 
@@ -330,6 +355,7 @@ async function runOnce(n) {
     act('host', null, { type: 'say', text: 'Earlier: Bryn and Ila took the Reeve\'s job, followed the tracks up the Mill Road and killed the three goblin scouts at the ruined mill. Drag marks and a small black shoe point up the switchback path to the watchtower.', as: 'Recap' });
     s.started = true;
   }
+  if (part === 6) for (const text of SEEDS6) act('host', null, { type: 'seed.save', text });
   if (part === 3) {
     // The watchtower is behind them: Grisk is beaten, Nell is home, the lantern is lit in Bryn's hands.
     for (const site of ['mill-road', 'tower-gate', 'watchtower']) { act('host', null, { type: 'site.move', siteId: site }); for (const f of Object.values(s.foes)) if (f.siteId === site) act('host', null, { type: 'foe.remove', foeId: f.id }); }
@@ -425,6 +451,12 @@ async function runOnce(n) {
     },
     ask_for_roll: { what: 'a roll was asked for', soft: true, met: (a) => stepTools.has('ask_for_roll') || s.requests.length > a.asked || s.rolls.some((r) => r.seq > a.seq && ['check', 'save'].includes(r.kind)) },
     award_xp: { what: 'XP was paid', met: (a) => xpNow() > a.xp },
+    seed: { what: 'a story seed came into play', met: (a) => (s.seedLog || []).some((r) => r.fired && r.seq > a.seq) },
+    // By now, at any step so far (the Engine's own moments come when they come).
+    trouble_seed: { what: 'the Reeve\'s men stepped in (a seed for trouble picked)', met: () => (s.seedLog || []).some((r) => r.fired && /Reeve/.test(r.title)) },
+    lost_seed: { what: 'the tinker came by (a seed for a party getting nowhere)', met: () => (s.seedLog || []).some((r) => r.fired && /tinker/.test(r.title)) },
+    camp_seed: { what: 'wolves attacked the camp (a seed for a night in the open)', met: () => (s.seedLog || []).some((r) => r.fired && /Wolves/.test(r.title)) },
+    rested: { what: 'the party finished its rest after the night attack', met: () => s.story.some((e) => /finishes its rest/.test(e.text)) },
     complete_quest: { what: 'a quest was finished', met: (a) => s.quests.filter((q) => q.done).length > a.done, needs: (a) => a.open > 0, skip: 'no quest is left open' },
   };
   // What the adventure's own rules did by themselves (a milestone paid, a quest finished at a fight's end):
@@ -556,7 +588,7 @@ async function runOnce(n) {
   // A bench fault in one run (an Engine refusal of the bench's own move, a bug) is that run's error,
   // and the other runs go on.
   try {
-  for (const [k, step] of (gen ? SCRIPT_GEN : part === 4 ? SCRIPT4 : part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
+  for (const [k, step] of (gen ? SCRIPT_GEN : part === 6 ? SCRIPT6 : part === 4 ? SCRIPT4 : part === 3 ? SCRIPT3 : part === 2 ? SCRIPT2 : SCRIPT).entries()) {
     // The whole party is dead (bench part 3, 25 Nov: the crypt skeletons killed Bryn after Ila): the adventure
     // is over and the run ends here. A wipe is play, not a fault: reported, not gated.
     if (Object.values(s.pcs).length && Object.values(s.pcs).every((p) => p.dead)) {

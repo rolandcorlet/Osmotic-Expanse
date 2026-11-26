@@ -430,6 +430,17 @@ export const TOOLS = [
     },
   },
   {
+    name: 'use_seed',
+    description: 'Bring one of the DM\'s story seeds (THE DM\'S OWN STORY SEEDS in the briefing) into play now: its people or foes arrive, sized to the party. Use it when its moment comes and only you can see it (the party picks a fight with or harasses someone who is not a foe), or on your own judgement when it fits the story (the party is lost, idle or going in circles). The Engine logs that you chose it.',
+    parameters: obj({ seed: S('The seed\'s id (in square brackets in the briefing) or its title.'), why: S('One short line: why now.'), fight: B('True if what arrives attacks at once.') }, ['seed', 'why']),
+    run(a, T) {
+      const no = T.do({ type: 'seed.fire', seed: a.seed, why: a.why || '', fight: truthy(a.fight) });
+      if (no) return { refused: no };
+      const now = T.state.seedNow || {};
+      return { ok: true, seed: now.title, arrived: now.foes || [], here: here(T.state) };
+    },
+  },
+  {
     name: 'give_treasure',
     description: 'Give gold or an item the party finds or is given. With no character named, gold is split evenly and items go to the party\'s shared loot.',
     parameters: obj({ character: S('Optional: the party member who receives it (not the person giving it).'), gold: I('Gold pieces.'), item: S('An item\'s name (SRD names like "Potion of Healing" are recognised).'), qty: I('How many of the item.') }),

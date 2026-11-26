@@ -7,6 +7,7 @@ import * as PG from '/engine/pregen.js';
 import { initMap, mapTabHtml, MAP_ACT, mapField, mapChip, mapFeet } from './map.js';
 import { checkAdventure } from '/engine/check.js';
 import * as TRIG from '/engine/triggers.js';
+import * as SEEDS from '/engine/seeds.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -1450,6 +1451,9 @@ function checkCard() {
 
 const SEED_TEMPLATE_TEXT = `# Seed: A title for your story
 Where: any
+When: any (or: lost after 6 turns / camp in the wild / the party picks a fight with Someone)
+Chance: 100%
+Limit: once (or daily, or always)
 Hook: How the party is drawn in.
 Truth: What is really going on.
 People:
@@ -1459,6 +1463,12 @@ Clues:
 - Something the party can find (Investigation DC 12)
 Reward: What it pays.
 Ending: How it can end.`;
+// What the seeds have done in play: the Engine's rolls and moments, and the Director's own choices.
+function seedLogHtml() {
+  const rows = (state.seedLog || []).slice(-12).reverse();
+  if (!rows.length) return '<p class="small faint">In play: nothing yet. The Engine brings a seed in at its moment (and rolls its chance); the Director may bring one in when it fits. Both show here.</p>';
+  return `<h4 class="small" style="margin:10px 0 4px">In play</h4><div class="scroll" data-scroll="seedlog" style="max-height:160px">${rows.map((r) => `<div class="small"><span class="faint">Day ${r.day}, ${String(Math.floor(r.hour)).padStart(2, '0')}:00</span> <b>${esc(r.title)}</b>: ${r.fired ? `came in (${r.by === 'engine' ? (r.roll != null ? `the Engine rolled ${r.roll} against ${r.chance}%` : 'the Engine') : r.by === 'director' ? `the Director's choice${r.why ? `: ${esc(r.why)}` : ''}` : 'you'})${(r.foes || []).length ? `, ${esc(r.foes.join(', '))}` : ''}` : `<span class="faint">rolled ${r.roll} against ${r.chance}%, not this time</span>`}</div>`).join('')}</div>`;
+}
 function seedsHtml() {
   const d = state.director || {};
   const S = ui.seeds;
@@ -1473,8 +1483,8 @@ function seedsHtml() {
       ${D && D.error ? `<div class="note hot small">${esc(D.error)}</div>` : ''}
       <textarea class="grow" style="min-height:220px" data-k="sd.text" data-bind="seeds.text" maxlength="8000" placeholder="The seed appears here.">${esc(S.text)}</textarea>${checks}
       <div class="row"><button class="btn primary" data-act="sd.save" ${S.text.trim() ? '' : 'disabled'}>${S.edit ? 'Save changes' : 'Save this seed'}</button>${S.text ? '<button class="btn" data-act="sd.clear">Clear</button>' : ''}</div></section>
-    <section class="card fill"><h3>Your seeds</h3><p class="small dim">Seeds switched on are given to the AI Director every turn to weave in when they fit. Players never see them.</p>
-      <div class="scroll" data-scroll="seeds">${(state.seeds || []).map((x) => `<div class="row slotrow"><div class="grow"><b>${esc(x.title)}</b><div class="small faint">${esc(x.text.split('\n').slice(1, 3).join(' · ').slice(0, 160))}</div></div><div class="seg"><button class="${x.on ? 'on' : ''}" data-act="sd.on" data-id="${x.id}">On</button><button class="${x.on ? '' : 'on'}" data-act="sd.on" data-id="${x.id}">Off</button></div><button class="btn sm" data-act="sd.edit" data-id="${x.id}">Edit</button><button class="btn sm danger" data-act="sd.del" data-id="${x.id}">Delete</button></div>`).join('') || '<div class="empty">No seeds yet.</div>'}</div></section></div>`;
+    <section class="card fill"><h3>Your seeds</h3><p class="small dim">Seeds switched on are given to the AI Director. A When line brings one in by itself: the Engine rolls its Chance when the party is getting nowhere, camps somewhere unsafe, or picks a fight. The Director may also bring one in when it fits. Players never see them.</p>
+      <div class="scroll" data-scroll="seeds">${(state.seeds || []).map((x) => `<div class="row slotrow"><div class="grow"><b>${esc(x.title)}</b><div class="small dim">Comes in ${esc(SEEDS.whenWords(SEEDS.seedPlan(x.text)))}${(state.seedLog || []).some((r) => r.id === x.id && r.fired) ? ` · <span style="color:var(--accent)">came in ${(state.seedLog || []).filter((r) => r.id === x.id && r.fired).length}×</span>` : ''}</div><div class="small faint">${esc(x.text.split('\n').filter((l) => !/^(#|When:|Chance:|Limit:)/i.test(l)).slice(0, 2).join(' · ').slice(0, 160))}</div></div><div class="seg"><button class="${x.on ? 'on' : ''}" data-act="sd.on" data-id="${x.id}">On</button><button class="${x.on ? '' : 'on'}" data-act="sd.on" data-id="${x.id}">Off</button></div><button class="btn sm" data-act="sd.edit" data-id="${x.id}">Edit</button><button class="btn sm danger" data-act="sd.del" data-id="${x.id}">Delete</button></div>`).join('') || '<div class="empty">No seeds yet.</div>'}</div>${seedLogHtml()}</section></div>`;
 }
 
 // ------------------------------------------------------------------ the Books tab
