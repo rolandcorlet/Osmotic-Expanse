@@ -264,3 +264,23 @@ test('each AI maker is sent the pictures in its own shape', async () => {
   await openaiLike({ baseUrl: 'http://x/v1', model: 'm', fetchImpl: fake({ choices: [{ message: { content: 'ok' } }] }) }).start({ system: 's', tools: [] }).send('words');
   assert.equal(last(bodies[4]).content, 'words');
 });
+
+test('a PDF page\'s pictures: the parchment behind it is left out, and does not swallow the map', async () => {
+  const { pictureBoxes } = await import('../public/pdfread.js');
+  const page = { w: 612, h: 792 };
+  const parchment = { x: 0, y: 0, w: 612, h: 792 };
+  const map = { x: 320, y: 480, w: 250, h: 212 };
+  const block = { x: 40, y: 300, w: 242, h: 414 };
+  const art = { x: 320, y: 300, w: 252, h: 160 };
+  const ornament = { x: 10, y: 10, w: 30, h: 30 };
+  // Vault of the Runemark, page 2: the map on parchment, under a page of text.
+  assert.deepEqual(pictureBoxes([parchment, map, ornament], { ...page, plain: 4000 }), { boxes: [map], scanned: false });
+  // Page 4: a stat block set as a picture and the art, on parchment, almost no text.
+  assert.deepEqual(pictureBoxes([parchment, block, art], { ...page, plain: 84 }).boxes, [block, art]);
+  // Tiles of one picture are one picture again.
+  assert.deepEqual(pictureBoxes([{ x: 40, y: 40, w: 200, h: 100 }, { x: 40, y: 140, w: 200, h: 100 }], { ...page, plain: 900 }).boxes, [{ x: 40, y: 40, w: 200, h: 200 }]);
+  // A page of text on parchment has no pictures; a full-page map with its labels is kept; a scan is the page.
+  assert.deepEqual(pictureBoxes([parchment], { ...page, plain: 3000 }).boxes, []);
+  assert.deepEqual(pictureBoxes([parchment], { ...page, plain: 200 }).boxes, [parchment]);
+  assert.deepEqual(pictureBoxes([parchment, { x: 5, y: 5, w: 600, h: 780 }], { ...page, plain: 0 }), { boxes: [{ x: 0, y: 0, w: 612, h: 792 }], scanned: true });
+});

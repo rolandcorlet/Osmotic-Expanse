@@ -2,7 +2,8 @@
 //   - each page's text in reading order: two columns are read one after the other, a heading across both
 //     comes first, a word split at the end of a line is joined, a gap between paragraphs is kept;
 //   - the pictures on each page, cut out of the page's render: maps, stat blocks set as pictures, art. A
-//     picture behind a page full of text (parchment) and small ornaments are left out;
+//     picture filling the page behind the others or behind a page of text (parchment), and small
+//     ornaments, are left out;
 //   - a page that is all picture and almost no text is a scan: the whole page is kept, for the AI to read.
 // readPdf(arrayBuffer, { onProgress }) -> { pages: [{ n, text, scanned }], pictures: [{ page, w, h, data, scanned }], text }
 let lib = null;
@@ -24,13 +25,8 @@ export async function readPdf(buffer, { onProgress = () => {}, maxPictures = 120
     const page = await doc.getPage(n);
     const vp1 = page.getViewport({ scale: 1 });
     const text = pageText((await page.getTextContent()).items, vp1);
-    const area = vp1.width * vp1.height;
-    let boxes = await imageBoxes(page, P.OPS, vp1);
-    boxes = boxes.filter((b) => b.w * b.h > area * 0.03 && b.w > 50 && b.h > 50);
     const plain = text.replace(/\s+/g, '').length;
-    const scanned = plain < 60 && boxes.some((b) => b.w * b.h > area * 0.55);
-    if (scanned) boxes = [{ x: 0, y: 0, w: vp1.width, h: vp1.height }];
-    else boxes = boxes.filter((b) => !(b.w * b.h > area * 0.75 && plain > 500)); // parchment behind a full page of text
+    const { boxes, scanned } = pictureBoxes(await imageBoxes(page, P.OPS, vp1), { w: vp1.width, h: vp1.height, plain });
     if (boxes.length && pictures.length < maxPictures) {
       const vp = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
@@ -106,6 +102,20 @@ function lines(items) {
 const median = (a) => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };
 
 // ---- where the pictures are ---------------------------------------------------------------------------
+// Which of a page's images are pictures worth keeping. raw: every image's box; plain: how many letters of
+// text the page has. A page that is nearly all picture and almost no text is a scan: the whole page.
+// A picture filling the page behind the others, or behind a page of text, is the parchment: it goes
+// before the rest are joined, or it would swallow them (Vault of the Runemark: its map and both stat
+// blocks set as pictures were lost that way). A full-page picture on its own (a map) is kept.
+export function pictureBoxes(raw, { w, h, plain }) {
+  const area = w * h;
+  const real = raw.filter((b) => b.w * b.h > area * 0.03 && b.w > 50 && b.h > 50);
+  if (plain < 60 && real.some((b) => b.w * b.h > area * 0.55)) return { boxes: [{ x: 0, y: 0, w, h }], scanned: true };
+  const big = (b) => b.w * b.h > area * 0.75;
+  let boxes = real.filter((b) => !big(b));
+  if (!boxes.length && plain <= 500) boxes = real.filter(big).slice(0, 1);
+  return { boxes: joinTiles(boxes), scanned: false };
+}
 // Each image is drawn into the unit square by the current transform: follow the transforms through the
 // page's drawing commands to find its box, in the viewport's frame at scale 1.
 async function imageBoxes(page, OPS, vp) {
@@ -132,7 +142,11 @@ async function imageBoxes(page, OPS, vp) {
       if (w > 1 && h > 1) boxes.push({ x, y, w, h });
     }
   }
-  // Pictures cut into tiles (some books do) are one picture again.
+  return boxes;
+}
+// Pictures cut into tiles (some books do) are one picture again: boxes that touch or overlap.
+function joinTiles(list) {
+  const boxes = list.slice();
   let merged = true;
   while (merged) {
     merged = false;
