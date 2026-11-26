@@ -60,7 +60,10 @@ export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new S
     for (const q of adv.quests || []) {
       if (k === 0 || done.has(q.id) || !(q.doneAt || []).includes(site.id)) continue;
       if (route.slice(k + 1).some((h) => (q.doneAt || []).includes(h.id))) continue; // a later visit finishes it
-      out.push({ pid: who(), say: `We see it through: ${q.text.replace(/\.$/, '').replace(/^\w/, (c) => c.toLowerCase())}.`, expect: ['complete_quest'], at: site.id, quest: q.id });
+      // A quest that is a choice ("Put out the lighthouse light, or keep it burning."): the players make one, the
+      // first (Gull Rock, 27 Nov: "see it through" left the Director asking which, and the quest open).
+      const goal = q.text.replace(/\.$/, '').split(/,\s+or\s+/i)[0];
+      out.push({ pid: who(), say: `We see it through: ${goal.replace(/^\w/, (c) => c.toLowerCase())}.`, expect: ['complete_quest'], at: site.id, quest: q.id });
       done.add(q.id);
     }
   }
