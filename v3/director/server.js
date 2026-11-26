@@ -199,6 +199,8 @@ const FILES = {
   '/gen.js': ['public/gen.js', 'text/javascript'],
   '/membrane.js': ['public/membrane.js', 'text/javascript'],
   '/app.css': ['public/app.css', 'text/css'],
+  '/flair.css': ['public/flair.css', 'text/css'],
+  '/flair.js': ['public/flair.js', 'text/javascript'],
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/odds.js': ['engine/odds.js', 'text/javascript'],
   '/engine/bursts.js': ['engine/bursts.js', 'text/javascript'],
@@ -373,8 +375,17 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && url.pathname === '/api/info') {
       const out = { title: scenario.title, port: PORT, addresses: addresses(), voice: voice.publicView() };
-      const trusted = isLocal(req) || codeOk(q) || (q.key && String(q.key).toUpperCase() === hostKey);
+      const isHost = !!(q.key && String(q.key).toUpperCase() === hostKey);
+      const trusted = isLocal(req) || codeOk(q) || isHost;
       if (trusted && publicUrl) out.online = `${publicUrl}/play?t=${tableCode}`;
+      // Every way in, for each screen (Roly, 27 Nov): players, the table screen and (for the host only) the host
+      // console, on this network and from anywhere when the --online link is up.
+      const lan = addresses()[0] || 'localhost';
+      out.links = {
+        lan: { play: `http://${lan}:${PORT}/play`, table: `http://${lan}:${PORT}/table`, ...(isHost ? { host: `http://${lan}:${PORT}/host?key=${hostKey}` } : {}) },
+        online: trusted && publicUrl ? { play: `${publicUrl}/play?t=${tableCode}`, table: `${publicUrl}/table?t=${tableCode}`, ...(isHost ? { host: `${publicUrl}/host?key=${hostKey}` } : {}) } : null,
+        code: trusted ? tableCode : '',
+      };
       json(res, 200, out);
       return;
     }
@@ -520,7 +531,10 @@ function startTunnel() {
       console.log(line);
       console.log(' For players anywhere (send them this link):');
       console.log(`   Join           ${publicUrl}/play?t=${tableCode}`);
-      console.log(' The link changes each time the host is started with --online.');
+      console.log(`   Table screen   ${publicUrl}/table?t=${tableCode}`);
+      console.log(' For you, the host, from anywhere (it asks for the host key):');
+      console.log(`   Host console   ${publicUrl}/host`);
+      console.log(' The links change each time the host is started with --online.');
       console.log(line);
     }
   };
@@ -586,7 +600,11 @@ server.listen(PORT, '0.0.0.0', () => {
   } else {
     console.log(' No network address found: other devices cannot join yet.');
   }
-  if (publicUrl) console.log(` Outside link:    ${publicUrl}/play?t=${tableCode}`);
+  if (publicUrl) {
+    console.log(` Outside link:    ${publicUrl}/play?t=${tableCode}`);
+    console.log(` Table outside:   ${publicUrl}/table?t=${tableCode}`);
+    console.log(` Host outside:    ${publicUrl}/host   (asks for the host key)`);
+  }
   console.log(` Host key: ${hostKey}   (keep it to yourself)`);
   console.log(` Table code: ${tableCode}   (asked of anyone joining from outside your network)`);
   console.log(' Close this window, or press Ctrl+C, to stop. The session is saved.');

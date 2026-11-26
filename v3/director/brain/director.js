@@ -736,6 +736,23 @@ export async function directorTurn(args) {
   throw new ProviderError('The Director used its tools but never said anything to the table, even after a second try. Press "Take a turn" again.');
 }
 
+// A roll to look, sense or work something out asked before the player said they try anything like it, in a
+// turn that also asks what they do (Roly, 27 Nov, in the D&D Director: a character walked outside, and the
+// Director asked what he did and put up an Investigation roll at once). The roll waits for the player's words.
+const OPEN_Q = /\b(what do(?:es)?\s+(?:you|[A-Z][\w'-]*(?:\s[A-Z][\w'-]*)?)\s+do|what(?:'s| is) (?:your|their|its|his|her) move|what now|what will you do|what would you like to do|how do you (?:proceed|respond))\b[^.!]*\?\s*$/i;
+const TRIES = /\b(look|search|investigat|examin|inspect|check|listen|stud(?:y|ies)|read|peer|scan|sniff|smell|taste|feel|probe|watch|observ|recall|rememb|know|sense|notic|spot|track|find|hunt|follow|scrutin|eye|sample|test)\w*/i;
+const LOOKING = /\b(look|search|investigat|examin|inspect|notic|spot|sense|listen|stud|read|find|track|smell|taste|scan|probe|sample|identify|recall|know|work out)\w*/i;
+function earlyRolls(before, after, narration) {
+  if (!OPEN_Q.test(String(narration).slice(-240))) return [];
+  const last = [...(before.story || [])].reverse().find((e) => e.kind === 'narration');
+  const since = last ? last.seq : -1;
+  const said = (before.story || []).filter((e) => e.kind === 'say' && e.seq > since).map((e) => e.text).join(' ');
+  if (TRIES.test(said)) return [];
+  const old = new Set((before.requests || []).map((q) => q.id));
+  return (after.requests || []).filter((q) => !old.has(q.id) && q.kind === 'check' && q.actor && q.actor.kind === 'org'
+    && (LOOKING.test(String(q.label || '')) || (q.pool && q.pool.baselineName === 'OSM')));
+}
+
 // Returns null when the model never narrated, so the caller can try again.
 async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, reason = '', hostNote = '', memory = null }) {
   const T = toolbox({ state, scenario, bestiary, rng, now, memory });
@@ -749,6 +766,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   let nudged = false;
   let rollNudged = false;
   let exitNudged = false;
+  let rollHeld = false;
   // Phase 6 ("no rescue"): every point where a human host would have had to step in, or the code had to
   // step in for the model. Hard ones are what the gate counts; soft ones are reported.
   const rescues = [];
@@ -778,6 +796,16 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       rollNudged = true;
       narration = '';
       reply = await chat.send('You told a player to roll, but you did not call ask_for_roll, so nothing is on their screen. Call ask_for_roll now for that roll (or swear_oath if it was an oath), then give your narration again, ending on one question. If no roll is needed, narrate again without asking for one.');
+      continue;
+    }
+    // A look-or-sense roll before the player tried anything, with "what does it do?" (earlyRolls): withdrawn, once.
+    const early = narration && !rollHeld && !T.state.fight ? earlyRolls(state, T.state, narration) : [];
+    if (early.length) {
+      rollHeld = true;
+      for (const q of early) T.do({ type: 'request.cancel', requestId: q.id });
+      rescues.push({ kind: 'early-roll', hard: false, text: 'A roll asked before the player said what they try was withdrawn; the Engine sent the turn back.' });
+      narration = '';
+      reply = await chat.send('You asked for a roll before the player said what their organism tries, and you also asked what it does. The Engine has withdrawn the roll: wait for their words (they may say "I probe where the light was"; then ask for it). Narrate again without any roll, ending on your one question.');
       continue;
     }
     // The player took a listed exit and nothing moved: send it back once to call change_site.

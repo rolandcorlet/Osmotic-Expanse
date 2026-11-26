@@ -114,6 +114,14 @@
 .fx-on .journal .ev:not(.narration):not(.say), .fx-on .journal .move { font-size: .86em; font-variant: small-caps; letter-spacing: .02em; color: color-mix(in srgb, var(--paper-ink) 62%, transparent); }
 .fx-on .journal .ev.say .who { font-style: normal; font-weight: 700; }
 
+/* The Osmotic Expanse's story (v3): .st.dir is the Director, .st.say a player, .st.act what a body did. */
+.fx-on .journal .st { border-color: color-mix(in srgb, var(--paper-ink) 14%, transparent); }
+.fx-on .journal .st.dir .tale { color: var(--paper-ink); font-size: 1.04em; line-height: 1.6; }
+.fx-on .journal .st.dir .tale::first-letter { float: left; font-size: 2.6em; line-height: .9; padding: 4px 6px 0 0; color: var(--accent); font-weight: 700; }
+.fx-on .journal .st.say { font-style: italic; color: color-mix(in srgb, var(--paper-ink) 80%, var(--accent)); }
+.fx-on .journal .st.act { font-size: .9em; font-variant: small-caps; color: color-mix(in srgb, var(--paper-ink) 70%, transparent); }
+.fx-on .journal .st.act .dim, .fx-on .journal .st.act b { color: inherit; }
+
 @media (prefers-reduced-motion: reduce) {
   .vial-liquid::after, .vial-b, .gem, .seal.fresh, .satchel-bag, .lvl-glow, .lvl-glow::after, .lvl-flash *, .sigil { animation: none !important; }
 }

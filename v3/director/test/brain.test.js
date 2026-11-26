@@ -2020,3 +2020,21 @@ test('a creature still fighting may not be narrated dead, and the fight may not 
   const hurt = checkNarration(`Bresk's flail tears a wide rift in the ${kind}; it reels, leaking, still in the water. Brost, what do you do?`, s, {});
   assert.ok(!hurt.some((f) => /still fighting|fight is over/.test(f.text)));
 });
+
+test('a look-or-sense roll before the player tries anything, with "what do you do?", is withdrawn; after "I probe" it stays', async () => {
+  for (const [said, kept] of [['I drift out of the lip.', false], ['I drift out and probe where the light was.', true]]) {
+    const s = apply(seated(), { type: 'say', text: said }, ctx('player', 'p1'));
+    const make = scripted([
+      { calls: [['ask_for_roll', { organism: 'wall', baseline: 'OSM', pathway: 'Chemoreception', threshold: 16, what_for: 'Sense what moved here' }]] },
+      { text: 'The water outside is dim and slow. Bresk, what do you do?' },
+      { text: 'The current turns slowly. Bresk, what do you do?' },
+    ]);
+    const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng });
+    assert.equal(r.state.requests.length, kept ? 1 : 0, said);
+    assert.equal(r.state.story.some((e) => e.ask), kept, said);
+  }
+});
+test('a roll the host or the Director asks is told to the table with what it is for', () => {
+  const s = apply(seated(), { type: 'request.check', organismId: 'wall', baseline: 'VSC', pathway: 'Pressure Tolerance', at: 12, label: 'Cross the wound lip' }, ctx('host', null));
+  assert.ok(s.story.some((e) => e.kind === 'action' && /asked to roll, for this: Cross the wound lip/.test(e.text)));
+});

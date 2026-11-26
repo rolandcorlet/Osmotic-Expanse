@@ -81,8 +81,14 @@ const G = {
   skull: '<path d="M5 11a7 7 0 1 1 14 0v4h-3v3H8v-3H5z"/><circle cx="9.5" cy="11" r="1.5"/><circle cx="14.5" cy="11" r="1.5"/>',
   hammer: '<path d="M5 5h9v5H5z"/><path d="M11 10v11"/>',
   cross: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
+  helix: '<path d="M7 2c0 6 10 6 10 10S7 16 7 22"/><path d="M17 2c0 6-10 6-10 10s10 4 10 10"/><path d="M8.5 6h7M8.5 18h7"/>',
+  drop: '<path d="M12 2C8 8 6 11 6 14.5a6 6 0 0 0 12 0C18 11 16 8 12 2z"/><path d="M9.5 15a2.5 2.5 0 0 0 2.5 2.5"/>',
 };
 const SIGILS = [
+  // The Osmotic Expanse's phenotypes (v3), before the fantasy words ("Phagocyte Guard" is a shield, not a sword).
+  [/corrosor|acid|desiccat/i, 'drop'], [/breacher|striker|brute|kinetic/i, 'fist'], [/splicer|hijacker|mimic|replicator|viral|pathogen|genetic/i, 'helix'],
+  [/reclaimer|detritus/i, 'leaf'], [/weaver|constructor|amino|peptide|ribozyme/i, 'gear'], [/current rider|turbulence|navigator/i, 'wave'],
+  [/pheromo|messenger|antigen|detector/i, 'eye'], [/phagocyte|tank|resistant/i, 'shield'], [/antibody|archer/i, 'bow'], [/complement|cascade|commander/i, 'sun'], [/thermal/i, 'flame'],
   [/barbarian|berserk|brute|reaver/i, 'axe'], [/bard|minstrel|singer|skald|choir/i, 'lute'], [/cleric|priest|chaplain|acolyte|saint|nun/i, 'sun'],
   [/druid|warden|herbal|witch|shaman/i, 'leaf'], [/fighter|soldier|knight|warrior|guard|mercenar/i, 'sword'], [/monk|brawl|boxer/i, 'fist'],
   [/paladin|templar|crusad|defender|protector/i, 'shield'], [/ranger|hunter|scout|archer|tracker/i, 'bow'], [/rogue|thief|smuggler|spy|assassin|cutpurse/i, 'dagger'],

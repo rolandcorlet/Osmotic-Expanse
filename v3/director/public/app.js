@@ -7,6 +7,7 @@ import { oddsCard } from '/engine/odds.js';
 import { burstByName, EV as BURST_EV } from '/engine/bursts.js';
 import { ATLAS } from '/data/chargen/model.generated.js';
 import { genHtml, genActs, growHtml, growActs, codonLine } from '/gen.js';
+import { vial, gems, sigil, satchel, levelReady, levelFlash } from '/flair.js';
 
 // The Bonded Domain of an organism's Phenotype (a Burst from another domain costs +2 ATP, +1 Stress).
 function myDomain(o) {
@@ -236,6 +237,9 @@ function onState(data) {
     voiceFollows();
     waterFollows();
     render();
+    // Ready to grow for the first time: a golden flare (flair.js), once.
+    const mineNow = role === 'player' ? mine() : null;
+    if (mineNow && levelReady(`grow:${mineNow.id}`, mineNow.growTo > mineNow.level)) levelFlash('Ready to grow!');
   }
 }
 
@@ -300,6 +304,8 @@ async function boot() {
   applyColours();
   document.body.classList.toggle('phone', role === 'player');
   document.body.classList.add(`role-${role}`);
+  // The small living pieces of the screens (flair.js / flair.css, shared with the D&D Director and the Skeleton).
+  document.body.classList.add('fx-on');
   if (role === 'home') { render(); return; }
   startWater();
   const res = await fetch(`/api/scenario?${auth()}`);
@@ -703,7 +709,7 @@ function storyCard({ fill = false, input = '', n = 40, title = 'The story' } = {
   // While the Director thinks, its organism churns at the foot of the story where its words will land.
   const thinkRow = d.on && d.thinking ? `<div class="st dir thinking" role="status">${miniFace()}<span class="dim">The Director is thinking<span class="dots"><i>.</i><i>.</i><i>.</i></span></span></div>` : '';
   return `<section class="card${fill ? ' fill' : ''}"><h3>${esc(title)}<span class="right">${(d.on || (state.story || []).some((e) => e.kind === 'narration')) && (canSpeakLocal() || serverVoice()) ? `<button class="chip${speakOn() ? ' on' : ''}" data-act="speak" title="Read the Director's narration aloud on this screen">${V.blocked ? 'Tap to start the voice' : speakOn() ? 'Voice on' : 'Voice off'}</button>` : ''}${d.on ? `<span class="chip${d.thinking ? ' on thinkchip' : ''}">${d.thinking ? `${miniFace()}Thinking…` : 'AI Director'}</span>` : ''}</span></h3>
-    <div class="story${fill ? ' scroll' : ' scroll short'}" data-scroll="story">${thinkRow}${rows || (thinkRow ? '' : '<div class="empty">Nothing has been said yet.</div>')}</div>
+    <div class="story${fill ? ' scroll' : ' scroll short'}${role === 'host' ? '' : ' journal'}" data-scroll="story">${thinkRow}${rows || (thinkRow ? '' : '<div class="empty">Nothing has been said yet.</div>')}</div>
     ${input}</section>`;
 }
 
@@ -731,6 +737,7 @@ const COLOURS = [
   ['--bg', 'Background'], ['--panel', 'Panels'], ['--panel2', 'Raised panels'], ['--line', 'Lines'],
   ['--ink', 'Text'], ['--dim', 'Quiet text'], ['--faint', 'Faint text'], ['--accent', 'Accent'],
   ['--ok', 'Success, 6s'], ['--no', 'Failure, 1s'], ['--warn-c', 'Warnings, creatures'], ['--input', 'Fields'], ['--btn', 'Buttons'],
+  ['--fx-vial', 'Membrane vial'], ['--fx-gem', 'ATP and Stress gems'], ['--fx-seal', 'Seals'], ['--paper', 'Story paper'], ['--paper-ink', 'Story ink'],
 ];
 const STYLE = (bg, panel, panel2, line, ink, dim, faint, accent, ok, no, warn, input, btn) => ({ '--bg': bg, '--panel': panel, '--panel2': panel2, '--line': line, '--ink': ink, '--dim': dim, '--faint': faint, '--accent': accent, '--ok': ok, '--no': no, '--warn-c': warn, '--input': input, '--btn': btn });
 const STYLES = {
@@ -738,11 +745,11 @@ const STYLES = {
   'Whale Fall': STYLE('#17110f', '#201815', '#2a201c', '#47352d', '#f0e6dc', '#bba898', '#857268', '#e8935a', '#7fbf7a', '#ec7a70', '#e0b04e', '#120d0b', '#35271f'),
   Brine: STYLE('#0c1618', '#122023', '#182b2f', '#2b464a', '#e0efee', '#96b3b2', '#648180', '#4fd1c5', '#6fcf8a', '#f07f7f', '#e3b65a', '#081011', '#1e363a'),
   Bloom: STYLE('#14111c', '#1c1828', '#252033', '#3d3553', '#ebe6f5', '#aaa2c3', '#756d8e', '#c08cf5', '#6fd0a0', '#f27a96', '#e6b450', '#0f0d16', '#2f2842'),
-  Ash: STYLE('#f3f1ec', '#ffffff', '#ebe8e1', '#cfcabf', '#1f2328', '#555c66', '#7d848e', '#2f5fc4', '#1f7a3d', '#b83232', '#8a5a00', '#ffffff', '#e4e0d7'),
-  Tallow: STYLE('#efe4cf', '#f7eedd', '#e8dcc3', '#c9b994', '#2b2218', '#5c4e3d', '#84745c', '#9c4a1a', '#2f6b2f', '#a32a2a', '#7a5200', '#fbf5e8', '#e0d2b4'),
+  Ash: { ...STYLE('#f3f1ec', '#ffffff', '#ebe8e1', '#cfcabf', '#1f2328', '#555c66', '#7d848e', '#2f5fc4', '#1f7a3d', '#b83232', '#8a5a00', '#ffffff', '#e4e0d7'), '--paper': '#fbfaf7', '--paper-ink': '#1f2328' },
+  Tallow: { ...STYLE('#efe4cf', '#f7eedd', '#e8dcc3', '#c9b994', '#2b2218', '#5c4e3d', '#84745c', '#9c4a1a', '#2f6b2f', '#a32a2a', '#7a5200', '#fbf5e8', '#e0d2b4'), '--paper': '#f6ecd8', '--paper-ink': '#2b2218' },
   'High Contrast': STYLE('#000000', '#0b0b0b', '#171717', '#6e6e6e', '#ffffff', '#d4d4d4', '#a3a3a3', '#ffd60a', '#4cff8f', '#ff7b7b', '#ffb347', '#000000', '#242424'),
 };
-const DEFAULTS = { '--bg': '#12141a', '--panel': '#1a1d24', '--panel2': '#22262f', '--line': '#333947', '--ink': '#e6e9ef', '--dim': '#98a2b3', '--faint': '#6b7280', '--accent': '#7aa2f7', '--ok': '#5bbf7a', '--no': '#e06c6c', '--warn-c': '#d8a24a', '--input': '#10131a', '--btn': '#2b3140' };
+const DEFAULTS = { '--fx-vial': '#3fa66a', '--fx-gem': '#6fb8ff', '--fx-seal': '#9e2a22', '--paper': '#1b1e26', '--paper-ink': '#e6e9ef', '--bg': '#12141a', '--panel': '#1a1d24', '--panel2': '#22262f', '--line': '#333947', '--ink': '#e6e9ef', '--dim': '#98a2b3', '--faint': '#6b7280', '--accent': '#7aa2f7', '--ok': '#5bbf7a', '--no': '#e06c6c', '--warn-c': '#d8a24a', '--input': '#10131a', '--btn': '#2b3140' };
 
 function savedColours() {
   try { return JSON.parse(store.get('oxd.colours') || '{}') || {}; } catch (e) { return {}; }
@@ -778,7 +785,7 @@ function coloursHtml() {
       </div>
       <div class="row"><span class="dice">${diceHtml([1, 3, 6, 6], false)}</span><span class="verdict ok">Success · Overflow 4</span><span class="verdict no">Short by 2</span><span class="chip warn">Runaway Catalysis</span>${pips(3, 5)}<button class="btn primary sm">Button</button></div>
     </section>`;
-  return role === 'player' ? `<div class="stack">${inner}</div>` : `<div class="lay-one">${inner}</div>`;
+  return role === 'player' ? `<div class="stack">${inner}${joinCard()}</div>` : `<div class="lay-one">${inner}</div>`;
 }
 
 // --------------------------------------------------------------------- home
@@ -1342,7 +1349,8 @@ function playHtml(o) {
   const incoming = state.requests.filter((q) => q.kind === 'incoming' && q.target && q.target.id === o.id);
   for (const q of incoming) out.push(incomingCard(q, o));
   for (const q of myAsks) out.push(askCard(q));
-  if (o.growTo > o.level && !state.fight) out.push(growHtml(ui, o));
+  if (o.growTo > o.level && !state.fight) out.push(growHtml(ui, o).replace('class="card grow-card', 'class="card grow-card lvl-glow'));
+  out.push(bodyCard(o));
   const share = shareCard(o);
   if (share) out.push(share);
   // Two panels stay folded away until asked for, so the story and the last roll stay in view.
@@ -1377,6 +1385,32 @@ function playHtml(o) {
   if (card && !justNow && state.fight) out.push(card);
   return out.join('');
 }
+
+// This body at a glance (flair.js): its phenotype's sigil, Membrane Integrity as a vial that drains, ATP and Stress
+// as gems that crack when spent, and the cut it carries in a satchel.
+function bodyCard(o) {
+  const items = ['C', 'G', 'P', 'T'].filter((k) => (o.specimens || {})[k]).map((k) => ({ name: `${k} cut`, qty: o.specimens[k] }));
+  const atp = o.atpMax <= 12 ? gems(`atp:${o.id}`, [{ label: 'ATP', max: o.atpMax, used: o.atpMax - o.atp }], { title: `ATP ${o.atp} of ${o.atpMax}: lit gems are ready` })
+    : vial(`atp:${o.id}`, o.atp / Math.max(1, o.atpMax), { label: `ATP ${o.atp}/${o.atpMax}`, title: 'ATP' });
+  return `<section class="card body-card"><h3><span class="row" style="gap:0">${sigil(o.phenotype, { title: o.phenotype })}${esc(o.name.split(' of ')[0])}</span><span class="right"><span class="chip">L${o.level}</span>${o.dormant ? '<span class="chip no">Dormant</span>' : ''}</span></h3>
+    ${vial(`mi:${o.id}`, o.mi / Math.max(1, o.miMax), { label: `MI ${o.mi}/${o.miMax}`, title: 'Membrane Integrity' })}
+    ${atp}
+    ${gems(`stress:${o.id}`, [{ label: 'Stress', max: 8, used: o.stress }], { cls: 'strain', title: `Stress ${o.stress} of 8: lit gems are what is left` })}
+    ${items.length ? satchel(`cut:${o.id}`, items, { title: 'Cut carried' }) : ''}</section>`;
+}
+
+// Every way in (Roly, 27 Nov): players, the table screen and (on the host's own console) the host console, on this
+// network and from anywhere when the host started with the --online link.
+function joinLines() {
+  const L = info && info.links;
+  if (!L) return '';
+  const line = (label, url) => (url ? `<div class="row"><span class="small dim" style="min-width:96px">${label}</span><span class="small grow" style="font-family:var(--mono);overflow-wrap:anywhere">${esc(url)}</span><button class="btn sm" data-act="link.copy" data-v="${esc(url)}">Copy</button></div>` : '');
+  const on = L.online;
+  return `<div class="fl dim small">ON THIS NETWORK</div>${line('Players', L.lan.play)}${line('Table screen', L.lan.table)}${role === 'host' ? line('Host console', L.lan.host) : ''}
+    <div class="fl dim small">FROM ANYWHERE</div>${on ? `${line('Players', on.play)}${line('Table screen', on.table)}${role === 'host' ? line('Host console', on.host) : ''}${L.code ? `<div class="small">Table code: <b>${esc(L.code)}</b> (it is in the links).</div>` : ''}${role === 'host' ? '<div class="small faint">Keep the host console link to yourself: it holds the host key.</div>' : ''}`
+      : `<div class="small faint">${role === 'host' ? 'Start the host with Start Director (online).bat for links that work from anywhere.' : 'Only on this network for now: the host can start an outside link.'}</div>`}`;
+}
+function joinCard() { const l = joinLines(); return l ? `<section class="card"><h3>Join this game</h3>${l}</section>` : ''; }
 
 function fightCard(o) {
   const f = state.fight;
@@ -1491,8 +1525,7 @@ function tableHtml() {
     ${(state.story || []).length || (state.director || {}).on ? storyCard({ fill: true }) : `<section class="card fill"><h3>What happened</h3><div class="scroll" data-scroll="log">${logHtml(30)}</div></section>`}`;
   return `<div class="lay-table">
     <div class="col" style="grid-template-rows:minmax(0,1fr) auto">${sceneCard({ full: true })}
-      <section class="card"><div class="face-slot"></div><div class="row"><span class="dim small">Players join at</span><b style="font-family:var(--mono)">${esc(join)}</b></div>
-        ${info && info.online ? `<div class="row"><span class="dim small">From outside this network</span><b style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</b></div>` : ''}</section></div>
+      <section class="card"><div class="face-slot"></div>${joinLines() || `<div class="row"><span class="dim small">Players join at</span><b style="font-family:var(--mono)">${esc(join)}</b></div>`}</section></div>
     <div class="col" style="grid-template-rows:auto minmax(0,1fr)">${bandMap()}
       <div class="scroll" data-scroll="mid" style="display:flex;flex-direction:column;gap:12px">${waiting ? `<section class="card ask"><h3>Waiting for dice</h3>${waiting}</section>` : ''}${last ? resultCard(last, { big: true }) : '<section class="card"><h3>Last roll</h3><div class="empty">No dice yet.</div></section>'}</div></div>
     <div class="col" style="display:flex;flex-direction:column">${clocksCard()}${right}</div>
@@ -1706,7 +1739,7 @@ function hostToolsCard() {
     ${clocks}
     <div class="row"><input type="number" style="width:86px" data-k="aw.c" data-bind="host.award.codon" value="${esc(A.codon)}" placeholder="Codon"><input type="number" style="width:86px" data-k="aw.s" data-bind="host.award.substrate" value="${esc(A.substrate)}" placeholder="S">
       <input type="text" class="grow" data-k="aw.w" data-bind="host.award.why" value="${esc(A.why)}" placeholder="What for"><button class="btn sm" data-act="h.award">Award each</button></div>
-    ${info && info.online ? `<div class="row"><span class="small dim">Outside link</span><span class="small grow" style="font-family:var(--mono);overflow-wrap:anywhere">${esc(info.online)}</span><button class="btn sm" data-act="link.copy" data-v="${esc(info.online)}">Copy</button></div>` : ''}
+    <details class="prices"><summary class="small dim">Join links: players, table screen, host console${info && info.online ? ' (with the outside link)' : ''}</summary>${joinLines()}</details>
     <div class="row"><button class="btn sm grow" data-act="h.rest" ${state.fight ? 'disabled' : ''} title="One Fugue Interval.${rc ? ` In this Vector it costs a ${rc} segment.` : ''}">Reconstitution${rc ? ` (${rc} +1)` : ''}</button>${vectorHasBeat() ? `<button class="btn sm" data-act="h.beat" title="A working day ends. The Vector moves the Clocks a day pays.">End the day (Beat ${(state.beat || 0) + 1})</button>` : ''}<button class="btn sm danger" data-act="h.new">New game…</button></div>
     ${vectorPrices().any && !state.fight ? `<details class="prices"><summary class="small dim">Salt, shipping and paper</summary><div class="row">
       ${vectorPrices().salt ? '<button class="btn sm" data-act="h.salt" data-what="panel" title="10 S per 2 Drifts, paid by whoever carries the most Substrate: CARCASS back one, once a scene">Salt a panel</button><button class="btn sm" data-act="h.salt" data-what="wound" title="10 S per 2 Drifts, paid by whoever carries the most Substrate: HUNGER back one, once a scene">Salt a wound</button>' : ''}
