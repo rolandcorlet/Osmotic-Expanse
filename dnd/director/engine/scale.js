@@ -54,6 +54,39 @@ export function tableWords(levels) {
   return `${count(levels.length)} of ${lv.length === 1 ? `${R.ordinal(lv[0])}` : `${lv.map((x) => R.ordinal(x)).join(' and ')}`} level`;
 }
 
+// A book's own monster is fitted by the larger of its printed XP and what its numbers are worth (DMG,
+// Monster Statistics by Challenge Rating: hit points and AC for defence, damage a round and attack bonus
+// for offence, averaged). Vault of the Runemark prints its skeletons as CR 1/4 with 39 hit points and
+// AC 15; two of them wiped two 2nd-level heroes in 37% of simulated fights (26 Nov). Never lowers a
+// printed XP, and leaves the SRD's own monsters alone.
+const CR_ROWS = [ // cr, xp, ac, hp up to, attack bonus, damage a round up to
+  [0, 10, 13, 6, 3, 1], [0.125, 25, 13, 35, 3, 3], [0.25, 50, 13, 49, 3, 5], [0.5, 100, 13, 70, 3, 8],
+  [1, 200, 13, 85, 3, 14], [2, 450, 13, 100, 3, 20], [3, 700, 13, 115, 4, 26], [4, 1100, 14, 130, 5, 32],
+  [5, 1800, 15, 145, 6, 38], [6, 2300, 15, 160, 6, 44], [7, 2900, 15, 175, 6, 50], [8, 3900, 16, 190, 7, 56],
+  [9, 5000, 16, 205, 7, 62], [10, 5900, 17, 220, 7, 68]];
+const avgDice = (expr) => String(expr || '').split('+').reduce((a, t) => {
+  const d = /^\s*(\d+)d(\d+)\s*$/.exec(t);
+  return a + (d ? (Number(d[1]) * (Number(d[2]) + 1)) / 2 : Number(t) || 0);
+}, 0);
+const rowAt = (n) => Math.max(0, Math.min(CR_ROWS.length - 1, n));
+export function statsXp(m) {
+  if (!m || !m.adventure || !(Number(m.hp) > 0)) return 0;
+  const hpRow = CR_ROWS.findIndex((r) => m.hp <= r[3]);
+  if (hpRow < 0) return 0; // past the table: the book's word stands
+  const def = rowAt(hpRow + Math.trunc(((Number(m.ac) || 13) - CR_ROWS[hpRow][2]) / 2));
+  const weapons = (m.actions || []).filter((a) => a.hit != null && (a.dmg || []).length);
+  if (!weapons.length) return CR_ROWS[def][1];
+  const multi = (m.actions || []).find((a) => /^multiattack$/i.test(a.n || ''));
+  const times = multi ? (/\bfour\b/i.test(multi.d) ? 4 : /\bthree\b/i.test(multi.d) ? 3 : 2) : 1;
+  const best = weapons.map((a) => ({ hit: Number(a.hit) || 0, dmg: a.dmg.reduce((t, [e]) => t + avgDice(e), 0) })).sort((a, b) => b.dmg - a.dmg)[0];
+  const dpr = best.dmg * times;
+  let offRow = CR_ROWS.findIndex((r) => dpr <= r[5]);
+  if (offRow < 0) return 0;
+  const off = rowAt(offRow + Math.trunc((best.hit - CR_ROWS[offRow][4]) / 2));
+  return CR_ROWS[Math.round((def + off) / 2)][1];
+}
+export const fightXp = (m) => Math.max(Number(m && m.xp) || 0, statsXp(m));
+
 // groups: [{ key, name, xp, count, scalable }] as written; designed: { size, level }; actual: the living
 // characters' levels; mode: 'auto' (either way), 'down' (only ever easier) or 'off'.
 // The plan: { counts: { key: n }, hp: factor, ... }, or null when the fight is right as it stands.

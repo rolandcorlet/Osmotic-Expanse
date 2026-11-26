@@ -2480,7 +2480,7 @@ function fitFoes(s, ctx, siteId) {
   const groups = place.foes.map((g, n) => {
     const mine = placed.filter((f) => f.group === `${siteId}#${n}`);
     const m = mine[0] ? monsterOf(ctx, mine[0]) : ix.monster[g.monster];
-    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: (m && m.xp) || 0, count: mine.length, scalable: mine.length > 1 && g.scale !== false, fixed: g.scale === false };
+    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: SCALE.fightXp(m), count: mine.length, scalable: mine.length > 1 && g.scale !== false, fixed: g.scale === false };
   }).filter((g) => g.count > 0);
   const designed = SCALE.designedParty(ctx.adventure, siteId);
   const plan = SCALE.planFight({ groups, designed, actual: levels, srd: ctx.srd, mode });

@@ -65,3 +65,12 @@ test('a lone boss too strong for a small party hits for less as well as having f
     designed: { size: [4, 5], level: 2 }, actual: [2, 2, 2], srd });
   assert.ok(!even || !even.dmg || even.dmg === 1);
 });
+
+test("a book monster whose numbers outweigh its printed challenge is fitted by its numbers, never less", () => {
+  const skel = { adventure: 'votr', xp: 50, hp: 39, ac: 15, actions: [{ n: 'Shortsword', hit: 4, dmg: [['1d6+2', 'slashing']] }] };
+  assert.equal(SCALE.statsXp(skel), 100);
+  assert.equal(SCALE.fightXp(skel), 100);
+  const caster = { adventure: 'x', xp: 450, hp: 27, ac: 10, actions: [{ n: 'Mace', hit: 2, dmg: [['1d6', 'bludgeoning']] }] };
+  assert.equal(SCALE.fightXp(caster), 450); // spells the table cannot see: the book's word stands
+  assert.equal(SCALE.statsXp({ xp: 50, hp: 39, ac: 15, actions: [] }), 0); // the SRD's own monsters are left alone
+});
