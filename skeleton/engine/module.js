@@ -87,8 +87,24 @@ export function difficulty(mod, x) {
   // 13 of 14 refusals), or a name with a number after it ("Hard 20").
   const rung = ladder.find((r) => r.name.toLowerCase() === w)
     || ladder.find((r) => r.name.toLowerCase() === w.replace(/\s+-?\d+$/, ''))
-    || (() => { const l = ladder.filter((r) => r.name.toLowerCase().split(/\s+/).includes(w) || r.name.toLowerCase().startsWith(`${w} `)); return l.length === 1 ? l[0] : null; })();
+    || (() => { const l = ladder.filter((r) => r.name.toLowerCase().split(/\s+/).includes(w) || r.name.toLowerCase().startsWith(`${w} `)); return l.length === 1 ? l[0] : null; })()
+    || byPlace(ladder, w);
   return rung ? rung.at : null;
+}
+// A common name for a difficulty in a game that calls it something else ("Standard" or "Very hard" in Gull Rock,
+// whose ladder runs Routine, Regular, Hard, Dire Peril: the bench, 26 Nov): the rung in the same place on its ladder.
+const PLACES = [
+  [/^(trivial|very easy|simple|easy|routine|basic)$/, 0],
+  [/^(standard|regular|normal|average|medium|moderate|ordinary)$/, 1 / 3],
+  [/^(hard|difficult|tough|challenging)$/, 2 / 3],
+  [/^(very hard|very difficult|extreme|extremely hard|heroic|formidable|dire|daunting|nearly impossible|impossible|legendary)$/, 1],
+];
+function byPlace(ladder, w) {
+  if (!ladder.length) return null;
+  const p = PLACES.find(([re]) => re.test(w));
+  if (!p) return null;
+  const sorted = ladder.slice().sort((a, b) => a.at - b.at);
+  return sorted[Math.round(p[1] * (sorted.length - 1))];
 }
 
 // The module as text sections, for the Director's look-up tool and the screens' rule books.

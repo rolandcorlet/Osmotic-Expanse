@@ -211,7 +211,11 @@ export const TOOLS = [
     name: 'mark_strain',
     description: 'A character marks strain (fear, exhaustion, a cost the rules name), or clears it (a negative amount).',
     parameters: obj({ character: S('Id or name.'), amount: N('How much; negative to clear.') }, ['character', 'amount']),
-    run(a, T) { const seq = T.state.seq; const no = T.do({ type: 'strain.mark', charId: a.character, n: a.amount }); return no ? { refused: no } : T.since(seq); },
+    run(a, T) {
+      // An amount of nothing is a harmless slip (the Gull Rock bench, 26 Nov), not a broken rule.
+      if (!Math.trunc(Number(a.amount) || 0)) return { note: 'Nothing changed: an amount of 0 marks nothing. Give a number (negative to clear).' };
+      const seq = T.state.seq; const no = T.do({ type: 'strain.mark', charId: a.character, n: a.amount }); return no ? { refused: no } : T.since(seq);
+    },
   },
   {
     name: 'tick_clock',
