@@ -59,7 +59,8 @@ test('a lone boss too strong for a small party hits for less as well as having f
   const plan = SCALE.planFight({ groups: [{ key: 'k', name: 'Croc', xp: 1800, count: 1, scalable: false }],
     designed: { size: [4, 5], level: 4 }, actual: [4, 4], srd });
   assert.equal(plan.hp, 0.5);
-  assert.ok(plan.dmg < 1 && plan.dmg >= 0.5);
+  // Softened again for being alone against two heroes (Ashen Crown simulation, 26 Nov), never under 0.3.
+  assert.ok(plan.dmg < 0.7 && plan.dmg >= 0.3, `dmg ${plan.dmg}`);
   const even = SCALE.planFight({ groups: [{ key: 'k', name: 'Ogre', xp: 450, count: 1, scalable: false }],
     designed: { size: [4, 5], level: 2 }, actual: [2, 2, 2], srd });
   assert.ok(!even || !even.dmg || even.dmg === 1);

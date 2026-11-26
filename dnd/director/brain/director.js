@@ -240,6 +240,28 @@ export function saysDead(text, name) {
   }
   return false;
 }
+// A narration that takes the party to a place the briefing lists as an exit ("Hours bleed away and the
+// road falls toward Fort Durron ... the rendezvous lies just ahead") while the Engine still has them where
+// they were: the Director travelled in words and forgot move_party (full X Marks bench, step 47, 26 Nov).
+const TRAVEL_WORDS = /\b(?:arriv\w*|reach\w*|come to|came to|march\w*|push(?:ed)? on|travel\w*|journey\w*|hours? (?:bleed|pass|later|of)|by the time|the road (?:falls|dips|leads|bends)|lies? (?:just )?ahead|ahead of you|before you|rises? (?:out of|before|ahead))\b/i;
+export function travelledInWords(text, state, adventure) {
+  const sites = (adventure && adventure.sites) || [];
+  const here = sites.find((x) => x.id === state.scene.siteId);
+  if (!here) return null;
+  const t = String(text || '').replace(/"[^"]*"|“[^”]*”/g, '');
+  for (const e of here.exits || []) {
+    const to = sites.find((x) => x.id === e.to);
+    if (!to) continue;
+    const name = to.name.replace(/^the\s+/i, '').replace(/[:,(].*$/, '').trim();
+    if (name.length < 4) continue;
+    const at = t.toLowerCase().indexOf(name.toLowerCase());
+    if (at < 0) continue;
+    // Travel words in the same stretch of the narration as the place's name.
+    const near = t.slice(Math.max(0, at - 220), at + name.length + 220);
+    if (TRAVEL_WORDS.test(near)) return to;
+  }
+  return null;
+}
 export function asksRollInWords(text) { return ROLL_WORDS.test(String(text || '').replace(/"[^"]*"|“[^”]*”/g, '')); }
 
 // Whose turn it is, for the closing question in a fight.
@@ -268,6 +290,7 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
   let narration = '';
   let nudged = false;
   let rollNudged = false;
+  let moveNudged = false;
   const maxSteps = MAX_STEPS + 3 * Math.min(10, Object.values(state.foes || {}).filter((f) => !f.dead && f.siteId === state.scene.siteId).length);
   for (let step = 0; step < maxSteps; step++) {
     usage.in += reply.usage.in;
@@ -287,6 +310,15 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
       rollNudged = true;
       narration = '';
       reply = await chat.send('You asked for a roll in words, but nothing is on the player\'s screen. Call ask_for_roll now for that roll, then give your narration again, ending on one question. If no roll is needed, narrate again without asking for one.');
+      continue;
+    }
+    // Travelled in words, not in the Engine: one nudge, outside a fight, when move_party was not called.
+    const moved = T.state.scene.siteId !== state.scene.siteId || calls.some((c) => c.name === 'move_party' && !(c.result || {}).refused);
+    const went = narration && !moveNudged && !moved && !T.state.fight ? travelledInWords(narration, T.state, adventure) : null;
+    if (went) {
+      moveNudged = true;
+      narration = '';
+      reply = await chat.send(`Your narration takes the party toward ${went.name}, but the Engine still has them at ${(adventure.sites.find((x) => x.id === T.state.scene.siteId) || {}).name}. If they have arrived there or are close enough to see it, call move_party with place "${went.id}" now, then narrate again. If something stops them on the way (a patrol, a hazard, a choice), keep them where they are and say what stops them. End on one question.`);
       continue;
     }
     if (narration || nudged) break;

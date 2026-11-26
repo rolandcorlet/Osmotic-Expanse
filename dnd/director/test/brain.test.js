@@ -334,3 +334,23 @@ test('a roll asked for in words is caught, a wagon that rolls is not (bench part
   for (const t of ["The wagons roll a mile of wet King's Way and clock into Oakhurst.", 'Thunder rolls across the gorge.', 'The barrels roll for a while down the hill.', '"Roll a d20," the goblin jeers, but nobody moves.'])
     assert.ok(!asksRollInWords(t), t);
 });
+
+test('a journey told in words, with the Engine still at the old place, is sent back for move_party', async () => {
+  const T = table();
+  hero(T, 'p1', 'Bryn');
+  const provider = scripted([
+    { text: 'You set out along the river. Hours pass, and by the time the light fails the Mill Road lies just ahead. Bryn, what do you do?' },
+    { calls: [{ name: 'move_party', args: { place: 'mill-road' } }] },
+    { text: 'The Mill Road climbs into the hills. Bryn, what do you do?' },
+  ]);
+  const out = await directorTurn({ state: T.s, adventure, srd, provider, rng: makeRng(1), reason: 'A player spoke: "We head up the Mill Road."' });
+  assert.match(provider.seen[1], /takes the party toward The Mill Road/);
+  assert.equal(out.state.scene.siteId, 'mill-road');
+});
+
+test('naming a place in talk, with no journey, is not taken for travel', async () => {
+  const { travelledInWords } = await import('../brain/director.js');
+  const T = table();
+  assert.equal(travelledInWords('The Reeve frowns. "The Mill Road is dangerous," he says. Bryn, what do you ask him?', T.s, adventure), null);
+  assert.equal(travelledInWords('Wren points at the map: the Mill Road is where Bren saw them. Bryn, will you go?', T.s, adventure), null);
+});

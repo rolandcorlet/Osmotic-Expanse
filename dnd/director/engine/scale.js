@@ -112,6 +112,12 @@ export function planFight({ groups, designed, actual, srd, mode = 'auto' }) {
   // wipes in the simulation at half hit points). Its attacks hit for less, never under half.
   let dmg = 1;
   if (rawHp < 0.5 && hp === 0.5) dmg = Math.round(Math.max(0.5, rawHp / 0.5) * 20) / 20;
+  // A lone foe against a party smaller than written gets every one of its attacks on one or two heroes,
+  // which the budget does not count: its blows are softened further, never under 0.3 (Ashen Crown, two
+  // heroes: Venyx at Starfall wiped 25% of simulated fights at half damage, 5% at 0.35; Kragg at
+  // Ironfang 18% at 0.7, 8% at 0.5, 3% at 0.45; 26 Nov).
+  const lone = Object.values(best.counts).reduce((a, b) => a + b, 0) === 1;
+  if (lone && actual.length < lo && dmg < 1) dmg = Math.max(0.3, Math.round(dmg * 0.65 * 20) / 20);
   if (dmg > 0.9) dmg = 1;
   const changed = groups.some((g) => best.counts[g.key] !== g.count) || hp !== 1 || dmg !== 1;
   if (!changed) return null;
