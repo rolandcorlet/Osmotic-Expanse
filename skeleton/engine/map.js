@@ -424,7 +424,8 @@ export function travelLayout(sites, pos = {}) {
   while (q.length) {
     const id = q.shift();
     const s = list.find((x) => x.id === id);
-    for (const e of (s && s.exits) || []) if (!(e.to in depth) && list.some((x) => x.id === e.to)) { depth[e.to] = depth[id] + 1; q.push(e.to); }
+    // An exit is a place's id (the Skeleton's adventures) or { to } (the D&D Director's).
+    for (const e of (s && s.exits) || []) { const to = typeof e === 'string' ? e : e && e.to; if (to && !(to in depth) && list.some((x) => x.id === to)) { depth[to] = depth[id] + 1; q.push(to); } }
   }
   let maxD = Math.max(0, ...Object.values(depth));
   for (const s of list) if (!(s.id in depth)) depth[s.id] = ++maxD;

@@ -6,6 +6,7 @@ import * as SEEDS from '/engine/seeds.js';
 import { initScene, updateScene, rollD20, effectsMode, setEffects } from '/scene.js';
 import { vial, gems, sigil, seal, levelFlash } from '/flair.js';
 import { glossaryOf, termsIn } from '/engine/words.js';
+import { initMap, mapTabHtml, MAP_ACT, mapField } from '/map.js';
 // flair.js gives HTML; this puts it in the tree (a span or div with no box of its own).
 const raw = (html, tag = 'span') => { const e = document.createElement(tag); e.style.display = 'contents'; e.innerHTML = html; return e; };
 const callingName = (c) => (M.handbook.callings.find((x) => x.id === c.calling) || {}).name || '';
@@ -734,14 +735,45 @@ function hostGame() {
 }
 
 // ---------------------------------------------------------------- tabs and rendering
+// The Map tab (public/map.js): its HTML is built as text, and its clicks and fields come through here.
+const escHtml = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const advNow = () => M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+async function uploadPicture(blob) {
+  const r = await fetch(`/api/map/upload?${qs()}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: blob });
+  const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+  if (!j.ok) throw new Error(j.error || 'The picture could not be uploaded.');
+  return j.url;
+}
+initMap({
+  state: () => S, ui, esc: escHtml, role: ROLE, myPc: () => (ROLE === 'player' ? me() : null), curKey: () => (S ? curKey() : null),
+  adv: advNow, site: () => (advNow().sites || []).find((x) => x.id === S.scene.siteId) || {}, mod: () => M,
+  send: act, upload: uploadPicture, toast, render: () => render(),
+});
+function mapView() { const el = h('div', { class: 'view v-map' }); el.innerHTML = mapTabHtml(); return el; }
+document.addEventListener('click', (e) => {
+  if (ui.tab !== 'map') return;
+  const el = e.target.closest && e.target.closest('#main [data-act]');
+  if (!el) return;
+  const a = el.dataset.act;
+  if (a === 'tab') { ui.tab = el.dataset.t; store.set(`tab-${ROLE}`, ui.tab); render(); return; }
+  const f = MAP_ACT[a];
+  if (!f) return;
+  e.preventDefault();
+  const r = f({ ...el.dataset });
+  render();
+  if (r && r.then) r.then(() => render());
+});
+for (const ev of ['input', 'change']) document.addEventListener(ev, (e) => { if (ui.tab === 'map' && e.target.closest && e.target.closest('#main')) mapField(e); });
+
 const TABS = {
-  host: [['play', 'Play'], ['world', 'World'], ['seeds', 'Seeds'], ['chronicle', 'Chronicle'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
-  table: [['story', 'Story'], ['rules', 'Books'], ['colours', 'Colours']],
-  player: [['story', 'Story'], ['sheet', 'Sheet'], ['rules', 'Books'], ['voice', 'Voice'], ['colours', 'Colours']],
+  host: [['play', 'Play'], ['map', 'Map'], ['world', 'World'], ['seeds', 'Seeds'], ['chronicle', 'Chronicle'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
+  table: [['story', 'Story'], ['map', 'Map'], ['rules', 'Books'], ['colours', 'Colours']],
+  player: [['story', 'Story'], ['map', 'Map'], ['sheet', 'Sheet'], ['rules', 'Books'], ['voice', 'Voice'], ['colours', 'Colours']],
 };
 function view() {
   const tab = ui.tab;
   if (tab === 'colours') return coloursView();
+  if (tab === 'map' && (ROLE !== 'player' || !playerViews())) return mapView();
   if (ROLE === 'host') {
     if (tab === 'world') return hostWorld();
     if (tab === 'seeds') return hostSeeds();

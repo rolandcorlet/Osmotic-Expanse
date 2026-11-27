@@ -437,7 +437,7 @@ function travelSvg() {
     const cls = ['place', x.id === here0 ? 'here' : visited.has(x.id) ? 'been' : 'new', u.travelSel === x.id ? 'sel' : ''].join(' ');
     out.push(`<g class="${cls}"${u.edit && host() ? ` data-drag="node" data-ds="${esc(x.id)}"` : ` data-act="mp.place" data-s="${esc(x.id)}"`} transform="translate(${p.x} ${p.y})"><title>${esc(x.name)}</title>
       ${x.id === here0 ? '<circle class="halo" r="30"/>' : ''}<circle class="pin" r="15"/>${x.id === here0 ? '<path class="flag" d="M-2 -40 L-2 -12 M-2 -40 L18 -33 L-2 -26"/>' : ''}
-      <text class="pname" y="38" text-anchor="middle">${esc(short(x.name, 26))}</text>${!visited.has(x.id) && x.id !== here0 ? '<text class="pq" y="6" text-anchor="middle">?</text>' : ''}</g>`);
+      <text class="pname" y="38" ${p.x < 130 ? 'x="-18" text-anchor="start"' : p.x > W - 130 ? 'x="18" text-anchor="end"' : 'text-anchor="middle"'}>${esc(short(x.name, 26))}</text>${!visited.has(x.id) && x.id !== here0 ? '<text class="pq" y="6" text-anchor="middle">?</text>' : ''}</g>`);
   }
   out.push('</svg>');
   return out.join('');

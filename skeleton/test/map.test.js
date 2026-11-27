@@ -148,3 +148,12 @@ test('a rule for entering a zone fires for the character who steps in; arriving 
     assert.match((await import('../engine/triggers.js')).checkRules(mod, bad).join('\n'), /no zone here is called "the attic"/);
   } finally { start.rules = saved; }
 });
+
+test('the travel map lays out places whose exits are plain ids (the Skeleton) or { to } (the D&D Director)', () => {
+  // Two roads out of the first place: both lead one step on, side by side.
+  const plain = MAP.travelLayout([{ id: 'a', exits: ['b', 'c'] }, { id: 'b', exits: ['a'] }, { id: 'c', exits: ['a'] }]);
+  const objs = MAP.travelLayout([{ id: 'a', exits: [{ to: 'b' }, { to: 'c' }] }, { id: 'b', exits: [] }, { id: 'c', exits: [] }]);
+  assert.deepEqual(plain, objs);
+  assert.equal(plain.b.x, plain.c.x);
+  assert.ok(plain.a.x < plain.b.x && plain.b.y !== plain.c.y);
+});

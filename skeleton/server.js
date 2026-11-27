@@ -14,6 +14,7 @@ import { spawn } from 'node:child_process';
 import { systemRng } from './engine/dice.js';
 import { listModules, loadModule, saveModule, check, books } from './engine/module.js';
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
+import { createMapStore, MAX_PICTURE } from './mapfiles.js';
 import { directorTurn } from './brain/director.js';
 import { makeProposal, approveProposal, proposalView } from './brain/copilot.js';
 import { createSlots } from './slots.js';
@@ -49,6 +50,8 @@ const rng = systemRng();
 const settings = createSettings({ saveDir: SAVE_DIR });
 // Everything said in each game, kept on disk and searched; the chronicle (brain/memory.js, from the D&D Director).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
+// The maps' pictures (a battle map, a travel map), kept with the saved games and named by their contents.
+const pictures = createMapStore(join(SAVE_DIR, 'maps'));
 let seen = null; // the Ledger the memory last saw
 let mod = null;
 let state = null;
@@ -339,6 +342,22 @@ const server = createServer(async (req, res) => {
       json(res, 200, out);
       return;
     }
+    // A map picture (named by its contents, so no name can be guessed).
+    if (req.method === 'GET' && p.startsWith('/maps/')) {
+      const pic = pictures.get(p.slice(6));
+      if (!pic) { json(res, 404, { ok: false, error: 'No such picture.' }); return; }
+      res.writeHead(200, { 'content-type': pic.type, 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' });
+      res.end(pic.bytes);
+      return;
+    }
+    // The host imports a picture for a map: the bytes come raw, and only a real image is kept.
+    if (req.method === 'POST' && p === '/api/map/upload') {
+      if (!isHostReq(url)) { json(res, 403, { ok: false, error: 'Only the host can import maps.' }); return; }
+      const parts = []; let size = 0;
+      try { for await (const ch of req) { size += ch.length; if (size > MAX_PICTURE) throw new Error('big'); parts.push(ch); } } catch (e) { json(res, 200, { ok: false, error: 'That picture is too big (25 MB at most).' }); return; }
+      try { json(res, 200, { ok: true, url: pictures.put(Buffer.concat(parts)) }); } catch (e) { json(res, 200, { ok: false, error: e.message }); }
+      return;
+    }
     if (req.method === 'POST' && p === '/api/act') {
       const b = await body(req);
       const host = isHostReq(url, b);
@@ -445,7 +464,7 @@ const server = createServer(async (req, res) => {
     const doc = /^\/docs\/(MODULE-FORMAT|DESIGNER-PROMPT|CONVERTER-PROMPT|README)\.md$/.exec(p);
     if (doc) { const f = join(ROOT, `${doc[1]}.md`); if (existsSync(f)) { res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }); res.end(readFileSync(f)); return; } }
     // The dice systems are shared with the screens (labels, odds, what to type).
-    const eng = /^\/engine\/(dicesystems|dice|odds|seeds|scale|words)\.js$/.exec(p);
+    const eng = /^\/engine\/(dicesystems|dice|odds|seeds|scale|words|map)\.js$/.exec(p);
     if (eng) { res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }); res.end(readFileSync(join(ROOT, 'engine', `${eng[1]}.js`))); return; }
     const file = ['/', '/host', '/table', '/play'].includes(p) ? join(PUB, 'index.html') : normalize(join(PUB, p));
     if (!file.startsWith(PUB) || !existsSync(file)) { res.writeHead(404); res.end('Not found'); return; }
