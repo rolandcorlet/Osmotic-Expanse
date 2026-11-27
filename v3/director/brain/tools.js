@@ -288,7 +288,7 @@ export const TOOLS = [
       if (!c) return noCre(a.creature, T.state);
       const no = T.do({ type: 'creature.act', cid: c.cid, what: 'Drift', cost: 1, band: a.band });
       if (/costs \d+ PP and .* has \d+/i.test(String(no))) return { note: `${c.name} has no Pulse Points left, so it cannot Drift this turn. Nothing changed. End its turn with end_creature_turn.`, ...T.fightBrief() };
-      return no ? outOfTurn(T, no, c) : { moved: c.name, band: a.band, pulse_points_left: T.pp('cre', c.cid) };
+      return no ? outOfTurn(T, no, c) : { moved: c.name, band: (T.state.creatures[c.cid] || {}).band || a.band, pulse_points_left: T.pp('cre', c.cid) }; // the band as the map has it
     },
   },
   {

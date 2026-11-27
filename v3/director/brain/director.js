@@ -141,6 +141,19 @@ export function briefing(state, scenario, bestiary, { reason = '', hostNote = ''
     if (c.stoodDown) { L.push(`- ${c.name} (id "${c.cid}"): STOOD DOWN (${c.stoodDown.why}). It is present but not fighting: it takes no turns and does not block the way. If a player strikes it, it rejoins the fight.`); continue; }
     L.push(`- ${c.name} (id "${c.cid}", block ${c.blockId}): ${health}; band ${c.band}${c.conditions.length ? `; ${c.conditions.map((x) => x.name).join(', ')}` : ''}`);
   }
+  {
+    // The map (28 Nov 2026): one square is one Drift, and each band above is measured on it.
+    const m = state.map;
+    const zones = m && m.show && (m.show.zones || m.show.grid) ? (m.zones || {})[site.id] : null;
+    if (zones && zones.length) {
+      const nameOf = (k) => { const i = k.indexOf(':'); const kind = k.slice(0, i); const id = k.slice(i + 1); const o = kind === 'org' ? state.organisms[id] : state.creatures[id]; return o ? `${o.name}${kind === 'cre' && o.down ? ' (destroyed)' : kind === 'org' && o.dormant ? ' (Dormant)' : ''}${kind === 'cre' && o.hidden ? ' (hidden)' : ''}` : ''; };
+      const at = Object.entries(m.at || {}).filter(([k, p]) => p.site === site.id && nameOf(k));
+      L.push('');
+      L.push('# THE MAP (zones about six Drifts across; one square is one Drift)');
+      for (const z of zones) L.push(`- ${z.name}: ${at.filter(([, p]) => p.zone === z.id).map(([k]) => nameOf(k)).join(', ') || 'nobody'}`);
+      L.push('Each creature\'s band is its distance on the map to the nearest organism, and always matches it. To bring a creature closer or send it off, move it to a band with creature_move: its token goes there. The players move their own organisms.');
+    }
+  }
   const downNow = here.filter((c) => c.down);
   if (downNow.length && !here.some((c) => !c.down && !c.stoodDown) && !here.some((c) => c.stoodDown)) L.push('Every creature here is destroyed. Do not describe any of them as alive, standing or holding a line.');
 

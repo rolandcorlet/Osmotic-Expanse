@@ -9,6 +9,7 @@ import { ATLAS } from '/data/chargen/model.generated.js';
 import { genHtml, genActs, growHtml, growActs, codonLine } from '/gen.js';
 import { vial, gems, sigil, satchel, levelReady, levelFlash } from '/flair.js';
 import { termsIn } from '/engine/words.js';
+import { initMap, mapTabHtml, MAP_ACT, mapField } from '/map.js';
 
 // The Bonded Domain of an organism's Phenotype (a Burst from another domain costs +2 ATP, +1 Stress).
 function myDomain(o) {
@@ -46,9 +47,9 @@ let keyBad = false;
 let codeBad = false;
 
 const TABS = {
-  player: [['play', 'Play'], ['sheet', 'Sheet'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  table: [['table', 'Table'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
-  host: [['run', 'Run'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['seeds', 'Seeds'], ['saves', 'Saves'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  player: [['play', 'Play'], ['map', 'Map'], ['sheet', 'Sheet'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  table: [['table', 'Table'], ['map', 'Map'], ['know', 'Story'], ['words', 'Words'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
+  host: [['run', 'Run'], ['map', 'Map'], ['director', 'Director'], ['know', 'Story'], ['memory', 'Memory'], ['seeds', 'Seeds'], ['saves', 'Saves'], ['voice', 'Voice'], ['sheets', 'Sheets'], ['bestiary', 'Bestiary'], ['books', 'Books'], ['rolls', 'Rolls'], ['colours', 'Colours']],
   home: [],
 };
 
@@ -396,6 +397,7 @@ function mainHtml() {
   if (ui.tab === 'words') return wordsHtml();
   if (ui.tab === 'know') return knowHtml();
   if (ui.tab === 'books') return booksHtml();
+  if (ui.tab === 'map' && (role !== 'player' || mine())) return `<div class="v-map">${mapTabHtml()}</div>`;
   if (role === 'player') return playerHtml();
   if (role === 'table') return tableHtml();
   return hostHtml();
@@ -2245,6 +2247,21 @@ const ACT = {
   'h.new.go': () => { const N = ui.newGame; ui.newGame = { open: false, vectorId: '', keep: true, carry: true }; return send({ type: 'session.new', vectorId: N.vectorId || state.scenarioId, keepPlayers: !!N.keep, carry: N.carry !== false }); },
 };
 
+// The Map tab (public/map.js): its actions join the others; it talks to this screen through these helpers.
+Object.assign(ACT, MAP_ACT);
+async function uploadPicture(blob) {
+  const r = await fetch(`/api/map/upload?key=${encodeURIComponent(key)}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: blob });
+  const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+  if (!j.ok) throw new Error(j.error || 'The picture could not be uploaded.');
+  return j.url;
+}
+// v3's exits are written as words, so on the travel map each site leads to the one before and the one after.
+const vectorForMap = () => ({ name: sc.title, sites: (sc.sites || []).map((x, i, all) => ({ ...x, exits: [all[i - 1], all[i + 1]].filter(Boolean).map((y) => y.id) })) });
+initMap({
+  state: () => state, ui, esc, role, myPc: () => (role === 'player' ? mine() : null), curKey: () => (state && state.fight ? state.fight.turn : null),
+  adv: vectorForMap, site: () => site(), mod: () => null, send, upload: uploadPicture, toast, render: () => render(),
+  say: (text) => { ui.say.text = text; },
+});
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('[data-act]');
   if (!b || b.disabled) return;
@@ -2258,6 +2275,7 @@ document.addEventListener('click', async (e) => {
 
 function onField(e) {
   const t = e.target;
+  if (ui.tab === 'map' && mapField(e)) return;
   if (t.dataset.colour) {
     const c = savedColours();
     c[t.dataset.colour] = t.value;

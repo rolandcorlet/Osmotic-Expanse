@@ -4,6 +4,7 @@
 
 import { rollDice, checkOwnDice, d6 } from './dice.js';
 import * as R from './rules.js';
+import * as MAP from './map.js';
 import { parseSeed } from './seeds.js';
 import { successChance } from './odds.js';
 import { buildHand } from '../data/chargen/build.js';
@@ -66,6 +67,7 @@ export function newSession(scenario) {
     // order that rotates and is kept for the whole game. Take it or pass, you go to the back.
     loot: { order: [], queue: [], offer: null, auto: {} }, // auto: a player's standing choice per grade
     nextId: 1,
+    map: MAP.newMap(), // where everyone stands (the map, below)
   };
   for (const h of scenario.hands) s.organisms[h.id] = makeOrganism(h);
   for (const c of scenario.clocks) s.clocks[c.id] = { id: c.id, name: c.name, segments: c.segments, filled: c.start || 0, says: c.says, ...(c.track ? { track: true } : {}) };
@@ -199,7 +201,9 @@ export function apply(state, action, ctx) {
   const s = clone(state);
   s.seq += 1;
   if (!s.story) s.story = []; // sessions saved before the story existed
+  const bandsBefore = Object.fromEntries(Object.values(s.creatures).map((c) => [c.cid, c.band]));
   h.run(s, action, ctx);
+  try { mapSync(s, ctx, bandsBefore); } catch (e) { /* a broken map is redrawn next time */ }
   clockFills(s, ctx);
   payStages(s, ctx);
   fightRunsOut(s, ctx);
@@ -2107,6 +2111,7 @@ const HANDLERS = {
       const free = cost && cost.freeIf && Object.entries(cost.freeIf).every(([id, n]) => s.clocks[id] && s.clocks[id].filled <= n);
       if (cost && !free && from !== site.id) endBeat(s, ctx, cost.why || `The way to ${site.name} takes a day.`);
       s.scene = { siteId: site.id };
+      if (s.map && from !== site.id) s.map.cameFrom = from; // the map brings the Cohort in by the way it came
       // A new scene re-arms the site hazards (CORE 8.1: "once per scene" resets when the place,
       // the purpose or the people change).
       s.sceneNo = (s.sceneNo || 1) + 1;
@@ -3028,6 +3033,8 @@ const HANDLERS = {
       spendPP(s, act, cost, def.name);
       if (a.action === 'drift') {
         act.drifted = true;
+        // On the map: this Drift's Flow, to spend square by square (map.move).
+        act.driftLeft = (act.driftCycle === s.fight.cycle ? act.driftLeft || 0 : 0) + Math.max(0, Number(o.flow) || 0); act.driftCycle = s.fight.cycle;
         if (a.band) o.band = a.band;
         o.conditions = o.conditions.filter((c) => c.name !== 'Braced');
         tell(`${o.name} Drifts${a.band ? ` to ${a.band}` : ''} (up to ${o.flow} Drifts${cost > 1 ? `, ${cost} PP while the pumps cramp` : ''}). ${act.pp} PP left.`, `drifts${a.band ? ` to ${a.band}` : ''}`);
@@ -3239,6 +3246,286 @@ const HANDLERS = {
 // --------------------------------------------------------------------- views
 // What each kind of screen may see. Creature numbers stay with the host; the
 // table sees evidence (Segments, a word for how hurt it looks), not the block.
+// ------------------------------------------------------------------- the map (engine/map.js)
+// From the D&D Director and the Skeleton, 28 Nov 2026 (docs/superpowers/specs/2026-11-28-v3-map-design.md):
+// each site split into zones, a grid of squares inside each, the Cohort and the creatures here on squares.
+// One square is one Drift. Standing side by side is Contact, so the Drifts between two tokens are the
+// squares between them less one. With the zone map or the grid on, a creature's band is its Drifts to the
+// nearest organism, worked out after every action; when something sets a band, its token moves to that
+// distance first. Keys: org:<id>, cre:<cid>.
+export const MAP_RULES = { square: '1 Drift', move: 6, reach: 1, range: 10, cover: { half: 2, full: 5 }, stuck: ['sequestered', 'encysted'] };
+const mapKey = (kind, id) => `${kind}:${id}`;
+const condsOf = (x) => (x.conditions || []).map((c) => String((c && c.name) || c).toLowerCase());
+function mapUp(s) {
+  const blank = MAP.newMap();
+  if (!s.map) s.map = blank;
+  for (const k of Object.keys(blank)) if (s.map[k] == null) s.map[k] = blank[k];
+  s.map.show = { ...blank.show, ...s.map.show };
+  return s.map;
+}
+export const mapOn = (s) => !!(s.map && s.map.show && (s.map.show.zones || s.map.show.grid));
+function siteZones(s, ctx, siteId) {
+  const m = mapUp(s);
+  if (!m.zones[siteId]) {
+    const st = ((ctx.scenario || {}).sites || []).find((x) => x.id === siteId);
+    const printed = st && Array.isArray(st.zones) ? st.zones.filter((z) => z && z.name).map((z) => ({ name: z.name, note: z.note || '' })) : [];
+    m.zones[siteId] = printed.length ? MAP.normZones(printed) : MAP.autoZones();
+  }
+  return m.zones[siteId];
+}
+function whoAt(s, k) { const i = String(k).indexOf(':'); const kind = k.slice(0, i); const id = k.slice(i + 1); return kind === 'org' ? s.organisms[id] : kind === 'cre' ? s.creatures[id] : null; }
+// Standing: holds its square against others (a body on the floor does not).
+const upright = (s, k) => { const o = whoAt(s, k); return !!o && (k.startsWith('org:') ? !o.dormant : !o.down); };
+const inPlay = (s) => Object.values(s.organisms).filter((o) => o.playerId).map((o) => mapKey('org', o.id));
+const creaturesHere = (s) => Object.values(s.creatures).filter((c) => c.siteId === s.scene.siteId && c.band !== 'loose').map((c) => mapKey('cre', c.cid));
+function heldSquares(s, zoneId, cols, { except = '', only = null } = {}) {
+  const out = new Set();
+  for (const [k, p] of Object.entries(s.map.at)) {
+    if (k === except || p.site !== s.scene.siteId || p.zone !== zoneId || !upright(s, k)) continue;
+    if (only && !only(k)) continue;
+    out.add(p.y * cols + p.x);
+  }
+  return out;
+}
+// Squares from a set of starting squares to every square of the site, through the zones' shared sides
+// (crossing costs one square, landing at the same place along the side, as engine/map.js stepsBetween).
+function siteSteps(m, siteId, zones, starts) {
+  const grids = {}; const g = (z) => grids[z.id] || (grids[z.id] = MAP.gridOf(m, siteId, z));
+  const best = {}; // zoneId -> Map(cell -> steps)
+  const queue = [];
+  const feed = (zid, list) => { queue.push([zid, list]); };
+  const byZone = {};
+  for (const p of starts) (byZone[p.zone] = byZone[p.zone] || []).push([p.x, p.y, 0]);
+  for (const [zid, list] of Object.entries(byZone)) feed(zid, list);
+  for (let guard = 0; queue.length && guard < 400; guard++) {
+    const [zid, sources] = queue.shift();
+    const z = MAP.zoneOf(zones, zid); if (!z) continue;
+    const gz = g(z);
+    const dist = MAP.reach(gz, sources);
+    const have = best[zid] || (best[zid] = new Map());
+    let better = false;
+    for (const [c, d] of dist) if (!have.has(c) || have.get(c) > d) { have.set(c, d); better = true; }
+    if (!better) continue;
+    for (const lid of z.links || []) {
+      const L = MAP.zoneOf(zones, lid); if (!L) continue;
+      const side = MAP.sideToward(z, L);
+      const out = MAP.edgeCells(gz, side); const gl = g(L); const into = MAP.edgeCells(gl, MAP.OPPOSITE[side]);
+      const next = [];
+      out.forEach(([x, y], k) => {
+        const d = have.get(y * gz.cols + x); if (d == null) return;
+        const j = Math.round((out.length > 1 ? k / (out.length - 1) : 0.5) * (into.length - 1));
+        const cur = best[lid] && best[lid].get(into[j][1] * gl.cols + into[j][0]);
+        if (cur == null || cur > d + 1) next.push([into[j][0], into[j][1], d + 1]);
+      });
+      if (next.length) feed(lid, next);
+    }
+  }
+  return { best, grid: g };
+}
+const driftsOf = (steps) => (steps == null ? null : Math.max(0, steps - 1));
+// Drifts from each creature here to the nearest organism standing at this site (null: none to measure from).
+function creatureDrifts(s, ctx) {
+  const m = s.map; const siteId = s.scene.siteId; const zones = siteZones(s, ctx, siteId);
+  const orgs = inPlay(s).filter((k) => upright(s, k) && m.at[k] && m.at[k].site === siteId).map((k) => m.at[k]);
+  if (!orgs.length) return null;
+  const { best, grid } = siteSteps(m, siteId, zones, orgs);
+  return { at: (p) => { const z = MAP.zoneOf(zones, p.zone); if (!z || !best[p.zone]) return null; return driftsOf(best[p.zone].get(p.y * grid(z).cols + p.x)); }, best, grid, zones };
+}
+// Put a creature at the distance its band says, on the free square of that band nearest where it stands.
+function placeAtBand(s, ctx, k, bandId) {
+  const b = R.BANDS.find((x) => x.id === bandId); if (!b) return false;
+  const D = creatureDrifts(s, ctx); if (!D) return false;
+  const m = s.map; const siteId = s.scene.siteId; const now = m.at[k];
+  const want = Math.min(b.max, 40);
+  let pick = null; let score = Infinity;
+  for (const z of D.zones) {
+    const gz = D.grid(z); const held = heldSquares(s, z.id, gz.cols, { except: k });
+    for (let y = 0; y < gz.rows; y++) for (let x = 0; x < gz.cols; x++) {
+      if (held.has(y * gz.cols + x)) continue;
+      const st = D.best[z.id] && D.best[z.id].get(y * gz.cols + x);
+      const d = driftsOf(st); if (d == null) continue;
+      // Inside the band is best; the further outside, the worse. Then the least way from where it stands.
+      const off = d < b.min ? b.min - d : d > want ? d - want : 0;
+      const from = now && now.site === siteId ? (now.zone === z.id ? MAP.cheb(now, { x, y }) : 50) : 0;
+      const sc = off * 1000 + from;
+      if (sc < score) { score = sc; pick = { site: siteId, zone: z.id, x, y }; }
+    }
+  }
+  if (!pick) return false;
+  m.at[k] = pick;
+  return true;
+}
+// Everyone here gets a square: the Cohort by the way it came in, a creature at its band (else the far side).
+function placeAll(s, ctx) {
+  const m = mapUp(s); const siteId = s.scene.siteId; const zones = siteZones(s, ctx, siteId);
+  for (const k of Object.keys(m.at)) if (!whoAt(s, k) || (k.startsWith('cre:') && whoAt(s, k).band === 'loose')) delete m.at[k];
+  const grids = {}; const gridFor = (z) => grids[z.id] || (grids[z.id] = MAP.gridOf(m, siteId, z));
+  const valid = (p) => { if (!p || p.site !== siteId) return false; const z = MAP.zoneOf(zones, p.zone); if (!z) return false; const g = gridFor(z); return p.x >= 0 && p.y >= 0 && p.x < g.cols && p.y < g.rows; };
+  const need = [];
+  for (const k of [...inPlay(s), ...creaturesHere(s)]) if (!valid(m.at[k])) need.push(k);
+  const entry = zones.find((z) => (z.from || []).includes(m.cameFrom)) || MAP.entryZone(zones);
+  const put = (k, z, ax, ay) => { const g = gridFor(z); const c = MAP.freeNear(g, heldSquares(s, z.id, g.cols, { except: k }), ax, ay) || [0, 0]; m.at[k] = { site: siteId, zone: z.id, x: c[0], y: c[1] }; };
+  for (const k of need.filter((x) => x.startsWith('org:'))) {
+    const mate = inPlay(s).find((x) => x !== k && valid(m.at[x]));
+    if (mate) { const p = m.at[mate]; put(k, MAP.zoneOf(zones, p.zone), p.x + 0.5, p.y + 0.5); } else put(k, entry, ...MAP.anchor(gridFor(entry), 'left'));
+  }
+  for (const k of need.filter((x) => x.startsWith('cre:'))) {
+    const c = whoAt(s, k);
+    if (c.band && placeAtBand(s, ctx, k, c.band)) continue;
+    const far = zones[zones.length - 1];
+    put(k, far, ...MAP.anchor(gridFor(far), 'right'));
+  }
+}
+// After every action: tokens follow any band the action set, then every band follows the map.
+function mapSync(s, ctx, before) {
+  placeAll(s, ctx);
+  if (!mapOn(s)) return;
+  for (const c of Object.values(s.creatures)) {
+    if (c.siteId !== s.scene.siteId || c.band === 'loose') continue;
+    const was = before[c.cid];
+    if (was !== undefined && was !== c.band && c.band) placeAtBand(s, ctx, mapKey('cre', c.cid), c.band);
+  }
+  const D = creatureDrifts(s, ctx); if (!D) return;
+  for (const c of Object.values(s.creatures)) {
+    const p = s.map.at[mapKey('cre', c.cid)];
+    if (!p || c.siteId !== s.scene.siteId || c.band === 'loose') continue;
+    const d = D.at(p);
+    if (d != null) c.band = R.bandOf(d).id;
+  }
+}
+// Drifts and band from one token to another, for the Director's briefing and the screens.
+export function driftsBetween(s, scenario, a, b) {
+  const m = s.map; if (!m || !m.at[a] || !m.at[b]) return null;
+  const pa = m.at[a]; const pb = m.at[b];
+  if (pa.site !== pb.site) return null;
+  const zones = (m.zones || {})[pa.site] || [];
+  const st = pa.zone === pb.zone ? MAP.cheb(pa, pb) : MAP.stepsBetween(m, pa.site, zones, pa, pb);
+  return driftsOf(st);
+}
+const MAP_HANDLERS = {
+  // Move an organism or a creature: to another zone, to a square, or up to someone.
+  'map.move': {
+    run(s, a, ctx) {
+      const m = mapUp(s);
+      placeAll(s, ctx);
+      const raw = String(a.who || '');
+      let k = raw.includes(':') ? raw : s.organisms[raw] ? mapKey('org', raw) : s.creatures[raw] ? mapKey('cre', raw) : '';
+      if (!k) { const n = raw.toLowerCase(); const o = Object.values(s.organisms).find((x) => x.name.toLowerCase() === n); const c = Object.values(s.creatures).find((x) => x.siteId === s.scene.siteId && x.name.toLowerCase() === n); k = o ? mapKey('org', o.id) : c ? mapKey('cre', c.cid) : ''; }
+      const who = k && whoAt(s, k);
+      if (!who || !m.at[k]) throw new RuleError('Name who moves: an organism in play or a creature here.');
+      const isOrg = k.startsWith('org:');
+      if (isOrg) needControl(s, ctx, who.id); else if (ctx.role !== 'host') throw new RuleError('Only the host moves creatures.');
+      if (isOrg ? who.dormant : who.down) throw new RuleError(`${who.name} cannot move: ${isOrg ? 'Dormant' : 'down'}.`);
+      const stuck = condsOf(who).find((c) => MAP_RULES.stuck.includes(c));
+      const siteId = s.scene.siteId; const zones = siteZones(s, ctx, siteId);
+      const from = { ...m.at[k] };
+      let zone = a.zone ? MAP.findZone(zones, a.zone) : MAP.zoneOf(zones, from.zone);
+      if (a.zone && !zone) throw new RuleError(`There is no zone called "${a.zone}" here. Zones: ${zones.map((z) => z.name).join(', ')}.`);
+      const g = MAP.gridOf(m, siteId, zone);
+      const held = heldSquares(s, zone.id, g.cols, { except: k });
+      let cell;
+      if (a.x != null && a.y != null && a.x !== '' && a.y !== '') {
+        const x = Math.trunc(Number(a.x)); const y = Math.trunc(Number(a.y));
+        if (!(x >= 0 && y >= 0 && x < g.cols && y < g.rows)) throw new RuleError('That square is off the map.');
+        cell = held.has(y * g.cols + x) ? (ctx.role === 'host' ? MAP.freeNear(g, held, x + 0.5, y + 0.5) : null) : [x, y];
+        if (!cell) throw new RuleError('Someone is already there.');
+      } else if (zone.id !== from.zone) {
+        const path = MAP.zonePath(zones, from.zone, zone.id);
+        if (!path) throw new RuleError(`${zone.name} cannot be reached from here.`);
+        cell = MAP.freeNear(g, held, ...MAP.anchor(g, MAP.sideToward(zone, MAP.zoneOf(zones, path[path.length - 2]))));
+      } else throw new RuleError('Say where to move: a zone or a square.');
+      if (!cell) throw new RuleError(`There is no room left in ${zone.name}.`);
+      const to = { site: siteId, zone: zone.id, x: cell[0], y: cell[1] };
+      if (from.zone === to.zone && from.x === to.x && from.y === to.y) return;
+      if (ctx.role !== 'host') {
+        if (stuck) throw new RuleError(`${who.name} cannot move (${stuck}).`);
+        const hostile = (x) => x.startsWith('cre:') && !(s.creatures[x.slice(4)] || {}).stoodDown;
+        const blockedIn = (zid) => { const zg = MAP.gridOf(m, siteId, MAP.zoneOf(zones, zid)); return heldSquares(s, zid, zg.cols, { except: k, only: hostile }); };
+        const steps = MAP.stepsBetween(m, siteId, zones, from, to, { blockedIn });
+        if (steps == null) throw new RuleError('You cannot get there from here: something is in the way.');
+        if (s.fight) {
+          // In a Pulse War: on your own turn, and each Drift action (its PP) gives your Flow in Drifts to move.
+          const act = s.fight.actors[mapKey('org', who.id)];
+          if (!act || s.fight.turn !== act.key) throw new RuleError(`It is not ${who.name}'s turn.`);
+          const flow = Math.max(0, Number(who.flow) || 0);
+          if (!flow) throw new RuleError(`${who.name} has no Flow to move with.`);
+          let left = act.driftCycle === s.fight.cycle ? (act.driftLeft || 0) : 0;
+          let drifts = 0;
+          while (left < steps && drifts < 6) { MAP_HANDLERS.driftOnce(s, ctx, who); left += flow; drifts += 1; }
+          if (left < steps) throw new RuleError(`That is ${steps} Drifts away; ${who.name} moves ${flow} a Drift.`);
+          act.driftLeft = left - steps; act.driftCycle = s.fight.cycle;
+        }
+      }
+      m.at[k] = to;
+      if (to.zone !== from.zone && !(who.hidden)) say(s, ctx, `${who.name} moves to ${zone.name}.`, 'act');
+    },
+  },
+  'map.show': { host: true, run(s, a) { const m = mapUp(s); for (const k of ['travel', 'zones', 'grid', 'reach']) if (a[k] != null) m.show[k] = !!a[k]; } },
+  'map.zones': {
+    host: true,
+    run(s, a, ctx) {
+      const m = mapUp(s); const id = mapSiteRef(s, ctx, a.siteId);
+      if (a.reset) { delete m.zones[id]; siteZones(s, ctx, id); return; }
+      const list = MAP.normZones(a.zones);
+      if (!list.length) throw new RuleError('A place needs at least one zone.');
+      m.zones[id] = list;
+    },
+  },
+  'map.site': {
+    host: true,
+    run(s, a, ctx) {
+      const m = mapUp(s); const id = mapSiteRef(s, ctx, a.siteId);
+      if (a.clear) { delete m.sites[id]; return; }
+      const pic = mapPicture(a);
+      const cols = Math.trunc(Number(a.cols) || 0); const rows = Math.trunc(Number(a.rows) || 0);
+      if ((cols || rows) && !(cols >= 1 && cols <= 200 && rows >= 1 && rows <= 200)) throw new RuleError('Count the squares across and down (1 to 200).');
+      m.sites[id] = { ...pic, cols, rows, walls: MAP.cleanSegs(a.walls, MAP.MAX_WALLS, cols, rows), doors: MAP.cleanSegs(a.doors, 400, cols, rows) };
+      if (a.split && cols && rows) m.zones[id] = MAP.zonesFromSiteMap(cols, rows);
+      if (cols && rows) for (const k of Object.keys(m.at)) if (m.at[k].site === id) delete m.at[k];
+    },
+  },
+  'map.grid': {
+    host: true,
+    run(s, a, ctx) {
+      const m = mapUp(s); const id = mapSiteRef(s, ctx, a.siteId);
+      const z = MAP.zoneOf(siteZones(s, ctx, id), a.zoneId);
+      if (!z) throw new RuleError('There is no such zone here.');
+      const k = `${id}/${z.id}`;
+      if (a.clear) { delete m.grids[k]; return; }
+      const cols = Math.trunc(Number(a.cols) || 6); const rows = Math.trunc(Number(a.rows) || 6);
+      if (!(cols >= 2 && cols <= MAP.MAX_CELLS && rows >= 2 && rows <= MAP.MAX_CELLS)) throw new RuleError(`A zone's battle map has 2 to ${MAP.MAX_CELLS} squares a side.`);
+      m.grids[k] = { ...(a.url ? mapPicture(a) : {}), cols, rows, walls: MAP.cleanSegs(a.walls, MAP.MAX_WALLS, cols, rows), doors: MAP.cleanSegs(a.doors, 400, cols, rows) };
+    },
+  },
+  'map.travel': { host: true, run(s, a) { const m = mapUp(s); if (a.clear) { m.travel = null; return; } m.travel = mapPicture(a); } },
+  'map.pos': {
+    host: true,
+    run(s, a, ctx) {
+      const m = mapUp(s); const id = mapSiteRef(s, ctx, a.siteId);
+      if (a.clear) { delete m.pos[id]; return; }
+      const x = Number(a.x); const y = Number(a.y);
+      if (!(x >= 0 && x <= 1 && y >= 0 && y <= 1)) throw new RuleError('Place it on the map.');
+      m.pos[id] = { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 };
+    },
+  },
+  'map.reset': { host: true, run(s) { const m = mapUp(s); for (const k of Object.keys(m.at)) if (m.at[k].site === s.scene.siteId) delete m.at[k]; } },
+};
+Object.defineProperty(MAP_HANDLERS, 'driftOnce', { enumerable: false, value: (s, ctx, o) => HANDLERS.act.run(s, { organismId: o.id, action: 'drift' }, ctx) });
+const MAP_IMG = /^\/maps\/[a-f0-9]{16,64}\.(?:png|jpg|gif|webp)$/;
+function mapPicture(a) {
+  const url = String(a.url || '');
+  if (!MAP_IMG.test(url)) throw new RuleError('That picture could not be used. Import it again.');
+  const w = Math.trunc(Number(a.w)); const h = Math.trunc(Number(a.h));
+  if (!(w > 0 && w <= 30000 && h > 0 && h <= 30000)) throw new RuleError('The picture\'s size is missing.');
+  return { url, w, h };
+}
+function mapSiteRef(s, ctx, id) {
+  if (!id) return s.scene.siteId;
+  if (!((ctx.scenario || {}).sites || []).some((x) => x.id === id)) throw new RuleError('There is no such site.');
+  return id;
+}
+Object.assign(HANDLERS, MAP_HANDLERS);
+
 export function viewFor(state, role, pid) {
   if (role === 'host') return state;
   const s = clone(state);
@@ -3259,6 +3546,12 @@ export function viewFor(state, role, pid) {
     };
   }
   s.creatures = pub;
+  // The map: only who this screen can see, and no host notes on zones.
+  if (s.map) {
+    s.map.at = Object.fromEntries(Object.entries(s.map.at || {}).filter(([k]) => (k.startsWith('cre:') ? !!pub[k.slice(4)] : true)));
+    s.map.zones = Object.fromEntries(Object.entries(s.map.zones || {}).map(([id, list]) => [id, list.map((z) => ({ ...z, note: '' }))]));
+    delete s.map.cameFrom;
+  }
   if (s.fight) {
     for (const k of Object.keys(s.fight.actors)) {
       const a = s.fight.actors[k];

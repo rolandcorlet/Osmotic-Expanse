@@ -27,6 +27,7 @@ import { loadBestiary } from './data/bestiary-all.js';
 import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
 import { createSlots } from './slots.js';
+import { createMapStore, MAX_PICTURE } from './mapfiles.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -39,6 +40,8 @@ const SAVE = join(SAVE_DIR, 'session.json');
 const bestiary = loadBestiary();
 // Everything said in each game, kept on disk and searched (brain/memory.js).
 const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
+// The maps' pictures (a battle map, a travel map), kept with the saved games and named by their contents.
+const pictures = createMapStore(join(SAVE_DIR, 'maps'));
 const voice = createVoice({ saveDir: SAVE_DIR, getState: () => state, alsoSpeakable: (t) => publicSpeech(t) });
 
 // The words a screen may have read aloud besides the Director's narration: everything the
@@ -201,6 +204,9 @@ const FILES = {
   '/app.css': ['public/app.css', 'text/css'],
   '/flair.css': ['public/flair.css', 'text/css'],
   '/flair.js': ['public/flair.js', 'text/javascript'],
+  '/map.js': ['public/map.js', 'text/javascript'],
+  '/map.css': ['public/map.css', 'text/css'],
+  '/engine/map.js': ['engine/map.js', 'text/javascript'],
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/odds.js': ['engine/odds.js', 'text/javascript'],
   '/engine/bursts.js': ['engine/bursts.js', 'text/javascript'],
@@ -354,6 +360,22 @@ const server = http.createServer(async (req, res) => {
       if (!file) { res.writeHead(404); res.end(); return; }
       res.writeHead(200, { 'content-type': 'image/webp', 'cache-control': 'public, max-age=86400' });
       res.end(readFileSync(file));
+      return;
+    }
+    // A map picture (named by its contents, so no name can be guessed).
+    if (req.method === 'GET' && url.pathname.startsWith('/maps/')) {
+      const pic = pictures.get(url.pathname.slice(6));
+      if (!pic) { json(res, 404, { ok: false, error: 'No such picture.' }); return; }
+      res.writeHead(200, { 'content-type': pic.type, 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff' });
+      res.end(pic.bytes);
+      return;
+    }
+    // The host imports a picture for a map: the bytes come raw, and only a real image is kept.
+    if (req.method === 'POST' && url.pathname === '/api/map/upload') {
+      if (!(q.key && String(q.key).toUpperCase() === hostKey)) { json(res, 403, { ok: false, error: 'Only the host can import maps.' }); return; }
+      const parts = []; let size = 0;
+      try { for await (const ch of req) { size += ch.length; if (size > MAX_PICTURE) throw new Error('big'); parts.push(ch); } } catch (e) { json(res, 200, { ok: false, error: 'That picture is too big (25 MB at most).' }); return; }
+      try { json(res, 200, { ok: true, url: pictures.put(Buffer.concat(parts)) }); } catch (e) { json(res, 200, { ok: false, error: e.message }); }
       return;
     }
     if (req.method === 'GET' && FILES[url.pathname]) {
