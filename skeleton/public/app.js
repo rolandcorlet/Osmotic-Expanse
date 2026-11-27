@@ -459,6 +459,39 @@ function tableView() {
 }
 
 // ---------------------------------------------------------------- the host console
+// The book's pictures (kept on the Converter tab): this place's first, Show puts one on the players' screens
+// and the table's; one linked to a place or a creature shows by itself the first time (engine/pictures.js).
+function picturesCard() {
+  const P = (advNow().pictures || []);
+  if (!P.length) return null;
+  const now = S.art && S.art.now;
+  const shown = new Set((S.art && S.art.shown) || []);
+  const here = P.filter((p) => p.link && p.link.kind === 'site' && p.link.id === S.scene.siteId);
+  const rest = P.filter((p) => !here.includes(p));
+  const label = (p) => (!p.link ? 'Show only' : p.link.kind === 'site' ? ((advNow().sites || []).find((x) => x.id === p.link.id) || {}).name || p.link.id : ((M.bestiary.creatures.find((x) => x.id === p.link.id) || {}).name || p.link.id));
+  const row = (p) => h('div', { class: `pic-row${now && now.url === p.url ? ' on' : ''}` }, h('img', { src: p.url, alt: '', loading: 'lazy' }),
+    h('div', { class: 'grow pic-txt' }, h('small', { class: 'ell', title: p.about || '' }, p.about || 'A picture'), h('small', { class: 'faint' }, p.link ? `With: ${label(p)}` : 'Shows only when you press Show')),
+    h('button', { title: 'Show it on the players\' screens and the table now', onclick: () => act({ type: 'art.show', url: p.url }) }, shown.has(p.url) ? 'Again' : 'Show'),
+    h('button', { title: 'Use it as this place\'s picture behind the zone map', onclick: () => act({ type: 'map.site', url: p.url, w: p.w, h: p.h, cols: 0, rows: 0 }) }, 'Map'));
+  return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Pictures'), h('small', { class: 'dim' }, `${P.length}`)),
+    now ? h('div', { class: 'row' }, h('small', { class: 'grow ell' }, `Showing: ${now.about || 'a picture'}`), h('button', { onclick: () => act({ type: 'art.close' }) }, 'Take down')) : null,
+    h('div', { class: 'pic-list scroll', 'data-key': 'pics' }, [...here, ...rest].map(row)));
+}
+// Players and the table: the picture comes up over the screen; a tap or 8 seconds puts it away here.
+let artTimer = null; let artSeen;
+function artOverlay() {
+  if (ROLE === 'host') return;
+  let el = document.getElementById('art');
+  if (!el) { el = document.createElement('div'); el.id = 'art'; el.className = 'art-card'; el.hidden = true; el.addEventListener('click', () => { el.hidden = true; }); document.body.appendChild(el); }
+  const now = S && S.art && S.art.now;
+  if (!now) { el.hidden = true; if (artSeen === undefined) artSeen = 0; return; }
+  if (artSeen === undefined) { artSeen = now.n; return; } // already up when this screen opened: not again
+  if (now.n === artSeen) return;
+  artSeen = now.n;
+  el.replaceChildren(h('figure', {}, h('img', { src: now.url, alt: now.about || '' }), now.about ? h('figcaption', {}, now.about) : null));
+  el.hidden = false;
+  clearTimeout(artTimer); artTimer = setTimeout(() => { el.hidden = true; }, 8000);
+}
 function hostPlay() {
   const here = Object.values(S.creatures).filter((k) => k.siteId === S.scene.siteId);
   const d = ui.director || (HELLO.lastDirector || HELLO.proposal ? { last: HELLO.lastDirector, proposal: HELLO.proposal } : null);
@@ -497,6 +530,7 @@ function hostPlay() {
       h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Fight'),
         S.fight ? [h('button', { onclick: () => act({ type: 'fight.next' }) }, 'Next turn'), h('button', { onclick: () => act({ type: 'fight.end' }) }, 'End fight')] : h('button', { onclick: () => act({ type: 'fight.start' }) }, 'Start a fight')),
         S.fight ? h('div', { class: 'order' }, S.fight.order.map((o) => h('span', { class: `pill${o.key === curKey() ? ' cur' : ''}` }, `${nameOfKey(o.key)} ${o.init}`))) : null),
+      picturesCard(),
       objectsHere().length ? h('div', { class: 'card' }, h('h3', {}, 'Objects here'), objectsRow()) : null,
       h('div', { class: 'card' }, h('h3', {}, 'Creatures here'), here.length ? here.map((k) => {
         const b = M.bestiary.creatures.find((x) => x.id === k.base) || { attacks: [] };
@@ -555,6 +589,8 @@ async function pdfText(file) {
     const { readPdf } = await import('/pdfread.js');
     const r = await readPdf(await file.arrayBuffer(), { onProgress: (p) => { C.reading = `${file.name}: ${p.step}, page ${p.at} of ${p.of}`; render(); } });
     const words = r.pictures.filter((x) => x.words).map((x) => `--- ${x.scanned ? 'A scanned page' : 'A picture'} on page ${x.page}: its words ---\n${x.words}`);
+    // The pictures themselves, to review: art and maps kept, scanned pages of text left out to start with.
+    C.pics = [...(C.pics || []), ...r.pictures.map((x) => ({ data: x.data, w: x.w, h: x.h, page: x.page, keep: !x.scanned, about: (String(x.words || '').split('\n').map((l) => l.trim()).find((l) => l.length > 3) || '').slice(0, 120) }))].slice(0, 120);
     if (r.ocr) toast(r.ocr);
     const text = [r.text, ...words].join('\n\n').trim();
     if (!text.replace(/--- Page \d+ ---/g, '').trim()) toast(`${file.name} has no words that could be read.`);
@@ -583,11 +619,23 @@ function hostConverter() {
         render();
       } }),
       C.reading ? h('small', { class: 'dim' }, C.reading) : null,
+      (C.pics || []).length ? h('div', { class: 'pic-review' },
+        h('div', { class: 'row' }, h('small', { class: 'grow' }, `Pictures from the PDF: ${C.pics.filter((x) => x.keep).length} of ${C.pics.length} kept. They go with the adventure; one whose caption names a place or a creature shows by itself in play.`),
+          h('button', { onclick: () => { for (const x of C.pics) x.keep = true; render(); } }, 'Keep all'), h('button', { onclick: () => { for (const x of C.pics) x.keep = false; render(); } }, 'None'), h('button', { onclick: () => { C.pics = []; render(); } }, 'Clear')),
+        h('div', { class: 'pic-grid' }, C.pics.map((x, i) => h('div', { class: `pic-cell${x.keep ? ' on' : ''}` },
+          h('img', { src: x.data, alt: '', loading: 'lazy', onclick: () => { x.keep = !x.keep; render(); }, title: x.keep ? 'Kept: tap to leave it out' : 'Left out: tap to keep it' }),
+          h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: x.keep, onchange: (e) => { x.keep = e.target.checked; render(); } }), h('small', {}, `Page ${x.page}`)),
+          h('input', { id: `pic-about-${i}`, value: x.about, placeholder: 'What it shows (a place, a creature)', oninput: (e) => { x.about = e.target.value; } }))))) : null,
       h('label', { class: 'fld' }, h('span', {}, 'Notes for the converter (optional: "convert chapter 2", "keep it for children", "make magic dangerous")'), h('input', { id: 'cv-notes', value: f.notes, oninput: (e) => { f.notes = e.target.value; } })),
       h('div', { class: 'row' }, h('small', {}, 'Sections:'), SECTIONS.map((s) => h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: f.sections.includes(s), onchange: (e) => { f.sections = e.target.checked ? [...f.sections, s] : f.sections.filter((x) => x !== s); } }), s)), h('small', { class: 'faint' }, '(none ticked: all, or creatures and an adventure when extending)')),
       h('div', { class: 'row' }, h('button', { class: 'go', disabled: C.running, onclick: async () => {
         C.running = true; C.log = []; C.result = null; render();
-        const r = await post('/api/convert', { mode: f.mode, base: f.base, name: f.name, ideas: f.ideas, source: f.source, notes: f.notes, dice: f.dice || '', sections: f.sections.length ? SECTIONS.filter((s) => f.sections.includes(s)) : undefined });
+        // The kept pictures go to the picture store first (saves/maps), then with the conversion.
+        const pictures = [];
+        for (const x of (C.pics || []).filter((y) => y.keep)) {
+          try { pictures.push({ url: await uploadPicture(await (await fetch(x.data)).blob()), w: x.w, h: x.h, about: x.about, page: x.page }); } catch (e) { toast(`A picture from page ${x.page} could not be kept: ${e.message}`); }
+        }
+        const r = await post('/api/convert', { pictures, mode: f.mode, base: f.base, name: f.name, ideas: f.ideas, source: f.source, notes: f.notes, dice: f.dice || '', sections: f.sections.length ? SECTIONS.filter((s) => f.sections.includes(s)) : undefined });
         C.running = false; C.result = r; if (r.savedAs) HELLO = await (await fetch(`/api/hello?${qs()}`)).json(); render();
       } }, C.running ? 'Converting… (a minute or two a section)' : 'Convert'),
       h('a', { href: '/docs/CONVERTER-PROMPT.md', target: '_blank' }, 'The copy-paste prompt'), h('a', { href: '/docs/DESIGNER-PROMPT.md', target: '_blank' }, 'The designer prompt'), h('a', { href: '/docs/MODULE-FORMAT.md', target: '_blank' }, 'The format'))),
@@ -879,7 +927,7 @@ if (ROLE !== 'host') initScene({ store });
     if (ROLE === 'player') for (const q of S.requests) ui.seenReq[q.id] = true;
     if (asked && ui.reqReady) ui.tab = 'story';
     render(); speakNew();
-    if (ROLE !== 'host') scene();
+    if (ROLE !== 'host') { scene(); artOverlay(); }
     if (asked && ui.reqReady) requestAlert(asked);
     ui.reqReady = true; // not for the rolls already waiting when this screen opened: only the card shows those
   });

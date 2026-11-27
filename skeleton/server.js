@@ -15,6 +15,7 @@ import { systemRng } from './engine/dice.js';
 import { listModules, loadModule, saveModule, check, books } from './engine/module.js';
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
 import { createMapStore, MAX_PICTURE } from './mapfiles.js';
+import { cleanPictures, linkArt } from './engine/pictures.js';
 import { directorTurn } from './brain/director.js';
 import { makeProposal, approveProposal, proposalView } from './brain/copilot.js';
 import { createSlots } from './slots.js';
@@ -258,6 +259,10 @@ async function runConvert(body) {
       provider, mode: body.mode, source: body.source, ideas: body.ideas, name: body.name, notes: body.notes, sections: body.sections, existing, dice: body.dice,
       onProgress: (p) => { converting.steps.push(p); pushEvent('convert', p); },
     });
+    // The pictures the host kept from the PDF go with the adventure written this time (engine/pictures.js).
+    const pics = cleanPictures(body.pictures);
+    const fresh = out.mod.adventures.filter((a) => !(existing && (existing.adventures || []).some((x) => x.id === a.id)));
+    if (pics.length && fresh.length) { const a = fresh[fresh.length - 1]; a.pictures = [...(a.pictures || []), ...pics]; linkArt(a, out.mod); }
     let savedAs = '';
     if (out.mod.module && out.mod.module.id && body.save !== false) {
       if (body.mode !== 'extend') {

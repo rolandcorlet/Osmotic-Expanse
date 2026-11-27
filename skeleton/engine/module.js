@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { join } from 'node:path';
 import { checkAll, FORMAT } from './schema.js';
 import { getSystem } from './dicesystems.js';
+import { linkArt } from './pictures.js';
 
 // What the skeleton calls its parts when a module does not rename them.
 export const DEFAULT_TERMS = {
@@ -63,6 +64,8 @@ export function prepare(raw) {
     origin: by(mod.handbook.origins), calling: by(mod.handbook.callings), ability: by(mod.handbook.abilities),
     gear: by(mod.handbook.gear), creature: by(mod.bestiary.creatures), adventure: by(mod.adventures),
   };
+  // A book's pictures, each linked by its words to the creature or the place it shows (engine/pictures.js).
+  for (const a of mod.adventures) { try { linkArt(a, mod); } catch (e) { /* a broken picture list shows nothing */ } }
   return mod;
 }
 

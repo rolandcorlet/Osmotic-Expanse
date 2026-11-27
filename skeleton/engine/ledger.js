@@ -10,6 +10,7 @@ import * as TRIG from './triggers.js';
 import * as SEEDS from './seeds.js';
 import * as SCALE from './scale.js';
 import * as MAP from './map.js';
+import { artFor } from './pictures.js';
 
 export class RuleError extends Error {}
 const no = (msg) => { throw new RuleError(msg); };
@@ -297,6 +298,7 @@ function placeSite(s, ctx, siteId) {
   const site = siteOf(s, ctx.mod, siteId);
   if (!site || s.scene.visited.includes(siteId)) return;
   s.scene.visited.push(siteId);
+  autoArt(s, ctx, [['site', siteId]]); // the first time here: the place's own picture, if the book had one
   // A creature the adventure puts in one zone ("zone": "pier-end") starts there on the map.
   (site.creatures || []).forEach((c, n) => { for (const k of addCreatures(s, ctx, c.id, c.count || 1, siteId, !!c.hidden)) { k.group = `${siteId}#${n}`; if (c.zone) k.zone0 = String(c.zone); } });
 }
@@ -831,6 +833,7 @@ H['fight.start'] = (s, a, ctx) => {
   if (!order.some((o) => o.side === 1)) no('There is nothing here to fight. Add or reveal a creature first.');
   order.sort((x, y) => (y.init - x.init) || (x.side - y.side));
   s.fight = { round: 1, turn: 0, order: order.map(({ key, init }) => ({ key, init })), used: 0, xp: 0 };
+  autoArt(s, ctx, order.filter((o) => o.side === 1).map((o) => ['creature', s.creatures[o.key.slice(9)].base]));
   startOfTurn(s, ctx);
   story(s, ctx, 'event', `A fight! Order: ${s.fight.order.map((o) => `${nameOf(s, o.key)} (${o.init})`).join(', ')}. ${nameOf(s, currentKey(s))} goes first.`, 'Engine');
 };
@@ -1233,6 +1236,33 @@ H['map.pos'] = (s, a, ctx) => {
 // Everyone here back to their starting squares.
 H['map.reset'] = (s, a, ctx) => { hostOnly(ctx); const m = mapUp(s); for (const k of Object.keys(m.at)) if (m.at[k].site === s.scene.siteId) delete m.at[k]; };
 
+// ------------------------------------------------------------------ pictures in play (engine/pictures.js)
+// state.art: { now: { url, w, h, about, n } | null, shown: [url], n }. A linked picture shows by itself once,
+// the first time the party reaches its place or fights its creature; the host shows any, or takes it down.
+const artUp = (s) => (s.art = s.art || { now: null, shown: [], n: 0 });
+function showArt(s, p) {
+  const A = artUp(s);
+  A.n += 1;
+  A.now = { url: p.url, w: Math.trunc(p.w) || 0, h: Math.trunc(p.h) || 0, about: str(p.about, 200), n: A.n };
+  if (!A.shown.includes(p.url)) A.shown.push(p.url);
+}
+function autoArt(s, ctx, keys) {
+  const adv = adventureOf(s, ctx.mod);
+  if (!adv || !(adv.pictures || []).length) return;
+  const A = artUp(s);
+  for (const [kind, id] of keys) {
+    const p = artFor(adv, kind, id).find((x) => !A.shown.includes(x.url));
+    if (p) { showArt(s, p); return; }
+  }
+}
+H['art.show'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const p = ((adventureOf(s, ctx.mod) || {}).pictures || []).find((x) => x.url === a.url);
+  if (!p) no('That picture is not one of this adventure\'s.');
+  showArt(s, p);
+};
+H['art.close'] = (s, a, ctx) => { hostOnly(ctx); artUp(s).now = null; };
+
 export function viewFor(state, role) {
   if (role === 'host') return state;
   const s = structuredClone(state);
@@ -1241,6 +1271,7 @@ export function viewFor(state, role) {
   s.hostNotes = '';
   delete s.seeds; delete s.seedLog; delete s.seedNow; delete s.drift; delete s.driftKey; delete s.restAfter;
   s.story = s.story.filter((e) => e.kind !== 'host');
+  if (s.art) s.art = { now: s.art.now, n: s.art.n }; // which pictures were shown is the host's
   // The map: only who this screen can see, and no host notes on zones.
   if (s.map) {
     s.map.at = Object.fromEntries(Object.entries(s.map.at || {}).filter(([k]) => (k.startsWith('char:') ? !!s.chars[k.slice(5)] : !!s.creatures[k.slice(9)])));
