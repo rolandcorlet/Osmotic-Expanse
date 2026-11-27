@@ -772,6 +772,18 @@ async function chronicleOp(op, extra = {}) {
   if (r.found) ui.chron.found = r.found;
   render();
 }
+// The table's memory (engine/ledger.js cast.*): who and what the party has met, as the Director wrote it down.
+function castCard() {
+  const cards = Object.values(S.cast || {}).sort((a, b) => b.lastSeq - a.lastSeq);
+  const kinds = { person: 'Person', faction: 'Faction', place: 'Place', thread: 'Thread' };
+  const from = { page: 'from the adventure', table: 'came up at the table', improvised: 'made up in play' };
+  return h('div', { class: 'card scroll', 'data-key': 'cast' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'The table\'s memory'), h('small', { class: 'dim' }, `${cards.length}`)),
+    cards.length ? cards.map((c) => h('div', { class: 'cast-card' },
+      h('div', { class: 'row' }, h('b', { class: 'grow' }, c.name), h('span', { class: 'pill' }, kinds[c.kind] || c.kind), h('button', { title: 'Forget this card', onclick: () => { if (confirm(`Forget ${c.name}? The Director will not read this card again.`)) act({ type: 'cast.forget', id: c.id }); } }, '✕')),
+      h('small', { class: 'faint' }, from[c.origin] || c.origin),
+      c.facts.map((f, i) => h('div', { class: 'row cast-fact' }, h('small', { class: 'grow' }, f.text, f.seen ? '' : ' (players not told)'), h('button', { class: 'sm', title: 'Forget this fact', onclick: () => act({ type: 'cast.forget', id: c.id, fact: i }) }, '✕')))))
+      : h('small', { class: 'dim' }, 'Nobody yet. The Director writes down the people, places and threads the party meets, so they stay the same all game.'));
+}
 function hostChronicle() {
   const C = ui.chronicle || HELLO.chronicle || { chapters: [] };
   const Q = ui.chron = ui.chron || { q: '', found: null };
@@ -785,10 +797,10 @@ function hostChronicle() {
         h('div', { class: 'row' }, h('b', { class: 'grow' }, `${c.site}${c.why === 'night' ? ' · end of the night' : ''}`), h('small', { class: 'dim' }, `${when(c.t)} · ${c.by === 'ai' ? 'the AI' : 'the Engine'}`),
           h('button', { title: 'Drop this chapter', onclick: () => { if (confirm('Drop this chapter? The Director will not read it again.')) chronicleOp('drop', { id: c.id }); } }, '✕')),
         h('p', {}, c.text)))),
-    h('div', { class: 'card scroll' }, h('h3', {}, 'Search the game'),
+    h('div', { class: 'side' }, castCard(), h('div', { class: 'card scroll' }, h('h3', {}, 'Search the game'),
       h('div', { class: 'row' }, h('input', { id: 'chron-q', class: 'grow', placeholder: 'A name, a place, a thing', value: Q.q, oninput: (e) => { Q.q = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter' && Q.q.trim()) chronicleOp('search', { q: Q.q }); } }),
         h('button', { onclick: () => { if (Q.q.trim()) chronicleOp('search', { q: Q.q }); } }, 'Search')),
-      Q.found ? (Q.found.hits.length ? Q.found.hits.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('small', { class: 'dim' }, `${x.from === 'chronicle' ? 'Chronicle' : x.who || ''}${x.site ? ` · ${x.site}` : ''}${x.when ? ` · ${x.when}` : ''}`), h('div', {}, x.text)))) : h('small', {}, 'Nothing found.')) : h('small', { class: 'dim' }, 'Everything said, narrated and done in this game, earlier nights included, and the chronicle.')));
+      Q.found ? (Q.found.hits.length ? Q.found.hits.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('small', { class: 'dim' }, `${x.from === 'chronicle' ? 'Chronicle' : x.who || ''}${x.site ? ` · ${x.site}` : ''}${x.when ? ` · ${x.when}` : ''}`), h('div', {}, x.text)))) : h('small', {}, 'Nothing found.')) : h('small', { class: 'dim' }, 'Everything said, narrated and done in this game, earlier nights included, and the chronicle.'))));
 }
 function hostGame() {
   const f = ui.form.game = ui.form.game || { module: S.moduleId, adventure: S.adventureId };

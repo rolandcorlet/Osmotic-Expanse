@@ -174,3 +174,6 @@ main > .view { flex: 1; min-height: 0; display: grid; gap: 12px; }
 @keyframes art-in{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.art-card{animation:none}}
 .pic-sel{width:100%;min-width:0;font-size:12px;padding:2px 4px}
+/* The table's memory on the Chronicle tab. */
+.cast-card{display:flex;flex-direction:column;gap:3px;padding:6px 0;border-bottom:1px solid var(--line)}
+.cast-fact button{padding:1px 7px;font-size:12px}

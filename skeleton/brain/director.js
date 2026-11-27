@@ -42,6 +42,20 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1, cha
   L.push(`SECRETS (yours): ${adv.secrets}`);
   // The chronicle so far (brain/memory.js): what happened before the story below, newest last. recall finds more.
   if (chapters.length) L.push(`\nTHE STORY SO FAR (the chronicle, newest last; recall finds more):\n${chapters.map((c) => `- ${c.site}${c.why === 'night' ? ' (end of a night)' : ''}: ${c.text}`).join('\n')}`);
+  // The cast: who and what the table has met (engine/ledger.js cast.*), this place's first, then the latest.
+  {
+    const cards = Object.values(s.cast || {});
+    if (cards.length) {
+      const near = cards.filter((c) => c.siteId === here.id);
+      const recent = cards.filter((c) => c.siteId !== here.id).sort((a, b) => b.lastSeq - a.lastSeq).slice(0, 6);
+      const origin = { page: 'from the adventure', table: 'came up at the table', improvised: 'you made this up: it is true now' };
+      const line = (c) => `- ${c.name} (${c.kind}, first met at ${(adv.sites.find((x) => x.id === c.siteId) || {}).name || c.siteId}; ${origin[c.origin] || c.origin}): ${c.facts.slice(-3).map((f) => `${f.text}${f.seen ? '' : ' [players not told]'}`).join('; ') || 'no facts yet'}`;
+      L.push(`\nPEOPLE, PLACES AND THREADS THE TABLE HAS MET (${cards.length} on record; keep them the same, and remember new ones):`);
+      for (const c of [...near, ...recent]) L.push(line(c));
+      const rest = cards.length - near.length - recent.length;
+      if (rest > 0) L.push(`${rest} more on record: use recall to look anyone up before you bring them back.`);
+    }
+  }
   L.push(`\nPLACE: ${here.name} (${here.id}). Exits: ${(here.exits || []).map((e) => { const x = adv.sites.find((y) => y.id === e); return x ? `${x.id} (${x.name})` : e; }).join(', ') || 'none'}.`);
   L.push(`What they see: ${here.read}`);
   if (here.notes) L.push(`Your notes: ${here.notes}`);

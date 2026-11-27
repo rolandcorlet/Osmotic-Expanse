@@ -108,6 +108,17 @@ export const TOOLS = [
     },
   },
   {
+    name: 'remember',
+    description: 'Write a person, faction, place or thread into the table\'s memory so it stays the same for the rest of the game: when you give someone a name, a player names something, or a fact about someone is settled at the table (a debt, a grudge, a promise, what they want). One short fact in plain words. Calling it again with the same name adds a fact to the same card. Set seen false only for a fact the players have not been told.',
+    parameters: obj({ name: S('The name the table uses, for example "the lamp keeper" or "Old Harl".'), kind: { type: 'string', enum: ['person', 'faction', 'place', 'thread'], description: 'What it is: a person, a faction, a place, or a thread (a debt, a grudge, a promise: something unresolved).' }, fact: S('One short fact worth remembering.'), seen: { type: 'boolean', description: 'False only when the players have not been told this.' } }, ['name', 'kind', 'fact']),
+    run(a, T) {
+      const no = T.do({ type: 'cast.remember', name: a.name, kind: a.kind, fact: a.fact, seen: !(a.seen === false || a.seen === 'false') });
+      if (no) return { refused: no };
+      const k = Object.values(T.state.cast || {}).find((c) => c.name.toLowerCase() === String(a.name).trim().toLowerCase());
+      return { remembered: true, card: k ? { name: k.name, origin: k.origin, facts: k.facts.length } : null };
+    },
+  },
+  {
     name: 'recall',
     description: 'Search everything that has happened in this game, earlier nights included: what was said, narrated and done, and the chronicle.',
     parameters: obj({ query: S('A name, place or thing.') }, ['query']),

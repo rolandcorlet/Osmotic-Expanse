@@ -204,7 +204,7 @@ async function runDirector(reason, hostNote = '') {
       const provider = settings.provider();
       const before = state;
       const gid = state.gameId;
-      const recall = { chapters: memory.chapters(gid).slice(-3), search: (q) => memory.search(gid, q, { limit: 8 }) };
+      const recall = { chapters: memory.chapters(gid).slice(-3), search: (q) => memory.search(gid, q, { limit: 8, cast: state.cast || {} }) };
       const out = await directorTurn({ state, mod, provider, rng, now: Date.now(), reason, hostNote, memory: recall });
       lastDirector = { at: Date.now(), calls: out.calls, flags: out.flags, usage: out.usage, refusals: out.refusals };
       if (state.director.mode === 'approve') {
@@ -457,7 +457,7 @@ const server = createServer(async (req, res) => {
       if (p === '/api/chronicle') {
         if (b.op === 'night') queueChapter({ siteId: state.scene.siteId, why: 'night' });
         else if (b.op === 'drop' && b.id) memory.dropChapter(state.gameId, String(b.id));
-        else if (b.op === 'search') { json(res, 200, { ok: true, ...chronicleView(), found: memory.search(state.gameId, String(b.q || ''), { limit: 12 }) }); return; }
+        else if (b.op === 'search') { json(res, 200, { ok: true, ...chronicleView(), found: memory.search(state.gameId, String(b.q || ''), { limit: 12, cast: state.cast || {} }) }); return; }
         json(res, 200, { ok: true, ...chronicleView() });
         return;
       }

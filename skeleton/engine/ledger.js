@@ -1240,6 +1240,56 @@ H['map.pos'] = (s, a, ctx) => {
 // Everyone here back to their starting squares.
 H['map.reset'] = (s, a, ctx) => { hostOnly(ctx); const m = mapUp(s); for (const k of Object.keys(m.at)) if (m.at[k].site === s.scene.siteId) delete m.at[k]; };
 
+// ------------------------------------------------------------------ the cast (from v3, 28 Nov 2026)
+// The table's memory of who and what it has met: people, factions, places and threads (a debt, a grudge, a
+// promise), one card each with a few short facts, so the Director keeps them the same all game and can bring
+// them back. The Director writes them (remember); the host reads and clears them on the Chronicle tab.
+const CAST_KINDS = ['person', 'faction', 'place', 'thread'];
+const MAX_CAST = 400;
+const MAX_FACTS = 16;
+export const castKey = (name) => `k-${String(name).toLowerCase().replace(/^(the|a|an) /, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48)}`;
+const isParty = (s, name) => Object.values(s.chars).some((c) => castKey(c.name) === castKey(name) || castKey(String(c.name).split(/\s+/)[0]) === castKey(name));
+// From the page when the adventure names it; else it came up at the table (or the Director made it up).
+function castOrigin(s, ctx, name, asked) {
+  const n = String(name).toLowerCase().replace(/^(the|a|an) /, '');
+  const adv = adventureOf(s, ctx.mod);
+  if (n.length >= 3 && JSON.stringify(adv || {}).toLowerCase().includes(n)) return 'page';
+  return ['page', 'table', 'improvised'].includes(asked) ? asked : 'table';
+}
+H['cast.remember'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  s.cast = s.cast || {};
+  let any = false; let skipped = 0;
+  for (const e of (Array.isArray(a.entries) ? a.entries : [a]).slice(0, 20)) {
+    const name = str(e.name, 60);
+    if (!name) continue;
+    if (isParty(s, name)) { skipped += 1; continue; } // their sheet already keeps them
+    const key = castKey(name);
+    let c = s.cast[key];
+    if (!c) {
+      if (Object.keys(s.cast).length >= MAX_CAST) no(`The table's memory holds ${MAX_CAST} cards. Ask the host to clear some first.`);
+      c = s.cast[key] = { id: key, name, kind: CAST_KINDS.includes(e.kind) ? e.kind : 'person', siteId: s.scene.siteId, origin: castOrigin(s, ctx, name, e.origin), firstSeq: s.seq, lastSeq: s.seq, facts: [] };
+    }
+    c.lastSeq = s.seq;
+    if (CAST_KINDS.includes(e.kind)) c.kind = e.kind;
+    const fact = str(e.fact, 240);
+    if (fact && !c.facts.some((f) => f.text.toLowerCase() === fact.toLowerCase())) {
+      c.facts.push({ text: fact, seen: e.seen !== false, seq: s.seq, siteId: s.scene.siteId });
+      if (c.facts.length > MAX_FACTS) c.facts = c.facts.slice(-MAX_FACTS);
+    }
+    any = true;
+  }
+  if (!any && skipped) no('That is one of the party: their sheet already keeps them. Remember the people and threads around them instead.');
+  if (!any) no('Give a name to remember.');
+};
+H['cast.forget'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const c = (s.cast || {})[a.id];
+  if (!c) no('That card is not in the table\'s memory.');
+  if (a.fact != null) c.facts = c.facts.filter((f, i) => i !== Number(a.fact));
+  else delete s.cast[a.id];
+};
+
 // ------------------------------------------------------------------ pictures in play (engine/pictures.js)
 // state.art: { now: { url, w, h, about, n } | null, shown: [url], n }. A linked picture shows by itself once,
 // the first time the party reaches its place or fights its creature; the host shows any, or takes it down.
@@ -1276,6 +1326,7 @@ export function viewFor(state, role) {
   delete s.seeds; delete s.seedLog; delete s.seedNow; delete s.drift; delete s.driftKey; delete s.restAfter;
   s.story = s.story.filter((e) => e.kind !== 'host');
   if (s.art) s.art = { now: s.art.now, n: s.art.n }; // which pictures were shown is the host's
+  delete s.cast; // the table's memory is the host's and the Director's
   // The map: only who this screen can see, and no host notes on zones.
   if (s.map) {
     s.map.at = Object.fromEntries(Object.entries(s.map.at || {}).filter(([k]) => (k.startsWith('char:') ? !!s.chars[k.slice(5)] : !!s.creatures[k.slice(9)])));
