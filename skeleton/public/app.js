@@ -649,9 +649,31 @@ async function savesOp(op, extra = {}) {
   const r = await post('/api/saves', { op, ...extra });
   ui.saves.busy = false;
   if (r.slots) ui.saves.slots = r.slots;
+  if (r.cloud) ui.saves.cloud = r.cloud;
+  if (r.cloudSlots) ui.saves.cloudSlots = r.cloudSlots;
   if (!r.ok) toast(r.error || 'That did not work.');
   else if (op === 'save') { ui.saves.name = ''; toast('Saved.'); } else if (op === 'load') toast('Loaded. Undo brings back the game before.');
+  else if (op === 'pushAll') toast(`${r.copied || 0} saved game${r.copied === 1 ? '' : 's'} copied to Supabase.`);
+  else if (op === 'restore') toast('It is on this computer now, under Saved games.');
   render();
+  return r;
+}
+// The backup copy in Supabase (slots.js, the same table as the D&D Director's, ids sk-...).
+const MY_SUPABASE = 'https://rqxejhkatenyytjqpuzy.supabase.co';
+function cloudCard() {
+  const V = ui.saves; const C = V.cloud || {};
+  const status = !C.configured ? 'not set up' : C.status === 'ok' ? `working${C.at ? `, last copy ${new Date(C.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}` : C.status === 'error' ? 'not working' : 'set up, not tested';
+  return [h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Backup copy in Supabase'), h('span', { class: `pill${C.status === 'ok' ? ' ok' : C.status === 'error' ? ' warn' : ''}` }, status)),
+    h('small', {}, 'Every save, and the autosave, is copied to your Supabase project, so a game survives this computer. Supabase\'s free plan pauses a project after 7 days without use: open the dashboard now and then.'),
+    h('label', { class: 'fld' }, h('span', {}, 'Project address'), h('input', { id: 'sv-url', value: V.url ?? (C.url || MY_SUPABASE), oninput: (e) => { V.url = e.target.value; } })),
+    h('label', { class: 'fld' }, h('span', {}, `Secret key${C.keySet ? ' (saved on this computer; paste a new one to change it)' : ''}`), h('input', { id: 'sv-key', type: 'password', autocomplete: 'off', placeholder: C.keySet ? '••••••••' : 'sb_secret_… from Project Settings, API Keys', value: V.key || '', oninput: (e) => { V.key = e.target.value; } })),
+    h('div', { class: 'row' },
+      h('button', { class: 'go', disabled: V.busy, onclick: async () => { const r = await savesOp('config', { url: V.url ?? (C.url || MY_SUPABASE), secret: V.key || '' }); if (!r.ok) return; V.key = ''; const t = await savesOp('test'); if (t.ok) toast('Supabase answered. Saves will be copied there.'); } }, 'Save and test'),
+      h('button', { disabled: V.busy || !C.configured, onclick: () => savesOp('pushAll') }, 'Copy all saves now'),
+      h('button', { disabled: V.busy || !C.configured, onclick: () => savesOp('cloudList') }, 'Show the backups')),
+    C.error ? h('div', { class: 'log' }, C.error) : null,
+    V.cloudSlots ? h('div', { class: 'saves-list', 'data-key': 'cloud' }, !V.cloudSlots.length ? h('small', {}, 'No copies yet.') : V.cloudSlots.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, x.name), h('br'), h('small', {}, `${x.vector || ''}${x.site ? ` · ${x.site}` : ''}`)),
+      h('button', { disabled: V.busy, title: 'Bring this copy onto this computer as a saved game', onclick: () => savesOp('restore', { id: x.id }) }, 'Bring back')))) : null];
 }
 function savesCard() {
   const V = ui.saves = ui.saves || { slots: null, name: '', busy: false };
@@ -678,7 +700,7 @@ function hostGame() {
       h('div', { class: 'row' }, h('button', { onclick: async () => { const r = await post('/api/check', { id: f.module }); ui.form.checked = r; render(); } }, 'Check the module'),
         h('button', { class: 'warn', onclick: async () => { if (!confirm('Start a new game? The current one can be brought back with Undo only until the host restarts.')) return; const r = await post('/api/new', { module: f.module, adventure: f.module === S.moduleId ? f.adventure : undefined }); if (r.ok) location.reload(); else toast(r.error); } }, 'Start a new game')),
       ui.form.checked ? h('div', { class: 'log' }, ui.form.checked.ok === false && ui.form.checked.error ? ui.form.checked.error : ui.form.checked.errors.length ? ui.form.checked.errors.map((e) => `• ${e}\n`) : 'Valid: every section checks out.') : null),
-    h('div', { class: 'card scroll' }, h('h3', {}, 'Players'), Object.values(S.players).map((p) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, p.name), h('small', {}, p.charId && S.chars[p.charId] ? S.chars[p.charId].name : 'no character'))),
+    h('div', { class: 'card scroll' }, ...cloudCard(), h('h3', {}, 'Players'), Object.values(S.players).map((p) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, p.name), h('small', {}, p.charId && S.chars[p.charId] ? S.chars[p.charId].name : 'no character'))),
       h('h3', {}, 'Characters'), Object.values(S.chars).map((c) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, c.name), h('select', { style: 'width:auto;max-width:50%', onchange: (e) => act({ type: 'char.release', charId: c.id, playerId: e.target.value || null }) }, opt('', 'nobody', !c.playerId), Object.values(S.players).map((p) => opt(p.id, p.name, p.id === c.playerId))))),
       joinCard()));
 }

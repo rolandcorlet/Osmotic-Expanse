@@ -328,7 +328,14 @@ const server = createServer(async (req, res) => {
             proposal = null;
             push();
           } else if (b.op === 'delete') slots.remove(String(b.id || ''));
+          // The Supabase copy (slots.js): `key` is the host key here, so the secret comes as `secret`.
+          else if (b.op === 'config') slots.configure({ url: b.url, key: b.secret });
+          else if (b.op === 'test') await slots.test();
+          else if (b.op === 'pushAll') out.copied = await slots.pushAll();
+          else if (b.op === 'cloudList') out.cloudSlots = await slots.cloudList();
+          else if (b.op === 'restore') out.restored = await slots.restore(String(b.id || ''));
         } catch (e) { out.ok = false; out.error = e.message; }
+        out.cloud = slots.cloudView();
         out.slots = slots.list();
         json(res, 200, out);
         return;
