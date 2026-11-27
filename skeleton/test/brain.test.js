@@ -26,6 +26,13 @@ test('the briefing names the place, the party and hidden creatures for the Direc
   const b = briefing(T.s, mod, { reason: 'test' });
   assert.match(b, /Sunken Causeway/); assert.match(b, /Moll Tarrow/); assert.match(b, /hidden/); assert.match(b, /Cold current/);
 });
+test('a creature named as the one using an object is a note, not a refusal', () => {
+  const T = table(4); diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
+  const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
+  const k = Object.values(B.state.creatures).find((x) => x.siteId === 'causeway');
+  const r = B.run('use_object', { character: k.id, object: 'anything' });
+  assert.ok(r.note && !r.refused, JSON.stringify(r));
+});
 test('a skill named as the stat rolls that skill with its own stat; remembering one of the party is a note', () => {
   const T = table(4); const m = diver(T, 'p1', 0);
   const B = toolbox({ state: T.s, mod, rng: makeRng(1) });

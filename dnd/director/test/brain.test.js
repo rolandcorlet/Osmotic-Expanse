@@ -97,6 +97,17 @@ test('tools refuse in plain words and name what exists', () => {
   assert.match(B.run('nope', {}).refused, /no tool/);
 });
 
+test('a monster named as the one using an object is a note, not a refusal', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  const foe = Object.values(B.state.foes)[0];
+  const r = B.run('use_object', { character: foe.name, object: 'anything' });
+  assert.ok(r.note && !r.refused, JSON.stringify(r));
+  assert.ok(B.run('use_object', { character: 'Nobody At All', object: 'anything' }).refused);
+});
+
 test('a monster\'s turn through the tools: attack, end turn', () => {
   const T = table(8);
   const pc = hero(T, 'p1', 'Bryn');

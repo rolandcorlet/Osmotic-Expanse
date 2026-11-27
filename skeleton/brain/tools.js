@@ -358,6 +358,10 @@ export const TOOLS = [
     parameters: obj({ character: S('Who uses it: their name or id.'), object: S('The object, as "Objects here" names it.'), how: S('One verb: open, pull, read, try, search (optional).') }, ['character', 'object']),
     run(a, T) {
       const seq = T.state.seq;
+      // A creature named as the user (the Choir Master raising the key, Gull Rock bench, 28 Nov): objects are the
+      // party's to use; what a creature does is narration. A note, nothing changed.
+      const cre = Object.values(T.state.creatures || {}).find((k) => { const r = String(a.character || '').trim().toLowerCase(); return r && (k.id === r || k.name.toLowerCase() === r || r.startsWith(`${k.id} `)); });
+      if (cre) return { note: `Nothing changed: ${cre.name} is not one of the party. Objects here are the party's to use; narrate what ${cre.name} does with it instead.` };
       const no = T.do({ type: 'object.use', who: a.character, object: a.object, how: a.how });
       return no ? { refused: no } : T.since(seq);
     },

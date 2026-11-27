@@ -485,6 +485,9 @@ export const TOOLS = [
     parameters: obj({ character: S('Who does it (a party member).'), object: S('What they use, as the place names it ("iron chest").'), how: S('Optional: the verb, such as opens, pulls, reads, searches (default: uses).') }, ['character', 'object']),
     run(a, T) {
       const pc = findPc(T.state, a.character);
+      // A monster named as the user (the Skeleton's Gull Rock bench, 28 Nov): narration, nothing to do. A note.
+      const foe = !pc && findFoe(T.state, a.character, { all: true });
+      if (foe) return { note: `Nothing changed: ${foe.name} is not one of the party. Objects here are the party's to use; narrate what ${foe.name} does instead.` };
       if (!pc) return { refused: `There is nobody called "${a.character}" in the party. The party: ${party(T.state)}.` };
       const no = T.do({ type: 'object.use', who: `pc:${pc.id}`, object: a.object, how: a.how });
       return no ? { refused: no } : { ok: true };
