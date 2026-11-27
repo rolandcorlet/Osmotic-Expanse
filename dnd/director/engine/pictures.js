@@ -13,6 +13,7 @@
 // Never covers, credits, logos, stat blocks, pages, handouts or decorations.
 
 const NOT_ART = /\b(cover|credits?|title page|logo|foreword|table of contents|contents page)\b/i;
+export const isArt = (p) => !!p && p.kind === 'art' && !NOT_ART.test(p.about || '');
 const words = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const phraseRx = (p) => new RegExp(`\\b${p.split(' ').map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+')}(?:s|es)?\\b`, 'gi');
 const count = (text, p) => (p ? (String(text).match(phraseRx(p)) || []).length : 0);
@@ -49,7 +50,7 @@ export function linkArt(adv) {
     if (show === 'never') continue;
     const chosen = /^(site|monster):(.+)$/.exec(show);
     if (chosen) { p.link = { kind: chosen[1], id: chosen[2], why: 'the DM' }; continue; }
-    if (p.kind !== 'art' || NOT_ART.test(p.about || '')) continue;
+    if (!isArt(p)) continue;
     const about = words(p.about);
     // 2. its words: the longest monster name in them, else a place's whole name
     let hit = null;

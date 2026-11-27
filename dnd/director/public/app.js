@@ -1365,12 +1365,25 @@ function picturesCard() {
       <div class="grow pic-txt"><div class="small ell" title="${esc(p.about || '')}">${esc(p.about || 'A picture')}</div>
         <select class="pic-sel" data-artlink="${esc(p.url)}" title="When it shows by itself">${opt('', p.link && p.link.why !== 'the DM' ? auto : 'Not linked: Show only', cur)}${opt('never', 'Never by itself', cur)}
           <optgroup label="Arriving at">${(adv.sites || []).map((x) => opt(`site:${x.id}`, x.name, cur)).join('')}</optgroup>
-          <optgroup label="Fighting">${[...mons].map(([id, n]) => opt(`monster:${id}`, n, cur)).join('')}</optgroup></select></div>
+          <optgroup label="Fighting">${[...mons].map(([id, n]) => opt(`monster:${id}`, n, cur)).join('')}</optgroup></select>
+        ${sug[p.url] ? `<div class="row nw small"><span class="grow ell" style="color:var(--accent)">Suggested: ${esc(sug[p.url].label)}</span><button class="btn sm" data-act="art.use" data-url="${esc(p.url)}">Use</button></div>` : ''}</div>
       <button class="btn sm" data-act="art.show" data-url="${esc(p.url)}" title="Show it on the players' screens now">${shown.has(p.url) ? 'Again' : 'Show'}</button></div>`;
   };
-  return `<section class="card"><h3>Pictures<span class="right small dim">${P.length}</span></h3>
+  const unlinked = P.filter((p) => p.kind === 'art' && !p.link && p.show !== 'never').length;
+  const sug = ui.artSug || {};
+  const sugN = P.filter((p) => sug[p.url]).length;
+  return `<section class="card"><h3>Pictures<span class="right row nw">${unlinked && !LOCAL ? `<button class="btn sm" data-act="art.suggest" ${ui.artBusy ? 'disabled' : ''} title="The AI matches each unlinked picture to a monster or place; you choose which to use">${ui.artBusy ? 'Matching…' : 'Suggest links'}</button>` : ''}${sugN ? `<button class="btn sm primary" data-act="art.useall">Use all ${sugN}</button>` : ''}<span class="small dim">${P.length}</span></span></h3>
     ${now ? `<div class="row nw small"><span class="grow ell">Showing: ${esc(now.about || 'a picture')}</span><button class="btn sm" data-act="art.close">Take down</button></div>` : ''}
     <div class="pic-list scroll" data-scroll="pics">${P.map(row).join('')}</div></section>`;
+}
+// The DM's choice of what a picture goes with, kept in the adventure's file (server.js /api/art-link).
+async function artLink(url, show, quiet = false) {
+  try {
+    const out = await (await fetch('/api/art-link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, url, show }) })).json();
+    if (!out.ok) toast(out.error || 'That did not work.');
+    if (!quiet) reloadAdventure();
+    return !!out.ok;
+  } catch (e) { toast('Cannot reach the Director host. Is it still running?'); return false; }
 }
 // Players and the table: the picture slides in over the backdrop; a tap or 8 seconds closes it here.
 let artTimer = null;
@@ -1848,6 +1861,17 @@ const ACT = {
   'fight.start': () => send({ type: 'fight.start' }),
   'art.show': (d) => send({ type: 'art.show', url: d.url }),
   'art.close': () => send({ type: 'art.close' }),
+  'art.suggest': async () => {
+    ui.artBusy = true; render();
+    try {
+      const out = await (await fetch('/api/art-suggest', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key }) })).json();
+      if (!out.ok) toast(out.error || 'That did not work.');
+      else { ui.artSug = Object.fromEntries(out.suggestions.map((x) => [x.url, x])); if (!out.suggestions.length) toast('The AI found no clear match for them.', true); }
+    } catch (e) { toast('Cannot reach the Director host. Is it still running?'); }
+    ui.artBusy = false;
+  },
+  'art.use': async (d) => { const x = (ui.artSug || {})[d.url]; if (x && await artLink(x.url, x.show)) delete ui.artSug[d.url]; },
+  'art.useall': async () => { for (const x of Object.values(ui.artSug || {})) if (await artLink(x.url, x.show, true)) delete ui.artSug[x.url]; reloadAdventure(); },
   'fight.startauto': () => send({ type: 'fight.start', autoRoll: true }),
   attack: async (d) => {
     const foes = foesHere().filter((f) => !f.dead && !f.hidden);
@@ -2057,14 +2081,7 @@ function onField(e) {
     return;
   }
   if (t.dataset.assign) { if (e.type === 'change') { const pcId = t.value; if (pcId) send({ type: 'pc.assign', pcId, pid: t.dataset.assign }); else { const p = state.players[t.dataset.assign]; if (p && p.pcId) send({ type: 'pc.assign', pcId: p.pcId, pid: '' }); } } return; }
-  if (t.dataset.artlink) {
-    if (e.type === 'change') {
-      fetch('/api/art-link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, url: t.dataset.artlink, show: t.value }) })
-        .then((r) => r.json()).then((out) => { if (!out.ok) toast(out.error || 'That did not work.'); reloadAdventure(); })
-        .catch(() => toast('Cannot reach the Director host. Is it still running?'));
-    }
-    return;
-  }
+  if (t.dataset.artlink) { if (e.type === 'change') { if (ui.artSug) delete ui.artSug[t.dataset.artlink]; artLink(t.dataset.artlink, t.value); } return; }
   if (t.dataset.autorules) { if (e.type === 'change') send({ type: 'auto.set', rules: t.checked }); return; }
   if (t.dataset.autoscale) { if (e.type === 'change') send({ type: 'auto.set', scale: t.value }); return; }
   if (t.dataset.dmodel) { if (e.type === 'change' && t.value) sendDirector({ op: 'config', model: t.value }); return; }

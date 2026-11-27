@@ -26,6 +26,7 @@ import { createVoice } from './brain/voice.js';
 import { createSlots } from './slots.js';
 import { createMapStore, MAX_PICTURE } from './mapfiles.js';
 import { linkArt } from './engine/pictures.js';
+import { suggestArt } from './brain/art.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -658,6 +659,18 @@ const server = http.createServer(async (req, res) => {
         if (p) { if (show) p.show = show; else delete p.show; writeFileSync(f, JSON.stringify(raw, null, 1)); }
       } catch (e) { json(res, 200, { ok: false, error: `It is set for now, but could not be saved: ${e.message}` }); return; }
       json(res, 200, { ok: true });
+      return;
+    }
+    // The AI's matches for the pictures nobody linked: shown to the DM, kept only when the DM says Use.
+    if (req.method === 'POST' && url.pathname === '/api/art-suggest') {
+      const body = await readBody(req);
+      const who = access(req, { ...body, role: 'host' });
+      if (!who.role) { json(res, 403, who); return; }
+      if (!(director && director.aiReady && director.aiReady())) { json(res, 200, { ok: false, error: 'Set up an AI on the Director tab first.' }); return; }
+      try {
+        const suggestions = await suggestArt({ ask: (system, user) => director.ask(system, user), adv: adventure, srd });
+        json(res, 200, { ok: true, suggestions });
+      } catch (e) { json(res, 200, { ok: false, error: `The AI could not match them: ${e.message}` }); }
       return;
     }
     if (req.method === 'POST' && url.pathname === '/api/saves') {
