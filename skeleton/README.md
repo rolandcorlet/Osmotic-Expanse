@@ -23,6 +23,8 @@ and the **player** address for phones on the same Wi-Fi. Options: `--port 8790`,
 ## Play
 
 * Players open the player address, join, and take a ready-made character or build their own.
+* **Saved games** on the **Game** tab: save under a name, load one (Undo brings back the game before), delete;
+  an autosave keeps one slot per game every five minutes while it changes (`saves/slots/`).
 * The host runs the table from the **Play** and **World** tabs, or turns the **AI Director** on: it answers every
   player, asks for rolls on their screens, plays the creatures, and keeps the story going. In **Co-pilot** each of
   its turns waits on the Play tab first: what it does and says, to approve (its words edited or not), retry or

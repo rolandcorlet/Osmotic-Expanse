@@ -622,12 +622,36 @@ function hostVoice() {
     h('div', { class: 'row' }, h('button', { onclick: () => save() }, 'Save'), h('button', { class: 'go', onclick: () => { unlockAudio(); speak('The lamps gutter, and somewhere ahead something waits to be found.'); } }, 'Test')),
     h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: store.get('host-read', false), onchange: (e) => { store.set('host-read', e.target.checked); ui.readAloud = e.target.checked; store.set('read', e.target.checked); } }), 'Also read aloud on this console')));
 }
+// Saved games (server.js /api/saves, slots.js): save under a name, load (Undo brings back the game before),
+// delete; the autosave keeps one slot per game, every five minutes while it changes.
+async function savesOp(op, extra = {}) {
+  ui.saves.busy = true;
+  const r = await post('/api/saves', { op, ...extra });
+  ui.saves.busy = false;
+  if (r.slots) ui.saves.slots = r.slots;
+  if (!r.ok) toast(r.error || 'That did not work.');
+  else if (op === 'save') { ui.saves.name = ''; toast('Saved.'); } else if (op === 'load') toast('Loaded. Undo brings back the game before.');
+  render();
+}
+function savesCard() {
+  const V = ui.saves = ui.saves || { slots: null, name: '', busy: false };
+  if (!V.slots && !V.busy) savesOp('list');
+  const when = (t) => { try { return new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return t; } };
+  return [h('h3', {}, 'Saved games'),
+    h('div', { class: 'row' }, h('input', { id: 'save-name', class: 'grow', placeholder: 'Name this save (or leave it for the date)', value: V.name, oninput: (e) => { V.name = e.target.value; } }),
+      h('button', { class: 'go', disabled: V.busy, onclick: () => savesOp('save', { name: V.name }) }, 'Save')),
+    h('div', { class: 'saves-list', 'data-key': 'saves' }, !V.slots ? h('small', {}, 'Loading…') : !V.slots.length ? h('small', {}, 'No saved games yet. The autosave starts after a few minutes of play.') :
+      V.slots.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, x.name), x.auto ? h('span', { class: 'pill' }, 'auto') : null, h('br'), h('small', {}, `${when(x.savedAt)} · ${x.vector}${x.site ? ` · ${x.site}` : ''}${x.players ? ` · ${x.players}` : ''}`)),
+        h('button', { disabled: V.busy, onclick: () => { if (confirm(`Load "${x.name}"? The game now can be brought back with Undo.`)) savesOp('load', { id: x.id }); } }, 'Load'),
+        h('button', { class: 'warn', disabled: V.busy, onclick: () => { if (confirm(`Delete "${x.name}"? This cannot be undone.`)) savesOp('delete', { id: x.id }); } }, '✕'))))];
+}
 function hostGame() {
   const f = ui.form.game = ui.form.game || { module: S.moduleId, adventure: S.adventureId };
   return h('div', { class: 'view v-two' },
     h('div', { class: 'card scroll' }, h('h2', {}, 'Game'),
       h('small', {}, `Playing ${M.module.name}: ${(M.adventures.find((a) => a.id === S.adventureId) || {}).name}.`),
       h('div', { class: 'row' }, h('button', { onclick: async () => { const r = await post('/api/undo', {}); if (!r.ok) toast(r.error); } }, 'Undo the last change')),
+      ...savesCard(),
       h('h3', {}, 'New game'),
       h('label', { class: 'fld' }, h('span', {}, 'Module'), h('select', { onchange: (e) => { f.module = e.target.value; render(); } }, HELLO.modules.map((m) => opt(m.id, `${m.name}: ${m.tagline}`, m.id === f.module)))),
       f.module === S.moduleId ? h('label', { class: 'fld' }, h('span', {}, 'Adventure'), h('select', { onchange: (e) => { f.adventure = e.target.value; } }, M.adventures.map((a) => opt(a.id, a.name, a.id === f.adventure)))) : h('small', {}, 'Its first adventure starts; choose another after.'),

@@ -148,3 +148,5 @@ main > .view { flex: 1; min-height: 0; display: grid; gap: 12px; }
 .req-pill { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 850; padding: 7px 16px; white-space: nowrap; border-radius: 999px; border: 2px solid var(--accent); background: var(--panel); color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 6px 24px color-mix(in srgb, #000 40%, transparent); animation: reqBob 1.6s ease-in-out infinite; }
 @keyframes reqBob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
 @media (prefers-reduced-motion: reduce) { .req-flash { animation: reqFlash .8s ease-in-out 1; } .card.req-pulse { animation: none; box-shadow: 0 0 0 4px var(--accent); } .req-banner { animation: none; transform: translate(-50%, 0); } .req-pill { animation: none; } }
+.saves-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
+.saves-list .pill { margin-left: 6px; }

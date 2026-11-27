@@ -16,6 +16,7 @@ import { listModules, loadModule, saveModule, check, books } from './engine/modu
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
 import { directorTurn } from './brain/director.js';
 import { makeProposal, approveProposal, proposalView } from './brain/copilot.js';
+import { createSlots } from './slots.js';
 import { convert, MODES } from './brain/converter.js';
 import { createSettings } from './brain/settings.js';
 import { publicProviders, testConnection, pickDefaultModel } from './brain/providers.js';
@@ -61,6 +62,29 @@ function loadGame({ moduleId, adventureId, fresh = false }) {
   persist();
 }
 function persist() { try { writeFileSync(join(SAVE_DIR, 'session.json'), JSON.stringify(state)); } catch (e) { /* keep playing */ } }
+
+// Saved games: named slots, a five-minute autosave and the optional Supabase copy (slots.js, from the D&D
+// Director; ids sk-...). Loading one keeps the game before it for Undo, when it is the same module.
+const slots = createSlots({
+  dir: SAVE_DIR,
+  getState: () => state,
+  describe: (s) => {
+    const adv = (mod.ix.adventure || {})[s.adventureId] || {};
+    const site = ((adv.sites || []).find((x) => x.id === (s.scene || {}).siteId) || {}).name || '';
+    return { vector: `${mod.module.name}: ${adv.name || s.adventureId}`, site, players: Object.values(s.chars || {}).map((c) => c.name).join(', ') };
+  },
+  prefix: 'sk-',
+});
+function loadSaved(rec) {
+  if (!rec || !rec.state || !rec.state.chars || !rec.state.moduleId) throw new Error('That saved game is not a Skeleton game.');
+  if (!listModules(MOD_DIR).some((m) => m.id === rec.state.moduleId)) throw new Error(`That game needs the module "${rec.state.moduleId}", which is not in modules/.`);
+  const same = rec.state.moduleId === state.moduleId;
+  if (same) history.push(state); else { const m = loadModule(MOD_DIR, rec.state.moduleId); const r = check(m); if (!r.ok) throw new Error(`The module "${m.module.id}" has problems.`); mod = m; history.length = 0; }
+  const seq = state.seq;
+  state = rec.state;
+  state.seq = Math.max(seq + 1, state.seq || 0);
+  persist();
+}
 
 {
   const mods = listModules(MOD_DIR);
@@ -293,6 +317,21 @@ const server = createServer(async (req, res) => {
         json(res, 200, { ok: true });
         return;
       }
+      if (p === '/api/saves') {
+        const out = { ok: true };
+        try {
+          if (b.op === 'save') out.saved = await slots.save(b.name);
+          else if (b.op === 'load') {
+            if (directing) throw new Error('The Director is in the middle of a turn. Wait for it, then load the game.');
+            loadSaved(slots.read(String(b.id || '')));
+            proposal = null;
+            push();
+          } else if (b.op === 'delete') slots.remove(String(b.id || ''));
+        } catch (e) { out.ok = false; out.error = e.message; }
+        out.slots = slots.list();
+        json(res, 200, out);
+        return;
+      }
       if (p === '/api/director/discard') { proposal = null; directorEvent(false); json(res, 200, { ok: true }); return; }
       if (p === '/api/undo') { if (!history.length) { json(res, 200, { ok: false, error: 'Nothing to undo.' }); return; } state = history.pop(); persist(); push(); json(res, 200, { ok: true }); return; }
       if (p === '/api/new') { proposal = null; loadGame({ moduleId: b.module || state.moduleId, adventureId: b.adventure, fresh: true }); push(); json(res, 200, { ok: true }); return; }
@@ -333,6 +372,14 @@ function addresses() {
   for (const list of Object.values(networkInterfaces())) for (const n of list || []) if (n.family === 'IPv4' && !n.internal) out.push(n.address);
   return out;
 }
+
+// The autosave: every five minutes while the game is changing, one slot per game.
+let autoSeq = -1;
+setInterval(() => {
+  if (!state || state.seq === autoSeq) return;
+  autoSeq = state.seq;
+  slots.autosave().catch((e) => console.log(`The autosave could not be written: ${e.message}`));
+}, Number(arg('autosave-ms', '300000'))).unref();
 
 server.listen(PORT, () => {
   const lan = addresses()[0] || 'this-computer';
