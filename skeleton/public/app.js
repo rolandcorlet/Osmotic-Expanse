@@ -343,7 +343,7 @@ function playerStory() {
           h('button', { onclick: () => act({ type: 'roll.make', id: q.id, dice: String(ui.form[`own-${q.id}`] || '').match(/[+-]|\d+/g) || [] }) }, 'Use mine'))); }),
       rollCard(lastRoll),
       fightStrip(),
-      myTurn ? h('div', { class: 'card turn-now' }, h('h2', {}, 'Your turn'), h('small', {}, `${M.rules.combat.actionsPerTurn} actions. Used: ${S.fight.used || 0}.`),
+      myTurn ? h('div', { class: 'card turn-now' }, h('h2', {}, 'Your turn'), h('small', {}, `${M.rules.combat.actionsPerTurn} action${M.rules.combat.actionsPerTurn > 1 ? 's' : ''} a turn. Used: ${S.fight.used || 0}. Your turn ends by itself after the last one.`),
         weapons.length && foes.length ? h('div', { class: 'row' }, h('select', { onchange: (e) => { ui.form.weapon = e.target.value; } }, weapons.map((w) => opt(w.id, `${w.name} (${w.weapon})`, w.id === ui.form.weapon))),
           h('select', { onchange: (e) => { ui.form.target = e.target.value; } }, foes.map((k) => opt(k.id, k.name, k.id === ui.form.target))),
           h('button', { class: 'go', onclick: () => act({ type: 'attack', charId: c.id, gearId: ui.form.weapon, target: ui.form.target }) }, 'Attack')) : null,
