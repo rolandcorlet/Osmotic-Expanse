@@ -291,6 +291,13 @@ export const TOOLS = [
       // Talking, taunting or waiting is not an action in the stat block: just say it (bench 21 Nov: Aldane "Talk").
       if (/^(talk|speak|say|says|taunt|threaten|parley|laugh|wait|watch|pray|chant|gloat)\b/i.test(String(a.action || '').trim()))
         return { note: `Nothing changed: ${foe.name} speaking or waiting needs no tool. Say it in the narration, then use monster_action for what it actually does (${here(T.state)}), or end_turn.`, ...T.fightBrief() };
+      // The wrong one of a group whose turn it is (Far North bench, 27 Nov: "Duergar Soldiers 8" while it was
+      // Soldiers 4's turn, ten times in one fight, which then stalled): the one whose turn it is acts.
+      const f = T.state.fight;
+      const cur = f && f.phase === 'turns' && f.order[f.turn] ? f.order[f.turn].key : '';
+      const now = cur.startsWith('foe:') ? T.state.foes[cur.slice(4)] : null;
+      const kin = (x) => x && (x.base || String(x.name || '').replace(/\s+\d+$/, ''));
+      if (foe && now && now.id !== foe.id && !now.dead && kin(now) === kin(foe)) { T.assume(`It is ${now.name}'s turn, not ${foe.name}'s: ${now.name} acts.`); foe = now; }
       const targets = pcTargets(T.state, a);
       const before = T.state.seq;
       // A near name, a weapon the stat block calls something else, a spell out of slots, a target too far to

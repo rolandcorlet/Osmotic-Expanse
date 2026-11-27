@@ -211,3 +211,25 @@ test('the Director\'s complete_quest sets a mark the rules use, and still refuse
   assert.match(tb.run('complete_quest', { quest: 'snowman-resolved' }).note, /already done/);
   assert.match(tb.run('complete_quest', { quest: 'dragon-slain' }).refused, /no such quest/);
 });
+
+test('the wrong one of a group whose turn it is: the one whose turn it is acts (Far North bench, 27 Nov)', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  for (const f of Object.values(T.s.foes)) delete T.s.foes[f.id];
+  T.host({ type: 'foe.add', monster: 'goblin', count: 3 });
+  T.host({ type: 'foe.add', monster: 'bugbear', count: 1 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  if (T.s.fight.phase === 'initiative') T.host({ type: 'fight.begin' });
+  const k = T.s.fight.order.findIndex((o) => o.key.startsWith('foe:') && T.s.foes[o.key.slice(4)].base === 'Goblin');
+  T.s.fight.turn = k;
+  const now = T.s.foes[T.s.fight.order[k].key.slice(4)];
+  const other = Object.values(T.s.foes).find((x) => x.base === 'Goblin' && x.id !== now.id);
+  const bug = Object.values(T.s.foes).find((x) => x.base === 'Bugbear');
+  const tb = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 2 });
+  const out = tb.run('monster_action', { monster: other.name, action: 'Scimitar', targets: ['Bryn'] });
+  assert.ok(!/It is not/.test(out.note || ''), JSON.stringify(out));
+  assert.match(out.assumed || '', new RegExp(`It is ${now.name}'s turn`));
+  // Another kind of monster is still told it is not its turn.
+  const no = tb.run('monster_action', { monster: bug.name, action: 'Morningstar', targets: ['Bryn'] });
+  assert.match(no.note || no.refused || '', /not .*turn/);
+});
