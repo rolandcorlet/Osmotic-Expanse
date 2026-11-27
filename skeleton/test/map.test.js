@@ -98,3 +98,53 @@ test('a melee attack steps up to its target; with distance deciding, too far or 
   T.s.map.at[`creature:${k.id}`] = { site: T.s.scene.siteId, zone: 'far', x: 5, y: 3 };
   assert.throws(() => T.ai({ type: 'creature.act', creature: k.id, attack: base.attacks[0].name, target: a.id }), /too far .* to strike this turn/);
 });
+
+import { briefing } from '../brain/director.js';
+import { toolbox } from '../brain/tools.js';
+import { makeRng } from '../engine/dice.js';
+
+test('the Director sees the map and moves creatures on it', () => {
+  const T = table(5);
+  const a = diver(T, 'p1', 0);
+  const base = mod.bestiary.creatures.find((c) => (c.attacks || []).length);
+  T.host({ type: 'creature.add', base: base.id, count: 1 });
+  const k = Object.values(T.s.creatures).find((x) => x.base === base.id);
+  const b = briefing(T.s, mod, {});
+  assert.match(b, /MAP \(zones about six squares across, a square is 5 ft/);
+  assert.match(b, new RegExp(`- Near side: ${a.name}`));
+  assert.match(b, new RegExp(`- Far side: ${k.name}`));
+  const tb = toolbox({ state: T.s, mod, rng: makeRng(1), now: 1 });
+  const r1 = tb.run('move_creature', { who: [k.name], to_zone: 'Middle' });
+  assert.ok(!r1.note, JSON.stringify(r1));
+  assert.match(r1.map, new RegExp(`- Middle: ${k.name}`));
+  assert.match(tb.run('move_creature', { who: [k.name], to_zone: 'the moon' }).note, /no zone called "the moon"/);
+  // In a fight, no place given: it closes in on a character.
+  tb.state = { ...tb.state };
+  T.s = tb.state; T.host({ type: 'fight.start' });
+  const tb2 = toolbox({ state: T.s, mod, rng: makeRng(1), now: 1 });
+  const r3 = tb2.run('move_creature', { who: [k.name] });
+  assert.match(r3.note || '', new RegExp(`closes in on ${a.name}`));
+  assert.match(r3.map, /Close enough to strike: /);
+});
+
+test('a rule for entering a zone fires for the character who steps in; arriving at the place is another rule', async () => {
+  const adv = mod.ix.adventure[mod.adventures[0].id];
+  const start = adv.sites.find((x) => x.id === adv.start);
+  const saved = start.rules;
+  start.rules = [...(saved || []),
+    { id: 'far-key', when: 'enter far side', do: 'give', item: 'Brass key', say: 'Something glints in the weed.' },
+    { id: 'arrive', when: 'enter', do: 'say', say: 'Gulls everywhere.', once: false }];
+  try {
+    const T = table(6);
+    const a = diver(T, 'p1', 0);
+    const b = diver(T, 'p2', 1);
+    const arrivals = () => T.s.story.filter((e) => /Gulls everywhere/.test(e.text)).length;
+    const before = arrivals();
+    T.as('p2', { type: 'map.move', who: b.id, zone: 'far' });
+    assert.deepEqual(T.s.chars[b.id].items, ['Brass key']);
+    assert.ok(!(T.s.chars[a.id].items || []).length);
+    assert.equal(arrivals(), before, 'moving between zones is not arriving');
+    const bad = { ...adv, sites: [{ id: 'x', rules: [{ when: 'enter the attic', do: 'say', say: 'x' }] }], rules: [] };
+    assert.match((await import('../engine/triggers.js')).checkRules(mod, bad).join('\n'), /no zone here is called "the attic"/);
+  } finally { start.rules = saved; }
+});

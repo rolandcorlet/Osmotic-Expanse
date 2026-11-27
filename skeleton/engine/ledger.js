@@ -178,7 +178,9 @@ function runRules(s, ctx) {
       if (TRIG.STATES.includes(r.when.ev)) set = stateHolds(s, ctx, r);
       else {
         // "use chest" is set off by using the Sea chest: the object this place's rule names, matched loosely.
-        const argOk = (e) => !r.when.arg || (e.args || []).includes(r.when.arg) || (r.when.ev === 'use' && (e.args || []).some((x) => x.includes(r.when.arg) || r.when.arg.includes(x)));
+        // A plain "enter" is the party arriving at the place, never a character stepping into a zone of it;
+        // "enter pier end" is someone entering that zone (its id or its name).
+        const argOk = (e) => (!r.when.arg ? !(r.when.ev === 'enter' && e.zone) : (e.args || []).includes(r.when.arg) || (r.when.ev === 'use' && (e.args || []).some((x) => x.includes(r.when.arg) || r.when.arg.includes(x))));
         ev = events.find((e) => e.ev === r.when.ev && argOk(e) && (!e.site || !r.site || e.site === r.site)) || null;
         set = !!ev;
       }

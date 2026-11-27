@@ -9,6 +9,36 @@
 
 import { apply, RuleError, target, currentKey, charDefence } from '../engine/ledger.js';
 import { lookUp, difficulty, term } from '../engine/module.js';
+import * as MAP from '../engine/map.js';
+
+// The map for the Director (from the D&D Director's mapBrief): each zone here and who is in it, the ways
+// between zones, and who is close enough to strike whom. Empty when the map is off or has no zones here.
+export function mapBrief(s, mod) {
+  const m = s.map;
+  if (!m || !m.show || !(m.show.zones || m.show.grid)) return '';
+  const siteId = s.scene.siteId;
+  const zones = (m.zones || {})[siteId];
+  if (!zones || !zones.length) return '';
+  const R = MAP.mapRules(mod);
+  const name = (k) => { const [kind, id] = k.split(':'); const o = kind === 'char' ? s.chars[id] : s.creatures[id]; return o ? `${o.name}${o.down ? ' (down)' : ''}${kind === 'creature' && o.hidden ? ' (hidden)' : ''}` : ''; };
+  const here = Object.entries(m.at || {}).filter(([k, p]) => p.site === siteId && name(k));
+  const lines = zones.map((z) => {
+    const who = here.filter(([, p]) => p.zone === z.id).map(([k]) => name(k));
+    const tags = (z.tags || []).map((t) => (t === 'half-cover' ? `half cover (+${R.cover.half} defence)` : t === 'three-quarters-cover' ? `full cover (+${R.cover.full} defence)` : MAP.TAGS[t])).filter(Boolean);
+    return `- ${z.name}${tags.length ? ` (${tags.join(', ')})` : ''}: ${who.join(', ') || 'nobody'}${z.note ? `. ${z.note}` : ''}`;
+  });
+  const links = [];
+  for (const z of zones) for (const l of z.links || []) if (z.id < l) links.push(`${z.name}–${(zones.find((x) => x.id === l) || {}).name}`);
+  const close = [];
+  const chars = here.filter(([k]) => k.startsWith('char:')); const ks = here.filter(([k]) => k.startsWith('creature:'));
+  for (const [ck, cp] of chars) for (const [kk, kp] of ks) if (MAP.inReach(cp, kp, R.reach) && !s.chars[ck.slice(5)].down && !s.creatures[kk.slice(9)].down) close.push(`${name(ck)} and ${name(kk)}`);
+  return [
+    `MAP (zones about six squares across, a square is ${R.square}; players move their own characters, move_creature moves the creatures; a creature's melee attack steps up to its target${m.show.reach ? `; DISTANCE DECIDES: a creature strikes only someone it can reach within ${R.move * 2} squares, and shoots no further than its range` : ''}):`,
+    ...lines,
+    links.length ? `Ways between zones: ${links.join(', ')}.` : '',
+    close.length ? `Close enough to strike: ${close.join('; ')}.` : '',
+  ].filter(Boolean).join('\n');
+}
 
 const S = (description) => ({ type: 'string', description });
 const N = (description) => ({ type: 'number', description });
@@ -268,6 +298,45 @@ export const TOOLS = [
       if (no) return { refused: no };
       const now = T.state.seedNow || {};
       return { ...T.since(seq), seed: now.title, arrived: now.foes || [], here: T.here() };
+    },
+  },
+  {
+    name: 'move_creature',
+    description: 'Move creatures (or characters with no player) on the map of this place: to another zone (MAP in the briefing lists them), or up to someone to fight them. Use it when a creature runs, charges, hides or takes cover; a creature\'s attack already steps up to its target by itself.',
+    parameters: obj({
+      who: A('Names or ids of who moves.'),
+      to_zone: S('The zone to move to, by its name in MAP. Leave empty when engaging someone.'),
+      engage: S('Optional: the name of someone to move right up to.'),
+    }, ['who']),
+    run(a, T) {
+      const m = T.state.map;
+      if (!m || !(m.show.zones || m.show.grid)) return { note: 'Nothing changed: the map is switched off for this game. Just narrate where everyone is.' };
+      const list = (v) => [].concat(v || []).flatMap((x) => String(x).split(/\s*,\s*|\s+and\s+/)).map((x) => x.trim()).filter(Boolean);
+      const who = list(a.who).length ? list(a.who) : list(a.creatures).concat(list(a.characters));
+      if (!who.length) return { note: 'Nothing changed: name who moves (the who list).' };
+      const zone = a.to_zone || a.zone || a.to || '';
+      let engage = a.engage || a.target || '';
+      let chose = '';
+      // No place to go, in a fight (from the D&D bench, 27 Nov): a creature closes on a standing character,
+      // a character on a standing creature here.
+      if (!zone && !engage && T.state.fight) {
+        const first = target(T.state, who[0]);
+        const up = first && first.kind === 'creature' ? Object.values(T.state.chars).find((c) => !c.down)
+          : first ? Object.values(T.state.creatures).find((k) => k.siteId === T.state.scene.siteId && !k.down && !k.hidden) : null;
+        if (up) { engage = up.name; chose = `No place was given: ${who.join(', ')} closes in on ${up.name}.`; }
+      }
+      if (!zone && !engage) return { note: 'Nothing changed: give to_zone (a zone in MAP) or engage (someone to move up to).', map: mapBrief(T.state, T.mod) };
+      const done = []; const notes = chose ? [chose] : [];
+      for (const w of who) {
+        const t = target(T.state, w);
+        if (!t) { notes.push(`Nobody called "${w}" is here.`); continue; }
+        const no = T.do({ type: 'map.move', who: `${t.kind}:${t.id}`, zone: engage ? '' : zone, engage: engage ? (() => { const e = target(T.state, engage); return e ? `${e.kind}:${e.id}` : engage; })() : '' });
+        if (no) notes.push(no); else { done.push(w); if (T.state.map.lastNote) notes.push(T.state.map.lastNote); }
+      }
+      const out = { map: mapBrief(T.state, T.mod) };
+      if (!done.length) return { note: `Nothing changed: ${notes.join(' ')}`, ...out };
+      if (notes.length) out.note = notes.join(' ');
+      return out;
     },
   },
   {

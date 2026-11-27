@@ -13,6 +13,8 @@
 //
 // when (each rule fires once unless it says `once: false`; "round" fires every round):
 //   enter            the party arrives here (the first place: when the game starts)
+//   enter <zone>     a character steps into that zone of this place on the map (its id or name); `if carries`
+//                    and `give` mean that character
 //   fail <x>         a roll made here with that stat or skill fails
 //   succeed <x>      a roll made here with that stat or skill succeeds
 //   round            a new round of a fight here begins
@@ -99,6 +101,11 @@ export function checkRules(mod, adv) {
       for (const k of ['who', 'target']) if (r[k] && !knows(r[k])) errors.push(`${at}: there is no creature "${r[k]}" in this adventure or the bestiary.`);
       if (r.do === 'say' && !r.say) errors.push(`${at}: write the line to say.`);
       if (r.do === 'give' && !r.item) errors.push(`${at}: say what is given (item: 'Brass key').`);
+      if (w.ev === 'enter' && w.arg) {
+        const site = sites.find((x) => x.id === where);
+        const zs = site && Array.isArray(site.zones) && site.zones.length ? site.zones : [{ id: 'near', name: 'Near side' }, { id: 'middle', name: 'Middle' }, { id: 'far', name: 'Far side' }];
+        if (site && !zs.some((z) => String(z.id).toLowerCase() === w.arg || String(z.name || '').toLowerCase() === w.arg)) errors.push(`${at}: no zone here is called "${w.arg}" (zones: ${zs.map((z) => z.name || z.id).join(', ')}).`);
+      }
       if (w.ev === 'use') {
         const site = sites.find((x) => x.id === where);
         const objs = site ? objectsOf(site) : sites.flatMap(objectsOf);
@@ -116,7 +123,7 @@ export function checkRules(mod, adv) {
 }
 // One line in words, for the Director's briefing and the host's screen.
 export function ruleWords(r) {
-  const when = { enter: 'when the party arrives', fail: `when a ${r.when.arg || ''} roll fails`, succeed: `when a ${r.when.arg || ''} roll succeeds`, round: 'each new round', down: `when ${r.who} is down`, cleared: 'when nothing here is left standing', full: `when ${r.when.arg} fills`, quest: `when ${r.when.arg} is done`, use: `when someone uses the ${r.when.arg}` }[r.when.ev] || r.when.ev;
+  const when = { enter: r.when.arg ? `when someone enters ${r.when.arg}` : 'when the party arrives', fail: `when a ${r.when.arg || ''} roll fails`, succeed: `when a ${r.when.arg || ''} roll succeeds`, round: 'each new round', down: `when ${r.who} is down`, cleared: 'when nothing here is left standing', full: `when ${r.when.arg} fills`, quest: `when ${r.when.arg} is done`, use: `when someone uses the ${r.when.arg}` }[r.when.ev] || r.when.ev;
   const did = { fight: 'a fight starts', calm: `${r.target || r.who} stops fighting`, flee: `${r.target || r.who} flees`, reveal: `${r.target || r.who || 'whatever hides here'} is revealed`, tick: `${r.clock} ticks`, quest: `${r.quest} is done`, xp: `each earns ${r.xp}`, add: `${r.count || 1} ${r.creature} arrive`, give: `${r.item} goes to ${r.when.ev === 'use' ? 'whoever used it' : 'the party'}`, say: 'the Director is told' }[r.do] || r.do;
   return `${when}${r.conds.length ? ` (if ${r.conds.map((c) => `${c.not ? 'not ' : ''}${c.k}${c.arg ? ` ${c.arg}` : ''}`).join(', ')})` : ''}: ${did}${r.say ? `. "${r.say}"` : ''}`;
 }

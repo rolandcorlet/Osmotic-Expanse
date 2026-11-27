@@ -3,7 +3,7 @@
 // supplies the words (instructions.md is filled in from module.json and rules.json).
 
 import { readFileSync } from 'node:fs';
-import { toolbox, toolsFor, charLine } from './tools.js';
+import { toolbox, toolsFor, charLine, mapBrief } from './tools.js';
 import { term, ladderName } from '../engine/module.js';
 import { getSystem } from '../engine/dicesystems.js';
 import { currentKey } from '../engine/ledger.js';
@@ -54,6 +54,9 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1, cha
   if (rules.length) L.push(`Rules here (the Engine does these by itself when they happen; just narrate them): ${rules.map(ruleWords).join(' | ')}`);
   const ks = Object.values(s.creatures).filter((k) => k.siteId === s.scene.siteId);
   if (ks.length) L.push(`Creatures here: ${ks.map((k) => { const b = mod.ix.creature[k.base]; return `${k.id} ${k.name}${k.down ? ' (DOWN, out of the fight)' : k.hidden ? ' (hidden: reveal_creatures when found)' : ''}: ${k.health}/${k.healthMax} ${term(mod, 'health')}${k.conds.length ? `, ${k.conds.join(', ')}` : ''}; attacks ${b.attacks.map((x) => x.name).join(', ')}; tactics: ${b.tactics || ''}`; }).join(' | ')}`);
+  // The map: zones, who is where, who can strike whom (brain/tools.js mapBrief).
+  const mapText = mapBrief(s, mod);
+  if (mapText) L.push(mapText);
   L.push(`\nTHE PARTY:`);
   for (const c of Object.values(s.chars)) L.push(`- ${charLine(mod, c)}`);
   if (!Object.keys(s.chars).length) L.push('- Nobody has a character yet. Welcome the table and ask who they will play.');
