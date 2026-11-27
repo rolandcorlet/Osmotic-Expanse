@@ -27,3 +27,51 @@ test('zones: three of their own when a place gives none, and a path between them
   assert.deepEqual(z.map((x) => x.name), ['Near side', 'Middle', 'Far side']);
   assert.deepEqual(MAP.zonePath(z, 'near', 'far'), ['near', 'middle', 'far']);
 });
+
+import { mod, table, diver } from './helpers.js';
+import { viewFor } from '../engine/ledger.js';
+
+test('everyone at the party\'s place has a square; travel brings the party in by the way they came', () => {
+  const T = table(4);
+  const a = diver(T, 'p1', 0);
+  const b = diver(T, 'p2', 1);
+  const at = T.s.map.at;
+  assert.ok(at[`char:${a.id}`] && at[`char:${b.id}`], 'both on the map');
+  assert.equal(at[`char:${a.id}`].site, T.s.scene.siteId);
+  assert.notDeepEqual([at[`char:${a.id}`].x, at[`char:${a.id}`].y], [at[`char:${b.id}`].x, at[`char:${b.id}`].y], 'never on the same square');
+  T.host({ type: 'site.move', siteId: 'causeway' });
+  assert.equal(T.s.map.at[`char:${a.id}`].site, 'causeway');
+  assert.equal(T.s.map.cameFrom, 'dock');
+});
+
+test('a player moves their own character; in a fight only on their turn and as far as the game allows', () => {
+  const T = table(4);
+  const a = diver(T, 'p1', 0);
+  diver(T, 'p2', 1);
+  T.as('p1', { type: 'map.move', who: a.id, zone: 'middle' });
+  assert.equal(T.s.map.at[`char:${a.id}`].zone, 'middle');
+  assert.ok(T.s.story.some((e) => new RegExp(`${a.name} moves to Middle`).test(e.text)));
+  assert.throws(() => T.as('p2', { type: 'map.move', who: a.id, zone: 'far' }), /not your character/);
+  // In a fight: a creature to fight, and only on their own turn.
+  T.host({ type: 'creature.add', base: mod.bestiary.creatures[0].id, count: 1 });
+  T.host({ type: 'fight.start' });
+  const mine = T.s.fight.order.findIndex((o) => o.key === `char:${a.id}`);
+  T.s.fight.turn = (mine + 1) % T.s.fight.order.length;
+  assert.throws(() => T.as('p1', { type: 'map.move', who: a.id, x: 0, y: 0 }), /not .*turn/);
+  T.s.fight.turn = mine; T.s.fight.moved = 0;
+  const p = T.s.map.at[`char:${a.id}`];
+  T.as('p1', { type: 'map.move', who: a.id, x: p.x === 0 ? 1 : 0, y: p.y });
+  assert.ok(T.s.fight.moved >= 1);
+  T.s.fight.moved = 6;
+  const q = T.s.map.at[`char:${a.id}`];
+  assert.throws(() => T.as('p1', { type: 'map.move', who: a.id, x: q.x === 0 ? 1 : 0, y: q.y }), /0 left this turn/);
+});
+
+test('players never see where a hidden creature stands', () => {
+  const T = table(4);
+  diver(T, 'p1', 0);
+  T.host({ type: 'creature.add', base: mod.bestiary.creatures[0].id, count: 1, hidden: true });
+  const k = Object.keys(T.s.map.at).find((x) => x.startsWith('creature:'));
+  assert.ok(k, 'the host sees it placed');
+  assert.ok(!viewFor(T.s, 'player').map.at[k]);
+});
