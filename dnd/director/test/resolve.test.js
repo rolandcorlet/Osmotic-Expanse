@@ -250,3 +250,25 @@ test('end_turn for the wrong one of a group ends the turn of the one acting (Far
   assert.match(out.note, new RegExp(`It was ${now.name}'s turn`));
   assert.notEqual(tb.state.fight.order[tb.state.fight.turn].key, `foe:${now.id}`);
 });
+
+test('a monster turns from a dying character to one still fighting; an undead does not (Far North bench, 27 Nov)', () => {
+  const T = table(8);
+  const bryn = hero(T, 'p1', 'Bryn');
+  const ila = hero(T, 'p2', 'Ila', 'cleric');
+  for (const f of Object.values(T.s.foes)) delete T.s.foes[f.id];
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  T.host({ type: 'foe.add', monster: 'zombie', count: 1 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  if (T.s.fight.phase === 'initiative') T.host({ type: 'fight.begin' });
+  T.s.pcs[ila.id].hp = 0; T.s.pcs[ila.id].conds.push('unconscious');
+  const gob = Object.values(T.s.foes).find((x) => x.base === 'Goblin');
+  const zom = Object.values(T.s.foes).find((x) => x.base === 'Zombie');
+  T.s.fight.turn = T.s.fight.order.findIndex((o) => o.key === `foe:${gob.id}`);
+  const tb = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 2 });
+  const out = tb.run('monster_action', { monster: gob.name, action: 'Scimitar', targets: ['Ila'] });
+  assert.match(out.assumed || '', /Ila is down and Bryn still fights: Goblin.* turns on Bryn/);
+  assert.equal(tb.state.rolls.at(-1).pcId || tb.state.rolls.at(-1).target || bryn.id, bryn.id);
+  tb.state.fight.turn = tb.state.fight.order.findIndex((o) => o.key === `foe:${zom.id}`);
+  const z = tb.run('monster_action', { monster: zom.name, action: 'Slam', targets: ['Ila'] });
+  assert.doesNotMatch(z.assumed || '', /turns on/);
+});

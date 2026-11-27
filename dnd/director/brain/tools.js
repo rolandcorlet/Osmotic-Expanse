@@ -307,7 +307,21 @@ export const TOOLS = [
       const now = cur.startsWith('foe:') ? T.state.foes[cur.slice(4)] : null;
       const kin = (x) => x && (x.base || String(x.name || '').replace(/\s+\d+$/, ''));
       if (foe && now && now.id !== foe.id && !now.dead && kin(now) === kin(foe)) { T.assume(`It is ${now.name}'s turn, not ${foe.name}'s: ${now.name} acts.`); foe = now; }
-      const targets = pcTargets(T.state, a);
+      let targets = pcTargets(T.state, a);
+      // A dying character struck while someone else still fights (Far North bench, 27 Nov: the Mother Yeti mauled
+      // Ila at 0 hit points, two failed death saves a hit, and she died): the instructions say only a cruel or
+      // mindless creature does that, so the Engine holds to it. An undead or a mindless brute (Intelligence 3 or
+      // less) still may; anyone else turns on a character still standing here.
+      if (foe && targets.length) {
+        const mon = (T.srd && T.srd.monsters || []).find((m) => m.id === foe.mid) || {};
+        const brute = /undead/i.test(mon.type || '') || ((mon.ab || [])[3] || 10) <= 3;
+        const up = Object.values(T.state.pcs).filter((p) => !p.dead && p.hp > 0 && !targets.includes(p.id));
+        const fallen = targets.filter((id) => { const p = T.state.pcs[id]; return p && !p.dead && p.hp <= 0; });
+        if (!brute && fallen.length && up.length) {
+          targets = targets.map((id) => (fallen.includes(id) ? up[0].id : id)).filter((id, k, l) => l.indexOf(id) === k);
+          T.assume(`${fallen.map((id) => T.state.pcs[id].name).join(' and ')} is down and ${up[0].name} still fights: ${foe.name} turns on ${up[0].name}.`);
+        }
+      }
       const before = T.state.seq;
       // A near name, a weapon the stat block calls something else, a spell out of slots, a target too far to
       // reach this turn, someone already dead: the Engine sorts them (fixed, or nothing changed).
