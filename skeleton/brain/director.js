@@ -128,7 +128,8 @@ function questWon(s, mod, sinceSeq, calls) {
   return open;
 }
 const ROLL_WORDS = /\b(roll|make a|give me a|test your)\b[^.?!]*\b(check|roll|save|test)\b/i;
-const LEAK = /\b(the engine|the briefing|your notes|the notes|tools?|ask_for_roll|creature_attack|difficulty \d+|defen[cs]e \d+|\d+\s*(?:health|hit points|hp)\b)/i;
+// "The notes" only as the Director's notes ("the notes say"): a hymn's notes are story (Gull Rock bench, 28 Nov).
+const LEAK = /\b(the engine|the briefing|your notes|(?:tool|function) calls?|no tools? (?:needed|called|required|used)|ask_for_roll|creature_attack|difficulty \d+|defen[cs]e \d+|\d+\s*(?:health|hit points|hp)\b)|\b(?:in|from|per|according to|check(?:ing)?|following|consult(?:ing)?) the notes\b|\bthe notes (?:say|says|said|tell|tells|told|give|gives|gave|list|lists|listed|mention|mentions|mentioned|describe|describes|described|for this|for the)\b/i;
 
 // The narration takes the party to a place along an exit, but nobody called move_party (the D&D bench, 26 Nov):
 // the place it names, or null. A name in talk ("the bell is in the nave") is not travel: travel words must

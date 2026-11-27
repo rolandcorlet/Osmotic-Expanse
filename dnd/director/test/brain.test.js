@@ -153,6 +153,11 @@ test('moving the party says which monsters are already there, hidden', () => {
   assert.match(r.monsters_already_here, /Goblin scout 1.*Do not add more/);
 });
 
+test('a hymn\'s notes are story, not a leak', () => {
+  const T = table();
+  assert.ok(!checkNarration('The choir holds the notes too long, and the candles gutter. Bryn, what now?', T.s).some((f) => f.kind === 'leak'));
+  assert.ok(checkNarration('According to the notes, a trap is here. Bryn?', T.s).some((f) => f.kind === 'leak'));
+});
 test('number leaks in words are caught, and the closing question goes to whoever is acting', async () => {
   const T = table(8);
   const pc = hero(T, 'p1', 'Bryn');

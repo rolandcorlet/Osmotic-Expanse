@@ -75,6 +75,14 @@ test('a Director turn: a roll asked for in words is sent back to the tool, then 
   assert.equal(out.refusals, 0);
   assert.match(out.state.story.at(-1).text, /Moll, do you push on\?/);
 });
+test('a hymn\'s notes are story, not a leak; the notes the Director keeps are', () => {
+  const T = table(); diver(T, 'p1', 0);
+  const leak = (t) => checkNarration(t, T.s, mod).some((f) => f.kind === 'leak');
+  assert.ok(!leak('The singers shape the notes late, one after another. Moll, what do you do?'));
+  assert.ok(!leak('She sets down her tools by the door. Moll, what do you do?'));
+  assert.ok(leak('The notes say a trap is here. Moll, what do you do?'));
+  assert.ok(leak('According to the notes, the bell is cracked. Moll, what do you do?'));
+});
 test('the narration check catches a leak, a missing question and a creature narrated dead while standing', () => {
   const T = table(); diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
   T.host({ type: 'creature.reveal' });

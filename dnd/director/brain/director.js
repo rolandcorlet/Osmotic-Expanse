@@ -236,7 +236,7 @@ function seedDid(T, out, name, action) {
 }
 
 // ---- checking what the model wants to say -------------------------------------------------------
-export const LEAK = /\bno tools? (?:needed|called|required|used)\b|\b(?:tool|function) calls?\b|\bthe notes\b|\bbriefing\b|\bthe Engine\b|\bthe Ledger\b|\bthe tools?\b|\bread-aloud\b|\bfor you only\b|\bstat block\b|\bDM only\b/i;
+export const LEAK = /\bno tools? (?:needed|called|required|used)\b|\b(?:tool|function) calls?\b|\b(?:in|from|per|according to|check(?:ing)?|following|consult(?:ing)?) the notes\b|\bthe notes (?:say|says|said|tell|tells|told|give|gives|gave|list|lists|listed|mention|mentions|mentioned|describe|describes|described|for this|for the)\b|\bbriefing\b|\bthe Engine\b|\bthe Ledger\b|\bthe tools?\b|\bread-aloud\b|\bfor you only\b|\bstat block\b|\bDM only\b/i;
 // Bench, 20 Nov: "only two hit-points of spite left in him" (a goblin's hit points, in words) got through.
 const NUM = '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a few|a couple of)';
 const NUMBERS = new RegExp(`\\b(?:AC|Armou?r Class)\\s*(?:of\\s*)?\\d+|\\bDC\\s*\\d+|\\b${NUM}\\s*(?:hit[- ]points?|hp)\\b|\\+\\d+\\s*to hit\\b`, 'i');

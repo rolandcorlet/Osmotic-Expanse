@@ -700,7 +700,7 @@ export const MACHINERY = /\bone sentence of travel\b|\bthen the new place\b|Dire
 // model cannot act without reading its tool names, and the Vector's page prose, quoted verbatim into
 // the briefing, legitimately writes "the harvest tool" (the Toll-Vent's Pays line) and "the Ledger's
 // room" (a Lesson line). "the Ledger" is therefore caught only doing Engine verbs, exactly as above.
-export const BRIEFING_LEAK = /Director-only|craft notes|site notes|\bthe notes\b|\bbriefing\b|\bthe Engine\b|the Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)/i;
+export const BRIEFING_LEAK = /Director-only|craft notes|site notes|\b(?:in|from|per|according to|check(?:ing)?|following|consult(?:ing)?) the notes\b|\bthe notes (?:say|says|said|tell|tells|told|give|gives|gave|list|lists|listed|mention|mentions|mentioned|describe|describes|described|for this|for the)\b|\bbriefing\b|\bthe Engine\b|the Ledger (?:keeps|keep|kept|had|has|hold|holds|paid|pays|refuse|refuses|refused|own|owns|write|writes|wrote|record|records|never|itself|will)/i;
 
 // A number attached to a damage type, or "takes N damage". Deliberately narrow: the check only
 // fires when no tool hurt anyone this turn, so a paid blow or a hazard is never flagged.

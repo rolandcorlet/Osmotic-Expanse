@@ -2111,3 +2111,7 @@ test('a dropped request to the AI is tried once more (502, or no connection); a 
   assert.equal((await request({ url: 'http://127.0.0.1:1/x', body: {}, fetchImpl: no, retryMs: 0 })).status, 401);
   assert.equal(no.calls(), 1, 'a refusal is not tried again');
 });
+test('a hymn\'s notes are story; the Director\'s own notes are a leak', () => {
+  assert.ok(!BRIEFING_LEAK.test('The drowned choir holds the notes too long.'));
+  assert.ok(BRIEFING_LEAK.test('The notes say a trap is here.'));
+});
