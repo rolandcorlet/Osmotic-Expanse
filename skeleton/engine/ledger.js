@@ -849,6 +849,15 @@ H['fight.next'] = (s, a, ctx) => {
 H['fight.end'] = (s, a, ctx) => {
   hostOnly(ctx);
   if (!s.fight) no('No fight is on.');
+  // The AI Director ends a fight it has won while a creature in it still stands in the record (Gull Rock
+  // bench, 28 Nov: the keeper "folds sideways" in the narration at 7 health, then rose again to bar the stair).
+  // The record follows the story, as in the D&D Director: those creatures are beaten. A party that flees
+  // (award false) leaves them standing.
+  if (ctx.ai && a.award !== false && Object.values(s.chars).some((c) => !c.down)) {
+    const still = s.fight.order.filter((o) => o.key.startsWith('creature:')).map((o) => s.creatures[o.key.slice(9)]).filter((k) => k && !k.down && !k.fled);
+    for (const k of still) { k.health = 0; k.down = true; k.beaten = true; k.conds = []; s.fight.xp = (s.fight.xp || 0) + (k.xp || 0); }
+    if (still.length) story(s, ctx, 'event', `${still.map((k) => k.name).join(', ')}: beaten as the fight ends.`, 'Engine');
+  }
   const xp = s.fight.xp || 0;
   s.fight = null;
   for (const o of [...Object.values(s.chars), ...Object.values(s.creatures)]) o.braced = false;

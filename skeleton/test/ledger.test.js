@@ -55,6 +55,26 @@ test('a fight: initiative, attacks on turns, creatures fall, xp shared at the en
   }
   assert.equal(T.s.fight, null);
 });
+test('the AI ending a won fight beats what still stands in the record; a party that flees leaves it standing', () => {
+  const T = table(5);
+  const m = diver(T, 'p1', 0);
+  T.host({ type: 'site.move', siteId: 'causeway' });
+  T.host({ type: 'fight.start' });
+  const foes = () => Object.values(T.s.creatures).filter((k) => k.siteId === 'causeway' && !k.hidden);
+  assert.ok(foes().some((k) => !k.down));
+  const xp = T.s.chars[m.id].xp || 0;
+  T.ai({ type: 'fight.end' });
+  assert.equal(T.s.fight, null);
+  assert.ok(foes().every((k) => k.down && k.health === 0));
+  assert.match(T.s.story.map((e) => e.text).join(' '), /beaten as the fight ends/);
+  assert.ok((T.s.chars[m.id].xp || 0) > xp);
+  const U = table(5);
+  diver(U, 'p1', 0);
+  U.host({ type: 'site.move', siteId: 'causeway' });
+  U.host({ type: 'fight.start' });
+  U.ai({ type: 'fight.end', award: false });
+  assert.ok(Object.values(U.s.creatures).some((k) => k.siteId === 'causeway' && !k.down));
+});
 test('out of turn is refused for the AI and players; hidden creatures stay off players\' screens', () => {
   const T = table(9);
   const m = diver(T, 'p1', 0);
