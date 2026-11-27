@@ -1997,7 +1997,8 @@ const ACT = {
     else { V.seen = V.seen || new Set(); V.blocked = false; try { if (canSpeakLocal()) speechSynthesis.resume(); } catch (e) { /* fine */ } }
   },
   talk,
-  'hear.yes': () => { store.set('oxd.hear', 'yes'); ui.talkAsk = false; },
+  // Yes starts listening at once (27 Nov: it only closed the question, so Talk had to be pressed again).
+  'hear.yes': () => { store.set('oxd.hear', 'yes'); ui.talkAsk = false; return talk(); },
   'hear.no': () => { store.set('oxd.hear', 'no'); ui.talkAsk = false; if (T.rec && ui.talk === 'listening') { try { T.rec.stop(); } catch (e) { /* idle */ } } },
   'v.save': async () => {
     const v = ui.voice;
@@ -2487,7 +2488,8 @@ function hearConsentHtml() {
     <div class="row" style="margin-top:8px"><button class="btn${store.get('oxd.hear') === 'yes' ? ' primary' : ''}" data-act="hear.yes">Yes, let me talk</button><button class="btn${store.get('oxd.hear') === 'no' ? ' primary' : ''}" data-act="hear.no">No, I will type</button></div></div>`;
 }
 function talkButtonHtml() {
-  if (!canHear() || store.get('oxd.hear') === 'no') return '';
+  // After "No, I will type" the button stays, so the question can be asked again (it used to vanish for good).
+  if (!canHear()) return '';
   return `<button class="btn${ui.talk === 'listening' ? ' primary' : ''}" data-act="talk" ${ui.talk === 'sending' ? 'disabled' : ''}>${ui.talk === 'listening' ? 'Stop' : ui.talk === 'sending' ? '…' : 'Talk'}</button>`;
 }
 function addToSay(text) {

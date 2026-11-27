@@ -1746,7 +1746,8 @@ const ACT = {
   tab: (d) => { ui.tab = d.t; if (d.t !== 'build') ui.lvl = { asi: { a: '', b: '' }, subclass: '', spells: null }; },
   readaloud: () => { ui.readAloud = !ui.readAloud; store.set('dnd.read', ui.readAloud ? 'on' : 'off'); if (!ui.readAloud) stopVoice(); else { V.blocked = false; pumpVoice(); } },
   talk: () => talk(),
-  'hear.yes': () => { store.set('dnd.hear', 'yes'); ui.talkAsk = false; },
+  // Yes starts listening at once (27 Nov: it only closed the question, so Talk had to be pressed again).
+  'hear.yes': () => { store.set('dnd.hear', 'yes'); ui.talkAsk = false; return talk(); },
   'hear.no': () => { store.set('dnd.hear', 'no'); ui.talkAsk = false; if (T.rec && ui.talk === 'listening') { try { T.rec.stop(); } catch (e) { /* idle */ } } },
   'v.save': async () => {
     const v = ui.voice;
@@ -2250,7 +2251,8 @@ function hearConsentHtml() {
     <div class="row" style="margin-top:8px"><button class="btn${store.get('dnd.hear') === 'yes' ? ' primary' : ''}" data-act="hear.yes">Yes, let me talk</button><button class="btn${store.get('dnd.hear') === 'no' ? ' primary' : ''}" data-act="hear.no">No, I will type</button></div></div>`;
 }
 function talkButtonHtml() {
-  if (!canHear() || store.get('dnd.hear') === 'no') return '';
+  // After "No, I will type" the button stays, so the question can be asked again (it used to vanish for good).
+  if (!canHear()) return '';
   return `<button class="btn${ui.talk === 'listening' ? ' primary' : ''}" data-act="talk" ${ui.talk === 'sending' ? 'disabled' : ''}>${ui.talk === 'listening' ? 'Stop' : ui.talk === 'sending' ? '…' : 'Talk'}</button>`;
 }
 function addToSay(text) {
