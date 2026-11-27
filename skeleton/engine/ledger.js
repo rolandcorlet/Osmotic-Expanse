@@ -499,8 +499,14 @@ H['roll.ask'] = (s, a, ctx) => {
   const { mod } = ctx;
   const ids = [].concat(a.charIds || a.charId || []).map((x) => (target(s, x) || {})).filter((t) => t.kind === 'char').map((t) => t.id);
   if (!ids.length) no(`Name a character to roll. The party: ${Object.values(s.chars).map((c) => `${c.id} (${c.name})`).join(', ') || 'nobody yet'}.`);
-  const stat = str(a.stat, 30).toLowerCase();
-  const skill = str(a.skill, 30).toLowerCase();
+  let stat = str(a.stat, 30).toLowerCase();
+  let skill = str(a.skill, 30).toLowerCase();
+  // A skill or a stat's name given as the stat ("look", Gull Rock bench, 28 Nov): the skill and its stat.
+  if (!mod.ix.stat[stat]) {
+    const sk = mod.ix.skill[stat] || (mod.rules.skills || []).find((x) => (x.name || '').toLowerCase() === stat);
+    const st = (mod.rules.stats || []).find((x) => (x.name || '').toLowerCase() === stat);
+    if (sk && sk.stat && mod.ix.stat[sk.stat] && (!skill || skill === sk.id)) { skill = sk.id; stat = sk.stat; } else if (st) stat = st.id;
+  }
   if (!mod.ix.stat[stat]) no(`Say which stat: ${mod.rules.stats.map((x) => x.id).join(', ')}.`);
   if (skill && !mod.ix.skill[skill]) no(`There is no skill "${skill}". Skills: ${mod.rules.skills.map((x) => x.id).join(', ')}.`);
   const at = difficulty(mod, a.at);

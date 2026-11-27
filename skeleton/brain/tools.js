@@ -113,6 +113,8 @@ export const TOOLS = [
     parameters: obj({ name: S('The name the table uses, for example "the lamp keeper" or "Old Harl".'), kind: { type: 'string', enum: ['person', 'faction', 'place', 'thread'], description: 'What it is: a person, a faction, a place, or a thread (a debt, a grudge, a promise: something unresolved).' }, fact: S('One short fact worth remembering.'), seen: { type: 'boolean', description: 'False only when the players have not been told this.' } }, ['name', 'kind', 'fact']),
     run(a, T) {
       const no = T.do({ type: 'cast.remember', name: a.name, kind: a.kind, fact: a.fact, seen: !(a.seen === false || a.seen === 'false') });
+      // One of the party (Gull Rock bench, 28 Nov): harmless, their sheet keeps them. A note, not a refusal.
+      if (no && /^That is one of the party/.test(no)) return { note: `Nothing changed: ${no}` };
       if (no) return { refused: no };
       const k = Object.values(T.state.cast || {}).find((c) => c.name.toLowerCase() === String(a.name).trim().toLowerCase());
       return { remembered: true, card: k ? { name: k.name, origin: k.origin, facts: k.facts.length } : null };

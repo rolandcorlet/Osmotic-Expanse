@@ -26,6 +26,17 @@ test('the briefing names the place, the party and hidden creatures for the Direc
   const b = briefing(T.s, mod, { reason: 'test' });
   assert.match(b, /Sunken Causeway/); assert.match(b, /Moll Tarrow/); assert.match(b, /hidden/); assert.match(b, /Cold current/);
 });
+test('a skill named as the stat rolls that skill with its own stat; remembering one of the party is a note', () => {
+  const T = table(4); const m = diver(T, 'p1', 0);
+  const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
+  const sk = mod.rules.skills.find((x) => x.stat);
+  const out = B.run('ask_for_roll', { characters: [m.id], stat: sk.id, skill: '', difficulty: 'Standard', reason: 'x' });
+  assert.ok(out.ok, JSON.stringify(out));
+  const q = B.state.requests.at(-1);
+  assert.equal(q.stat, sk.stat); assert.equal(q.skill, sk.id);
+  const r = B.run('remember', { name: m.name, kind: 'person', fact: 'x' });
+  assert.ok(r.note && !r.refused, JSON.stringify(r));
+});
 test('harmless slips are notes, not refusals; a swapped creature and target is read the obvious way', () => {
   const T = table(4); const m = diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
   const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
