@@ -36,7 +36,8 @@ export function termsIn(text, glossary = [], names = []) {
 // Is this use explained where it stands: a bracket, dash, comma or colon after it, "is/means" after it,
 // or "called/known as" before it.
 export function glossedAt(text, hit) {
-  const after = text.slice(hit.end, hit.end + 70);
+  // Past a possessive: "the Belt's, the factory district's" is explained (Ninth Shift bench, 27 Nov).
+  const after = text.slice(hit.end, hit.end + 70).replace(/^['’]s\b/, '');
   const before = text.slice(Math.max(0, hit.index - 30), hit.index);
   if (/^\s*(?:\(|[,:;—–]|-\s|(?:is|are|was|were|means|meaning|that is)\b)/.test(after)) return true;
   return /\([^)]*$/.test(before) || /\b(?:called|known as|named|the word)\s+(?:the\s+|a\s+|an\s+)?$/i.test(before);
@@ -58,7 +59,11 @@ export function glossInline(text, glossary, s) {
   const have = known(s);
   const bare = termsIn(text, glossary, namesIn(s)).filter((h) => !have.has(h.word.toLowerCase()) && !glossedAt(text, h));
   let out = String(text);
-  for (const h of [...bare].sort((a, b) => b.index - a.index)) out = `${out.slice(0, h.end)} (${shortPlain(h.plain)})${out.slice(h.end)}`;
+  // After a possessive, not inside it: "the Belt's (the factory district) wage", never "the Belt (…)'s".
+  for (const h of [...bare].sort((a, b) => b.index - a.index)) {
+    const at = h.end + ((/^['’]s\b/.exec(out.slice(h.end)) || [''])[0].length);
+    out = `${out.slice(0, at)} (${shortPlain(h.plain)})${out.slice(at)}`;
+  }
   return { text: out, words: bare.map((h) => h.word) };
 }
 

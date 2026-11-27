@@ -2086,3 +2086,10 @@ test('the Churn\'s fill called as a hazard ("the fill") is the Engine\'s to pay:
   assert.ok(r.note && /paid by the Engine itself/.test(r.note), JSON.stringify(r));
   assert.equal(T.refusals, 0);
 });
+
+test('plain words: a bracketed meaning goes after a possessive, and "the Belt\'s, the factory district\'s" counts as explained', async () => {
+  const { glossInline } = await import('../brain/words.js');
+  const gl = [{ word: 'Belt', plain: 'The factory district where Shift Nine stands.' }, { word: 'Row', plain: 'The neighbourhood of workers who have stopped work.' }];
+  const out = glossInline("Whose wage: the Belt's, the factory district's, or the Row's?", gl, {}).text;
+  assert.equal(out, "Whose wage: the Belt's, the factory district's, or the Row's (the neighbourhood of workers who have stopped work)?");
+});
