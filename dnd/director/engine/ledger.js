@@ -2616,8 +2616,14 @@ function fitFoes(s, ctx, siteId) {
   const groups = place.foes.map((g, n) => {
     const mine = placed.filter((f) => f.group === `${siteId}#${n}`);
     const m = mine[0] ? monsterOf(ctx, mine[0]) : ix.monster[g.monster];
-    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: SCALE.fightXp(m), count: mine.length, scalable: mine.length > 1 && g.scale !== false, fixed: g.scale === false };
+    return { key: `${siteId}#${n}`, name: g.name || (m && m.name) || g.monster, xp: SCALE.fightXp(m), count: mine.length, scalable: mine.length > 1 && g.scale !== false, fixed: g.scale === false, maybe: !!g.maybe };
   }).filter((g) => g.count > 0);
+  // The fight to fit is the one surely here; a group that only may turn up is not in it (Far North bench, 27 Nov:
+  // the fitting dropped the snowman, the tyke and the owlbear and kept the troll that "may ignore the party").
+  // If every group only may turn up, the hardest one is fitted, as the simulation tests it.
+  const sureG = groups.filter((g) => !g.maybe);
+  const fitG = sureG.length ? sureG : groups.slice().sort((a, b) => b.xp * b.count - a.xp * a.count).slice(0, 1);
+  groups.splice(0, groups.length, ...fitG);
   const designed = SCALE.designedParty(ctx.adventure, siteId);
   const plan = SCALE.planFight({ groups, designed, actual: levels, srd: ctx.srd, mode });
   if (!plan) { s.fits[siteId] = { text: '' }; return; }

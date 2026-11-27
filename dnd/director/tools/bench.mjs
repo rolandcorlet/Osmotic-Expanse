@@ -529,7 +529,11 @@ async function runOnce(n) {
       if (!missedFight) tally.missing += 1; // counted once: the step before may have counted it already
       if (s.scene.siteId !== where) { notes.push(`fight: the party never reached ${where}, so the bench moves it there`); act('host', null, { type: 'site.move', siteId: where }); }
       if (!Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && !f.dead)) act('host', null, { type: 'foe.add', monster: 'goblin', count: 2 });
-      if (Object.values(s.foes).some((f) => f.siteId === s.scene.siteId && f.hidden)) act('host', null, { type: 'foe.reveal' });
+      // The monsters surely here; if every group only may turn up, the first group (as the script names it).
+      const hid = Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && f.hidden && !f.dead);
+      const sure = hid.filter((f) => !f.maybe);
+      const pick = sure.length ? sure : hid.filter((f) => f.group === (hid[0] || {}).group);
+      if (pick.length) act('host', null, { type: 'foe.reveal', foeIds: pick.map((f) => f.id) });
       act('host', null, { type: 'fight.start' });
     }
     const turnsBefore = tally.turns;

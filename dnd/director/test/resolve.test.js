@@ -113,3 +113,23 @@ test('monsters that only may turn up stay out of a fight until named or revealed
   assert.deepEqual([...new Set(inFight)], ['Kobold'], 'the whole kobold group, no cultists');
   assert.equal(inFight.length, 3);
 });
+
+test('another attack after its Multiattack ends the monster\'s turn instead of a note to end it (Far North bench, 27 Nov)', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'site.move', siteId: 'mill-road' });
+  for (const f of Object.values(T.s.foes)) delete T.s.foes[f.id];
+  T.host({ type: 'foe.add', monster: 'owlbear', count: 1 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  if (T.s.fight.phase === 'initiative') T.host({ type: 'fight.begin' });
+  const ob = Object.values(T.s.foes)[0];
+  T.s.fight.turn = T.s.fight.order.findIndex((o) => o.key === `foe:${ob.id}`);
+  const tb = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 2 });
+  const pc = Object.values(tb.state.pcs)[0];
+  tb.run('monster_action', { monster: ob.name, action: 'Multiattack', targets: [pc.name] });
+  if (!tb.state.fight || tb.state.fight.order[tb.state.fight.turn].key !== `foe:${ob.id}`) return; // the fight moved on by itself
+  const again = tb.run('monster_action', { monster: ob.name, action: 'Claws', targets: [pc.name] });
+  assert.match(again.note || '', /ended its turn/, JSON.stringify(again));
+  assert.notEqual(tb.state.fight.order[tb.state.fight.turn].key, `foe:${ob.id}`);
+  assert.equal(tb.refusals, 0);
+});

@@ -296,6 +296,18 @@ export const TOOLS = [
       // A near name, a weapon the stat block calls something else, a spell out of slots, a target too far to
       // reach this turn, someone already dead: the Engine sorts them (fixed, or nothing changed).
       const no = T.do({ type: 'foe.act', foeId: foe ? foe.id : a.monster, action: a.action, targets, adv: lower(a.advantage) });
+      // Another attack after its Multiattack is done (Far North bench, 27 Nov: nine such calls): its turn is over,
+      // so the Engine ends it rather than wait for end_turn.
+      if (no && T.lastNo && T.lastNo.kind === 'noop' && /has made all its attacks this turn/.test(T.lastNo.msg || T.lastNo.text || '')) {
+        const f = T.state.fight;
+        const cur = f && f.phase === 'turns' ? f.order[f.turn].key : '';
+        if (foe && cur === `foe:${foe.id}`) {
+          const before = T.state.seq;
+          T.lastNo = null;
+          const ended = T.do({ type: 'fight.next', expect: cur });
+          if (!ended) return { note: `Nothing more: ${foe.name} had made all its attacks this turn, so the Engine ended its turn. ${T.fightBrief().acting_now} is acting now.`, ...T.fightBrief(), ...since(T, before) };
+        }
+      }
       if (no) return { refused: no, ...(T.state.map && T.state.map.show && T.state.map.show.reach ? { map: mapLine(T) } : {}) };
       return { ...since(T, before), party: T.partyBrief(), ...(T.state.map && T.state.map.show && T.state.map.show.reach ? { map: mapLine(T) } : {}) };
     },
