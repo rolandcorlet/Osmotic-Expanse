@@ -30,6 +30,18 @@ and the **player** address for phones on the same Wi-Fi. Options: `--port 8790`,
 * **Voice**: each screen can read the Director aloud with its own voice, or a speech server (Kokoro, Piper) can speak
   for all of them.
 * **Undo** (Game tab) takes back the last change. The game saves itself after every change.
+* **Joining from anywhere:** `Start Skeleton (online).bat` (or `--online`) asks the free cloudflared program for a
+  public link. Players outside your Wi-Fi need the **table code** it prints. Every screen (table, host Game tab,
+  player Colours tab) shows the join links, so anyone already in can pass them on.
+* **Plain words:** the first time one of the game's own words (from the module's `lore.json` glossary) appears in
+  the story, it is underlined, and a tap shows what it means. The Director knows which words the table has met and
+  explains new ones; if it forgets, the Engine adds the meaning in brackets.
+* **Rolls:** the Director waits for a player to say what they try before asking for a look-or-notice roll, and every
+  roll asked for is said in the story with what it is for.
+* **Fights:** a character who has used every action this turn has their turn ended by the Engine, and the creatures
+  act on their own turns. The player screen shows the actions left.
+* **The AI:** a local model costs nothing to run. A cloud model bills you, and stops mid-game when its spending cap
+  runs out.
 
 ## The dice
 

@@ -30,6 +30,20 @@ Websites (once pushed): `https://osmotic-expanse.vercel.app/dnd/`, `/dnd/dm/` an
    their own** in the six-step builder.
 5. Choose **Co-pilot** (you approve each turn) or **Auto**, and press **Take a turn**.
 
+At the table:
+- **Join links** (player, table and host, and the outside link with its table code when started online) are on the
+  table screen, the Run tab, and every player's Colours tab.
+- **Tap a word:** conditions (Prone, Grappled, Frightened…) and rules words (advantage, saving throw, concentration,
+  hit points, short and long rest…) are underlined the first time they appear in the story; a tap explains them in
+  a line. Tell new players at the start.
+- **Rolls:** the Director waits for a player to say what they try before asking for a Perception or Investigation
+  roll, and every roll asked for is said in the story with what it is for. A pending roll flashes the player's
+  screen.
+- **On each phone:** a hit-point vial, spell-slot gems, a class sigil, a loot satchel and a glow when the character
+  can level up.
+- **The AI:** a local model costs nothing to run. A cloud model (Gemini, Claude, OpenAI) bills you, and stops
+  mid-game when its spending cap runs out.
+
 `Start Director (online).bat` adds a public link for players who are not on your Wi-Fi
 (it needs the free `cloudflared`). Saved games, the autosave and the optional Supabase backup work
 as in the Osmotic Expanse Director (save ids start with `dnd-`, in the same `oxd_saves` table).
