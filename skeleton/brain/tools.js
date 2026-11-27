@@ -265,6 +265,16 @@ export const TOOLS = [
     },
   },
   {
+    name: 'use_object',
+    description: 'A character uses one of the objects here (opens the chest, pulls the lever, reads the log): the Engine carries out what the adventure says happens. Then narrate it.',
+    parameters: obj({ character: S('Who uses it: their name or id.'), object: S('The object, as "Objects here" names it.'), how: S('One verb: open, pull, read, try, search (optional).') }, ['character', 'object']),
+    run(a, T) {
+      const seq = T.state.seq;
+      const no = T.do({ type: 'object.use', who: a.character, object: a.object, how: a.how });
+      return no ? { refused: no } : T.since(seq);
+    },
+  },
+  {
     name: 'add_quest',
     description: 'The party takes on a new goal.',
     parameters: obj({ text: S('The quest in one sentence.') }, ['text']),

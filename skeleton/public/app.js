@@ -235,10 +235,28 @@ function partyList(compact = false) {
       c.conds.length ? h('div', { class: 'row' }, c.conds.map((x) => h('span', { class: 'pill no' }, condName(x)))) : null,
       compact ? null : h('small', { class: 'faint' }, c.playerId && S.players[c.playerId] ? `played by ${S.players[c.playerId].name}` : 'no player'))));
 }
+// The place's objects (a chest, a lever, a log): a player uses one as their own character, the host for
+// whoever they choose; the adventure's rules for it then happen (engine/triggers.js "use <object>").
+const objectsHere = () => {
+  const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+  const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
+  return (site.objects || []).map((o) => (typeof o === 'string' ? { name: o } : o)).filter((o) => o && o.name);
+};
+function objectsRow() {
+  const objs = objectsHere();
+  if (!objs.length) return null;
+  const c = ROLE === 'player' ? me() : null;
+  const alive = Object.values(S.chars).filter((x) => !x.down);
+  if (ROLE === 'host' && !alive.some((x) => x.id === ui.objWho)) ui.objWho = (alive[0] || {}).id;
+  return h('div', { class: 'objects' },
+    h('div', { class: 'row' }, h('small', { class: 'grow dim' }, 'Here'), ROLE === 'host' && alive.length > 1 ? h('select', { style: 'width:auto', title: 'Who uses it', onchange: (e) => { ui.objWho = e.target.value; } }, alive.map((x) => opt(x.id, x.name, x.id === ui.objWho))) : null),
+    objs.map((o) => h('div', { class: 'list-line' }, h('span', { class: 'grow', title: o.about || '' }, o.name, o.about ? h('small', {}, ` · ${o.about}`) : null),
+      (c && !c.down) || (ROLE === 'host' && ui.objWho) ? h('button', { onclick: () => act({ type: 'object.use', who: c ? c.id : ui.objWho, object: o.name }) }, 'Use') : null)));
+}
 function placeCard() {
   const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
   const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
-  return h('div', { class: 'card' }, h('h3', {}, adv.name), h('h2', {}, site.name || ''), site.read ? h('small', {}, site.read, ' ', readBtn(site.read)) : null);
+  return h('div', { class: 'card' }, h('h3', {}, adv.name), h('h2', {}, site.name || ''), site.read ? h('small', {}, site.read, ' ', readBtn(site.read)) : null, objectsRow());
 }
 function clocksQuests(host = false) {
   return h('div', { class: 'card' },
@@ -403,6 +421,7 @@ function sheetView(c) {
       h('h3', {}, `Skills (${SYS().name})`), R.skills.filter((s) => c.skills[s.id]).map((s) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), h('b', {}, SYS().id === 'step' ? `d${c.skills[s.id]}` : c.skills[s.id]), h('span', { class: 'pill' }, specFor(c, s.stat, s.id).label),
         h('button', { title: 'Roll it for yourself (not asked for)', onclick: () => act({ type: 'roll.free', charId: c.id, stat: s.stat, skill: s.id }) }, '🎲')))),
     h('div', { class: 'card scroll' }, h('h3', {}, 'Gear'), c.gear.map(gearOf).filter(Boolean).map((g) => h('div', { class: 'list-line' }, h('b', {}, g.name), h('small', { class: 'grow dim' }, `${g.weapon != null ? `weapon ${g.weapon} · ` : ''}${g.soak != null ? `soak ${g.soak} · ` : ''}${g.about || ''}`))),
+      (c.items || []).map((it) => h('div', { class: 'list-line' }, h('b', {}, it), h('small', { class: 'grow dim' }, 'found'))),
       h('h3', {}, 'Abilities'), c.abilities.map(abilityOf).filter(Boolean).map((a) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, a.name), h('div', { class: 'dim' }, `${a.cost ? `${a.cost}. ` : ''}${a.effect}`)), readBtn(`${a.name}. ${a.effect}`))),
       h('h3', {}, 'Notes'), h('textarea', { id: 'notes', value: ui.form.notes ?? c.notes, oninput: (e) => { ui.form.notes = e.target.value; } }),
       h('button', { onclick: () => act({ type: 'char.notes', charId: c.id, text: ui.form.notes ?? c.notes }) }, 'Save notes')));
@@ -477,6 +496,7 @@ function hostPlay() {
       h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Fight'),
         S.fight ? [h('button', { onclick: () => act({ type: 'fight.next' }) }, 'Next turn'), h('button', { onclick: () => act({ type: 'fight.end' }) }, 'End fight')] : h('button', { onclick: () => act({ type: 'fight.start' }) }, 'Start a fight')),
         S.fight ? h('div', { class: 'order' }, S.fight.order.map((o) => h('span', { class: `pill${o.key === curKey() ? ' cur' : ''}` }, `${nameOfKey(o.key)} ${o.init}`))) : null),
+      objectsHere().length ? h('div', { class: 'card' }, h('h3', {}, 'Objects here'), objectsRow()) : null,
       h('div', { class: 'card' }, h('h3', {}, 'Creatures here'), here.length ? here.map((k) => {
         const b = M.bestiary.creatures.find((x) => x.id === k.base) || { attacks: [] };
         return h('div', { class: `list-line${k.down ? ' down' : ''}${curKey() === `creature:${k.id}` ? ' turn-now' : ''}` }, h('div', { class: 'grow' }, h('b', {}, k.name), h('small', {}, ` ${k.health}/${k.healthMax}${k.hidden ? ' · hidden' : ''}${k.conds.length ? ` · ${k.conds.join(', ')}` : ''}`), bar(k.health, k.healthMax)),

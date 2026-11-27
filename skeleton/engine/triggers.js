@@ -8,6 +8,8 @@
 //   { when: 'down', who: 'Glass eel', do: 'say', say: 'The water clears.' }
 //   { when: 'cleared', do: 'xp', xp: 10 }
 //   { when: 'enter', if: 'not visited nave', do: 'reveal', who: 'Tidewarden' }
+//   { when: 'use sea chest', do: 'give', item: 'Brass key', say: 'Under the oilcloth: a brass key.' }
+//   { when: 'use lamp room door', if: 'carries brass key', do: 'say', say: 'The key turns.' }
 //
 // when (each rule fires once unless it says `once: false`; "round" fires every round):
 //   enter            the party arrives here (the first place: when the game starts)
@@ -18,19 +20,32 @@
 //   cleared          no creature here is left standing (and there was at least one)
 //   full <clock>     that clock fills
 //   quest <id>       that quest is done
+//   use <object>     a character uses one of the place's `objects` (opens the chest, pulls the lever, reads the
+//                    log): the Director's use_object, or a Use button on the host's or the player's screen
 // if (all must hold; one string or a list; "not " in front turns one round):
-//   from <place>, visited <place>, down <who>, standing <who>, quest <id>, passed <x>, failed <x>, fight, no fight
+//   from <place>, visited <place>, down <who>, standing <who>, quest <id>, passed <x>, failed <x>, fight, no fight,
+//   carries <item> (the character who used the object; for other moments, anyone in the party; a gear id or name)
 // do:
 //   fight    a fight starts here     flee     `who` (or `target`) flees     reveal   `who` (or everyone hidden here)
 //   calm     `who` (or `target`) stops fighting: out of the fight, not beaten (the Tidewarden when the bell rings)
 //   tick     clock `clock` fills by `by` (1)      quest    quest `quest` is done      xp    each character earns `xp`
 //   add      `count` (1) of bestiary creature `creature` arrive here (hidden: `hidden`)
+//   give     `item` (a gear id from the module, or any thing's name) goes to the character who used the object
+//            (for other moments, the first character standing)
 //   say      only the line in `say`, for the Director (any rule may carry `say`)
 
-export const EVENTS = ['enter', 'fail', 'succeed', 'round', 'down', 'cleared', 'full', 'quest'];
+export const EVENTS = ['enter', 'fail', 'succeed', 'round', 'down', 'cleared', 'full', 'quest', 'use'];
 export const STATES = ['down', 'cleared', 'full', 'quest'];
-export const EFFECTS = ['fight', 'flee', 'calm', 'reveal', 'tick', 'quest', 'xp', 'add', 'say'];
-export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'quest', 'passed', 'failed', 'fight', 'no fight'];
+export const EFFECTS = ['fight', 'flee', 'calm', 'reveal', 'tick', 'quest', 'xp', 'add', 'give', 'say'];
+export const CONDITIONS = ['from', 'visited', 'down', 'standing', 'quest', 'passed', 'failed', 'fight', 'no fight', 'carries'];
+// A place's objects, by name ("Sea chest", or { name: 'Sea chest', about: '...' }).
+export const objectsOf = (site) => ((site && site.objects) || []).map((o) => (typeof o === 'string' ? o : (o && o.name) || '')).filter(Boolean);
+// The object a word means here: the same name, or one name inside the other ("chest" is the Sea chest).
+export function objectNamed(names, w) {
+  const t = words(w).toLowerCase();
+  if (!t) return '';
+  return names.find((n) => n.toLowerCase() === t) || names.find((n) => n.toLowerCase().includes(t) || t.includes(n.toLowerCase())) || '';
+}
 
 const words = (v) => String(v == null ? '' : v).replace(/[:_]+/g, ' ').replace(/\s+/g, ' ').trim();
 export function parseWhen(v) {
@@ -83,9 +98,17 @@ export function checkRules(mod, adv) {
       if (r.do === 'add' && !(mod.ix.creature || {})[r.creature]) errors.push(`${at}: there is no creature "${r.creature}" in the bestiary.`);
       for (const k of ['who', 'target']) if (r[k] && !knows(r[k])) errors.push(`${at}: there is no creature "${r[k]}" in this adventure or the bestiary.`);
       if (r.do === 'say' && !r.say) errors.push(`${at}: write the line to say.`);
+      if (r.do === 'give' && !r.item) errors.push(`${at}: say what is given (item: 'Brass key').`);
+      if (w.ev === 'use') {
+        const site = sites.find((x) => x.id === where);
+        const objs = site ? objectsOf(site) : sites.flatMap(objectsOf);
+        if (!w.arg) errors.push(`${at}: say which object ("use sea chest").`);
+        else if (!objectNamed(objs, w.arg)) errors.push(`${at}: no object here is called "${w.arg}" (objects: ${objs.join(', ') || 'none: list them in the place\'s "objects"'}).`);
+      }
       for (const c of parseIf(r.if)) {
         if (!CONDITIONS.includes(c.k)) errors.push(`${at}: "if ${c.k}" is not a condition the Engine knows (${CONDITIONS.join(', ')}).`);
         if ((c.k === 'from' || c.k === 'visited') && !ids.has(c.arg)) errors.push(`${at}: there is no place "${c.arg}".`);
+        if (c.k === 'carries' && !c.arg) errors.push(`${at}: name the thing carried ("carries brass key").`);
       }
     });
   }
@@ -93,7 +116,7 @@ export function checkRules(mod, adv) {
 }
 // One line in words, for the Director's briefing and the host's screen.
 export function ruleWords(r) {
-  const when = { enter: 'when the party arrives', fail: `when a ${r.when.arg || ''} roll fails`, succeed: `when a ${r.when.arg || ''} roll succeeds`, round: 'each new round', down: `when ${r.who} is down`, cleared: 'when nothing here is left standing', full: `when ${r.when.arg} fills`, quest: `when ${r.when.arg} is done` }[r.when.ev] || r.when.ev;
-  const did = { fight: 'a fight starts', calm: `${r.target || r.who} stops fighting`, flee: `${r.target || r.who} flees`, reveal: `${r.target || r.who || 'whatever hides here'} is revealed`, tick: `${r.clock} ticks`, quest: `${r.quest} is done`, xp: `each earns ${r.xp}`, add: `${r.count || 1} ${r.creature} arrive`, say: 'the Director is told' }[r.do] || r.do;
+  const when = { enter: 'when the party arrives', fail: `when a ${r.when.arg || ''} roll fails`, succeed: `when a ${r.when.arg || ''} roll succeeds`, round: 'each new round', down: `when ${r.who} is down`, cleared: 'when nothing here is left standing', full: `when ${r.when.arg} fills`, quest: `when ${r.when.arg} is done`, use: `when someone uses the ${r.when.arg}` }[r.when.ev] || r.when.ev;
+  const did = { fight: 'a fight starts', calm: `${r.target || r.who} stops fighting`, flee: `${r.target || r.who} flees`, reveal: `${r.target || r.who || 'whatever hides here'} is revealed`, tick: `${r.clock} ticks`, quest: `${r.quest} is done`, xp: `each earns ${r.xp}`, add: `${r.count || 1} ${r.creature} arrive`, give: `${r.item} goes to ${r.when.ev === 'use' ? 'whoever used it' : 'the party'}`, say: 'the Director is told' }[r.do] || r.do;
   return `${when}${r.conds.length ? ` (if ${r.conds.map((c) => `${c.not ? 'not ' : ''}${c.k}${c.arg ? ` ${c.arg}` : ''}`).join(', ')})` : ''}: ${did}${r.say ? `. "${r.say}"` : ''}`;
 }

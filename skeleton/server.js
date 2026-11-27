@@ -175,6 +175,7 @@ function wantsDirector(action) {
     return 'The turn passed. Describe the moment for whoever is up.';
   }
   if (action.type === 'char.create' || action.type === 'char.pregen') return 'A player has a character now. Welcome them into the scene.';
+  if (action.type === 'object.use') return `A character used the ${action.object}. Say what happened (the Engine has done what the adventure's rules say).`;
   return '';
 }
 
@@ -240,7 +241,7 @@ function links({ host = false, trusted = false } = {}) {
 // What screens may know about the module: everything but the adventure's secrets and notes
 // (and, for players, the bestiary's numbers stay on the host).
 function moduleFor(role) {
-  const strip = (a) => ({ id: a.id, name: a.name, pitch: a.pitch, intro: a.intro, sites: (a.sites || []).map((s) => ({ id: s.id, name: s.name, read: s.read, exits: s.exits })), level: a.level, party: a.party });
+  const strip = (a) => ({ id: a.id, name: a.name, pitch: a.pitch, intro: a.intro, sites: (a.sites || []).map((s) => ({ id: s.id, name: s.name, read: s.read, exits: s.exits, objects: s.objects })), level: a.level, party: a.party });
   return {
     module: mod.module, rules: mod.rules, handbook: mod.handbook, lore: mod.lore,
     bestiary: role === 'host' ? mod.bestiary : { creatures: mod.bestiary.creatures.map((c) => ({ id: c.id, name: c.name, look: c.look, tier: c.tier })) },

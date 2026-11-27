@@ -95,10 +95,19 @@ function creaturesNamed(s, ctx, siteId, who) {
   const w = String(who || '').toLowerCase();
   return Object.values(s.creatures).filter((k) => (!siteId || k.siteId === siteId) && (k.base === w || lowerName(k.name) === w || lowerName(k.name).includes(w)));
 }
-function holds(s, ctx, rule, c) {
+// What a character carries: their gear (ids and names from the module) and the things rules gave them.
+function carries(s, ctx, ch, what) {
+  const w = String(what || '').toLowerCase().trim();
+  if (!ch || !w) return false;
+  const names = [...(ch.gear || []).flatMap((g) => [g, ((ctx.mod.ix.gear || {})[g] || {}).name]), ...(ch.items || [])].filter(Boolean).map((x) => String(x).toLowerCase());
+  return names.some((n) => n === w || n.includes(w));
+}
+function holds(s, ctx, rule, c, ev = null) {
   const site = rule.site || s.scene.siteId;
   let v = false;
   switch (c.k) {
+    // The character who used the object; for other moments, anyone in the party.
+    case 'carries': v = ev && ev.char ? carries(s, ctx, s.chars[ev.char], c.arg) : Object.values(s.chars).some((ch) => carries(s, ctx, ch, c.arg)); break;
     case 'from': v = s.scene.from === c.arg; break;
     case 'visited': v = s.scene.visited.includes(c.arg); break;
     case 'down': { const l = creaturesNamed(s, ctx, rule.site, c.arg); v = l.length > 0 && l.every((k) => k.down); break; }
@@ -119,7 +128,7 @@ function stateHolds(s, ctx, r) {
   if (ev.ev === 'quest') return s.quests.some((q) => q.id === ev.arg && q.done);
   return false;
 }
-function fireRule(s, ctx, r) {
+function fireRule(s, ctx, r, ev = null) {
   const host = { ...ctx, role: 'host', pid: null, ai: false };
   const tryH = (type, a) => { try { H[type](s, a, host); return true; } catch (e) { if (e instanceof RuleError) return false; throw e; } };
   const target = r.target || r.who;
@@ -133,6 +142,17 @@ function fireRule(s, ctx, r) {
     case 'quest': tryH('quest.done', { id: r.quest }); break;
     case 'xp': tryH('xp.award', { amount: r.xp, why: r.say || 'what happened here' }); break;
     case 'add': tryH('creature.add', { base: r.creature, count: r.count || 1, siteId: r.site || s.scene.siteId, hidden: !!r.hidden }); break;
+    // To whoever used the object (else the first standing): a gear id from the module goes in their gear,
+    // anything else ("Brass key") in their items.
+    case 'give': {
+      const ch = (ev && ev.char && s.chars[ev.char]) || Object.values(s.chars).find((c) => !c.down);
+      const item = str(r.item, 60);
+      if (!ch || !item) break;
+      const g = (ctx.mod.ix.gear || {})[item] || Object.values(ctx.mod.ix.gear || {}).find((x) => String(x.name || '').toLowerCase() === item.toLowerCase());
+      if (g) ch.gear.push(g.id); else (ch.items = ch.items || []).push(item);
+      story(s, ctx, 'event', `${ch.name} gets ${g ? g.name : item}.`, 'Engine');
+      break;
+    }
     default: break;
   }
   if (r.do !== 'xp' && r.xp) tryH('xp.award', { amount: r.xp, why: r.say || 'what happened here' });
@@ -150,11 +170,17 @@ function runRules(s, ctx) {
     for (const r of TRIG.rulesAt(adv, s.scene.siteId)) {
       if (r.once && s.fired[r.key]) continue;
       let set = false;
+      let ev = null;
       if (TRIG.STATES.includes(r.when.ev)) set = stateHolds(s, ctx, r);
-      else set = events.some((e) => e.ev === r.when.ev && (!r.when.arg || (e.args || []).includes(r.when.arg)) && (!e.site || !r.site || e.site === r.site));
-      if (!set || !r.conds.every((c) => holds(s, ctx, r, c))) continue;
+      else {
+        // "use chest" is set off by using the Sea chest: the object this place's rule names, matched loosely.
+        const argOk = (e) => !r.when.arg || (e.args || []).includes(r.when.arg) || (r.when.ev === 'use' && (e.args || []).some((x) => x.includes(r.when.arg) || r.when.arg.includes(x)));
+        ev = events.find((e) => e.ev === r.when.ev && argOk(e) && (!e.site || !r.site || e.site === r.site)) || null;
+        set = !!ev;
+      }
+      if (!set || !r.conds.every((c) => holds(s, ctx, r, c, ev))) continue;
       s.fired[r.key] = s.seq + 1;
-      fireRule(s, ctx, r);
+      fireRule(s, ctx, r, ev);
       fired = true;
     }
     if (!fired && !ctx.events.length) break;
@@ -707,6 +733,22 @@ H['site.move'] = (s, a, ctx) => {
   placeSite(s, ctx, to.id);
   if (ctx.events) ctx.events.push({ ev: 'enter', site: to.id });
   story(s, ctx, 'event', `The party reaches ${to.name}.`, 'Engine', { site: to.id });
+};
+// A character uses one of the place's objects: opens the chest, pulls the lever, reads the log. The rules
+// here that wait for it ("use sea chest") then fire (engine/triggers.js); the Director narrates.
+H['object.use'] = (s, a, ctx) => {
+  const t = target(s, a.who || a.charId);
+  if (!t || t.kind !== 'char') no(`Say who uses it: ${Object.values(s.chars).map((c) => c.name).join(', ') || 'nobody is in the party yet'}.`);
+  const ch = ownChar(s, ctx, t.id);
+  if (ch.down) no(`${ch.name} cannot: they are down.`);
+  const site = (adventureOf(s, ctx.mod).sites || []).find((x) => x.id === s.scene.siteId);
+  const names = TRIG.objectsOf(site);
+  const what = TRIG.objectNamed(names, a.object) || str(a.object, 80).replace(/[.\s]+$/, '');
+  if (!what) no(`Say what is used${names.length ? `: ${names.join(', ')}` : ''}.`);
+  let how = str(a.how, 24).toLowerCase().replace(/[^a-z\s-]/g, '').trim() || 'uses';
+  if (!/s$/.test(how.split(' ')[0])) how = how.replace(/^(\S+)/, (v) => (/[^aeiou]y$/.test(v) ? `${v.slice(0, -1)}ies` : /(?:sh|ch|x|z|s)$/.test(v) ? `${v}es` : `${v}s`));
+  story(s, ctx, 'event', `${ch.name} ${how} ${/^(?:the|a|an|his|her|their)\s/i.test(what) ? what : `the ${what}`}.`, 'Engine');
+  if (ctx.events) ctx.events.push({ ev: 'use', site: s.scene.siteId, args: [what.toLowerCase()], char: ch.id });
 };
 H['clock.tick'] = (s, a, ctx) => {
   hostOnly(ctx);

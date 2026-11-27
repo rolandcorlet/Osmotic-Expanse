@@ -23,6 +23,9 @@ and the **player** address for phones on the same Wi-Fi. Options: `--port 8790`,
 ## Play
 
 * Players open the player address, join, and take a ready-made character or build their own.
+* **Objects:** a place's `objects` (a chest, a lever, a log) show with Use buttons on the player's and the host's
+  screens, and the Director has use_object. Rules wait for them: `when: 'use sea chest'`, `if: 'carries brass key'`,
+  `do: 'give', item: 'Brass key'` (engine/triggers.js lists every moment, condition and effect).
 * **Saved games** on the **Game** tab: save under a name, load one (Undo brings back the game before), delete;
   an autosave keeps one slot per game every five minutes while it changes (`saves/slots/`).
 * The host runs the table from the **Play** and **World** tabs, or turns the **AI Director** on: it answers every

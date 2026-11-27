@@ -150,3 +150,4 @@ main > .view { flex: 1; min-height: 0; display: grid; gap: 12px; }
 @media (prefers-reduced-motion: reduce) { .req-flash { animation: reqFlash .8s ease-in-out 1; } .card.req-pulse { animation: none; box-shadow: 0 0 0 4px var(--accent); } .req-banner { animation: none; transform: translate(-50%, 0); } .req-pill { animation: none; } }
 .saves-list { display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
 .saves-list .pill { margin-left: 6px; }
+.objects { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }

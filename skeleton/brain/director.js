@@ -45,6 +45,8 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = 
   if (here.notes) L.push(`Your notes: ${here.notes}`);
   for (const h of here.hazards || []) L.push(`Hazard: ${h.name}: ${h.stat}${h.skill ? ` + ${h.skill}` : ''} against ${ladderName(mod, h.at)}; on a failure: ${h.fail || 'it costs them'}.`);
   if ((here.clues || []).length) L.push(`Clues to find: ${here.clues.join(' / ')}`);
+  // The place's objects: a character who uses one goes through use_object, so the Engine does what the rules say.
+  if ((here.objects || []).length) L.push(`Objects here: ${here.objects.map((o) => (typeof o === 'string' ? o : `${o.name}${o.about ? `: ${o.about}` : ''}`)).join(', ')}. When a character uses one, call use_object.`);
   // The adventure's own rules here: the Engine carries them out itself; the Director only narrates them.
   const rules = rulesAt(adv, here.id).filter((r) => !(r.once && (s.fired || {})[r.key]));
   if (rules.length) L.push(`Rules here (the Engine does these by itself when they happen; just narrate them): ${rules.map(ruleWords).join(' | ')}`);

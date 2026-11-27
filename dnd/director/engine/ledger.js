@@ -1831,7 +1831,7 @@ H['object.use'] = (s, a, ctx) => {
   const what = str(a.object, 80).replace(/[.\s]+$/, '');
   if (!what) refuse('Say what is used.', objectsHere(s, ctx));
   let how = str(a.how, 24).toLowerCase().replace(/[^a-z\s-]/g, '').trim() || 'uses';
-  if (!/s$/.test(how.split(' ')[0])) how = how.replace(/^(\S+)/, (v) => (/(?:sh|ch|x|z)$/.test(v) ? `${v}es` : `${v}s`));
+  if (!/s$/.test(how.split(' ')[0])) how = how.replace(/^(\S+)/, (v) => (/[^aeiou]y$/.test(v) ? `${v.slice(0, -1)}ies` : /(?:sh|ch|x|z|s)$/.test(v) ? `${v}es` : `${v}s`));
   story(s, ctx, 'event', `${pc.name} ${how} ${/^(?:the|a|an|his|her|their)\s/i.test(what) ? what : `the ${what}`}.`, 'Engine');
   emit(ctx, { ev: 'use', site: s.scene.siteId, object: what, pc: pc.id });
 };
