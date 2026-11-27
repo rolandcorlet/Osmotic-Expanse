@@ -501,3 +501,8 @@ button.bk-row.on{background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .req-pill{position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:850;padding:7px 16px;white-space:nowrap;border-radius:999px;border:2px solid var(--accent);background:var(--panel);color:var(--accent);font:inherit;font-weight:700;cursor:pointer;box-shadow:0 6px 24px color-mix(in srgb,#000 40%,transparent);animation:reqBob 1.6s ease-in-out infinite}
 @keyframes reqBob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-4px)}}
 @media (prefers-reduced-motion:reduce){.req-flash{animation:reqFlash .8s ease-in-out 1}.card.req-pulse{animation:none;box-shadow:0 0 0 4px var(--accent)}.req-banner{animation:none;transform:translate(-50%,0)}.req-pill{animation:none}}
+/* Tap a game word in the story to see it in plain words (public/words.js). */
+.gw{border-bottom:1px dotted color-mix(in srgb,var(--accent) 75%,transparent);cursor:help}
+.gw:hover,.gw:focus{color:var(--accent);outline:none}
+#gloss{position:fixed;z-index:80;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:var(--r,10px);padding:10px 12px;box-shadow:0 8px 28px color-mix(in srgb,var(--bg) 70%,transparent);font-family:var(--ui);font-size:14px;line-height:1.45}
+#gloss b{display:block;color:var(--accent);margin-bottom:3px;font-size:15px}

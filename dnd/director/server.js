@@ -191,6 +191,7 @@ const FILES = {
   '/scene.js': ['public/scene.js', 'text/javascript'],
   '/flair.css': ['public/flair.css', 'text/css'],
   '/flair.js': ['public/flair.js', 'text/javascript'],
+  '/words.js': ['public/words.js', 'text/javascript'],
   '/engine/rules.js': ['engine/rules.js', 'text/javascript'],
   '/engine/dice.js': ['engine/dice.js', 'text/javascript'],
   '/engine/pregen.js': ['engine/pregen.js', 'text/javascript'],

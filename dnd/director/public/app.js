@@ -10,6 +10,7 @@ import * as TRIG from '/engine/triggers.js';
 import * as SEEDS from '/engine/seeds.js';
 import { initScene, updateScene, rollD20, effectsMode, setEffects } from './scene.js';
 import { vial, gems, sigil, seal, satchel, levelReady, levelFlash } from './flair.js';
+import { glossyHtml, initWords } from './words.js';
 
 // ------------------------------------------------------------------ basics
 const path = location.pathname.replace(/\/+$/, '') || '/';
@@ -412,7 +413,7 @@ function rollsCard(n = 30, title = 'Rolls') {
 function storyCard({ n = 60, title = 'The story', input = '', fill = true } = {}) {
   const lines = state.story.slice(-n);
   const html = lines.map((e) => {
-    if (e.kind === 'narration') return `<div class="narr">${esc(e.text).replace(/\n/g, '<br>')}</div>`;
+    if (e.kind === 'narration') return `<div class="narr">${glossyHtml(e.text)}</div>`;
     if (e.kind === 'say') return `<div class="say"><b>${esc(e.who)}:</b> ${esc(e.text)}</div>`;
     if (e.move) return `<div class="move">${esc(e.text)}</div>`;
     return `<div class="ev${e.roll ? ' roll' : ''}">${esc(e.text)}</div>`;
@@ -2216,3 +2217,5 @@ async function talk() {
 
 
 boot();
+// Tap a game word in the story to see it in plain words (public/words.js).
+initWords();
