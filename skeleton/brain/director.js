@@ -62,7 +62,7 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = 
     const cur = currentKey(s);
     const [kind, id] = (cur || ':').split(':');
     const o = kind === 'char' ? s.chars[id] : s.creatures[id];
-    L.push(`\nFIGHT: round ${s.fight.round}. Order: ${s.fight.order.map((x) => { const [k2, i2] = x.key.split(':'); return (k2 === 'char' ? s.chars[i2] : s.creatures[i2] || {}).name; }).join(', ')}. Acting now: ${o ? `${o.name} (${id})` : 'nobody'}${kind === 'creature' ? ': play it now, then end_turn.' : ': describe the moment and ask that player what they do.'}`);
+    L.push(`\nFIGHT: round ${s.fight.round}. Order: ${s.fight.order.map((x) => { const [k2, i2] = x.key.split(':'); return (k2 === 'char' ? s.chars[i2] : s.creatures[i2] || {}).name; }).join(', ')}. Acting now: ${o ? `${o.name} (${id})` : 'nobody'}${kind === 'creature' ? ': play it now, then end_turn.' : `: a player's turn. Describe the moment and ask ${o ? o.name : 'that player'} what they do. Every creature waits for its own turn: call no creature_attack and no end_turn now (the turn ends on the player's screen, or by itself after their last action).`}`);
   }
   if (s.requests.length) L.push(`\nROLLS WAITING: ${s.requests.map((q) => `${(s.chars[q.charId] || {}).name} (${q.stat}${q.skill ? ` + ${q.skill}` : ''}, ${ladderName(mod, q.at)}: ${q.reason})`).join('; ')}. Do not move on past them.`);
   const recent = s.story.filter((e) => e.kind !== 'host' && !e.quiet).slice(-14);
