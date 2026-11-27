@@ -43,3 +43,15 @@ test('a place whose rule calms its creature on a success gets a try at that, not
   assert.ok(bell.some((x) => /Lore/.test(x.say) && x.expect.includes('ask_for_roll')));
   assert.ok(!bell.some((x) => /attack/i.test(x.say)));
 });
+
+test('the script\'s way back follows the exits: a one-way road is never walked backwards', () => {
+  const adv = { id: 'oneway', start: 'tundra', sites: [
+    { id: 'tundra', name: 'Tundra', exits: ['pass', 'town'] },
+    { id: 'pass', name: 'Pass', exits: ['town'] },
+    { id: 'town', name: 'Town', exits: ['tundra'] },
+  ] };
+  const by = Object.fromEntries(adv.sites.map((x) => [x.id, x]));
+  const moves = generateScript({ ix: { creature: {} }, adventures: [adv] }, adv).filter((x) => x.to);
+  assert.ok(moves.length >= 2);
+  for (const x of moves) assert.ok(by[x.at].exits.includes(x.to), `no road from ${x.at} to ${x.to}`);
+});

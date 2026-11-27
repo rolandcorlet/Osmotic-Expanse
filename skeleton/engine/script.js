@@ -21,15 +21,31 @@ export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new S
   const out = [{ start: true, expect: [] }];
   const seen = new Set();
   const route = [];
+  // The shortest way along the exits ([] when none: a road may run one way only).
+  const pathAlong = (from, to) => {
+    const prev = { [from]: null }; const q = [from];
+    while (q.length) { const id = q.shift(); if (id === to) break; for (const e of (byId[id] || {}).exits || []) if (byId[e] && !(e in prev)) { prev[e] = id; q.push(e); } }
+    if (!(to in prev) || from === to) return [];
+    const out = []; for (let id = to; id !== from; id = prev[id]) out.unshift(id);
+    return out;
+  };
+  // Depth first, and the way back follows the exits too (the D&D bench, 28 Nov: a one-way road walked backwards).
+  let stuck = false;
   (function walk(id, from) {
-    if (seen.size >= places || seen.has(id) || !byId[id]) return;
+    if (seen.size >= places || seen.has(id) || !byId[id] || stuck) return;
     seen.add(id);
     route.push({ id, from });
     for (const e of byId[id].exits || []) {
-      if (seen.size >= places) break;
+      if (seen.size >= places || stuck) break;
       if (!byId[e] || seen.has(e)) continue;
+      const before = route.length;
       walk(e, id);
-      if (seen.size < places) route.push({ id, from: e, back: true });
+      if (seen.size >= places || stuck) break;
+      const here = route.slice(before).reduce((at, h) => h.id, e);
+      const back = pathAlong(here, id);
+      if (!back.length) { stuck = true; break; }
+      let at = here;
+      for (const hop of back) { route.push({ id: hop, from: at, back: true }); at = hop; }
     }
   })(adv.start || sites[0].id, null);
   const creatureName = (c) => String(((mod.ix.creature || {})[c.id] || {}).name || c.name || c.id).replace(/^the\s+/i, '');

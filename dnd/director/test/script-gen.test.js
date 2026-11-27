@@ -51,3 +51,15 @@ test('a group the adventure says is not here at all is never attacked by the scr
   a.sites[1].foes.push({ monster: 'goblin', count: 3, maybe: true, name: 'Lurkers', note: 'Only if provoked.' });
   assert.match(generateScript(a, { places: 2 }).find((s) => s.gen === 'fight').say, /Lurkers/);
 });
+
+test('the way back follows the exits: a one-way road is never walked backwards (Frozen Road bench, 28 Nov)', () => {
+  const adv = { id: 'oneway', name: 'One way', sites: [
+    { id: 'tundra', name: 'Tundra', exits: [{ to: 'pass', label: 'up to the pass' }, { to: 'town', label: 'to town' }] },
+    { id: 'pass', name: 'Pass', exits: [{ to: 'town', label: 'down to town' }] },
+    { id: 'town', name: 'Town', exits: [{ to: 'tundra', label: 'out to the tundra' }] },
+  ] };
+  const by = Object.fromEntries(adv.sites.map((x) => [x.id, x]));
+  const steps = generateScript(adv).filter((x) => x.gen && x.gen.startsWith('arrive '));
+  assert.ok(steps.length >= 2);
+  for (const x of steps) assert.ok(by[x.at].exits.some((e) => e.to === x.gen.slice(7)), `no road from ${x.at} to ${x.gen.slice(7)}`);
+});

@@ -40,18 +40,35 @@ export function generateScript(adv, { places = 6, heroes = 2, route: how = 'walk
   let turn = 0;
   const who = () => pids[turn++ % pids.length];
   const out = [{ start: true, expect: [] }];
-  // A walk from the start, depth first, with the way back when a branch ends (each hop a step).
+  // The shortest way along the exits from one place to another ([] when none: a road may run one way only).
+  const pathAlong = (from, to) => {
+    const prev = { [from]: null }; const q = [from];
+    while (q.length) { const id = q.shift(); if (id === to) break; for (const e of byId[id].exits || []) if (byId[e.to] && !(e.to in prev)) { prev[e.to] = id; q.push(e.to); } }
+    if (!(to in prev) || from === to) return [];
+    const out = []; for (let id = to; id !== from; id = prev[id]) out.unshift(id);
+    return out;
+  };
+  // A walk from the start, depth first, with the way back when a branch ends (each hop a step). The way back
+  // follows the exits too: the Frozen Road's pass leads down to Targos and no road leads back up (bench 28 Nov,
+  // where "head back to the Mountain Pass" from Targos was asked of a Director who rightly said there is none).
   const seen = new Set();
   const route = [];
+  let stuck = false;
   (function walk(id, from) {
-    if (seen.size >= places || seen.has(id)) return;
+    if (seen.size >= places || seen.has(id) || stuck) return;
     seen.add(id);
     route.push({ id, from });
     for (const e of byId[id].exits || []) {
-      if (seen.size >= places) break;
+      if (seen.size >= places || stuck) break;
       if (!byId[e.to] || seen.has(e.to)) continue;
+      const before = route.length;
       walk(e.to, id);
-      if (seen.size < places) route.push({ id, from: e.to, back: true });
+      if (seen.size >= places || stuck) break;
+      const here = route.slice(before).reduce((at, h) => h.id, e.to);
+      const back = pathAlong(here, id);
+      if (!back.length) { stuck = true; break; }
+      let at = here;
+      for (const hop of back) { route.push({ id: hop, from: at, back: true }); at = hop; }
     }
   })(sites[0].id, null);
   // --route quests: the shortest way from the start to each place a quest ends at, in the order the
