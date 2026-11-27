@@ -170,3 +170,29 @@ test('an old save with no pictures state takes a picture without trouble', () =>
   T.host({ type: 'art.show', url: `/maps/${'e'.repeat(24)}.jpg` });
   assert.equal(T.s.art.now.n, 1);
 });
+
+test('a quest the adventure\'s rules use as a mark is set, not refused, and its rule stops (Far North bench, 27 Nov)', () => {
+  const sites = adventure.sites.map((x) => ({ ...x }));
+  sites[1] = { ...sites[1], foes: [], rules: [{ id: 'snowman-animates', when: 'enter', if: 'not quest snowman-resolved', do: 'say', say: 'The snowman stirs.', once: false }] };
+  const adv = { ...adventure, sites };
+  const run = (mark) => {
+    const T = table(8, { adv });
+    hero(T, 'p1', 'Bryn');
+    const stirs = () => [...T.s.story, ...T.s.log].filter((e) => /snowman stirs/i.test(e.text || '')).length;
+    T.host({ type: 'site.move', siteId: sites[1].id });
+    const first = stirs();
+    if (mark) T.ai({ type: 'quest.done', id: 'snowman-resolved' });
+    T.host({ type: 'site.move', siteId: sites[0].id });
+    T.host({ type: 'site.move', siteId: sites[1].id });
+    return { first, again: stirs() - first, marks: T.s.marks || [] };
+  };
+  const plain = run(false);
+  assert.equal(plain.first, 1);
+  assert.equal(plain.again, 1, 'without the mark it stirs every time');
+  const marked = run(true);
+  assert.deepEqual(marked.marks, ['snowman-resolved']);
+  assert.equal(marked.again, 0, 'it does not stir again once the mark is set');
+  // A quest name no rule uses is still refused.
+  const T = table(8, { adv });
+  assert.throws(() => T.ai({ type: 'quest.done', id: 'dragon-slain' }), /no such quest/);
+});

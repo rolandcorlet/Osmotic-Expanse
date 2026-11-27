@@ -1767,6 +1767,14 @@ H['quest.done'] = (s, a, ctx) => {
     const hits = s.quests.filter((x) => words.length && words.filter((w) => x.text.toLowerCase().includes(w.replace(/s$/, ''))).length >= Math.max(1, Math.ceil(words.length / 2)));
     if (hits.length === 1) { q = hits[0]; assume(ctx, `"${a.id}" is the quest "${q.text}".`); }
   }
+  // A mark the adventure's rules use ("snowman-resolved"): set, not refused.
+  const mark = String(a.id || '').toLowerCase().trim();
+  if (!q && mark && ruleMarks(ctx.adventure).has(mark)) {
+    if (marked(s, mark)) nop(`"${mark}" is already done.`);
+    (s.marks = s.marks || []).push(mark);
+    assume(ctx, `"${a.id}" is not on the quest list: it is a mark the adventure's rules use, now done.`);
+    return;
+  }
   if (!q) refuse(`There is no such quest. Quests: ${s.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.`, s.quests.filter((x) => !x.done).map((x) => x.id));
   if (q.done && a.done !== false) nop(`"${q.text}" is already complete.`);
   q.done = a.done !== false;
@@ -2350,6 +2358,19 @@ function foesNamed(s, siteId, who) {
   return exact.length ? exact : all.filter((f) => hit(f).some((x) => x.startsWith(w) || x.startsWith(sing)));
 }
 const standingFoe = (f) => !f.dead && f.hp > 0;
+// A mark: a "quest" the adventure's rules use as a switch but the quest list does not have (Far North:
+// "snowman-resolved" stops the snowman coming alive again). Done by a rule or by the Director; never shown as
+// a quest. state.marks: [id], lowercase.
+const marked = (s, w) => (s.marks || []).includes(String(w || '').toLowerCase().trim());
+const ruleMarks = (adv) => {
+  const out = new Set();
+  const take = (x) => { for (const m of String(x || '').matchAll(/\bquest\s+([a-z0-9][a-z0-9-]*)/gi)) out.add(m[1].toLowerCase()); };
+  for (const r of [...((adv || {}).rules || []), ...((adv || {}).sites || []).flatMap((x) => x.rules || [])]) {
+    if (r.do === 'quest' && r.quest) out.add(String(r.quest).toLowerCase().trim());
+    for (const x of [].concat(r.if || [], r.when || [])) take(x);
+  }
+  return out;
+};
 const questByWords = (s, w) => {
   const k = String(w || '').toLowerCase().trim();
   if (!k) return null;
@@ -2374,7 +2395,7 @@ function holds(s, ctx, rule, c, ev = null) {
     case 'down': { const l = foesNamed(s, rule.site, c.arg); v = l.length > 0 && l.every((f) => !standingFoe(f)); break; }
     case 'standing': v = foesNamed(s, rule.site, c.arg).some(standingFoe); break;
     case 'hurt': v = foesNamed(s, rule.site, c.arg).some((f) => standingFoe(f) && f.hp < f.maxHp / 2); break;
-    case 'quest': { const q = questByWords(s, c.arg); v = !!(q && q.done); break; }
+    case 'quest': { const q = questByWords(s, c.arg); v = !!(q && q.done) || marked(s, c.arg); break; }
     case 'has': { const k = c.arg.toLowerCase(); v = [...(s.loot || []), ...Object.values(s.pcs).flatMap(itemsOf)].some(named(k)); break; }
     case 'carries': v = holders(s, ev, c).length > 0; break;
     case 'passed': case 'failed': {
@@ -2415,7 +2436,7 @@ function setOff(s, ctx, rule, ev) {
     case 'hurt': return foesNamed(s, rule.site, rule.who).some((f) => standingFoe(f) && f.hp < (rule.hp || f.maxHp / 2));
     case 'cleared': { const l = Object.values(s.foes).filter((f) => f.siteId === (rule.site || s.scene.siteId)); return l.length > 0 && !l.some(standingFoe); }
     case 'full': return (s.clocks || []).some((c) => c.done && c.name.toLowerCase() === String(w.arg).toLowerCase());
-    case 'quest': { const q = questByWords(s, w.arg); return !!(q && q.done); }
+    case 'quest': { const q = questByWords(s, w.arg); return !!(q && q.done) || marked(s, w.arg); }
     default: return false;
   }
 }
@@ -2465,6 +2486,7 @@ function carryOut(s, ctx, rule, ev) {
     }
     case 'quest': {
       const q = questByWords(s, rule.quest);
+      if (!q && !marked(s, rule.quest)) { (s.marks = s.marks || []).push(rule.quest.toLowerCase().trim()); undo.mark = rule.quest.toLowerCase().trim(); break; }
       if (!q || q.done) break;
       H['quest.done'](s, { id: q.id }, host);
       undo.quest = q.id;
@@ -2725,6 +2747,7 @@ H['rule.override'] = (s, a, ctx) => {
   if (u.fightXp && s.fight) s.fight.xp = Math.max(0, (s.fight.xp || 0) - u.fightXp);
   for (const id of u.moved || []) delete s.foes[id];
   if (u.clock && u.by) { const c = (s.clocks || []).find((x) => x.name === u.clock); if (c) { c.filled = Math.max(0, c.filled - u.by); c.done = c.filled >= c.size; said.push(`the clock "${c.name}" goes back to ${c.filled}`); } }
+  if (u.mark) s.marks = (s.marks || []).filter((m) => m !== u.mark);
   if (u.quest) { const q = s.quests.find((x) => x.id === u.quest); if (q) { q.done = false; said.push(`the quest "${q.text}" is open again`); } }
   if (u.revealed) for (const id of u.revealed) if (s.foes[id]) s.foes[id].hidden = true;
   if (u.given) {
