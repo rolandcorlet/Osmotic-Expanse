@@ -101,7 +101,7 @@ export const TOOLS = [
   {
     name: 'look_up_rules',
     description: 'Search the rule book, handbook, bestiary, lore and adventure notes. Use it before ruling on anything you are not sure of.',
-    parameters: obj({ query: S('A few words: "what does a snag cost", "glass eel", "the bell".') }, ['query']),
+    parameters: obj({ query: S('A few words: "what does a snag cost", a creature\'s name as the briefing gives it, a place\'s name.') }, ['query']),
     run(a, T) {
       const hits = lookUp(T.mod, a.query);
       return hits.length ? { found: hits.map((h) => ({ book: h.book, title: h.title, text: h.text.slice(0, 900) })) } : { note: `Nothing in the books matches. Rule it the simplest way: a roll against ${(((T.mod.rules.ladder || [])[1] || (T.mod.rules.ladder || [])[0]) || {}).name || 'the middle difficulty'}.` };
