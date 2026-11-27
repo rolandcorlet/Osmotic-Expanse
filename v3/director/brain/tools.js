@@ -458,7 +458,8 @@ export const TOOLS = [
       if (spec.amount == null) return { refused: `The Hazard note for ${T.site().name} prints no damage number, so nothing here costs an organism MI. It reads: "${spec.text}"` };
       // The Churn's fill is the Engine's own (it pays the surge when the CHURN Clock fills): a call for it
       // is nothing to do, not a broken rule (Long Swallow bench, 21 Nov).
-      if (/\bchurn\b[^.]{0,20}\bfill|\bfill\b[^.]{0,20}\bchurn\b|\bsurge\b/i.test(`${a.trigger} ${a.why}`) && T.state.clocks.CHURN) return { note: `Nothing paid: the Churn's fill is paid by the Engine itself when the CHURN Clock fills (it stands at ${T.state.clocks.CHURN.filled} of ${T.state.clocks.CHURN.segments}). Describe the water building, nothing more.` };
+      // Bench 27 Nov: trigger "the fill" with "the Churn's squeeze" in the why, at the Nine-Cycle Churn.
+      if ((/\bchurn\b[^.]{0,20}\bfill|\bfill\b[^.]{0,20}\bchurn\b|\bsurge\b/i.test(`${a.trigger} ${a.why}`) || /^(?:the )?fill$/i.test(String(a.trigger || '').trim())) && T.state.clocks.CHURN) return { note: `Nothing paid: the Churn's fill is paid by the Engine itself when the CHURN Clock fills (it stands at ${T.state.clocks.CHURN.filled} of ${T.state.clocks.CHURN.segments}). Describe the water building, nothing more.` };
       if (amount !== spec.amount) return { refused: `The hazard printed for ${T.site().name} does ${spec.amount}${spec.type ? ` ${spec.type}` : ''}, not ${amount}. It reads: "${spec.text}"` };
       // A hazard the page hangs on a Clock cannot go off early: "fires at TOLL 5" is a rule, not
       // a suggestion, and the Render Charge is the whole carcass ending.
@@ -659,6 +660,12 @@ export const TOOLS = [
       if (o.dormant) {
         const able = Object.values(T.state.organisms).filter((x) => x.playerId && !x.dormant).map((x) => x.name);
         return { note: `${o.name} is Dormant and cannot cut. Nothing changed. Someone who is up can: ${able.join(', ') || 'no one is up'}.` };
+      }
+      // Cutting a site that prints nothing to cut changes nothing: a note, so the Director narrates the
+      // attempt instead (Long Swallow bench, 27 Nov: "a Pristine Sequence stack" at the Shelf).
+      if (!cid && !T.site().harvest) {
+        const down = Object.values(T.state.creatures || {}).filter((c) => c.siteId === T.site().id && (c.destroyed || c.dead || c.mi <= 0)).map((c) => c.name);
+        return { note: `Nothing changed: nothing is printed to cut at ${T.site().name}.${down.length ? ` A destroyed creature can be harvested: ${down.join(', ')}.` : ''} If the players want what they see here, it is bought, traded or earned in the scene, not cut.` };
       }
       const before = T.state.rolls.length;
       const no = T.do({ type: 'harvest', organismId: o.id, cid, baseline: a.baseline });

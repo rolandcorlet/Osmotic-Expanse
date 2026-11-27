@@ -815,7 +815,7 @@ test('harvest: a failed roll ruins the sample and gives Substrate instead', () =
 
 test('harvest: the Soft Field can be cut, the Toll-Vent cannot; the Tally Post stamps the cut', () => {
   const T = toolbox({ state: seated(), scenario, bestiary, rng, now: 0 });
-  assert.match(T.run('harvest', { organism: 'eyes' }).refused, /Nothing is printed to cut/);
+  assert.match(T.run('harvest', { organism: 'eyes' }).note, /nothing is printed to cut/);
   assert.match(T.run('stamp_cut', {}).refused, /no Tally Post/);
   T.run('change_site', { site: 'soft-field' });
   assert.match(briefing(T.state, scenario, bestiary, {}), /This site can be cut[\s\S]*A Tally Post stands here/);
@@ -2070,4 +2070,19 @@ test('plain words: the briefing names the new words a place may need', () => {
   assert.match(lines, /^# PLAIN WORDS/);
   assert.match(briefing(s, scenario, bestiary), /# PLAIN WORDS/);
   assert.deepEqual(wordsUsed('Bresk of the Sixth Choir waits.', scenario.kit.glossary, s), [], 'names are not setting words');
+});
+
+test('the Churn\'s fill called as a hazard ("the fill") is the Engine\'s to pay: a note, not a refusal (bench 27 Nov)', async () => {
+  const { scenario: sw } = await import('../data/long-swallow.js');
+  let s = newSession(sw);
+  const cx = (role, pid) => ({ role, pid, rng, now: 0, scenario: sw, bestiary });
+  s = apply(s, { type: 'join', name: 'Roly' }, cx('player', 'p1'));
+  s = apply(s, { type: 'zero.agree' }, cx('player', 'p1'));
+  s = apply(s, { type: 'claim', organismId: Object.keys(s.organisms)[0], name: 'Bresk' }, cx('player', 'p1'));
+  s = apply(s, { type: 'scene.set', siteId: 'churn' }, cx('host', null));
+  const T = toolbox({ state: s, scenario: sw, bestiary, rng, now: 0 });
+  const id = Object.keys(s.organisms)[0];
+  const r = T.run('hazard_damage', { organism: id, trigger: 'the fill', amount: 6, why: 'The Cohort rides the flow and takes the squeeze on the chin.' });
+  assert.ok(r.note && /paid by the Engine itself/.test(r.note), JSON.stringify(r));
+  assert.equal(T.refusals, 0);
 });
