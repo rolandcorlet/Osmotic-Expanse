@@ -537,6 +537,7 @@ async function runOnce(n) {
       act('host', null, { type: 'fight.start' });
     }
     const turnsBefore = tally.turns;
+    const questsBefore = s.quests.filter((q) => q.done).length;
     await answerRolls('initiative');
     // The last initiative roll already gave the Director its turn; only a fight started without
     // waiting on anyone needs one here.
@@ -594,6 +595,10 @@ async function runOnce(n) {
       if (s.fight && `${s.fight.round}:${s.fight.turn}` === before && !actingPc()) { tally.stall += 1; notes.push(`fight: the Director did not end the monster's turn (round ${s.fight.round})`); act('host', null, { type: 'fight.next' }); }
     }
     if (s.fight) { tally.stall += 1; notes.push('fight: still going after 40 steps'); act('host', null, { type: 'fight.end' }); }
+    // A quest the Director finished during the fight (the Far North's seed, at the ordeal's end; bench 27 Nov):
+    // a later step that expects it finds it already done, and that counts, as with the adventure's own rules.
+    const seqNow = Math.max(0, ...(s.log || []).map((l) => l.seq));
+    for (let i = questsBefore; i < s.quests.filter((q) => q.done).length; i++) credits.push({ kind: 'quest', seq: seqNow, used: false });
     // Characters downed in the fight are healed so the script can go on. In part 3 (four fights and no
     // inn) the party catches its breath between rooms and is healed to full, as a short rest and a
     // cleric's slots would (bench 21 Nov: they reached Brother Aldane half dead every run).
