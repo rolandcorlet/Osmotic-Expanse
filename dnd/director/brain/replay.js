@@ -36,6 +36,7 @@ export function replayRecord(rec, { adventure, srd, seed = 1 }) {
   beforeTurn(T, state);
   const out = [];
   for (const c of rec.calls) {
+    if (/^\(/.test(c.name || '')) continue; // the Engine's own note ("(engine)"), not a model's call
     let r;
     try { r = T.run(c.name, c.args); } catch (e) { r = { refused: `That could not be done: ${e.message}` }; }
     const now = kindOf(r);

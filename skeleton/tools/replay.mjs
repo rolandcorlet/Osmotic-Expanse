@@ -36,6 +36,8 @@ for (const f of files) {
     turns += 1;
     const T = toolbox({ state: JSON.parse(gunzipSync(Buffer.from(rec.state, 'base64')).toString('utf8')), mod, rng: makeRng(1), now: 1 });
     for (const c of rec.calls) {
+      // The Engine's own notes in the record ("(engine)": a roll withdrawn), not a call the model made.
+      if (/^\(/.test(c.name || '')) continue;
       calls += 1;
       const out = T.run(c.name, c.args);
       const now = out && out.refused ? 'refused' : 'ok';
