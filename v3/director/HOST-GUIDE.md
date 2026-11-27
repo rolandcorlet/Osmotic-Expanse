@@ -13,6 +13,8 @@ Keep this beside you. Nothing here needs the code open.
 4. **Director tab:** pick your brain and model, press **Test**. It must say the model called a
    tool. If it does not, pick another model — the Director cannot run without tools.
    * On a local model, set **Thinking** to **Low**. Fast and clean.
+   * Your local model (iq3_s) is what the benches test on and costs nothing to run. A cloud model
+     such as Gemini bills you, and stops mid-game when its spending cap runs out.
    * Leave the mode on **Co-pilot** for the first session.
 5. **Run tab, Session zero card:** set the pause word (default *SLACK WATER*) and a one-line
    tone note, for example *body horror is in, cruelty to animals is out*.
@@ -24,7 +26,10 @@ Keep this beside you. Nothing here needs the code open.
 
 ## As they sit down
 
-Players open the **player** link on their phones and type a name. Before they can take an
+Players open the **player** link on their phones and type a name. The links (player, table and
+host, and the outside link with its table code when you started online) are in the **Join links**
+fold-out on the clocks card, on the table screen, and on every player's Colours tab, so anyone
+already in can pass them on. Before they can take an
 organism they read the session-zero card and press the button. The host console shows
 **nobody yet** → **2 not ready** → **all ready**.
 
@@ -56,6 +61,22 @@ On the phones: the **Books** tab reads any public book aloud; the flashing **Sho
 (with a little radar on it) opens the creatures and a map of where everyone is and the ways out;
 the living water behind the screen answers the game (players can switch it off on Colours). In a
 Pulse War, everyone's actions are told on the Story card, so nobody misses a turn.
+
+**Plain words.** This world has a lot of its own words, and new players get lost in them. Three
+things help, and none of them needs you:
+
+* **Tap a word.** The first time a setting word (Tonic, the Churn, Substrate…) or a creature's name
+  appears in the story, it is underlined. A tap shows what it means. Every word is on the
+  **Words** tab too, with a search box. Tell the table this at the start.
+* **The Director explains new words.** It knows which words this table has already met, and says
+  what a new one means the first time. If it forgets, the Engine adds the meaning in brackets:
+  *the Churn (the Host's digestion)*. You may hear these brackets read aloud by the voice.
+* **Ask.** "What does that mean?" typed to the Director always gets a plain answer.
+
+**Rolls.** The Director waits for a player to say what they try ("I look where the light was")
+before asking for a look-or-sense roll. Every roll asked for is said in the story with what it is
+for, so the whole table hears it. On each phone the health vial, energy gems and specimen satchel
+show the organism's state at a glance, and a glow on the sheet says when it can grow.
 
 **In Co-pilot, every turn waits for you.** You see what it did with the Engine and what it
 will say.
