@@ -9,6 +9,7 @@ import { getSystem } from '../engine/dicesystems.js';
 import { currentKey } from '../engine/ledger.js';
 import { rulesAt, ruleWords } from '../engine/triggers.js';
 import * as SEEDS from '../engine/seeds.js';
+import { glossaryOf, glossInline, wordsUsed, wordsBrief } from '../engine/words.js';
 
 const TEMPLATE = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 14;
@@ -72,6 +73,7 @@ export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = 
   if (now) L.push(`\nA STORY SEED COMES INTO PLAY NOW (${s.seedNow.by === 'engine' ? `its moment came: ${s.seedNow.why}` : 'your choice'}). Bring it into the scene this turn${s.seedNow.foes.length ? `; these have arrived: ${s.seedNow.foes.join(', ')}` : ''}${s.fight ? ' (the fight is on)' : ''}:\n${now.text}`);
   const seeds = (s.seeds || []).filter((x) => x.on && (!now || x.id !== now.id) && SEEDS.seedFree(x, s, here.id));
   if (seeds.length) L.push(`\nSTORY SEEDS (the host's; call use_seed with the id when its moment comes or it fits; the Engine brings in "getting nowhere" and "camp" ones by itself):\n${seeds.map((x) => `[${x.id}] ${SEEDS.whenWords(SEEDS.seedPlan(x.text))}:\n${x.text}`).join('\n---\n')}`);
+  L.push(...wordsBrief(s, glossaryOf(mod), here));
   if (hostNote) L.push(`\nTHE HOST ASKS: ${hostNote}`);
   L.push(`\nNOW: ${reason || 'Continue the scene.'}`);
   return L.join('\n');
@@ -234,6 +236,14 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     flags.push({ kind: 'rule', text: 'The Director said nothing; the Engine asked the table what is next.' });
   }
   if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
-  T.do({ type: 'narrate', text: narration.replace(/\*\*/g, '') });
+  // One of the game's own words left unexplained: the Engine puts its short meaning in brackets after it,
+  // with no extra model call (plain words, 27 Nov).
+  const gloss = glossaryOf(mod);
+  narration = narration.replace(/\*\*/g, '');
+  if (gloss.length && !flags.some((f) => /^The Director said nothing/.test(f.text))) {
+    const g = glossInline(narration, gloss, T.state);
+    if (g.words.length) { narration = g.text; flags.push({ kind: 'note', text: `The Engine added the plain meaning of ${g.words.join(', ')}.` }); }
+  }
+  T.do({ type: 'narrate', text: narration, words: wordsUsed(narration, gloss, T.state) });
   return { state: T.state, narration, calls, flags, usage, refusals: T.refusals };
 }

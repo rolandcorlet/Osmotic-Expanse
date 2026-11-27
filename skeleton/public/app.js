@@ -5,6 +5,7 @@ import { getSystem, chance, ownDiceHint, SYSTEMS } from '/engine/dicesystems.js'
 import * as SEEDS from '/engine/seeds.js';
 import { initScene, updateScene, rollD20, effectsMode, setEffects } from '/scene.js';
 import { vial, gems, sigil, seal, levelFlash } from '/flair.js';
+import { glossaryOf, termsIn } from '/engine/words.js';
 // flair.js gives HTML; this puts it in the tree (a span or div with no box of its own).
 const raw = (html, tag = 'span') => { const e = document.createElement(tag); e.style.display = 'contents'; e.innerHTML = html; return e; };
 const callingName = (c) => (M.handbook.callings.find((x) => x.id === c.calling) || {}).name || '';
@@ -145,9 +146,44 @@ function bar(v, max, cls = '') { return h('div', { class: `bar ${cls}`, title: `
 function storyView(big = false) {
   const box = h('div', { class: `story${big ? ' table-big' : ''}${ROLE === 'host' ? '' : ' journal'}`, 'data-key': 'story' },
     S.story.filter((e) => ROLE === 'host' || e.kind !== 'host').filter((e) => !e.quiet || ROLE === 'host').map((e) => h('div', { class: `ev ${e.kind}` },
-      e.kind === 'say' ? h('span', { class: 'who' }, e.who) : null, e.text, e.kind === 'narration' && ROLE !== 'table' ? h('span', { style: 'margin-left:6px' }, readBtn(e.text)) : null)));
+      e.kind === 'say' ? h('span', { class: 'who' }, e.who) : null, e.kind === 'narration' ? glossy(e.text) : e.text, e.kind === 'narration' && ROLE !== 'table' ? h('span', { style: 'margin-left:6px' }, readBtn(e.text)) : null)));
   return box;
 }
+// Tap a word (plain words, 27 Nov): the first time one of the game's own words appears in a piece of
+// narration it is underlined; a tap or Enter shows what it means.
+function glossy(text) {
+  const t = String(text || '');
+  const hits = M ? termsIn(t, glossaryOf(M), [...Object.values(S.chars || {}), ...Object.values(S.creatures || {})].map((x) => x.name)) : [];
+  const out = [];
+  let at = 0;
+  for (const g of hits) {
+    out.push(t.slice(at, g.index), h('span', { class: 'gw', role: 'button', tabindex: '0', 'data-gloss': g.word, title: g.plain }, t.slice(g.index, g.end)));
+    at = g.end;
+  }
+  out.push(t.slice(at));
+  return out;
+}
+function glossPop(el) {
+  let pop = document.getElementById('gloss');
+  if (!el) { if (pop) pop.hidden = true; return; }
+  const g = glossaryOf(M).find((x) => x.word === el.dataset.gloss);
+  if (!g) return;
+  if (!pop) { pop = document.createElement('div'); pop.id = 'gloss'; pop.setAttribute('role', 'tooltip'); document.body.appendChild(pop); }
+  pop.replaceChildren(h('b', {}, g.word), g.plain);
+  pop.hidden = false;
+  const r = el.getBoundingClientRect();
+  const w = Math.min(300, window.innerWidth - 16);
+  pop.style.maxWidth = `${w}px`;
+  pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - w - 8))}px`;
+  pop.style.top = `${r.bottom + 8}px`;
+  if (r.bottom + 8 + pop.offsetHeight > window.innerHeight - 8) pop.style.top = `${Math.max(8, r.top - pop.offsetHeight - 8)}px`;
+}
+document.addEventListener('click', (e) => { const t = e.target; if (!(t.closest && t.closest('#gloss'))) glossPop((t.closest && t.closest('.gw')) || null); }, true);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') glossPop(null);
+  else if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('gw')) { e.preventDefault(); glossPop(e.target); }
+}, true);
+document.addEventListener('scroll', () => glossPop(null), true);
 function fightStrip() {
   if (!S.fight) return null;
   const cur = curKey();

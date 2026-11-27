@@ -291,7 +291,7 @@ const server = createServer(async (req, res) => {
     const doc = /^\/docs\/(MODULE-FORMAT|DESIGNER-PROMPT|CONVERTER-PROMPT|README)\.md$/.exec(p);
     if (doc) { const f = join(ROOT, `${doc[1]}.md`); if (existsSync(f)) { res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }); res.end(readFileSync(f)); return; } }
     // The dice systems are shared with the screens (labels, odds, what to type).
-    const eng = /^\/engine\/(dicesystems|dice|odds|seeds|scale)\.js$/.exec(p);
+    const eng = /^\/engine\/(dicesystems|dice|odds|seeds|scale|words)\.js$/.exec(p);
     if (eng) { res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }); res.end(readFileSync(join(ROOT, 'engine', `${eng[1]}.js`))); return; }
     const file = ['/', '/host', '/table', '/play'].includes(p) ? join(PUB, 'index.html') : normalize(join(PUB, p));
     if (!file.startsWith(PUB) || !existsSync(file)) { res.writeHead(404); res.end('Not found'); return; }

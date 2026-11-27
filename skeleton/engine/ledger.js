@@ -28,6 +28,7 @@ export function newSession(mod, adventureId) {
     quests: (adv.quests || []).map((q) => ({ id: q.id, text: q.text, done: false })),
     clocks: (adv.clocks || []).map((c) => ({ id: c.id, name: c.name, size: c.size, filled: 0 })),
     fight: null, requests: [], rolls: [], story: [], hostNotes: '', seeds: [], seedLog: [], restCount: 0,
+    words: [], // the module's own words the table has met (engine/words.js)
     director: { mode: 'off' },
   };
   placeSite(s, { mod, now: 0 }, adv.start);
@@ -442,7 +443,16 @@ H.say = (s, a, ctx) => {
   const ch = s.chars[p.charId];
   story(s, ctx, 'say', text, ch ? ch.name : p.name, { pid: ctx.pid, charId: ch ? ch.id : null });
 };
-H.narrate = (s, a, ctx) => { hostOnly(ctx); const t = str(a.text, 6000); if (t) story(s, ctx, 'narration', t, 'Director', { ai: !!ctx.ai }); };
+H.narrate = (s, a, ctx) => {
+  hostOnly(ctx);
+  const t = str(a.text, 6000);
+  if (t) story(s, ctx, 'narration', t, 'Director', { ai: !!ctx.ai });
+  // The module's own words this narration used: the table has met them now (engine/words.js).
+  if (t && Array.isArray(a.words) && a.words.length) {
+    const have = new Set((s.words || []).map((w) => w.toLowerCase()));
+    s.words = [...(s.words || []), ...a.words.map((w) => str(w, 40)).filter((w) => w && !have.has(w.toLowerCase()))].slice(0, 300);
+  }
+};
 H['note.host'] = (s, a, ctx) => { hostOnly(ctx); s.hostNotes = str(a.text, 8000); };
 
 // ---- rolls

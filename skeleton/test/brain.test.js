@@ -195,3 +195,15 @@ test('a player character who has used every action has the turn ended by the Eng
   assert.notEqual(T.s.fight.order[T.s.fight.turn].key, `char:${m.id}`);
   assert.ok(T.s.story.some((e) => /has used every action this turn/.test(e.text)));
 });
+
+test('plain words: a module word left unexplained gets its meaning added, and the table has met it (27 Nov)', async () => {
+  const T = table(); const m = diver(T, 'p1', 0);
+  const first = m.name.split(' ')[0];
+  const out = await directorTurn({ state: T.s, mod, provider: scripted([{ text: `The water closes over you and your Breath runs short. ${first}, what do you do?` }]), rng: makeRng(2), reason: 'test' });
+  assert.match(out.narration, /your Breath \(a diver's health\) runs short/);
+  assert.ok(out.state.words.includes('Breath'));
+  assert.match(briefing(out.state, mod), /PLAIN WORDS: the table already knows Breath/);
+  // Once met, it is left alone.
+  const again = await directorTurn({ state: out.state, mod, provider: scripted([{ text: `Your Breath steadies. ${first}, what now?` }]), rng: makeRng(3), reason: 'test' });
+  assert.doesNotMatch(again.narration, /\(a diver's health\)/);
+});

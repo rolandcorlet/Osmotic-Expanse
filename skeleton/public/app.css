@@ -121,3 +121,8 @@ main > .view { flex: 1; min-height: 0; display: grid; gap: 12px; }
   .ev.narration { font-size: 16px; }
 }
 @media (min-height: 950px) and (min-width: 1200px) { html, body { font-size: 16px; } .ev.narration { font-size: 18px; } }
+/* Tap one of the game's own words in the story to see what it means (engine/words.js). */
+.gw { border-bottom: 1px dotted color-mix(in srgb, var(--accent) 75%, transparent); cursor: help; }
+.gw:hover, .gw:focus { color: var(--accent); outline: none; }
+#gloss { position: fixed; z-index: 80; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius, 10px); padding: 10px 12px; box-shadow: 0 8px 28px color-mix(in srgb, var(--bg) 70%, transparent); font: 14px/1.45 var(--font); }
+#gloss b { display: block; color: var(--accent); margin-bottom: 3px; font-size: 15px; }
