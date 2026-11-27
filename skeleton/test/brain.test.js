@@ -207,3 +207,16 @@ test('plain words: a module word left unexplained gets its meaning added, and th
   const again = await directorTurn({ state: out.state, mod, provider: scripted([{ text: `Your Breath steadies. ${first}, what now?` }]), rng: makeRng(3), reason: 'test' });
   assert.doesNotMatch(again.narration, /\(a diver's health\)/);
 });
+
+test('a spent turn held open by a waiting roll ends once that roll is made', () => {
+  const T = table(4); const m = diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
+  T.host({ type: 'fight.start' });
+  T.s.fight.turn = T.s.fight.order.findIndex((o) => o.key === `char:${m.id}`);
+  const max = mod.rules.combat.actionsPerTurn;
+  T.s.fight.used = max;
+  T.host({ type: 'roll.ask', charId: m.id, stat: mod.rules.stats[0].id, at: 12, reason: 'hold on' });
+  assert.equal(T.s.fight.order[T.s.fight.turn].key, `char:${m.id}`, 'held open while the roll waits');
+  const q = T.s.requests.find((r) => r.charId === m.id);
+  T.as('p1', { type: 'roll.make', id: q.id });
+  assert.notEqual(T.s.fight.order[T.s.fight.turn].key, `char:${m.id}`);
+});

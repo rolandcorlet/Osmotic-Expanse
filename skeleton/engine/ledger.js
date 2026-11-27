@@ -62,8 +62,10 @@ function endSpentTurn(before, s, ctx) {
   if (!s.fight || !key || !key.startsWith('char:') || currentKey(s) !== key) return;
   const max = Number(((ctx.mod.rules || {}).combat || {}).actionsPerTurn) || 1;
   const used = s.fight.used || 0;
-  if (used < max || used <= (before.fight.used || 0)) return;
-  if ((s.requests || []).some((q) => keyOf('char', q.charId) === key)) return;
+  const waiting = (st) => (st.requests || []).some((q) => keyOf('char', q.charId) === key);
+  if (used < max || waiting(s)) return;
+  // Only when this change spent the last action, or rolled the last roll that was holding the turn open.
+  if (used <= (before.fight.used || 0) && !waiting(before)) return;
   const round = s.fight.round;
   advance(s, ctx);
   if (s.fight.round > round && ctx.events) ctx.events.push({ ev: 'round', site: s.scene.siteId });
