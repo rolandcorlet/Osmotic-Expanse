@@ -34,12 +34,14 @@ export function instructions(mod) {
 const site = (s, mod) => ((mod.ix.adventure[s.adventureId] || {}).sites || []).find((x) => x.id === s.scene.siteId) || {};
 
 // Everything the Director needs this turn, in words.
-export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1 } = {}) {
+export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1, chapters = [] } = {}) {
   const adv = mod.ix.adventure[s.adventureId];
   const here = site(s, mod);
   const L = [];
   L.push(`ADVENTURE: ${adv.name}. ${adv.pitch}`);
   L.push(`SECRETS (yours): ${adv.secrets}`);
+  // The chronicle so far (brain/memory.js): what happened before the story below, newest last. recall finds more.
+  if (chapters.length) L.push(`\nTHE STORY SO FAR (the chronicle, newest last; recall finds more):\n${chapters.map((c) => `- ${c.site}${c.why === 'night' ? ' (end of a night)' : ''}: ${c.text}`).join('\n')}`);
   L.push(`\nPLACE: ${here.name} (${here.id}). Exits: ${(here.exits || []).map((e) => { const x = adv.sites.find((y) => y.id === e); return x ? `${x.id} (${x.name})` : e; }).join(', ') || 'none'}.`);
   L.push(`What they see: ${here.read}`);
   if (here.notes) L.push(`Your notes: ${here.notes}`);
@@ -148,8 +150,9 @@ export function checkNarration(text, s, mod) {
 }
 
 // One turn. provider: the chat provider (brain/providers.js build()).
-export async function directorTurn({ state, mod, provider, rng, now = 0, reason = '', hostNote = '' }) {
-  const T = toolbox({ state, mod, rng, now });
+// memory: { chapters (the latest chronicle chapters), search(q) } from brain/memory.js, when the game keeps one.
+export async function directorTurn({ state, mod, provider, rng, now = 0, reason = '', hostNote = '', memory = null }) {
+  const T = toolbox({ state, mod, rng, now, memory });
   // Before the model's turn: is the party getting anywhere? (a "getting nowhere" seed), and trouble picked
   // with nobody here to fight (a "picks a fight" seed may bring someone out).
   const lastNarr = [...state.story].reverse().find((e) => e.kind === 'narration');
@@ -162,7 +165,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
   const chat = provider.start({ system: instructions(mod), tools: toolsFor(mod) });
   const calls = [];
   const usage = { in: 0, out: 0 };
-  let reply = await chat.send(briefing(T.state, mod, { reason, hostNote, lastSeq: lastNarr ? lastNarr.seq : -1 }));
+  let reply = await chat.send(briefing(T.state, mod, { reason, hostNote, lastSeq: lastNarr ? lastNarr.seq : -1, chapters: memory ? memory.chapters : [] }));
   let narration = '';
   let rollNudged = false;
   let silentNudged = false;

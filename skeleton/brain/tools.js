@@ -16,9 +16,9 @@ const A = (description) => ({ type: 'array', items: { type: 'string' }, descript
 const obj = (properties, required = []) => ({ type: 'object', properties, required });
 const lower = (x) => String(x || '').trim().toLowerCase();
 
-export function toolbox({ state, mod, rng, now = 0 }) {
+export function toolbox({ state, mod, rng, now = 0, memory = null }) {
   const T = {
-    state, mod, refusals: 0,
+    state, mod, memory, refusals: 0,
     do(action) {
       try { T.state = apply(T.state, action, { role: 'host', pid: null, ai: true, rng, now, mod }); return null; } catch (e) {
         if (e instanceof RuleError) return e.message;
@@ -79,9 +79,15 @@ export const TOOLS = [
   },
   {
     name: 'recall',
-    description: 'Search what has happened so far in this game (the story so far).',
+    description: 'Search everything that has happened in this game, earlier nights included: what was said, narrated and done, and the chronicle.',
     parameters: obj({ query: S('A name, place or thing.') }, ['query']),
     run(a, T) {
+      // The game's whole history when it is kept (brain/memory.js); else today's story.
+      if (T.memory && T.memory.search) {
+        const r = T.memory.search(a.query);
+        if (r.hits.length) return { found: r.hits.map((h) => `${h.from === 'chronicle' ? 'Chronicle' : h.who}${h.site ? ` (at ${h.site})` : ''}: ${h.text}`), ...(r.more ? { more: r.more } : {}) };
+        return { note: 'Nothing about that has happened yet.' };
+      }
       const w = lower(a.query).split(/\W+/).filter((x) => x.length > 2);
       const hits = T.state.story.filter((e) => w.some((x) => lower(e.text).includes(x))).slice(-6).map((e) => `${e.who}: ${e.text.slice(0, 300)}`);
       return hits.length ? { found: hits } : { note: 'Nothing about that has happened yet.' };

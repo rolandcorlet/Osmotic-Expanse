@@ -17,6 +17,8 @@ import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
 import { directorTurn } from './brain/director.js';
 import { makeProposal, approveProposal, proposalView } from './brain/copilot.js';
 import { createSlots } from './slots.js';
+import { createMemory } from './brain/memory.js';
+import { CHRONICLE_INSTRUCTIONS, chronicleRequest, parseChronicle, plainChapter } from './brain/chronicle.js';
 import { convert, MODES } from './brain/converter.js';
 import { createSettings } from './brain/settings.js';
 import { publicProviders, testConnection, pickDefaultModel } from './brain/providers.js';
@@ -45,6 +47,9 @@ let publicUrl = arg('public-url', '').replace(/\/+$/, '');
 
 const rng = systemRng();
 const settings = createSettings({ saveDir: SAVE_DIR });
+// Everything said in each game, kept on disk and searched; the chronicle (brain/memory.js, from the D&D Director).
+const memory = createMemory({ dir: join(SAVE_DIR, 'games') });
+let seen = null; // the Ledger the memory last saw
 let mod = null;
 let state = null;
 const history = []; // for undo
@@ -61,7 +66,13 @@ function loadGame({ moduleId, adventureId, fresh = false }) {
   history.length = 0;
   persist();
 }
-function persist() { try { writeFileSync(join(SAVE_DIR, 'session.json'), JSON.stringify(state)); } catch (e) { /* keep playing */ } }
+function persist() {
+  try { writeFileSync(join(SAVE_DIR, 'session.json'), JSON.stringify(state)); } catch (e) { /* keep playing */ }
+  try { memory.observe(seen, state); } catch (e) { /* the game goes on without its history */ }
+  // The party left a place: its chapter of the chronicle is written (one at a time, between Director turns).
+  if (seen && seen.gameId === state.gameId && seen.scene.siteId !== state.scene.siteId) queueChapter({ siteId: seen.scene.siteId, why: 'left' });
+  seen = state;
+}
 
 // Saved games: named slots, a five-minute autosave and the optional Supabase copy (slots.js, from the D&D
 // Director; ids sk-...). Loading one keeps the game before it for Undo, when it is the same module.
@@ -73,6 +84,7 @@ const slots = createSlots({
     const site = ((adv.sites || []).find((x) => x.id === (s.scene || {}).siteId) || {}).name || '';
     return { vector: `${mod.module.name}: ${adv.name || s.adventureId}`, site, players: Object.values(s.chars || {}).map((c) => c.name).join(', ') };
   },
+  chapters: (gameId) => (gameId ? memory.chapters(gameId) : []),
   prefix: 'sk-',
 });
 function loadSaved(rec) {
@@ -83,7 +95,56 @@ function loadSaved(rec) {
   const seq = state.seq;
   state = rec.state;
   state.seq = Math.max(seq + 1, state.seq || 0);
+  // A game brought back from the backup brings its chronicle with it.
+  if (state.gameId && !memory.chapters(state.gameId).length) for (const ch of rec.chapters || []) memory.addChapter(state.gameId, ch);
   persist();
+}
+
+// ---------------------------------------------------------------- the chronicle
+// A paragraph for each place left and each night ended, written from what the table was told: one model call
+// when the AI Director is on (thinking off), else a plain one from the Engine. Never while the Director is
+// mid-turn: a local model answers one request at a time, and the table comes first.
+const chapterQueue = [];
+let writingChapter = false;
+function queueChapter(job) { chapterQueue.push(job); pumpChapters(); }
+async function pumpChapters() {
+  if (writingChapter || directing || !chapterQueue.length) return;
+  writingChapter = true;
+  try { await writeChapter(chapterQueue.shift()); } catch (e) { console.log(`The chronicle could not be written: ${e.message}`); }
+  writingChapter = false;
+  pushEvent('chronicle', chronicleView());
+  pumpChapters();
+}
+async function writeChapter({ siteId, why }) {
+  const gameId = state.gameId;
+  if (!gameId) return;
+  const done = memory.chapters(gameId);
+  const from = done.length ? done[done.length - 1].toSeq || 0 : 0;
+  const lines = memory.linesSince(gameId, from);
+  if (!lines.some((l) => l.kind === 'say' || l.kind === 'narration')) return; // nothing was said: no chapter
+  const adv = mod.ix.adventure[state.adventureId] || {};
+  const siteName = ((adv.sites || []).find((x) => x.id === siteId) || {}).name || siteId || adv.name || 'the adventure';
+  const toSeq = Math.max(...lines.map((l) => l.seq || 0));
+  let text = '';
+  let by = 'engine';
+  if (state.director.mode !== 'off') {
+    try {
+      const chat = settings.provider().start({ system: CHRONICLE_INSTRUCTIONS, tools: [] });
+      const reply = await chat.send(chronicleRequest({ siteName, lines }));
+      text = parseChronicle(reply.text).chapter;
+      by = 'ai';
+    } catch (e) { text = ''; }
+  }
+  if (!text) { text = plainChapter({ siteName, lines }); by = 'engine'; }
+  if (text) memory.addChapter(gameId, { t: Date.now(), siteId, site: siteName, why, fromSeq: from, toSeq, text, by });
+}
+function chronicleView() {
+  const id = state && state.gameId;
+  return {
+    chapters: id ? memory.chapters(id).slice(-30).map(({ id: cid, t, site, why, text, by }) => ({ id: cid, t, site, why, text, by })) : [],
+    kept: id ? memory.size(id) : null,
+    writing: writingChapter || chapterQueue.length > 0,
+  };
 }
 
 {
@@ -138,7 +199,9 @@ async function runDirector(reason, hostNote = '') {
     try {
       const provider = settings.provider();
       const before = state;
-      const out = await directorTurn({ state, mod, provider, rng, now: Date.now(), reason, hostNote });
+      const gid = state.gameId;
+      const recall = { chapters: memory.chapters(gid).slice(-3), search: (q) => memory.search(gid, q, { limit: 8 }) };
+      const out = await directorTurn({ state, mod, provider, rng, now: Date.now(), reason, hostNote, memory: recall });
       lastDirector = { at: Date.now(), calls: out.calls, flags: out.flags, usage: out.usage, refusals: out.refusals };
       if (state.director.mode === 'approve') {
         proposal = makeProposal(out, before, ++proposalN);
@@ -154,6 +217,7 @@ async function runDirector(reason, hostNote = '') {
       directorEvent(false);
     } finally {
       directing = null;
+      pumpChapters(); // a chapter waiting for the Director's turn to end
       if (again) { again = false; setTimeout(() => runDirector('The table moved on while you were speaking. Continue.'), 50); }
     }
   })();
@@ -271,7 +335,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/hello') {
       const host = isHostReq(url);
       const out = { role: host ? 'host' : 'player', module: moduleFor(host ? 'host' : 'player'), modes: MODES, voice: voice.publicView(), port: PORT, addresses: addresses(), links: links({ host, trusted: true }) };
-      if (host) Object.assign(out, { modules: listModules(MOD_DIR), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, proposal: proposalView(proposal, state), converting: !!converting });
+      if (host) Object.assign(out, { modules: listModules(MOD_DIR), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, proposal: proposalView(proposal, state), chronicle: chronicleView(), converting: !!converting });
       json(res, 200, out);
       return;
     }
@@ -341,7 +405,24 @@ const server = createServer(async (req, res) => {
         return;
       }
       if (p === '/api/director/discard') { proposal = null; directorEvent(false); json(res, 200, { ok: true }); return; }
-      if (p === '/api/undo') { if (!history.length) { json(res, 200, { ok: false, error: 'Nothing to undo.' }); return; } state = history.pop(); persist(); push(); json(res, 200, { ok: true }); return; }
+      if (p === '/api/undo') {
+        if (!history.length) { json(res, 200, { ok: false, error: 'Nothing to undo.' }); return; }
+        const prev = state;
+        state = history.pop();
+        // What the Undo took back did not happen: the history forgets it too.
+        // A line carries the seq from before its change, so the restored seq's own lines go too.
+        try { memory.observe(prev, state, { undoneAfter: state.seq - 1 }); } catch (e) { /* keep playing */ }
+        seen = state;
+        persist(); push(); json(res, 200, { ok: true }); return;
+      }
+      // The chronicle: End the night (a chapter now), or drop a chapter the host does not want.
+      if (p === '/api/chronicle') {
+        if (b.op === 'night') queueChapter({ siteId: state.scene.siteId, why: 'night' });
+        else if (b.op === 'drop' && b.id) memory.dropChapter(state.gameId, String(b.id));
+        else if (b.op === 'search') { json(res, 200, { ok: true, ...chronicleView(), found: memory.search(state.gameId, String(b.q || ''), { limit: 12 }) }); return; }
+        json(res, 200, { ok: true, ...chronicleView() });
+        return;
+      }
       if (p === '/api/new') { proposal = null; loadGame({ moduleId: b.module || state.moduleId, adventureId: b.adventure, fresh: true }); push(); json(res, 200, { ok: true }); return; }
       if (p === '/api/settings') {
         if (b.op === 'ai') settings.configure(b);

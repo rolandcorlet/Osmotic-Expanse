@@ -687,6 +687,34 @@ function savesCard() {
         h('button', { disabled: V.busy, onclick: () => { if (confirm(`Load "${x.name}"? The game now can be brought back with Undo.`)) savesOp('load', { id: x.id }); } }, 'Load'),
         h('button', { class: 'warn', disabled: V.busy, onclick: () => { if (confirm(`Delete "${x.name}"? This cannot be undone.`)) savesOp('delete', { id: x.id }); } }, '✕'))))];
 }
+// The chronicle (server.js, brain/memory.js): a paragraph for each place left and each night ended, newest
+// first; End the night writes one now. The Director reads the latest three; search finds anything said.
+async function chronicleOp(op, extra = {}) {
+  ui.chron = ui.chron || {};
+  const r = await post('/api/chronicle', { op, ...extra });
+  if (!r.ok) { toast(r.error || 'That did not work.'); return; }
+  ui.chronicle = { chapters: r.chapters, kept: r.kept, writing: r.writing };
+  if (r.found) ui.chron.found = r.found;
+  render();
+}
+function hostChronicle() {
+  const C = ui.chronicle || HELLO.chronicle || { chapters: [] };
+  const Q = ui.chron = ui.chron || { q: '', found: null };
+  const when = (t) => { try { return new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card scroll', 'data-key': 'chron' },
+      h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Chronicle'), C.writing ? h('span', { class: 'pill acc' }, 'writing…') : null,
+        h('button', { class: 'go', title: 'Write a chapter for tonight now (the Director reads the latest three next time)', onclick: () => chronicleOp('night') }, 'End the night')),
+      h('small', {}, `A chapter is written each time the party leaves a place, and when you end the night: by the AI when the Director is on, else plainly by the Engine. The Director reads the latest three.${C.kept ? ` Kept for this game: ${C.kept.lines} lines, ${C.kept.chapters} chapter${C.kept.chapters === 1 ? '' : 's'}.` : ''}`),
+      !(C.chapters || []).length ? h('small', { class: 'dim' }, 'No chapters yet.') : [...C.chapters].reverse().map((c) => h('div', { class: 'chapter' },
+        h('div', { class: 'row' }, h('b', { class: 'grow' }, `${c.site}${c.why === 'night' ? ' · end of the night' : ''}`), h('small', { class: 'dim' }, `${when(c.t)} · ${c.by === 'ai' ? 'the AI' : 'the Engine'}`),
+          h('button', { title: 'Drop this chapter', onclick: () => { if (confirm('Drop this chapter? The Director will not read it again.')) chronicleOp('drop', { id: c.id }); } }, '✕')),
+        h('p', {}, c.text)))),
+    h('div', { class: 'card scroll' }, h('h3', {}, 'Search the game'),
+      h('div', { class: 'row' }, h('input', { id: 'chron-q', class: 'grow', placeholder: 'A name, a place, a thing', value: Q.q, oninput: (e) => { Q.q = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter' && Q.q.trim()) chronicleOp('search', { q: Q.q }); } }),
+        h('button', { onclick: () => { if (Q.q.trim()) chronicleOp('search', { q: Q.q }); } }, 'Search')),
+      Q.found ? (Q.found.hits.length ? Q.found.hits.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('small', { class: 'dim' }, `${x.from === 'chronicle' ? 'Chronicle' : x.who || ''}${x.site ? ` · ${x.site}` : ''}${x.when ? ` · ${x.when}` : ''}`), h('div', {}, x.text)))) : h('small', {}, 'Nothing found.')) : h('small', { class: 'dim' }, 'Everything said, narrated and done in this game, earlier nights included, and the chronicle.')));
+}
 function hostGame() {
   const f = ui.form.game = ui.form.game || { module: S.moduleId, adventure: S.adventureId };
   return h('div', { class: 'view v-two' },
@@ -707,7 +735,7 @@ function hostGame() {
 
 // ---------------------------------------------------------------- tabs and rendering
 const TABS = {
-  host: [['play', 'Play'], ['world', 'World'], ['seeds', 'Seeds'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
+  host: [['play', 'Play'], ['world', 'World'], ['seeds', 'Seeds'], ['chronicle', 'Chronicle'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
   table: [['story', 'Story'], ['rules', 'Books'], ['colours', 'Colours']],
   player: [['story', 'Story'], ['sheet', 'Sheet'], ['rules', 'Books'], ['voice', 'Voice'], ['colours', 'Colours']],
 };
@@ -717,6 +745,7 @@ function view() {
   if (ROLE === 'host') {
     if (tab === 'world') return hostWorld();
     if (tab === 'seeds') return hostSeeds();
+    if (tab === 'chronicle') return hostChronicle();
     if (tab === 'rules') return rulesView(true);
     if (tab === 'convert') return hostConverter();
     if (tab === 'ai') return hostAI();
@@ -800,6 +829,7 @@ if (ROLE !== 'host') initScene({ store });
     if (asked && ui.reqReady) requestAlert(asked);
     ui.reqReady = true; // not for the rolls already waiting when this screen opened: only the card shows those
   });
+  es.addEventListener('chronicle', (e) => { ui.chronicle = JSON.parse(e.data); if (ui.tab === 'chronicle') render(); });
   es.addEventListener('director', (e) => { ui.director = JSON.parse(e.data); if (ui.tab === 'play') render(); });
   es.addEventListener('convert', (e) => { ui.convert.log.push(JSON.parse(e.data)); if (ui.tab === 'convert') render(); });
   es.onerror = () => { document.getElementById('status').textContent = 'reconnecting…'; };
