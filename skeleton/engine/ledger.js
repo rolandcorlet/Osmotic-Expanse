@@ -1127,10 +1127,11 @@ H['map.move'] = (s, a, ctx) => {
     const blockedIn = (zid) => { const zg = MAP.gridOf(m, siteId, MAP.zoneOf(zones, zid)); return heldIn(s, zid, zg.cols, { except: key, only: hostileTo(s, key) }); };
     const steps = MAP.stepsBetween(m, siteId, zones, from, to, { blockedIn });
     const fromZ = MAP.zoneOf(zones, from.zone);
-    const b = MAP.budget(t.o, { speed: MAP.speedOf(t.o, R), used: mine ? { moved: fight.moved || 0 } : null, zoneTags: [...(fromZ.tags || []), ...(zone.tags || [])] });
+    const b = MAP.budget(t.o, { speed: MAP.speedOf(t.o, R), used: mine ? { moved: fight.moved || 0 } : null, zoneTags: [...(fromZ.tags || []), ...(zone.tags || [])], stuck: R.stuck });
     if (!isHost(ctx) && !ctx.freeMove) {
       // A player: a way there, and in a fight only on their own turn and within their movement.
       if (steps == null) no('You cannot get there from here: something is in the way.');
+      if (b.speed === 0) no(`${t.o.name} cannot move (${(t.o.conds || []).join(', ') || 'held'}).`);
       if (fight) {
         if (!mine) no(`It is not ${t.o.name}'s turn.`);
         const cost = steps * b.per;

@@ -33,6 +33,7 @@ import { makeRng } from '../engine/dice.js';
 import { directorTurn } from '../brain/director.js';
 import { build } from '../brain/providers.js';
 import { generateScript } from '../engine/script.js';
+import { mapRules, NO_MOVE_CONDS } from '../engine/map.js';
 import { simulateAdventure } from '../engine/simulate.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -50,6 +51,7 @@ const baseUrl = opt('--url', cfg.baseUrl || '');
 const runs = Math.max(1, Number(opt('--runs', 1)) || 1);
 const logFile = opt('--log', '');
 const mod = loadModule(join(root, 'modules'), opt('--module', 'saltglass'));
+const STUCK = [...NO_MOVE_CONDS, ...mapRules(mod).stuck]; // conditions that keep a character where they are
 if (!mod) { console.log(`There is no module "${opt('--module', 'saltglass')}" in modules/.`); process.exit(2); }
 const advId = opt('--adventure', (mod.adventures[0] || {}).id);
 const adv = mod.ix.adventure[advId];
@@ -237,6 +239,14 @@ async function runOnce(n) {
       // Stopped on the way by a failed roll (a hazard, a rule): the Director played it right, so not a miss.
       if (e === 'move_party' && s.rolls.some((r) => r.seq > seq0 && r.kind === 'check' && r.success === false)) {
         notes.push(`${label}: the party did not move on: a roll failed on the way (not counted as a miss)`);
+        tryAct('host', null, { type: 'site.move', siteId: step.to });
+        continue;
+      }
+      // Held back by one of their own who cannot move or is down (Saltglass's Snared, bench 27 Nov): the
+      // Director kept the party together, as it should, so not a miss.
+      const held = Object.values(s.chars).find((c) => c.down || (c.conds || []).some((k) => STUCK.includes(String(k).toLowerCase())));
+      if (e === 'move_party' && held) {
+        notes.push(`${label}: the party did not move on: ${held.name} is ${held.down ? 'down' : (held.conds || []).join(', ')} (not counted as a miss)`);
         tryAct('host', null, { type: 'site.move', siteId: step.to });
         continue;
       }

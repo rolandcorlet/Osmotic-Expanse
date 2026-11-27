@@ -5,8 +5,8 @@ import assert from 'node:assert/strict';
 import * as MAP from '../engine/map.js';
 
 test('a game\'s own map rules, and the defaults when it gives none', () => {
-  assert.deepEqual(MAP.mapRules({ rules: {} }), { square: '5 ft', move: 6, reach: 1, range: 10, cover: { half: 2, full: 5 } });
-  assert.deepEqual(MAP.mapRules({ rules: { map: { square: '2 m', move: 4, reach: 2, range: 8, cover: { half: 1 } } } }), { square: '2 m', move: 4, reach: 2, range: 8, cover: { half: 1, full: 5 } });
+  assert.deepEqual(MAP.mapRules({ rules: {} }), { square: '5 ft', move: 6, reach: 1, range: 10, cover: { half: 2, full: 5 }, stuck: [] });
+  assert.deepEqual(MAP.mapRules({ rules: { map: { square: '2 m', move: 4, reach: 2, range: 8, cover: { half: 1 } } } }), { square: '2 m', move: 4, reach: 2, range: 8, cover: { half: 1, full: 5 }, stuck: [] });
 });
 
 test('reach and movement are counted in squares', () => {
@@ -156,4 +156,15 @@ test('the travel map lays out places whose exits are plain ids (the Skeleton) or
   assert.deepEqual(plain, objs);
   assert.equal(plain.b.x, plain.c.x);
   assert.ok(plain.a.x < plain.b.x && plain.b.y !== plain.c.y);
+});
+
+test('a game\'s own condition that stops moving holds a character in place (Saltglass\'s Snared)', () => {
+  assert.deepEqual(MAP.mapRules(mod).stuck, ['snared']);
+  const T = table(5);
+  const a = diver(T, 'p1', 0);
+  T.host({ type: 'cond.add', target: a.id, cond: 'snared' });
+  assert.throws(() => T.as('p1', { type: 'map.move', who: a.id, zone: 'middle' }), /cannot move \(snared\)/);
+  T.host({ type: 'map.move', who: a.id, zone: 'middle' }); // the host can still put anyone anywhere
+  assert.equal(T.s.map.at[`char:${a.id}`].zone, 'middle');
+  assert.equal(MAP.budget({ conds: ['snared'] }, { speed: 6, used: { moved: 0 }, stuck: ['snared'] }).left, 0);
 });

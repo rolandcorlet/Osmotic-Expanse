@@ -25,7 +25,9 @@ export const MAX_WALLS = 2000;
 export function mapRules(mod) {
   const r = (mod && mod.rules && mod.rules.map) || {};
   const n = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : d);
-  return { square: String(r.square || '5 ft'), move: n(r.move, 6), reach: Math.max(1, n(r.reach, 1)), range: n(r.range, 10), cover: { half: n((r.cover || {}).half, 2), full: n((r.cover || {}).full, 5) } };
+  // stuck: the game's own conditions that stop a creature moving (Saltglass's Snared: "you cannot move").
+  const stuck = ((mod && mod.rules && mod.rules.conditions) || []).filter((c) => c && c.id && /\b(cannot|can't|can not|unable to) move\b|\bno moving\b|\bspeed (is |becomes )?0\b/i.test(`${c.effect || ''} ${c.about || ''} ${c.text || ''}`)).map((c) => String(c.id).toLowerCase());
+  return { square: String(r.square || '5 ft'), move: n(r.move, 6), reach: Math.max(1, n(r.reach, 1)), range: n(r.range, 10), cover: { half: n((r.cover || {}).half, 2), full: n((r.cover || {}).full, 5) }, stuck };
 }
 
 // What a zone can be marked as. The Director reads them in its briefing; the screens show them as chips.
@@ -44,7 +46,8 @@ export const TAG_SHORT = { 'half-cover': 'cover', 'three-quarters-cover': '¾ co
 
 // Conditions that stop a creature moving or acting, by the words games use for them (a game's own
 // conditions are matched by name, lower case).
-const NO_MOVE = ['grappled', 'restrained', 'paralyzed', 'paralysed', 'petrified', 'stunned', 'unconscious', 'held', 'pinned', 'down'];
+export const NO_MOVE_CONDS = ['grappled', 'restrained', 'paralyzed', 'paralysed', 'petrified', 'stunned', 'unconscious', 'held', 'pinned', 'down'];
+const NO_MOVE = NO_MOVE_CONDS;
 const CANT_REACT = ['incapacitated', 'paralyzed', 'paralysed', 'petrified', 'stunned', 'unconscious', 'down'];
 const low = (list) => (list || []).map((c) => String(c).toLowerCase());
 
@@ -321,10 +324,10 @@ export function speedOf(who, rules) {
   return (rules && rules.move != null) ? rules.move : 6;
 }
 // Squares a creature may still move this turn (null outside a fight), and what a square costs it.
-export function budget(who, { speed = 6, used = null, zoneTags = [] } = {}) {
+export function budget(who, { speed = 6, used = null, zoneTags = [], stuck = [] } = {}) {
   const conds = low(who.conds);
   let sq = speed;
-  if (conds.some((c) => NO_MOVE.includes(c)) || who.down) sq = 0;
+  if (conds.some((c) => NO_MOVE.includes(c) || stuck.includes(c)) || who.down) sq = 0;
   const per = (conds.includes('prone') ? 2 : 1) * (zoneTags.includes('difficult') ? 2 : 1);
   if (!used) return { left: null, per, speed: sq };
   const total = sq * (used.dash ? 2 : 1);

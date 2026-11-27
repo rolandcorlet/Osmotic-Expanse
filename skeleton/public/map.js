@@ -86,7 +86,7 @@ function moveInfo(k, z) {
   const mine = f && A.curKey() === k;
   if (f && !host() && !mine) return { cells: null, left: 0, wait: true };
   const o = whoOf(k);
-  const b = MAP.budget(o, { speed: speedSq(k), used: mine ? { moved: f.moved || 0 } : null, zoneTags: z.tags || [] });
+  const b = MAP.budget(o, { speed: speedSq(k), used: mine ? { moved: f.moved || 0 } : null, zoneTags: z.tags || [], stuck: R().stuck });
   const unlimited = host() || !f;
   const g = MAP.gridOf(mapOf(), siteId(), z);
   const blocked = new Set();
