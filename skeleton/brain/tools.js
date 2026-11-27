@@ -174,6 +174,9 @@ export const TOOLS = [
       const tc = target(T.state, t);
       if (tc && tc.kind === 'char' && tc.o.down) return { note: `Nothing changed: ${tc.o.name} is already down. Still standing: ${Object.values(T.state.chars).filter((c) => !c.down).map((c) => `${c.id} (${c.name})`).join(', ') || 'nobody'}.`, ...T.fightBrief() };
       if (/^(talk|speak|say|taunt|threaten|wait|watch|laugh|sing)\b/i.test(String(a.attack || ''))) return { note: `Nothing changed: ${k.o.name} speaking or waiting needs no tool. Say it in your narration.`, ...T.fightBrief() };
+      // Someone not of the party as the target (the D&D Ice Road Trackers bench, 28 Nov: the wolf biting the captive
+      // otter): the Engine rolls only attacks on the party. A note, nothing changed.
+      if (t && String(t).trim() && !/^(all|everyone|everybody|them|the party|party)$/i.test(String(t).trim()) && (!tc || tc.kind !== 'char')) return { note: `Nothing changed: ${t} is not one of the party, and the Engine rolls only attacks on the party. Narrate what ${k.o.name} does to them; to attack the party, name ${Object.values(T.state.chars).filter((c) => !c.down).map((c) => `${c.id} (${c.name})`).join(', ')}.`, ...T.fightBrief() };
       const seq = T.state.seq;
       const no = T.do({ type: 'creature.act', creature: k.id, attack: a.attack || '', target: t });
       if (no && /not .*turn/i.test(no)) return { note: `Nothing changed: ${no}`, ...T.fightBrief() };
@@ -203,7 +206,10 @@ export const TOOLS = [
     parameters: obj({}),
     run(a, T) {
       if (T.state.fight) return { note: 'Nothing changed: the fight is already on.', ...T.fightBrief() };
-      const seq = T.state.seq; const no = T.do({ type: 'fight.start' }); return no ? { refused: no } : T.since(seq);
+      const seq = T.state.seq; const no = T.do({ type: 'fight.start' });
+      // Nothing here to fight (the D&D Frozen Road bench, 28 Nov: an avalanche): a hazard is rolls and narration.
+      if (no && /^There is nothing here to fight/.test(no)) return { note: `Nothing changed: ${no} A hazard (a storm, a collapse, the tide) needs no fight: ask for the rolls and narrate it.` };
+      return no ? { refused: no } : T.since(seq);
     },
   },
   {

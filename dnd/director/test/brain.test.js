@@ -97,6 +97,24 @@ test('tools refuse in plain words and name what exists', () => {
   assert.match(B.run('nope', {}).refused, /no tool/);
 });
 
+test('Ice Road Trackers and Frozen Road benches: a bite at a captive, a fight with nothing here, a fallen one who never gets up', () => {
+  const T = table(8);
+  const pc = hero(T, 'p1', 'Bryn');
+  const E = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  const none = E.run('start_combat', {});
+  assert.ok(none.note && !none.refused, JSON.stringify(none));
+  T.host({ type: 'foe.add', monster: 'goblin', count: 1 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  const B = toolbox({ state: T.s, adventure, srd, rng: makeRng(3), now: 1 });
+  const foe = Object.values(B.state.foes)[0];
+  const r = B.run('monster_action', { monster: foe.id, action: 'Scimitar', targets: ['Spritzel'] });
+  assert.ok(r.note && !r.refused, JSON.stringify(r));
+  T.s.pcs[pc.id].hp = 0;
+  const up = (t) => checkNarration(t, T.s).some((f) => /is up/.test(f.text));
+  assert.ok(!up('The wolf lands on her, and Bryn never gets up. Ila, what do you do?'));
+  assert.ok(up('Bryn gets up, shaking the snow off. Ila, what do you do?'));
+});
+
 test('a monster named as the one using an object is a note, not a refusal', () => {
   const T = table(8);
   hero(T, 'p1', 'Bryn');

@@ -257,6 +257,9 @@ export const TOOLS = [
         foeIds = Object.values(T.state.foes).filter((f) => f.siteId === T.state.scene.siteId && !f.dead && (picked.includes(f) || (f.group && groups.has(f.group)))).map((f) => f.id);
       }
       const no = T.do({ type: 'fight.start', surprised: listOf(a.surprised), foeIds });
+      // Nothing here to fight (Frozen Road bench, 28 Nov: an avalanche whose rule says "roll initiative"): a hazard
+      // is saving throws and narration, and nothing changed. A note, not a refusal.
+      if (no && /^There is nothing here to fight/.test(no)) return { note: `Nothing changed: ${no} A hazard (an avalanche, a storm, a collapse) needs no fight: ask for the saving throws or checks and narrate it.` };
       if (no) return { refused: no };
       return { ...T.fightBrief(), ...since(T, before) };
     },
@@ -308,6 +311,11 @@ export const TOOLS = [
       const kin = (x) => x && (x.base || String(x.name || '').replace(/\s+\d+$/, ''));
       if (foe && now && now.id !== foe.id && !now.dead && kin(now) === kin(foe)) { T.assume(`It is ${now.name}'s turn, not ${foe.name}'s: ${now.name} acts.`); foe = now; }
       let targets = pcTargets(T.state, a);
+      // Someone who is not of the party as the only target (Ice Road Trackers bench, 28 Nov: Vundrel biting Spritzel,
+      // the captive the party came for): the Engine rolls only attacks on the party, so nothing happens. A note.
+      const named = [].concat(a.targets || []).map(String).filter((x) => x.trim() && !/^(all|everyone|everybody|them|the party|party|the group|all of them)$/i.test(x.trim()));
+      if (foe && !targets.length && named.length && !/^(dash|disengage|dodge|hide|help|ready)$/i.test(String(a.action || '').trim()))
+        return { note: `Nothing changed: ${named.join(', ')} ${named.length > 1 ? 'are' : 'is'} not one of the party, and the Engine rolls only attacks on the party. Narrate what ${foe.name} does to them (if it hurts a monster, deal_damage); to attack the party, name ${Object.values(T.state.pcs).filter((p) => !p.dead).map((p) => `${p.id} (${p.name})`).join(', ')}.`, ...T.fightBrief() };
       // A dying character struck while someone else still fights (Far North bench, 27 Nov: the Mother Yeti mauled
       // Ila at 0 hit points, two failed death saves a hit, and she died): the instructions say only a cruel or
       // mindless creature does that, so the Engine holds to it. An undead or a mindless brute (Intelligence 3 or

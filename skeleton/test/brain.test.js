@@ -26,6 +26,17 @@ test('the briefing names the place, the party and hidden creatures for the Direc
   const b = briefing(T.s, mod, { reason: 'test' });
   assert.match(b, /Sunken Causeway/); assert.match(b, /Moll Tarrow/); assert.match(b, /hidden/); assert.match(b, /Cold current/);
 });
+test('a fight with nothing here, or an attack on someone not of the party, is a note', () => {
+  const T = table(4); diver(T, 'p1', 0);
+  const E = toolbox({ state: T.s, mod, rng: makeRng(1) });
+  const none = E.run('start_combat', {});
+  assert.ok(none.note && !none.refused, JSON.stringify(none));
+  T.host({ type: 'site.move', siteId: 'causeway' }); T.host({ type: 'fight.start' });
+  const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
+  const k = Object.values(B.state.creatures).find((x) => x.siteId === 'causeway' && !x.down);
+  const r = B.run('creature_attack', { creature: k.id, target: 'the captive otter' });
+  assert.ok(r.note && !r.refused, JSON.stringify(r));
+});
 test('a creature named as the one using an object is a note, not a refusal', () => {
   const T = table(4); diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
   const B = toolbox({ state: T.s, mod, rng: makeRng(1) });
