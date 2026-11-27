@@ -96,13 +96,13 @@ const BASE_NAMES = { VSC: 'Viscosity', DFF: 'Diffusion', RTC: 'Reactivity', OSM:
 
 // -------------------------------------------------------------------- toast
 let toastTimer = null;
-function toast(text, good = false) {
+function toast(text, good = false, ms = 0) {
   const t = $('#toast');
   t.textContent = text;
   t.className = `toast${good ? ' good' : ''}`;
   t.hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.hidden = true; }, good ? 2200 : 5200);
+  toastTimer = setTimeout(() => { t.hidden = true; }, ms || (good ? 2200 : 5200));
 }
 
 // ------------------------------------------------------------------ effects
@@ -2308,7 +2308,18 @@ const speakOn = () => {
 };
 const serverVoice = () => !!(info && info.voice && info.voice.out === 'server');
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const canHear = () => role === 'player' && !!(info && info.voice && (info.voice.in === 'server' ? (navigator.mediaDevices && window.MediaRecorder) : SR));
+// The Talk button shows on a page that may not use the microphone too (one opened at http://192.168...),
+// so pressing it says why and what to do instead of the button quietly missing (27 Nov: Roly's desktop).
+const canHear = () => role === 'player' && !!(info && info.voice && (!window.isSecureContext || (info.voice.in === 'server' ? (navigator.mediaDevices && window.MediaRecorder) : SR)));
+const onPhone = () => !!(window.matchMedia && matchMedia('(pointer: coarse)').matches);
+function micHelp(why) {
+  const here = onPhone() ? 'this phone' : 'this browser';
+  if (why === 'insecure') return `The browser only lets a secure page use the microphone, and this one is http://${location.host}. On the host computer open http://localhost:${location.port}${location.pathname}${location.search}; from another device use the online (https) link. Or type instead.`;
+  if (why === 'denied') return onPhone() ? 'The microphone is blocked for this page. Allow it in the browser\'s site settings for this address, then tap Talk again.' : 'The microphone is blocked for this page. Click the microphone or lock icon at the end of the address bar, choose Allow, then press Talk again. Check Windows Settings > Privacy > Microphone lets the browser use it too.';
+  if (why === 'none') return `${here[0].toUpperCase()}${here.slice(1)} found no microphone. Plug one in or check it is not used by another app, then try again.`;
+  if (why === 'network') return `${here[0].toUpperCase()}${here.slice(1)} could not reach its speech service (Edge and some browsers have none). The host can set the Talk button to "A speech server" on the Voice tab, or use Chrome. Or type instead.`;
+  return `${here[0].toUpperCase()}${here.slice(1)} would not let the page use its microphone. Or type instead.`;
+}
 
 // Narration split into sentences small enough that the first sound comes quickly.
 function splitSentences(text) {
@@ -2486,6 +2497,7 @@ function addToSay(text) {
   render();
 }
 async function talk() {
+  if (!window.isSecureContext) { toast(micHelp('insecure'), false, 12000); return; }
   if (!hearOk()) { ui.talkAsk = !ui.talkAsk; return; }
   if (ui.talk === 'listening') { if (T.rec) T.rec.stop(); return; }
   stopVoice(); // the Director stops talking while you do
@@ -2508,7 +2520,7 @@ async function talk() {
       };
       rec.start();
       ui.talk = 'listening';
-    } catch (e) { toast('This phone would not let the page use its microphone.'); ui.talk = 'idle'; }
+    } catch (e) { toast(micHelp(e && e.name === 'NotFoundError' ? 'none' : e && (e.name === 'NotAllowedError' || e.name === 'SecurityError') ? 'denied' : ''), false, 12000); ui.talk = 'idle'; }
     return;
   }
   try {
@@ -2517,12 +2529,12 @@ async function talk() {
     r.interimResults = false;
     r.maxAlternatives = 1;
     r.onresult = (ev) => addToSay(Array.from(ev.results).map((x) => x[0].transcript).join(' '));
-    r.onerror = (ev) => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast('This phone would not let the page use its microphone.'); else if (ev.error !== 'no-speech' && ev.error !== 'aborted') toast('Could not hear that. Try again, or type.'); };
+    r.onerror = (ev) => { if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') toast(micHelp('denied'), false, 12000); else if (ev.error === 'audio-capture') toast(micHelp('none'), false, 12000); else if (ev.error === 'network') toast(micHelp('network'), false, 12000); else if (ev.error !== 'no-speech' && ev.error !== 'aborted') toast('Could not hear that. Try again, or type.'); };
     r.onend = () => { ui.talk = 'idle'; T.rec = null; render(); };
     T.rec = r;
     r.start();
     ui.talk = 'listening';
-  } catch (e) { toast('Talking is not available on this phone. Type and tap instead.'); ui.talk = 'idle'; }
+  } catch (e) { toast(`Talking is not available on ${onPhone() ? 'this phone' : 'this browser'}. Type instead.`); ui.talk = 'idle'; }
 }
 
 boot();
