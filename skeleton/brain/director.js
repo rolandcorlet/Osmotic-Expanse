@@ -10,6 +10,7 @@ import { currentKey } from '../engine/ledger.js';
 import { rulesAt, ruleWords } from '../engine/triggers.js';
 import * as SEEDS from '../engine/seeds.js';
 import { glossaryOf, glossInline, wordsUsed, wordsBrief } from '../engine/words.js';
+import { dropForeign } from './foreign.js';
 
 const TEMPLATE = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 14;
@@ -215,7 +216,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     try {
       const fix = await chat.send(`Rewrite your whole reply: ${flags.map((f) => f.text).join(' ')} Keep the same events, plain text, two to five sentences, ending on one question to one named character. Do not call any tools.`);
       usage.in += fix.usage.in; usage.out += fix.usage.out;
-      const text = String(fix.text || '').trim();
+      const text = dropForeign(String(fix.text || '').trim());
       if (text && !(fix.calls || []).length) {
         const again = checkNarration(text, T.state, mod);
         if (again.length < flags.length) { narration = text; flags = [...again, { kind: 'note', text: 'Rewritten once.' }]; }
@@ -239,7 +240,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
   // One of the game's own words left unexplained: the Engine puts its short meaning in brackets after it,
   // with no extra model call (plain words, 27 Nov).
   const gloss = glossaryOf(mod);
-  narration = narration.replace(/\*\*/g, '');
+  narration = dropForeign(narration.replace(/\*\*/g, ''));
   if (gloss.length && !flags.some((f) => /^The Director said nothing/.test(f.text))) {
     const g = glossInline(narration, gloss, T.state);
     if (g.words.length) { narration = g.text; flags.push({ kind: 'note', text: `The Engine added the plain meaning of ${g.words.join(', ')}.` }); }

@@ -8,6 +8,7 @@ import * as R from '../engine/rules.js';
 import * as MAP from '../engine/map.js';
 import * as SEEDS from '../engine/seeds.js';
 import { ProviderError } from './net.js';
+import { dropForeign } from './foreign.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 14;
@@ -414,7 +415,7 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
     narration = who ? `${who.name}, it is your turn. What do you do?` : 'What do you do?';
     calls.push({ name: '(plain line)', args: {}, result: { note: 'The Director said nothing; the Engine asked the table what is next.' } });
   }
-  narration = narration.replace(/\*\*/g, '').trim();
+  narration = dropForeign(narration.replace(/\*\*/g, '').trim());
   const askedNow = T.state.requests.length > 0;
   let flags = checkNarration(narration, T.state, { asked: askedNow });
   const fixable = flags.filter((f) => f.kind !== 'roll');
@@ -431,7 +432,7 @@ async function oneAttempt({ state, adventure, srd, provider, rng, now = 0, reaso
     try {
       const fix = await chat.send(`Rewrite your whole reply. ${asks.join(' ')} Keep the same events and any roll you asked for. Do not call any tools.`);
       usage.in += fix.usage.in; usage.out += fix.usage.out;
-      const text = String(fix.text || '').replace(/\*\*/g, '').trim();
+      const text = dropForeign(String(fix.text || '').replace(/\*\*/g, '').trim());
       if (text && !(fix.calls || []).length) {
         const again = checkNarration(text, T.state, { asked: askedNow });
         const bad = (l) => l.filter((f) => f.kind !== 'note').length;

@@ -12,6 +12,7 @@ import { seedHere } from '../engine/seeds.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
 import { wordsBrief, wordFlags, wordAsk, wordsUsed, glossInline } from './words.js';
+import { dropForeign } from './foreign.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 16;
@@ -844,7 +845,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
     rescues.push({ kind: 'plain-line', hard: true, text: 'The Director said nothing at all; the Engine asked the table what is next.' });
     calls.push({ name: '(plain line)', args: {}, result: { note: 'The Director said nothing; the Engine asked the table what is next.' } });
   }
-  narration = narration.replace(/\*\*/g, '').trim();
+  narration = dropForeign(narration.replace(/\*\*/g, '').trim());
   const moved = T.state.scene.siteId !== state.scene.siteId;
   const gloss = (scenario.kit || {}).glossary || [];
   // The Engine's own plain line ("What does the Cohort do?") is not the Director's prose to check.
@@ -892,7 +893,7 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
       const fix = await chat.send(`Rewrite your whole reply. ${asks.join(' ')} Keep the same events and any roll you asked for, in plain text, ending on one question. Do not call any tools.`);
       usage.in += fix.usage.in;
       usage.out += fix.usage.out;
-      const text = String(fix.text || '').replace(/\*\*/g, '').trim();
+      const text = dropForeign(String(fix.text || '').replace(/\*\*/g, '').trim());
       const again = text && !(fix.calls || []).length ? checkNarration(text, T.state, { moved, since: state.seq }).concat(prePlay ? [] : wordFlags(text, gloss, T.state)) : null;
       const bad = (list) => list.filter((f) => isLeak(f) || f.kind === 'style' || f.kind === 'rule').length;
       if (again && !again.some(isLeak) && bad(again) < bad(flags)) {

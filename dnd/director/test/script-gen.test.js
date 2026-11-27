@@ -41,3 +41,13 @@ test('a place whose rule calms its monsters on a check gets a try at that, not a
   assert.ok(s.some((x) => /Persuasion/.test(x.say) && x.expect.includes('ask_for_roll')));
   assert.ok(!s.some((x) => /attack/i.test(x.say)));
 });
+
+test('a group the adventure says is not here at all is never attacked by the script (Far North bench, 27 Nov)', () => {
+  const a = { quests: [], sites: [
+    { id: 'gate', name: 'The Gate', exits: [{ to: 'post', label: 'to the post' }] },
+    { id: 'post', name: 'The Outpost', exits: [{ to: 'gate', label: 'back' }], foes: [{ monster: 'ogre', count: 2, maybe: true, name: 'Tomb Tappers (off-screen)', note: 'These are not present at the outpost.' }] }] };
+  const script = generateScript(a, { places: 2 });
+  assert.equal(script.filter((s) => s.gen === 'fight').length, 0);
+  a.sites[1].foes.push({ monster: 'goblin', count: 3, maybe: true, name: 'Lurkers', note: 'Only if provoked.' });
+  assert.match(generateScript(a, { places: 2 }).find((s) => s.gen === 'fight').say, /Lurkers/);
+});

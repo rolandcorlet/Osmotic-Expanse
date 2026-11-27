@@ -86,7 +86,10 @@ export function generateScript(adv, { places = 6, heroes = 2, route: how = 'walk
     if (hop.back) { questsHere(k, site); continue; }
     const npc = (site.npcs || [])[0];
     // The groups surely here; if each only may turn up, the first (the Director is asked to start that fight by name).
-    const foes = (site.foes || []).filter((f) => !f.maybe).length ? (site.foes || []).filter((f) => !f.maybe) : (site.foes || []).slice(0, 1);
+    // Never one the adventure says is not here at all ("Tomb Tappers (off-screen)", Far North bench 27 Nov).
+    const absent = (f) => /\b(?:off-?screen|off-?stage|elsewhere|not (?:yet )?(?:present|here))\b/i.test(`${f.name || ''} ${f.note || ''}`);
+    const sure = (site.foes || []).filter((f) => !f.maybe);
+    const foes = sure.length ? sure : (site.foes || []).filter((f) => !absent(f)).slice(0, 1);
     // A place whose fight starts on arrival (an ambush): the fight comes first.
     const ambush = (site.rules || []).some((r) => /^(?:enter|arrive)/i.test(String(r.when || '')) && r.do === 'fight');
     const fight = () => {
