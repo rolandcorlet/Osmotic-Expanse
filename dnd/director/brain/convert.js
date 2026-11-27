@@ -506,6 +506,8 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
     } catch { /* kept as it was: the checker's findings are shown */ }
   }
   check = checkAdventure(adv, book);
+  // A monster still unknown after the fixing: a stand-in from the book, or into the place's notes.
+  if (standIns(adv, new Set(book.monsters.map((m) => m.id))).length) check = checkAdventure(adv, book);
   // What the AI could not make into a rule the Engine runs stays in the story, as a note for the Director.
   const moved = rulesToNotes(adv, check);
   if (moved) check = checkAdventure(adv, book);
@@ -549,6 +551,47 @@ export function fixQuestDone(adv) {
     for (const q of quests) { const n = [...sig(q)].filter((w) => want.has(w)).length; if (n > score) { score = n; best = q; } }
     if (best && score >= 1) qd.match = best.replace(/[.!?]+$/, '').split(/\s+/).slice(0, 5).join(' ');
   }
+  // Where a quest can finish must be a real place (27 Nov: Rime of the Frostmaiden's "sunblight-fortress",
+  // The Frozen Road's Lonelywood and Caer-Dineval). A near name is taken ("sunblight-fortress-approach");
+  // one with no near place is dropped while another real one is left.
+  const ids = (adv.sites || []).map((s) => s.id);
+  for (const qd of adv.questDone || []) {
+    if (!Array.isArray(qd.at)) continue;
+    const near = (x) => ids.find((id) => id.startsWith(`${x}-`) || id.endsWith(`-${x}`)) || ids.find((id) => id.includes(x));
+    const fixed = qd.at.map((x) => (ids.includes(x) ? x : near(String(x)) || null));
+    const kept = [...new Set(fixed.filter(Boolean))];
+    if (kept.length) qd.at = kept;
+  }
+}
+
+// Monsters the rules book does not have (27 Nov, Rime of the Frostmaiden: "githyanki-knight",
+// "frost-giant-zombie", "aberration"): a stand-in from the book where one is clear, said in the foe's note, or
+// else the group leaves the fight and goes into the place's notes for the Director to play from its words.
+//   1. a monster id the note names in quotes ("Use 'ogre-zombie' stats");
+//   2. the longest monster id whose words are all in the missing one ("githyanki-knight" -> knight).
+export function standIns(adv, has) {
+  const known = [...has];
+  const out = [];
+  for (const s of adv.sites || []) {
+    const keep = [];
+    for (const f of s.foes || []) {
+      if (!f || has.has(f.monster)) { keep.push(f); continue; }
+      const miss = String(f.monster || '');
+      const quoted = [...String(f.note || '').matchAll(/['"‘“]([a-z0-9-]+)['"’”]/g)].map((m) => m[1]).find((id) => has.has(id));
+      const words = miss.split('-').filter(Boolean);
+      const byWords = known.filter((id) => id.split('-').every((w) => words.includes(w))).sort((a, b) => b.length - a.length)[0];
+      const pick = quoted || byWords;
+      if (pick) {
+        keep.push({ ...f, monster: pick, note: `Stand-in: ${pick} for "${miss}", which the rules book does not have. ${f.note || ''}`.trim() });
+        out.push(`${s.id}: ${miss} -> ${pick}`);
+      } else {
+        s.notes = `${s.notes ? `${s.notes} ` : ''}${f.name || miss} (${f.count || 1}): not in the rules book, so no stat block; play them from these words. ${f.note || ''}`.trim();
+        out.push(`${s.id}: ${miss} -> notes`);
+      }
+    }
+    if (s.foes) s.foes = keep;
+  }
+  return out;
 }
 
 // Places nobody can reach (a book of separate encounters: Encounters in the Far North, 27 Nov, had 19 of its
@@ -718,7 +761,7 @@ export function loadAdventures(dir) {
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites))
     .map((a) => (Array.isArray(a.monsters) ? { ...a, monsters: oneById(a.monsters) } : a))
     // Saved before linkStrays: give their unreachable places a way in as they load.
-    .map((a) => { linkStrays(a); markMaybe(a); return a; });
+    .map((a) => { fixQuestDone(a); linkStrays(a); markMaybe(a); return a; });
 }
 
 // ---- pictures ---------------------------------------------------------------------------------------

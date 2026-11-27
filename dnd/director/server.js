@@ -53,6 +53,7 @@ if (!flag('--no-library')) {
     if (ADVENTURES.some((x) => x.id === a.id)) continue;
     ADVENTURES.push(a);
     mergeAdventureMonsters(srd, [a]);
+    for (const x of CV.standIns(a, new Set(srd.monsters.map((m) => m.id)))) console.log(`  ${a.name}: ${x}`);
     console.log(`Converted adventure "${a.name}".`);
   }
 }

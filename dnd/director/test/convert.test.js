@@ -8,6 +8,29 @@ import { join } from 'node:path';
 import * as C from '../brain/convert.js';
 import { srd } from './helpers.js';
 
+test('a quest end place that is not a place takes the near one, or is dropped', () => {
+  const adv = { sites: [{ id: 'sunblight-fortress-approach' }, { id: 'bremen' }, { id: 'targos' }],
+    questDone: [{ match: 'x', at: ['sunblight-fortress'] }, { match: 'y', at: ['bremen', 'targos', 'lonelywood'] }, { match: 'z', at: ['nowhere'] }] };
+  C.fixQuestDone(adv);
+  assert.deepEqual(adv.questDone[0].at, ['sunblight-fortress-approach']);
+  assert.deepEqual(adv.questDone[1].at, ['bremen', 'targos']);
+  assert.deepEqual(adv.questDone[2].at, ['nowhere']); // nothing near: left for the checker to report
+});
+
+test('a monster the book lacks gets a stand-in, or goes into the notes', () => {
+  const adv = { sites: [{ id: 'a', notes: '', foes: [
+    { monster: 'githyanki-knight', count: 1, name: 'Escaped Githyanki' },
+    { monster: 'frost-giant-zombie', count: 2, note: "Use 'ogre-zombie' stats." },
+    { monster: 'aberration', count: 4, name: 'Tekeli-li Swarm' },
+    { monster: 'goblin', count: 3 }] }] };
+  const out = C.standIns(adv, new Set(['knight', 'ogre-zombie', 'frost-giant', 'goblin']));
+  const f = adv.sites[0].foes;
+  assert.deepEqual(f.map((x) => x.monster), ['knight', 'ogre-zombie', 'goblin']);
+  assert.match(f[0].note, /Stand-in: knight for "githyanki-knight"/);
+  assert.match(adv.sites[0].notes, /Tekeli-li Swarm \(4\): not in the rules book/);
+  assert.equal(out.length, 3);
+});
+
 const BLOCKS = `Bog Hag
 Medium fey, neutral evil
 Armor Class 16 (natural armor)
