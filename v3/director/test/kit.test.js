@@ -391,3 +391,11 @@ test('a player who speaks for their own organism gets the opening of the reply',
   st.story[0].text = 'We go now.';
   assert.ok(!checkNarration('Bresk walks on. Brost, what now?', st).some((f) => /^Gives/.test(f.text)), '"we" may be anyone');
 });
+
+test('every creature in the bestiary has a plain line for the tap-a-word popup, and no other', async () => {
+  const { CREATURE_WORDS } = await import('../data/kit/creatures.js');
+  const { readFileSync } = await import('node:fs');
+  const names = Object.values(JSON.parse(readFileSync(new URL('../data/bestiary.json', import.meta.url), 'utf8'))).map((b) => b.name);
+  assert.deepEqual([...CREATURE_WORDS.map((w) => w.word)].sort(), [...names].sort());
+  for (const w of CREATURE_WORDS) assert.doesNotMatch(w.plain, /\d/, `${w.word}: no numbers in a plain line`);
+});

@@ -1,6 +1,7 @@
 // The Long Swallow as data. Numbers and facts are taken from the Vector; section cites are to
 // "The Osmotic Expanse - THE LONG SWALLOW". Same shape as first-carve.js and ninth-shift.js.
 import { kit } from './kit/long-swallow.kit.js';
+import { CREATURE_WORDS } from './kit/creatures.js';
 import { HANDS_L7 } from './levelled-hands.js';
 
 const hands = HANDS_L7;
@@ -226,6 +227,7 @@ export function publicScenario(sc = scenario) {
     zeroLine: sc.zeroLine || '',
     pitch: sc.kit ? sc.kit.pitch : '',
     glossary: sc.kit ? sc.kit.glossary : [],
+    creatureWords: CREATURE_WORDS, // tap a creature's name in the story (screens only)
     handsPlain: sc.kit ? sc.kit.hands : {},
     starts: sc.kit ? Object.fromEntries(Object.entries(sc.kit.sites).map(([id, k]) => [id, k.start])) : {},
     sites: sc.sites.map(({ host, encounter, pricedChoice, ...open }) => open),

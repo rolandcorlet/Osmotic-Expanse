@@ -4,6 +4,7 @@
 //   host                   -> Director-only notes (never sent to player screens)
 import { APPARATUS } from './apparatus.js';
 import { kit } from './kit/first-carve.kit.js';
+import { CREATURE_WORDS } from './kit/creatures.js';
 
 const w = (id, extra = {}) => ({ ...APPARATUS[id], ...extra });
 
@@ -303,6 +304,7 @@ export function publicScenario(sc = scenario) {
     zeroLine: sc.zeroLine || '',
     pitch: sc.kit ? sc.kit.pitch : '',
     glossary: sc.kit ? sc.kit.glossary : [],
+    creatureWords: CREATURE_WORDS, // tap a creature's name in the story (screens only)
     handsPlain: sc.kit ? sc.kit.hands : {},
     starts: sc.kit ? Object.fromEntries(Object.entries(sc.kit.sites).map(([id, k]) => [id, k.start])) : {},
     sites: sc.sites.map(({ host, encounter, pricedChoice, ...open }) => open), // the priced-choice table stays behind the screen

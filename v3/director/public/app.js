@@ -700,10 +700,17 @@ function orderList({ numbers = true } = {}) {
 
 // Tap a word (a human player, 27 Nov: the setting's words were hard to follow). The first time a
 // setting word appears in a piece of narration it is underlined; a tap or Enter shows it in plain words.
-const storyNames = () => [...Object.values(state.organisms || {}), ...Object.values(state.creatures || {})].map((x) => x.name).filter(Boolean);
+const storyNames = () => Object.values(state.organisms || {}).map((x) => x.name).filter(Boolean);
+// The setting's words, then each creature not already among them (a Chaperone Drone is both).
+function allWords() {
+  const gl = (sc && sc.glossary) || [];
+  const have = new Set(gl.map((g) => g.word.toLowerCase()));
+  return [...gl, ...((sc && sc.creatureWords) || []).filter((g) => !have.has(g.word.toLowerCase()))];
+}
 function glossy(text) {
   const t = String(text || '');
-  const hits = sc ? termsIn(t, sc.glossary || [], storyNames()) : [];
+  // The setting's words and the creatures' names (creatures: storyNames leaves them out, so they are found).
+  const hits = sc ? termsIn(t, allWords(), storyNames()) : [];
   let out = '';
   let at = 0;
   for (const h of hits) {
@@ -715,7 +722,7 @@ function glossy(text) {
 function glossPop(el) {
   let pop = document.getElementById('gloss');
   if (!el) { if (pop) pop.hidden = true; return; }
-  const g = ((sc && sc.glossary) || []).find((x) => x.word === el.dataset.gloss);
+  const g = allWords().find((x) => x.word === el.dataset.gloss);
   if (!g) return;
   if (!pop) { pop = document.createElement('div'); pop.id = 'gloss'; pop.setAttribute('role', 'tooltip'); document.body.appendChild(pop); }
   pop.innerHTML = `<b>${esc(g.word)}</b>${esc(g.plain)}<span class="faint small">Every word is on the Words tab.</span>`;
@@ -1180,7 +1187,7 @@ function zeroHtml() {
 // v3: plain words for the setting's words, searchable. New players open this constantly.
 function wordsHtml() {
   const q = String(ui.wordQ || '').trim().toLowerCase();
-  const list = (sc.glossary || []).filter((g) => !q || g.word.toLowerCase().includes(q) || g.plain.toLowerCase().includes(q));
+  const list = allWords().filter((g) => !q || g.word.toLowerCase().includes(q) || g.plain.toLowerCase().includes(q));
   return `<section class="card fill"><h3>Words<span class="right"><input type="text" data-k="wordQ" data-bind="wordQ" data-live="1" value="${esc(ui.wordQ || '')}" placeholder="Search" autocomplete="off" style="max-width:180px"></span></h3>
     <p class="dim small">This world has its own words. Here is what each one means. You can also just ask the Director: "what does that mean?"</p>
     <div class="scroll" data-scroll="words">${list.map((g) => `<div class="row" style="align-items:baseline;padding:6px 0;border-bottom:1px solid var(--line)"><b style="min-width:120px">${esc(g.word)}</b><span class="grow">${esc(g.plain)}</span></div>`).join('') || '<div class="empty">No word matches.</div>'}</div></section>`;
