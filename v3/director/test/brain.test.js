@@ -2093,3 +2093,18 @@ test('plain words: a bracketed meaning goes after a possessive, and "the Belt\'s
   const out = glossInline("Whose wage: the Belt's, the factory district's, or the Row's?", gl, {}).text;
   assert.equal(out, "Whose wage: the Belt's, the factory district's, or the Row's (the neighbourhood of workers who have stopped work)?");
 });
+
+test('a dropped request to the AI is tried once more (502, or no connection); a refusal is not (27 Nov)', async () => {
+  const { request } = await import('../brain/net.js');
+  const answers = (list) => { let n = 0; const f = async () => { const a = list[Math.min(n++, list.length - 1)]; if (a === 'drop') throw new TypeError('fetch failed'); return { status: a, ok: a < 300, json: async () => ({ a }) }; }; f.calls = () => n; return f; };
+  const gw = answers([502, 200]);
+  assert.equal((await request({ url: 'http://127.0.0.1:1/x', body: {}, fetchImpl: gw, retryMs: 0 })).status, 200);
+  assert.equal(gw.calls(), 2);
+  const net = answers(['drop', 200]);
+  assert.equal((await request({ url: 'http://127.0.0.1:1/x', body: {}, fetchImpl: net, retryMs: 0, local: true })).status, 200);
+  const twice = answers([503, 503]);
+  assert.equal((await request({ url: 'http://127.0.0.1:1/x', body: {}, fetchImpl: twice, retryMs: 0 })).status, 503, 'only once more');
+  const no = answers([401]);
+  assert.equal((await request({ url: 'http://127.0.0.1:1/x', body: {}, fetchImpl: no, retryMs: 0 })).status, 401);
+  assert.equal(no.calls(), 1, 'a refusal is not tried again');
+});

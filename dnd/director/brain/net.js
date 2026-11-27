@@ -4,7 +4,27 @@
 export class ProviderError extends Error {}
 
 // Returns { status, ok, data }. Throws ProviderError only when nothing came back.
-export async function request({ url, method, headers = {}, body, fetchImpl = fetch, who = 'The AI', timeoutMs = 90000, local = false }) {
+// A dropped request is tried once more after a short wait: a gateway error (502, 503, 504) or a connection that
+// failed outright (Long Swallow bench, 27 Nov: the local model server answered one call with 502 "fetch failed"
+// and the whole run stopped). A timeout is not tried again: the wait was already long.
+export async function request(opts) {
+  const wait = opts.retryMs ?? 2000;
+  let first;
+  try {
+    first = await requestOnce(opts);
+  } catch (e) {
+    if (!e.dropped) throw e;
+    await new Promise((r) => setTimeout(r, wait));
+    return requestOnce(opts);
+  }
+  if ([502, 503, 504].includes(first.status)) {
+    await new Promise((r) => setTimeout(r, wait));
+    return requestOnce(opts);
+  }
+  return first;
+}
+
+async function requestOnce({ url, method, headers = {}, body, fetchImpl = fetch, who = 'The AI', timeoutMs = 90000, local = false }) {
   let res;
   try {
     res = await fetchImpl(url, {
@@ -15,9 +35,11 @@ export async function request({ url, method, headers = {}, body, fetchImpl = fet
     });
   } catch (e) {
     if (e.name === 'TimeoutError') throw new ProviderError(`${who} did not answer within ${Math.round(timeoutMs / 1000)} seconds.`);
-    throw new ProviderError(local
+    const err = new ProviderError(local
       ? `Could not reach ${who} at ${new URL(url).origin}. Is it running, and is the address right?`
       : `Could not reach ${who}: ${e.message}. Is this computer online?`);
+    err.dropped = true;
+    throw err;
   }
   let data = null;
   try { data = await res.json(); } catch (e) { /* not JSON: the caller reports the status */ }
