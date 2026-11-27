@@ -75,3 +75,26 @@ test('players never see where a hidden creature stands', () => {
   assert.ok(k, 'the host sees it placed');
   assert.ok(!viewFor(T.s, 'player').map.at[k]);
 });
+
+test('a melee attack steps up to its target; with distance deciding, too far or past range is refused', () => {
+  const T = table(4);
+  const a = diver(T, 'p1', 0);
+  const base = mod.bestiary.creatures.find((c) => (c.attacks || []).length);
+  T.host({ type: 'creature.add', base: base.id, count: 1 });
+  const k = Object.values(T.s.creatures).find((x) => x.base === base.id);
+  T.s.map.at[`creature:${k.id}`] = { site: T.s.scene.siteId, zone: 'far', x: 3, y: 3 };
+  T.host({ type: 'fight.start' });
+  T.s.creatures[k.id].health = 999; T.s.creatures[k.id].healthMax = 999; // it must stand for the second half
+  T.s.fight.turn = T.s.fight.order.findIndex((o) => o.key === `char:${a.id}`); T.s.fight.used = 0;
+  const weapon = T.s.chars[a.id].gear.find((g) => mod.ix.gear[g] && mod.ix.gear[g].kind === 'weapon' && !/gun|bow/i.test(mod.ix.gear[g].name));
+  T.as('p1', { type: 'attack', charId: a.id, gearId: weapon, target: k.id });
+  const pa = T.s.map.at[`char:${a.id}`]; const pk = T.s.map.at[`creature:${k.id}`];
+  assert.equal(pa.zone, pk.zone, 'stepped up into its zone');
+  assert.ok(Math.max(Math.abs(pa.x - pk.x), Math.abs(pa.y - pk.y)) <= 1, 'and beside it');
+  // Distance decides: the Director's creature cannot cross the whole place to strike.
+  T.host({ type: 'map.show', reach: true });
+  T.s.fight.turn = T.s.fight.order.findIndex((o) => o.key === `creature:${k.id}`); T.s.fight.used = 0;
+  T.s.map.at[`char:${a.id}`] = { site: T.s.scene.siteId, zone: 'near', x: 0, y: 3 };
+  T.s.map.at[`creature:${k.id}`] = { site: T.s.scene.siteId, zone: 'far', x: 5, y: 3 };
+  assert.throws(() => T.ai({ type: 'creature.act', creature: k.id, attack: base.attacks[0].name, target: a.id }), /too far .* to strike this turn/);
+});

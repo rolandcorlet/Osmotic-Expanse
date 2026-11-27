@@ -566,6 +566,7 @@ H.attack = (s, a, ctx) => {
   const t = target(s, a.target);
   if (!t || t.kind !== 'creature' || t.o.down) no('Name a creature that is still standing.');
   if (t.o.hidden) no(`${ch.name} cannot see that.`);
+  onTheMap(s, ctx, keyOf('char', ch.id), keyOf('creature', t.id), isRanged(g) ? (g.range || MAP.mapRules(mod).range) : 0);
   spendAction(s, ctx, keyOf('char', ch.id));
   const pool = poolFor(mod, ch, g.stat, g.skill || '', a.bonus ? [{ label: 'Bonus', dice: Math.max(-5, Math.min(5, Number(a.bonus) || 0)) }] : []);
   const r = rollSpec(mod, ctx, pool, t.o.defence, a.dice);
@@ -633,6 +634,7 @@ H['creature.act'] = (s, a, ctx) => {
   if (!atk) no(`${k.name} has no attack called "${a.attack}". Its attacks: ${b.attacks.map((x) => x.name).join(', ')}.`);
   const t = target(s, a.target);
   if (!t || t.kind !== 'char' || t.o.down) no(`Name a character that is still standing: ${Object.values(s.chars).filter((c) => !c.down).map((c) => `${c.id} (${c.name})`).join(', ')}.`);
+  onTheMap(s, ctx, keyOf('creature', k.id), keyOf('char', t.id), isRanged(atk) ? (atk.range || MAP.mapRules(mod).range) : 0);
   spendAction(s, ctx, keyOf('creature', k.id));
   const pool = poolForRating(mod, atk.rating ?? atk.dice, k.conds);
   const at = charDefence(mod, t.o);
@@ -1026,6 +1028,35 @@ function placeEveryone(s, ctx) {
   }
 }
 const mapOn = (s) => !!(s.map && s.map.show && (s.map.show.zones || s.map.show.grid));
+// A weapon or a creature's attack that strikes from afar: it says so (kind "ranged", a range), or it is a
+// gun, a bow, a sling, a harpoon gun...
+const isRanged = (w) => !!w && (w.kind === 'ranged' || w.ranged === true || Number(w.range) > 0 || /\b(gun|pistol|revolver|rifle|shotgun|musket|bow|crossbow|sling|harpoon gun|blaster|spit|throw)/i.test(`${w.name || ''} ${w.about || ''}`));
+// An attack on the map. In melee the attacker steps up to its target (the map follows the story); a ranged
+// attack stays put. With "distance decides" on (map.show.reach), the Director's creature can only step as far
+// as twice its move, and a shot past the range is refused. The host's own moves are never stopped.
+function onTheMap(s, ctx, ak, tk, range) {
+  if (!mapOn(s)) return;
+  try { placeEveryone(s, ctx); } catch (e) { return; }
+  const m = s.map;
+  const a = m.at[ak]; const b = m.at[tk];
+  if (!a || !b || a.site !== s.scene.siteId || b.site !== s.scene.siteId) return;
+  const strict = !!m.show.reach && !(isHost(ctx) && !ctx.ai);
+  const zones = siteZones(s, ctx, s.scene.siteId);
+  if (range) {
+    if (!strict) return;
+    const steps = a.zone === b.zone ? MAP.cheb(a, b) : MAP.stepsBetween(m, s.scene.siteId, zones, a, b);
+    if (steps == null || steps > range) no(`${whoOf(s, tk).name} is out of range (${steps == null ? 'no line to them' : `${steps} squares; the range is ${range}`}).`);
+    return;
+  }
+  const R = MAP.mapRules(ctx.mod);
+  if (MAP.inReach(a, b, R.reach)) return;
+  if (strict && ctx.ai) {
+    const steps = MAP.stepsBetween(m, s.scene.siteId, zones, a, b);
+    const most = MAP.speedOf(whoOf(s, ak), R) * 2;
+    if (steps == null || steps - 1 > most) no(`${whoOf(s, ak).name} is too far from ${whoOf(s, tk).name} to strike this turn (${steps == null ? 'no way through' : `${steps} squares`}): move closer, or use a ranged attack.`);
+  }
+  try { H['map.move'](s, { who: ak, engage: tk }, { ...ctx, freeMove: !strict }); } catch (e) { if (strict) no(`${whoOf(s, tk).name} is out of reach. ${e.message}`); }
+}
 
 // Move a character or a creature: to another zone, to a square, or up to someone to fight them.
 H['map.move'] = (s, a, ctx) => {
