@@ -84,6 +84,43 @@ const ASK = {
   adventure: 'Write one adventure file. When converting a campaign, convert its first chapter or adventure (or the one named in the notes); when inventing, write a first adventure for one evening. Give places "rules" for what happens by itself (an ambush, a countdown, followers who flee, a quest done when a creature falls).',
 };
 
+// A whole book is longer than one section can be sent. Each section gets the parts of the source that fit it
+// best (27 Nov 2026, for PDFs): the opening (what the game is), then the pages with the most of that section's
+// words, kept in the book's own order and marked where pages were left out.
+const WANT = {
+  module: /\b(introduction|overview|setting|tone|genre|welcome|this (game|book)|what is)\b/gi,
+  rules: /\b(roll|dice|d\d+|check|test|success|fail(ure)?|difficulty|target number|modifier|bonus|penalty|damage|health|wound|condition|initiative|turn|action|rest|advantage)\b/gi,
+  handbook: /\b(character|class|calling|career|origin|background|ancestry|species|skill|talent|ability|abilities|gear|equipment|weapon|armou?r|level|advancement|experience)\b/gi,
+  bestiary: /\b(creature|monster|beast|enemy|foe|npc|attack|bite|claw|hit points|health|armou?r|tier|threat|stat(istic)?s?|horde|spawn)\b/gi,
+  lore: /\b(history|world|land|kingdom|city|god|gods|faction|people|culture|religion|legend|age|war|map|region|glossary)\b/gi,
+  adventure: /\b(adventure|scenario|chapter|scene|room|area|location|encounter|clue|quest|hook|npc|treasure|read aloud|boxed text|the party|the players|when the)\b/gi,
+};
+export function pickSource(source, section, max = MAX_SOURCE) {
+  const text = String(source || '');
+  if (text.length <= max) return { text, cut: false };
+  // Pieces: the PDF reader's pages and files, else paragraphs gathered to about 3,000 characters.
+  let parts = text.split(/\n(?=--- (?:Page \d+|A (?:scanned page|picture) on page \d+)|=== .+ ===)/);
+  if (parts.length < 4) {
+    parts = []; let cur = '';
+    for (const para of text.split(/\n\s*\n/)) { if (cur.length + para.length > 3000 && cur) { parts.push(cur); cur = ''; } cur += `${cur ? '\n\n' : ''}${para}`; }
+    if (cur) parts.push(cur);
+  }
+  const re = WANT[section] || WANT.rules;
+  const score = parts.map((t) => ((t.match(re) || []).length * 1000) / Math.max(400, t.length));
+  const keep = new Set();
+  let used = 0;
+  // The opening: up to a seventh of the room.
+  for (let i = 0; i < parts.length && used + parts[i].length <= max / 7; i++) { keep.add(i); used += parts[i].length + 1; }
+  for (const i of parts.map((_, i) => i).sort((a, b) => score[b] - score[a] || a - b)) {
+    if (keep.has(i) || used + parts[i].length > max) continue;
+    keep.add(i); used += parts[i].length + 1;
+  }
+  const out = []; let gap = false;
+  parts.forEach((t, i) => { if (keep.has(i)) { if (gap) out.push('[… pages left out …]'); out.push(t); gap = false; } else gap = true; });
+  if (gap) out.push('[… pages left out …]');
+  return { text: out.join('\n'), cut: true };
+}
+
 // sections: which to write, in this order. existing: a module to extend (its sections are kept).
 export async function convert({ provider, mode = 'invent', source = '', ideas = '', name = '', notes = '', sections, existing = null, dice = '', onProgress = () => {} }) {
   if (!MODES[mode]) throw new Error(`Mode must be one of: ${Object.keys(MODES).join(', ')}.`);
@@ -95,21 +132,20 @@ export async function convert({ provider, mode = 'invent', source = '', ideas = 
   } : { adventures: [] };
   const log = [];
   const usage = { in: 0, out: 0 };
-  const src = String(source).slice(0, MAX_SOURCE);
-  const material = [
+  const material = (section) => { const src = pickSource(source, section); return [
     mode === 'convert' ? 'TASK: convert the SOURCE into a Skeleton module.' : mode === 'extend' ? 'TASK: extend the existing module with new material.' : 'TASK: invent a new game from the IDEAS.',
     name ? `NAME: ${name}` : '',
     dice && SYSTEMS[dice] ? `DICE SYSTEM: use "${dice}" (${SYSTEMS[dice].name}) in rules.json "dice", with numbers in its ranges.` : mode !== 'extend' ? 'DICE SYSTEM: keep the source\'s own dice if a system in THE SYSTEMS matches it; otherwise choose the best fit (the d6 pool when unsure), and say which in module.json "credits".' : '',
     ideas ? `IDEAS:\n${ideas}` : '',
     notes ? `NOTES FROM THE DESIGNER:\n${notes}` : '',
-    src ? `SOURCE${String(source).length > MAX_SOURCE ? ` (the first ${MAX_SOURCE} characters)` : ''}:\n${src}` : '',
-  ].filter(Boolean).join('\n\n');
+    src.text ? `SOURCE${src.cut ? ` (the parts of a longer source that fit this section best; the opening first)` : ''}:\n${src.text}` : '',
+  ].filter(Boolean).join('\n\n'); };
 
   for (const section of order) {
     onProgress({ section, stage: 'writing' });
     const chat = provider.start({ system: GUIDE, tools: [] });
     const extendNote = mode === 'extend' && section === 'bestiary' ? ' Keep every creature already in the bestiary and add the new ones after them.' : mode === 'extend' && section === 'adventure' ? ' Write a new adventure with a new id, using the existing creatures and any new ones.' : '';
-    const msg = `${material}\n\nALREADY MADE (use these ids):\n${madeSoFar(made) || 'nothing yet'}\n\nSECTION: ${section}\n${ASK[section]}${extendNote}\nTEMPLATE (an example of every field; "?" marks an optional key; text after // is a note):\n${TEMPLATES[section]}\n${mode === 'extend' && section === 'bestiary' && made.bestiary ? `\nTHE BESTIARY NOW:\n${JSON.stringify(made.bestiary)}\n` : ''}\nReply with the JSON object only.`;
+    const msg = `${material(section)}\n\nALREADY MADE (use these ids):\n${madeSoFar(made) || 'nothing yet'}\n\nSECTION: ${section}\n${ASK[section]}${extendNote}\nTEMPLATE (an example of every field; "?" marks an optional key; text after // is a note):\n${TEMPLATES[section]}\n${mode === 'extend' && section === 'bestiary' && made.bestiary ? `\nTHE BESTIARY NOW:\n${JSON.stringify(made.bestiary)}\n` : ''}\nReply with the JSON object only.`;
     let reply = await chat.send(msg);
     usage.in += reply.usage.in; usage.out += reply.usage.out;
     let obj = null;

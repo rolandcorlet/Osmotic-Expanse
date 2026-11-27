@@ -577,7 +577,7 @@ function hostConverter() {
         opt('', f.mode === 'convert' ? 'Keep the source\'s own dice (or the closest system)' : 'Let the converter choose (the d6 pool when unsure)', !f.dice),
         Object.entries(SYSTEMS).map(([id, x]) => opt(id, `${x.name}: ${x.for}`, f.dice === id)))),
       h('label', { class: 'fld' }, h('span', {}, 'Ideas: a few lines are enough ("sky whales, kite cities, smugglers, a storm that eats memories")'), h('textarea', { id: 'cv-ideas', rows: 4, value: f.ideas, oninput: (e) => { f.ideas = e.target.value; } })),
-      h('label', { class: 'fld' }, h('span', {}, `Source material: paste text, or add a PDF or .txt / .md / .json files (${f.source.length.toLocaleString()} characters; the first 90,000 are used)`), h('textarea', { id: 'cv-source', rows: 7, value: f.source, oninput: (e) => { f.source = e.target.value; } })),
+      h('label', { class: 'fld' }, h('span', {}, `Source material: paste text, or add a PDF or .txt / .md / .json files (${f.source.length.toLocaleString()} characters; a long one is cut to the 90,000 that fit each section best)`), h('textarea', { id: 'cv-source', rows: 7, value: f.source, oninput: (e) => { f.source = e.target.value; } })),
       h('input', { type: 'file', multiple: true, accept: '.pdf,.txt,.md,.json,.markdown,.csv', disabled: !!C.reading, onchange: async (e) => {
         for (const file of [...e.target.files]) f.source += `\n\n=== ${file.name} ===\n${/\.pdf$/i.test(file.name) || file.type === 'application/pdf' ? await pdfText(file) : await file.text()}`;
         render();
