@@ -219,7 +219,7 @@ function onState(data) {
   if (state.director && state.director.provider && state.director.provider !== ui.dir.urlFor) { ui.dir.url = state.director.url || ''; ui.dir.urlFor = state.director.provider; ui.dir.key = ''; }
   voiceFollows();
   render();
-  if (role === 'player' || role === 'table') updateScene(sceneInfo());
+  if (role === 'player' || role === 'table') { updateScene(sceneInfo()); artOverlay(); }
   // A level ready for the first time: a golden flare (flair.js), once.
   if (role === 'player' && p && levelReady(`lvl:${p.id}`, canLevel(p))) levelFlash();
   if (asked) requestAlert(asked);
@@ -1346,6 +1346,52 @@ function hostSceneCard() {
     <div class="fl dim small">Exits</div><div class="chips">${(s.exits || []).map((e) => `<button class="chip on" data-act="move" data-id="${e.to}" title="${esc(e.label)}">→ ${esc(((adv.sites || []).find((x) => x.id === e.to) || {}).name || e.to)}</button>`).join('') || '<span class="small faint">none</span>'}</div>
   </section>`;
 }
+// ---- pictures in play (engine/pictures.js links them, engine/ledger.js art.* shows them) ----------------
+// The DM's strip: the adventure's pictures, what each goes with, Show; the one showing now, Take down.
+const ART_KINDS = new Set(['art', 'handout', 'map', 'travel']);
+function picturesCard() {
+  const P = ((adv && adv.pictures) || []).filter((p) => ART_KINDS.has(p.kind));
+  if (!P.length) return '';
+  const now = state.art && state.art.now;
+  const mons = new Map();
+  for (const m of adv.monsters || []) mons.set(m.id, m.name);
+  for (const st of adv.sites || []) for (const f of st.foes || []) if (!mons.has(f.monster)) mons.set(f.monster, (ix.monster[f.monster] || {}).name || f.monster);
+  const opt = (v, label, cur) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(label)}</option>`;
+  const shown = new Set((state.art && state.art.shown) || []);
+  const row = (p) => {
+    const cur = p.show || '';
+    const auto = p.link && p.link.why !== 'the DM' ? `Found: ${p.link.kind === 'site' ? ((adv.sites || []).find((x) => x.id === p.link.id) || {}).name : mons.get(p.link.id) || p.link.id}` : 'Shows only when you press Show';
+    return `<div class="pic-row${now && now.url === p.url ? ' on' : ''}"><img src="${esc(p.url)}" alt="" loading="lazy">
+      <div class="grow pic-txt"><div class="small ell" title="${esc(p.about || '')}">${esc(p.about || 'A picture')}</div>
+        <select class="pic-sel" data-artlink="${esc(p.url)}" title="When it shows by itself">${opt('', p.link && p.link.why !== 'the DM' ? auto : 'Not linked: Show only', cur)}${opt('never', 'Never by itself', cur)}
+          <optgroup label="Arriving at">${(adv.sites || []).map((x) => opt(`site:${x.id}`, x.name, cur)).join('')}</optgroup>
+          <optgroup label="Fighting">${[...mons].map(([id, n]) => opt(`monster:${id}`, n, cur)).join('')}</optgroup></select></div>
+      <button class="btn sm" data-act="art.show" data-url="${esc(p.url)}" title="Show it on the players' screens now">${shown.has(p.url) ? 'Again' : 'Show'}</button></div>`;
+  };
+  return `<section class="card"><h3>Pictures<span class="right small dim">${P.length}</span></h3>
+    ${now ? `<div class="row nw small"><span class="grow ell">Showing: ${esc(now.about || 'a picture')}</span><button class="btn sm" data-act="art.close">Take down</button></div>` : ''}
+    <div class="pic-list scroll" data-scroll="pics">${P.map(row).join('')}</div></section>`;
+}
+// Players and the table: the picture slides in over the backdrop; a tap or 8 seconds closes it here.
+let artTimer = null;
+function artOverlay() {
+  if (role !== 'player' && role !== 'table') return;
+  let el = document.getElementById('art');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'art'; el.className = 'art-card'; el.hidden = true;
+    el.addEventListener('click', () => { el.hidden = true; });
+    document.body.appendChild(el);
+  }
+  const now = state && state.art && state.art.now;
+  if (!now) { el.hidden = true; ui.artN = ui.artN ?? 0; return; }
+  if (ui.artN === undefined) { ui.artN = now.n; return; } // already up when this screen opened: not again
+  if (now.n === ui.artN) return;
+  ui.artN = now.n;
+  el.innerHTML = `<figure><img src="${esc(now.url)}" alt="${esc(now.about)}"><figcaption>${esc(now.about)}</figcaption></figure>`;
+  el.hidden = false;
+  clearTimeout(artTimer);
+  artTimer = setTimeout(() => { el.hidden = true; }, 8000);
+}
 function askRollCard() {
   const A = ui.host.ask;
   const pcs = Object.values(state.pcs).filter((p) => !p.dead);
@@ -1364,7 +1410,7 @@ function hostRunHtml() {
   const narr = `<div class="row nw"><select style="max-width:130px" data-bind="host.sayAs" data-live="1"><option value="">Narrate</option><option value="DM" ${ui.host.sayAs === 'DM' ? 'selected' : ''}>Say as DM</option>${((site().npcs) || []).map((n) => `<option value="${esc(n.name)}" ${ui.host.sayAs === n.name ? 'selected' : ''}>${esc(n.name)}</option>`).join('')}</select><input type="text" class="grow" data-k="h.narr" data-bind="host.narrate" value="${esc(ui.host.narrate)}" maxlength="4000" placeholder="${ui.host.sayAs ? 'What they say…' : 'Describe what happens…'}"><button class="btn primary" data-act="h.narrate">Send</button></div>
     ${state.director && state.director.mode !== 'off' ? `<div class="row nw"><input type="text" class="grow" data-k="dir.note" data-bind="dir.note" value="${esc(ui.dir.note)}" placeholder="Note to the AI Director (optional)">${state.director.thinking ? '<button class="btn alert" data-act="d.cancel">Stop thinking</button>' : '<button class="btn" data-act="d.run">AI: take a turn</button>'}</div>` : ''}`;
   return `<div class="lay-three">
-    <div class="col scroll" data-scroll="r1">${hostSceneCard()}${clocksCard()}
+    <div class="col scroll" data-scroll="r1">${hostSceneCard()}${picturesCard()}${clocksCard()}
       <section class="card"><h3>Quests</h3>${state.quests.map((q) => `<div class="row nw small"><button class="chip${q.done ? ' ok' : ''}" data-act="quest" data-id="${q.id}">${q.done ? '✓' : '○'}</button><span class="grow${q.done ? ' faint' : ''}">${esc(q.text)}</span></div>`).join('') || '<div class="empty">None.</div>'}
         <div class="row nw"><input type="text" class="grow" data-k="h.quest" data-bind="host.quest" value="${esc(ui.host.quest)}" placeholder="New quest"><button class="btn sm" data-act="quest.add">Add</button></div></section></div>
     <div class="col">${storyCard({ input: narr })}</div>
@@ -1800,6 +1846,8 @@ const ACT = {
   'fight.next': () => send({ type: 'fight.next' }),
   'fight.end': () => send({ type: 'fight.end' }),
   'fight.start': () => send({ type: 'fight.start' }),
+  'art.show': (d) => send({ type: 'art.show', url: d.url }),
+  'art.close': () => send({ type: 'art.close' }),
   'fight.startauto': () => send({ type: 'fight.start', autoRoll: true }),
   attack: async (d) => {
     const foes = foesHere().filter((f) => !f.dead && !f.hidden);
@@ -2009,6 +2057,14 @@ function onField(e) {
     return;
   }
   if (t.dataset.assign) { if (e.type === 'change') { const pcId = t.value; if (pcId) send({ type: 'pc.assign', pcId, pid: t.dataset.assign }); else { const p = state.players[t.dataset.assign]; if (p && p.pcId) send({ type: 'pc.assign', pcId: p.pcId, pid: '' }); } } return; }
+  if (t.dataset.artlink) {
+    if (e.type === 'change') {
+      fetch('/api/art-link', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key, url: t.dataset.artlink, show: t.value }) })
+        .then((r) => r.json()).then((out) => { if (!out.ok) toast(out.error || 'That did not work.'); reloadAdventure(); })
+        .catch(() => toast('Cannot reach the Director host. Is it still running?'));
+    }
+    return;
+  }
   if (t.dataset.autorules) { if (e.type === 'change') send({ type: 'auto.set', rules: t.checked }); return; }
   if (t.dataset.autoscale) { if (e.type === 'change') send({ type: 'auto.set', scale: t.value }); return; }
   if (t.dataset.dmodel) { if (e.type === 'change' && t.value) sendDirector({ op: 'config', model: t.value }); return; }

@@ -25,6 +25,7 @@ import { createDirector } from './brain/manager.js';
 import { createVoice } from './brain/voice.js';
 import { createSlots } from './slots.js';
 import { createMapStore, MAX_PICTURE } from './mapfiles.js';
+import { linkArt } from './engine/pictures.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -329,7 +330,7 @@ async function booksApi(path, method, body) {
       const old = ADVENTURES.find((x) => x.id === id);
       if (old) { CV.removeAdventure(ADVENTURES_DIR, id); CV.unmergeAdventure(srd, id); }
       if (kept.length) adventure.pictures = kept;
-      const adv = CV.saveAdventure(ADVENTURES_DIR, { ...adventure, id, name }, convertJob.original, files);
+      const adv = linkArt(CV.saveAdventure(ADVENTURES_DIR, { ...adventure, id, name }, convertJob.original, files));
       const at = ADVENTURES.findIndex((x) => x.id === adv.id);
       if (at >= 0) ADVENTURES[at] = adv; else ADVENTURES.push(adv);
       mergeAdventureMonsters(srd, [adv]);
@@ -637,6 +638,28 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     // Saved games, for the host's Saves tab.
+    // The DM says which monster or place a picture goes with (or never): kept in the converted adventure's file.
+    if (req.method === 'POST' && url.pathname === '/api/art-link') {
+      const body = await readBody(req);
+      const who = access(req, { ...body, role: 'host' });
+      if (!who.role) { json(res, 403, who); return; }
+      const pic = (adventure.pictures || []).find((p) => p.url === body.url);
+      const show = String(body.show || '');
+      const [kind, id] = show.split(/:(.+)/);
+      const known = kind === 'site' ? (adventure.sites || []).some((x) => x.id === id)
+        : kind === 'monster' ? srd.monsters.some((m) => m.id === id) : show === '' || show === 'never';
+      if (!pic || !adventure.converted || !known) { json(res, 200, { ok: false, error: 'That picture or choice is not one of this adventure\'s.' }); return; }
+      if (show) pic.show = show; else delete pic.show;
+      linkArt(adventure);
+      const f = join(ADVENTURES_DIR, `${adventure.id}.json`);
+      try {
+        const raw = JSON.parse(readFileSync(f, 'utf8'));
+        const p = (raw.pictures || []).find((x) => x.url === pic.url);
+        if (p) { if (show) p.show = show; else delete p.show; writeFileSync(f, JSON.stringify(raw, null, 1)); }
+      } catch (e) { json(res, 200, { ok: false, error: `It is set for now, but could not be saved: ${e.message}` }); return; }
+      json(res, 200, { ok: true });
+      return;
+    }
     if (req.method === 'POST' && url.pathname === '/api/saves') {
       const body = await readBody(req);
       const who = access(req, { ...body, role: 'host' });

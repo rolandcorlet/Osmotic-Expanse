@@ -12,6 +12,7 @@ import * as NAMES from './names.js';
 import * as TRIG from './triggers.js';
 import * as SCALE from './scale.js';
 import * as SEEDS from './seeds.js';
+import { artFor } from './pictures.js';
 
 export class RuleError extends Error {}
 // Every "no" the Engine could say is one of three kinds, sorted here once for every screen and every tool
@@ -64,6 +65,7 @@ export function newSession(adventure) {
     players: {}, pcs: {}, foes: {}, fight: null,
     quests: (adventure && adventure.quests ? adventure.quests.map((q, n) => ({ id: `q${n + 1}`, text: q, done: false })) : []),
     loot: [], time: { day: 1, hour: 8 }, seeds: [], notes: '', nextId: 1, started: false, clocks: [],
+    art: { now: null, shown: [], n: 0 },
     map: adventureMaps(MAP.newMap(), adventure),
   };
 }
@@ -750,6 +752,7 @@ H['fight.start'] = (s, a, ctx) => {
     if (!a.autoRoll && p.playerId) s.requests.push({ id: nextId(s, 'q'), pcId: p.id, kind: 'initiative', ability: 'dex', skill: '', dc: 0, adv: '', reason: 'Roll initiative!', by: 'engine', t: ctx.now || 0 });
   }
   story(s, ctx, 'event', `Battle! ${foes.map((f) => f.name).join(', ')}. Roll initiative.`, 'Engine');
+  autoArt(s, ctx, foes.map((f) => ['monster', f.mid]));
   emit(ctx, { ev: 'fight', site: s.scene.siteId });
   if (s.fight.surprised.length) story(s, ctx, 'event', `Surprised: ${s.fight.surprised.map((k) => nameOf(s, k)).join(', ')} (no turn in the first round).`, 'Engine');
   if (s.fight.order.every((o) => o.init != null)) startTurns(s, ctx);
@@ -1750,6 +1753,7 @@ H['site.move'] = (s, a, ctx) => {
   if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, siteId: to.id, quiet: true }, { ...ctx, ai: false });
   if (to.travelHours) H['time.pass'](s, { hours: to.travelHours }, ctx);
   story(s, ctx, 'event', `The party arrives at ${to.name}.`, 'Engine', { move: true });
+  if (first) autoArt(s, ctx, [['site', to.id]]);
   if (to.id !== here.id) emit(ctx, { ev: 'enter', site: to.id, from: here.id });
 };
 
@@ -2212,6 +2216,31 @@ H['map.dash'] = (s, a, ctx) => {
   f.used.action = true;
   if (a.kind === 'disengage') { f.used.disengaged = true; story(s, ctx, 'event', `${t.o.name} disengages.`, 'Engine'); } else { f.used.dash = true; story(s, ctx, 'event', `${t.o.name} dashes.`, 'Engine'); }
 };
+
+// ---- pictures in play (engine/pictures.js links them) ------------------------------------------------
+// state.art: { now: { url, w, h, about, n } | null, shown: [url], n }. A linked picture shows by itself once,
+// the first time the party fights its monster or reaches its place; the DM shows any, or takes it down.
+const artUp = (s) => (s.art = s.art || { now: null, shown: [], n: 0 });
+function showArt(s, p) {
+  const A = artUp(s);
+  A.n += 1;
+  A.now = { url: p.url, w: Math.trunc(p.w) || 0, h: Math.trunc(p.h) || 0, about: str(p.about, 200), n: A.n };
+  if (!A.shown.includes(p.url)) A.shown.push(p.url);
+}
+function autoArt(s, ctx, keys) {
+  const A = artUp(s);
+  for (const [kind, id] of keys) {
+    const p = artFor(ctx.adventure, kind, id).find((x) => !A.shown.includes(x.url));
+    if (p) { showArt(s, p); return; }
+  }
+}
+H['art.show'] = (s, a, ctx) => {
+  hostOnly(ctx);
+  const p = (((ctx.adventure || {}).pictures) || []).find((x) => x.url === a.url);
+  if (!p) no('That picture is not one of this adventure\'s.');
+  showArt(s, p);
+};
+H['art.close'] = (s, a, ctx) => { hostOnly(ctx); artUp(s).now = null; };
 
 // What the maps show, for everyone (the DM's switches).
 H['map.show'] = (s, a, ctx) => {
@@ -2795,6 +2824,7 @@ export function viewFor(state, role, pid) {
   delete s.seeds; delete s.seedLog; delete s.seedNow; delete s.drift; delete s.driftKey; delete s.restAfter;
   s.clocks = (s.clocks || []).filter((c) => !c.hidden && (!c.siteId || c.siteId === s.scene.siteId)).map((c) => ({ ...c, note: c.done ? c.note : '' }));
   s.log = s.log.filter((l) => l.kind !== 'note-host');
+  if (s.art) s.art = { now: s.art.now, n: s.art.n }; // which pictures were shown is the DM's
   s.foes = Object.fromEntries(Object.values(s.foes).filter((f) => !f.hidden && f.siteId === s.scene.siteId).map((f) => [f.id, {
     id: f.id, name: f.name, mid: f.mid, conds: f.conds, dead: f.dead, fled: f.fled, health: R.healthWord(f.hp, f.maxHp), siteId: f.siteId,
   }]));

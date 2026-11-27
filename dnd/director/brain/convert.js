@@ -18,6 +18,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rename
 import { join } from 'node:path';
 import * as BOOK from '../engine/book.js';
 import { checkAdventure } from '../engine/check.js';
+import { linkArt } from '../engine/pictures.js';
 
 export const KINDS = [
   ['auto', 'Work it out'],
@@ -761,7 +762,9 @@ export function loadAdventures(dir) {
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites))
     .map((a) => (Array.isArray(a.monsters) ? { ...a, monsters: oneById(a.monsters) } : a))
     // Saved before linkStrays: give their unreachable places a way in as they load.
-    .map((a) => { fixQuestDone(a); linkStrays(a); markMaybe(a); return a; });
+    .map((a) => { fixQuestDone(a); linkStrays(a); markMaybe(a); return a; })
+    // Its art linked to its monsters and places (engine/pictures.js), by the words that describe each picture.
+    .map((a) => linkArt(a));
 }
 
 // ---- pictures ---------------------------------------------------------------------------------------

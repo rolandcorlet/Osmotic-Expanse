@@ -133,3 +133,40 @@ test('another attack after its Multiattack ends the monster\'s turn instead of a
   assert.notEqual(tb.state.fight.order[tb.state.fight.turn].key, `foe:${ob.id}`);
   assert.equal(tb.refusals, 0);
 });
+
+test('a linked picture shows once, the first time the party reaches its place or fights its monster', async () => {
+  const { linkArt } = await import('../engine/pictures.js');
+  const url = (c) => `/maps/${c.repeat(24)}.jpg`;
+  const adv = linkArt({ ...adventure, pictures: [
+    { url: url('a'), w: 4, h: 3, kind: 'art', about: `The ${adventure.sites[1].name} at dusk.` },
+    { url: url('b'), w: 4, h: 3, kind: 'art', about: 'A bugbear sneers.' },
+    { url: url('c'), w: 4, h: 3, kind: 'art', about: 'The cover.' }] });
+  const T = table(8, { adv });
+  hero(T, 'p1', 'Bryn');
+  const to = adventure.sites[1].id;
+  T.host({ type: 'site.move', siteId: to });
+  assert.equal(T.s.art.now.url, url('a'), 'arriving at its place');
+  assert.equal(T.s.art.now.n, 1);
+  T.host({ type: 'art.close' });
+  assert.equal(T.s.art.now, null);
+  for (const f of Object.values(T.s.foes)) delete T.s.foes[f.id];
+  T.host({ type: 'foe.add', monster: 'bugbear', count: 1 });
+  T.host({ type: 'fight.start' });
+  assert.equal(T.s.art.now.url, url('b'), 'its monster in the fight');
+  T.host({ type: 'art.close' });
+  T.host({ type: 'fight.end', xp: false });
+  T.host({ type: 'site.move', siteId: adventure.sites[0].id });
+  assert.equal(T.s.art.now, null, 'no picture there');
+  // The DM shows any of the adventure's own again; nothing else.
+  T.host({ type: 'art.show', url: url('a') });
+  assert.equal(T.s.art.now.n, 3);
+  assert.throws(() => T.host({ type: 'art.show', url: url('d') }), /not one of this adventure/);
+  assert.throws(() => T.as('p1', { type: 'art.close' }));
+});
+
+test('an old save with no pictures state takes a picture without trouble', () => {
+  const T = table(8, { adv: { ...adventure, pictures: [{ url: `/maps/${'e'.repeat(24)}.jpg`, w: 1, h: 1, kind: 'art', about: 'x' }] } });
+  delete T.s.art;
+  T.host({ type: 'art.show', url: `/maps/${'e'.repeat(24)}.jpg` });
+  assert.equal(T.s.art.now.n, 1);
+});
