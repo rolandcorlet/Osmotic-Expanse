@@ -35,7 +35,10 @@ function tokenLabel(k) {
   const words = o.name.trim().split(/\s+/);
   const last = words[words.length - 1];
   if (k.startsWith('foe:') && /^\d+$/.test(last) && words.length > 1) return `${words[0][0].toUpperCase()}${last}`;
-  return o.name.replace(/[^A-Za-z]/g, '').slice(0, 2).replace(/^./, (c) => c.toUpperCase()) || '?';
+  // Initials, past a title ("Sister Garaele" is Ga, "Dr. Ada Fenwick" is AF); one word gives its first two letters.
+  const named = words.map((w) => w.replace(/[^A-Za-z]/g, '')).filter((w) => w && !/^(dr|mr|mrs|ms|miss|mx|capt|captain|sir|dame|lady|lord|rev|father|sister|brother|prof|doc|old|young)$/i.test(w));
+  if (named.length >= 2) return `${named[0][0]}${named[named.length - 1][0]}`.toUpperCase();
+  return (named[0] || o.name).replace(/[^A-Za-z]/g, '').slice(0, 2).replace(/^./, (c) => c.toUpperCase()) || '?';
 }
 function speedFt(k) {
   const o = whoOf(k);
