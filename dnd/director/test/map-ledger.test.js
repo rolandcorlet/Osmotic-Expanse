@@ -282,3 +282,13 @@ test('moving someone to the zone they already stand in changes nothing and is no
   assert.deepEqual(T.s.map.at[`foe:${foe.id}`], was);
   assert.match(T.s.map.lastNote, /already in/);
 });
+
+test('an adventure\'s battle map with its squares counted opens as that place\'s grid, cut into zones (Icewind Dale maps, 28 Nov)', () => {
+  const pic = { url: '/maps/0123456789abcdef01234567.jpg', w: 3000, h: 3000, cols: 20, rows: 20 };
+  const adv = { ...ADV, sites: ADV.sites.map((x) => (x.id === 'road' ? { ...x, picture: pic } : x.id === 'gate' ? { ...x, picture: { ...pic, cols: 0, rows: 0 } } : x)) };
+  const s = newSession(adv);
+  assert.deepEqual([s.map.sites.road.cols, s.map.sites.road.rows], [20, 20]);
+  assert.equal(s.map.zones.road.length, 9, 'a 20 by 20 map: nine zones of about six squares');
+  assert.deepEqual([s.map.sites.gate.cols, s.map.sites.gate.rows], [0, 0], 'no squares counted: a picture behind the zones');
+  assert.equal(s.map.zones.gate, undefined, 'the gate keeps its own zones');
+});

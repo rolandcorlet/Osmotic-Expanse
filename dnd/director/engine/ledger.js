@@ -76,7 +76,15 @@ function adventureMaps(m, adventure) {
   const pic = (p) => ({ url: p.url, w: Math.trunc(p.w), h: Math.trunc(p.h) });
   if (!adventure) return m;
   if (ok(adventure.travelPicture)) m.travel = pic(adventure.travelPicture);
-  for (const st of adventure.sites || []) if (ok(st.picture)) m.sites[st.id] = { ...pic(st.picture), cols: 0, rows: 0, walls: [], doors: [] };
+  for (const st of adventure.sites || []) {
+    if (!ok(st.picture)) continue;
+    // A battle map with its squares counted (the Eventyr Icewind Dale maps, "20x20"): the grid follows the
+    // picture, and a place with no zones of its own is cut into zones of it. Else a picture behind the zones.
+    const cols = Math.trunc(Number(st.picture.cols) || 0); const rows = Math.trunc(Number(st.picture.rows) || 0);
+    const grid = cols >= 1 && cols <= 200 && rows >= 1 && rows <= 200;
+    m.sites[st.id] = { ...pic(st.picture), cols: grid ? cols : 0, rows: grid ? rows : 0, walls: [], doors: [] };
+    if (grid && !(Array.isArray(st.zones) && st.zones.length)) m.zones[st.id] = MAP.zonesFromSiteMap(cols, rows);
+  }
   return m;
 }
 

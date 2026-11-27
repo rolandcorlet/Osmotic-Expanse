@@ -1367,7 +1367,7 @@ function picturesCard() {
           <optgroup label="Arriving at">${(adv.sites || []).map((x) => opt(`site:${x.id}`, x.name, cur)).join('')}</optgroup>
           <optgroup label="Fighting">${[...mons].map(([id, n]) => opt(`monster:${id}`, n, cur)).join('')}</optgroup></select>
         ${sug[p.url] ? `<div class="row nw small"><span class="grow ell" style="color:var(--accent)">Suggested: ${esc(sug[p.url].label)}</span><button class="btn sm" data-act="art.use" data-url="${esc(p.url)}">Use</button></div>` : ''}</div>
-      <button class="btn sm" data-act="art.show" data-url="${esc(p.url)}" title="Show it on the players' screens now">${shown.has(p.url) ? 'Again' : 'Show'}</button></div>`;
+      <button class="btn sm" data-act="art.show" data-url="${esc(p.url)}" title="Show it on the players' screens now">${shown.has(p.url) ? 'Again' : 'Show'}</button>${p.kind === 'map' ? `<button class="btn sm" data-act="art.map" data-url="${esc(p.url)}" title="Make it this place's battle map${p.cols && p.rows ? ` (${p.cols} by ${p.rows} squares, cut into zones)` : ' (behind the zones)'}">Map</button>` : ''}</div>`;
   };
   const unlinked = P.filter((p) => p.kind === 'art' && !p.link && p.show !== 'never').length;
   const sug = ui.artSug || {};
@@ -1862,6 +1862,14 @@ const ACT = {
   'fight.start': () => send({ type: 'fight.start' }),
   'art.show': (d) => send({ type: 'art.show', url: d.url }),
   'art.close': () => send({ type: 'art.close' }),
+  // A map from the book (the Eventyr Icewind Dale maps): this place's battle map, its squares counted.
+  'art.map': async (d) => {
+    const p = ((adv && adv.pictures) || []).find((x) => x.url === d.url);
+    if (!p) return;
+    const grid = p.cols && p.rows;
+    if (!confirm(`Use "${p.about || 'this map'}" as the battle map of ${(site() || {}).name || 'this place'}?${grid ? ' Its zones are cut from it, and everyone here is placed again.' : ''}`)) return;
+    if (await send({ type: 'map.site', url: p.url, w: p.w, h: p.h, cols: grid ? p.cols : 0, rows: grid ? p.rows : 0, split: !!grid })) { ui.tab = 'map'; toast('The map is on the Map tab.', true); }
+  },
   'art.suggest': async () => {
     ui.artBusy = true; render();
     try {

@@ -177,3 +177,14 @@ test('moving someone to the zone they already stand in changes nothing and is no
   assert.deepEqual(T.s.map.at[`char:${a.id}`], was);
   assert.match(T.s.map.lastNote, /already in/);
 });
+
+test('a big battle map is cut into zones that cover all of it, never more than sixteen (28 Nov)', () => {
+  for (const [c, r] of [[20, 20], [30, 30], [60, 30], [50, 50], [6, 10], [30, 45]]) {
+    const z = MAP.zonesFromSiteMap(c, r);
+    assert.ok(z.length >= 1 && z.length <= MAP.MAX_ZONES, `${c}x${r}: ${z.length} zones`);
+    const area = z.reduce((t, x) => t + x.w * x.h, 0);
+    assert.ok(Math.abs(area - 1) < 0.02, `${c}x${r} covers ${area}`);
+    for (const x of z) { assert.ok(x.w * c <= MAP.MAX_CELLS + 0.5 && x.h * r <= MAP.MAX_CELLS + 0.5); }
+  }
+  assert.equal(MAP.zonesFromSiteMap(20, 20).length, 9);
+});

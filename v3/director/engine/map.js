@@ -391,7 +391,11 @@ export function cleanSegs(list, max = MAX_WALLS, cols = MAX_CELLS * 5, rows = MA
 
 // Cut a site map into zones of about 6 by 6 squares, for a picture with no zones yet.
 export function zonesFromSiteMap(cols, rows) {
-  const across = Math.max(1, Math.round(cols / ZONE_CELLS)); const down = Math.max(1, Math.round(rows / ZONE_CELLS));
+  let across = Math.max(1, Math.round(cols / ZONE_CELLS)); let down = Math.max(1, Math.round(rows / ZONE_CELLS));
+  // At most MAX_ZONES, covering the whole map: a big map gets bigger zones (a 30 by 30 map was cut into 25 and
+  // only 16 kept, leaving its far side with no zone; 28 Nov), never more than MAX_CELLS squares a side.
+  while (across * down > MAX_ZONES) { if (cols / across >= rows / down) down -= 1; else across -= 1; if (across < 1 || down < 1) break; }
+  across = Math.max(across, Math.ceil(cols / MAX_CELLS)); down = Math.max(down, Math.ceil(rows / MAX_CELLS));
   const list = [];
   const letters = 'ABCDEFGHIJKLMNOP';
   for (let j = 0; j < down && list.length < MAX_ZONES; j++) {
