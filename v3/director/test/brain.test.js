@@ -2019,6 +2019,9 @@ test('a creature still fighting may not be narrated dead, and the fight may not 
   assert.ok(over.some((f) => /^Says the fight is over, but/.test(f.text)));
   const hurt = checkNarration(`Bresk's flail tears a wide rift in the ${kind}; it reels, leaking, still in the water. Brost, what do you do?`, s, {});
   assert.ok(!hurt.some((f) => /still fighting|fight is over/.test(f.text)));
+  // Partly torn is a wound (map bench, 28 Nov).
+  const part = checkNarration(`The flail's blow shears clean through the second ${kind} — most of it comes apart, the small bodies inside scattering. This one is one good blow from being wreckage. Brost, what do you do?`, s, {});
+  assert.ok(!part.some((f) => /still fighting/.test(f.text)), JSON.stringify(part));
 });
 
 test('a look-or-sense roll before the player tries anything, with "what do you do?", is withdrawn; after "I probe" it stays', async () => {

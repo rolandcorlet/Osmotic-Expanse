@@ -642,7 +642,10 @@ export function checkNarration(text, state, { moved = false, since = 0 } = {}) {
       const base = String(c.name).replace(/\s+[A-Z]$/, '');
       const kind = (base.split(/\s+/).pop() || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const full = String(c.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return sentences.some((sn) => new RegExp(`(?:\\b${full}\\b|\\b(?:last|remaining|second|final) ${kind}s?\\b|\\b${kind}['\u2019]s\\b)[^.]{0,80}\\b${KILL}|\\b${KILL}\\b[^.]{0,40}\\b(?:${full}|(?:last|remaining) ${kind})\\b`, 'i').test(sn));
+      // Partly ("most of it comes apart", "half torn apart", "nearly finished off") is a wound, not a death
+      // (map bench, 28 Nov: the second swarm "comes apart... one good blow from being wreckage" was flagged).
+      const whole = (sn) => sn.replace(/\b(?:most|half|much|part|some|bits?|pieces?|chunks?) of (?:it|them|its \w+)\s+(?:\w+\s+){0,2}?(?:comes?|came|is|are|was|were|gets?|got)?\s*(?:torn |coming |falling )?apart\b/gi, '').replace(/\b(?:nearly|almost|half|partly|all but)\s+(?:\w+\s+)?(?:torn apart|comes? apart|destroyed|finished off|dead|lifeless)\b/gi, '');
+      return sentences.map(whole).some((sn) => new RegExp(`(?:\\b${full}\\b|\\b(?:last|remaining|second|final) ${kind}s?\\b|\\b${kind}['\u2019]s\\b)[^.]{0,80}\\b${KILL}|\\b${KILL}\\b[^.]{0,40}\\b(?:${full}|(?:last|remaining) ${kind})\\b`, 'i').test(sn));
     });
     if (named.length) flags.push({ kind: 'rule', text: `Says ${named.map((c) => c.name).join(' and ')} is destroyed, but the Engine has it still fighting.`, creatures: named.map((c) => c.name) });
     else if (up.length && sentences.some((sn) => OVER.test(sn)) && (state.fight || null)) flags.push({ kind: 'rule', text: `Says the fight is over, but ${up.map((c) => c.name).join(' and ')} ${up.length > 1 ? 'are' : 'is'} still fighting.`, creatures: up.map((c) => c.name) });
