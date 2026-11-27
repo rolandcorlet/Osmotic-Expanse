@@ -254,3 +254,20 @@ test('the AI Director: with the reach rules on, a monster too far to strike char
   assert.notEqual(tb.state.map.at[`foe:${s1.id}`].zone, 'far-tower');
   void bram;
 });
+
+test('move_creature with no place, in a fight: the monster closes on a character (Far North bench, 27 Nov)', () => {
+  const T = table();
+  hero(T, 'p1', 'Bram');
+  T.host({ type: 'site.move', siteId: 'gate' });
+  T.host({ type: 'foe.reveal' });
+  T.host({ type: 'fight.start', autoRoll: true });
+  if (T.s.fight.phase === 'initiative') T.host({ type: 'fight.begin' });
+  const tb = toolbox({ state: T.s, adventure: ADV, srd, rng: makeRng(1), now: 1 });
+  const r = tb.run('move_creature', { who: ['Sentry 1'] });
+  assert.ok(!/Nothing changed/.test(r.note || ''), JSON.stringify(r));
+  assert.match(r.assumed || '', /closes in on Bram/);
+  // Out of a fight, still a note.
+  T.s = tb.state; T.host({ type: 'fight.end', xp: false });
+  const tb2 = toolbox({ state: T.s, adventure: ADV, srd, rng: makeRng(1), now: 1 });
+  assert.match(tb2.run('move_creature', { who: ['Sentry 2'] }).note, /give to_zone/);
+});

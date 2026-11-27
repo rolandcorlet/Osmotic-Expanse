@@ -233,3 +233,20 @@ test('the wrong one of a group whose turn it is: the one whose turn it is acts (
   const no = tb.run('monster_action', { monster: bug.name, action: 'Morningstar', targets: ['Bryn'] });
   assert.match(no.note || no.refused || '', /not .*turn/);
 });
+
+test('end_turn for the wrong one of a group ends the turn of the one acting (Far North bench, 27 Nov)', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  for (const f of Object.values(T.s.foes)) delete T.s.foes[f.id];
+  T.host({ type: 'foe.add', monster: 'goblin', count: 3 });
+  T.host({ type: 'fight.start', autoRoll: true });
+  if (T.s.fight.phase === 'initiative') T.host({ type: 'fight.begin' });
+  const k = T.s.fight.order.findIndex((o) => o.key.startsWith('foe:'));
+  T.s.fight.turn = k;
+  const now = T.s.foes[T.s.fight.order[k].key.slice(4)];
+  const other = Object.values(T.s.foes).find((x) => x.id !== now.id);
+  const tb = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 2 });
+  const out = tb.run('end_turn', { whose: other.name });
+  assert.match(out.note, new RegExp(`It was ${now.name}'s turn`));
+  assert.notEqual(tb.state.fight.order[tb.state.fight.turn].key, `foe:${now.id}`);
+});

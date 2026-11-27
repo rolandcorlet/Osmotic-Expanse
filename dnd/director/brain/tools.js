@@ -193,7 +193,16 @@ export const TOOLS = [
       const who = listOf(a.who).length ? listOf(a.who) : listOf(a.creatures).concat(listOf(a.monsters), listOf(a.characters));
       if (!who.length) return { note: 'Nothing changed: name who moves (the who list).' };
       const zone = a.to_zone || a.zone || a.to || '';
-      const engage = a.engage || a.target || '';
+      let engage = a.engage || a.target || '';
+      // No place to go, in a fight (Far North bench, 27 Nov: six such calls): a monster closes on a standing
+      // character, a character on a standing monster here (the first named mover decides which side).
+      if (!zone && !engage && T.state.fight) {
+        const first = targetRef(T.state, who[0]) || '';
+        const foesUp = Object.values(T.state.foes).filter((f) => f.siteId === T.state.scene.siteId && !f.dead && !f.hidden && !f.fled);
+        const pcsUp = Object.values(T.state.pcs).filter((p) => !p.dead && p.hp > 0);
+        const other = first.startsWith('foe:') ? pcsUp[0] : first.startsWith('pc:') ? foesUp[0] : null;
+        if (other) { engage = other.name; T.assume(`No place was given: ${who.join(', ')} closes in on ${other.name}.`); }
+      }
       if (!zone && !engage) return { note: 'Nothing changed: give to_zone (a zone in MAP) or engage (someone to move up to).', map: mapLine(T) };
       const before = T.state.seq;
       const done = []; const notes = [];
@@ -338,6 +347,14 @@ export const TOOLS = [
       const ref = targetRef(T.state, a.whose);
       const f = T.state.fight;
       const cur = f && f.phase === 'turns' ? f.order[f.turn].key : '';
+      // The wrong one of a group whose turn it is ("Villager 2" while it is Villager 1's): that turn ends.
+      const kin = (k) => { const x = k && k.startsWith('foe:') ? T.state.foes[k.slice(4)] : null; return x && (x.base || String(x.name || '').replace(/\s+\d+$/, '')); };
+      if (f && cur && ref && ref !== cur && kin(ref) && kin(ref) === kin(cur)) {
+        const before = T.state.seq;
+        const no = T.do({ type: 'fight.next', expect: cur });
+        if (no) return { refused: no };
+        return { note: `It was ${T.state.foes[cur.slice(4)].name}'s turn, not ${T.state.foes[ref.slice(4)].name}'s: that turn is over.`, ...T.fightBrief(), ...since(T, before) };
+      }
       // Ending a turn that is not running changes nothing: say whose turn it is instead of refusing.
       // (Bench, 20 Nov: after a player had already ended their own turn, the model ended it again.)
       if (f && cur && ref && ref !== cur) {
