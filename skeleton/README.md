@@ -24,7 +24,9 @@ and the **player** address for phones on the same Wi-Fi. Options: `--port 8790`,
 
 * Players open the player address, join, and take a ready-made character or build their own.
 * The host runs the table from the **Play** and **World** tabs, or turns the **AI Director** on: it answers every
-  player, asks for rolls on their screens, plays the creatures, and keeps the story going. Choose its AI on the
+  player, asks for rolls on their screens, plays the creatures, and keeps the story going. In **Co-pilot** each of
+  its turns waits on the Play tab first: what it does and says, to approve (its words edited or not), retry or
+  discard; if the table moved on meanwhile, approving asks it again. Choose its AI on the
   **AI** tab: Gemini, Claude, OpenAI, OpenRouter, Groq and others online, or Ollama, LM Studio and llama.cpp on your own
   computer. The model must be able to call tools.
 * **Voice**: each screen can read the Director aloud with its own voice, or a speech server (Kokoro, Piper) can speak

@@ -15,6 +15,7 @@ import { systemRng } from './engine/dice.js';
 import { listModules, loadModule, saveModule, check, books } from './engine/module.js';
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
 import { directorTurn } from './brain/director.js';
+import { makeProposal, approveProposal, proposalView } from './brain/copilot.js';
 import { convert, MODES } from './brain/converter.js';
 import { createSettings } from './brain/settings.js';
 import { publicProviders, testConnection, pickDefaultModel } from './brain/providers.js';
@@ -102,23 +103,31 @@ function act(action, role, pid, extra = {}) {
 let directing = null;
 let again = false;
 let lastDirector = null;
+// Co-pilot ("approve"): the Director's turn waits here for the host (brain/copilot.js).
+let proposal = null;
+let proposalN = 0;
+const directorEvent = (busy) => pushEvent('director', { busy, last: lastDirector, proposal: proposalView(proposal, state) });
 async function runDirector(reason, hostNote = '') {
   if (directing) { again = true; return directing; }
   directing = (async () => {
-    pushEvent('director', { busy: true });
+    pushEvent('director', { busy: true, proposal: null });
     try {
       const provider = settings.provider();
       const before = state;
       const out = await directorTurn({ state, mod, provider, rng, now: Date.now(), reason, hostNote });
-      history.push(before);
-      state = out.state;
-      persist();
-      push();
       lastDirector = { at: Date.now(), calls: out.calls, flags: out.flags, usage: out.usage, refusals: out.refusals };
-      pushEvent('director', { busy: false, last: lastDirector });
+      if (state.director.mode === 'approve') {
+        proposal = makeProposal(out, before, ++proposalN);
+      } else {
+        history.push(before);
+        state = out.state;
+        persist();
+        push();
+      }
+      directorEvent(false);
     } catch (e) {
       lastDirector = { at: Date.now(), error: e.message };
-      pushEvent('director', { busy: false, last: lastDirector });
+      directorEvent(false);
     } finally {
       directing = null;
       if (again) { again = false; setTimeout(() => runDirector('The table moved on while you were speaking. Continue.'), 50); }
@@ -128,7 +137,7 @@ async function runDirector(reason, hostNote = '') {
 }
 // What a player did that the Director should answer, when it runs by itself.
 function wantsDirector(action) {
-  if (state.director.mode !== 'auto') return '';
+  if (state.director.mode !== 'auto' && state.director.mode !== 'approve') return '';
   if (action.type === 'say') return `A player spoke: "${action.text}". Answer them.`;
   if (action.type === 'roll.make') return 'A roll came in. Say what it did.';
   if (action.type === 'attack' || action.type === 'ability.use') {
@@ -237,7 +246,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/hello') {
       const host = isHostReq(url);
       const out = { role: host ? 'host' : 'player', module: moduleFor(host ? 'host' : 'player'), modes: MODES, voice: voice.publicView(), port: PORT, addresses: addresses(), links: links({ host, trusted: true }) };
-      if (host) Object.assign(out, { modules: listModules(MOD_DIR), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, converting: !!converting });
+      if (host) Object.assign(out, { modules: listModules(MOD_DIR), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, proposal: proposalView(proposal, state), converting: !!converting });
       json(res, 200, out);
       return;
     }
@@ -248,6 +257,9 @@ const server = createServer(async (req, res) => {
       if (!host && !pid) { json(res, 200, { ok: false, error: 'No player id.' }); return; }
       try {
         act(b.action || {}, host ? 'host' : 'player', pid);
+        // A proposal waiting when the table moves on is stale (shown so); out of Co-pilot it goes.
+        if (proposal && state.director.mode !== 'approve') proposal = null;
+        if (proposal || (b.action || {}).type === 'director.mode') directorEvent(!!directing);
         const why = wantsDirector(b.action || {});
         if (why) runDirector(why);
         json(res, 200, { ok: true });
@@ -267,9 +279,23 @@ const server = createServer(async (req, res) => {
     if (p.startsWith('/api/')) {
       const b = req.method === 'POST' ? await body(req) : {};
       if (!isHostReq(url, b)) { json(res, 403, { ok: false, error: 'Only the host can do that.' }); return; }
-      if (p === '/api/director') { runDirector(b.reason || 'The host asks you to continue.', b.hostNote || ''); json(res, 200, { ok: true }); return; }
+      if (p === '/api/director') { proposal = null; runDirector(b.reason || 'The host asks you to continue.', b.hostNote || ''); json(res, 200, { ok: true }); return; }
+      if (p === '/api/director/approve') {
+        const r = approveProposal(proposal, state, b.text);
+        if (r.error) { json(res, 200, { ok: false, error: r.error }); return; }
+        proposal = null;
+        if (r.stale) { runDirector('The table changed before the host approved your last turn. Look again and continue.'); json(res, 200, { ok: true, stale: true }); return; }
+        history.push(state);
+        state = r.state;
+        persist();
+        push();
+        directorEvent(false);
+        json(res, 200, { ok: true });
+        return;
+      }
+      if (p === '/api/director/discard') { proposal = null; directorEvent(false); json(res, 200, { ok: true }); return; }
       if (p === '/api/undo') { if (!history.length) { json(res, 200, { ok: false, error: 'Nothing to undo.' }); return; } state = history.pop(); persist(); push(); json(res, 200, { ok: true }); return; }
-      if (p === '/api/new') { loadGame({ moduleId: b.module || state.moduleId, adventureId: b.adventure, fresh: true }); push(); json(res, 200, { ok: true }); return; }
+      if (p === '/api/new') { proposal = null; loadGame({ moduleId: b.module || state.moduleId, adventureId: b.adventure, fresh: true }); push(); json(res, 200, { ok: true }); return; }
       if (p === '/api/settings') {
         if (b.op === 'ai') settings.configure(b);
         if (b.op === 'voice') voice.configure(b);

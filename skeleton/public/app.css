@@ -126,3 +126,9 @@ main > .view { flex: 1; min-height: 0; display: grid; gap: 12px; }
 .gw:hover, .gw:focus { color: var(--accent); outline: none; }
 #gloss { position: fixed; z-index: 80; background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius, 10px); padding: 10px 12px; box-shadow: 0 8px 28px color-mix(in srgb, var(--bg) 70%, transparent); font: 14px/1.45 var(--font); }
 #gloss b { display: block; color: var(--accent); margin-bottom: 3px; font-size: 15px; }
+
+/* Co-pilot: the Director's turn waiting for the host. */
+.pill.warn { color: var(--warn-c); border-color: var(--warn-c); }
+.warn-t { color: var(--warn-c); }
+.card.proposal { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+.card.proposal textarea { width: 100%; resize: vertical; min-height: 90px; }

@@ -403,15 +403,30 @@ function tableView() {
 // ---------------------------------------------------------------- the host console
 function hostPlay() {
   const here = Object.values(S.creatures).filter((k) => k.siteId === S.scene.siteId);
-  const d = ui.director || (HELLO.lastDirector ? { last: HELLO.lastDirector } : null);
+  const d = ui.director || (HELLO.lastDirector || HELLO.proposal ? { last: HELLO.lastDirector, proposal: HELLO.proposal } : null);
   const alive = Object.values(S.chars).filter((c) => !c.down);
+  // Co-pilot: the Director's turn, held for the host to approve (its words editable), retry or discard.
+  const p = d && d.proposal;
+  if (p && ui.propId !== p.id) { ui.propId = p.id; ui.propText = p.narration; }
+  const decide = async (path, extra = {}) => { const r = await post(path, extra); if (!r.ok) toast(r.error); else if (r.stale) toast('The table moved on: the Director is looking again.'); };
+  const proposalCard = p ? h('div', { class: 'card proposal' },
+    h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'The Director proposes'), p.stale ? h('span', { class: 'pill warn', title: 'Something happened at the table since: approving asks the Director again' }, 'out of date') : null),
+    p.calls.length ? h('small', { class: 'dim' }, `Does: ${p.calls.join(', ')}`) : h('small', { class: 'dim' }, 'Words only'),
+    ...p.events.map((t) => h('small', {}, `• ${t}`)),
+    ...p.flags.map((t) => h('small', { class: 'warn-t' }, `⚑ ${t}`)),
+    h('textarea', { id: 'prop-edit', rows: 5, value: ui.propText || '', oninput: (e) => { ui.propText = e.target.value; const go = e.target.closest('.proposal').querySelector('.go'); if (go) go.textContent = ui.propText !== p.narration ? 'Approve with my words' : 'Approve'; } }),
+    h('div', { class: 'row' },
+      h('button', { class: 'go', onclick: () => decide('/api/director/approve', { text: ui.propText !== p.narration ? ui.propText : '' }) }, ui.propText !== p.narration ? 'Approve with my words' : 'Approve'),
+      h('button', { onclick: () => decide('/api/director', { reason: 'The host asked you to try that turn again, differently.', hostNote: ui.hostNote }) }, 'Retry'),
+      h('button', { onclick: () => decide('/api/director/discard') }, 'Discard'))) : null;
   return h('div', { class: 'view v-play' },
     h('div', { class: 'card' }, storyView(),
       h('div', { class: 'say-box' }, h('input', { id: 'narrate', placeholder: 'Narrate as the Director (Enter to send)', value: ui.narrate, oninput: (e) => { ui.narrate = e.target.value; }, onkeydown: async (e) => { if (e.key === 'Enter' && ui.narrate.trim() && await act({ type: 'narrate', text: ui.narrate })) { ui.narrate = ''; render(); } } }),
         h('button', { onclick: async () => { if (ui.narrate.trim() && await act({ type: 'narrate', text: ui.narrate })) { ui.narrate = ''; render(); } } }, 'Narrate'))),
     h('div', { class: 'side' },
+      proposalCard,
       h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'AI Director'), d && d.busy ? h('span', { class: 'pill acc' }, 'thinking…') : null),
-        h('div', { class: 'row' }, h('select', { onchange: (e) => act({ type: 'director.mode', mode: e.target.value }) }, opt('off', 'Off: I run the table', S.director.mode === 'off'), opt('auto', 'On: answers every player', S.director.mode === 'auto'))),
+        h('div', { class: 'row' }, h('select', { onchange: (e) => act({ type: 'director.mode', mode: e.target.value }) }, opt('off', 'Off: I run the table', S.director.mode === 'off'), opt('approve', 'Co-pilot: I approve each turn', S.director.mode === 'approve'), opt('auto', 'On: answers every player', S.director.mode === 'auto'))),
         h('div', { class: 'row' }, h('input', { id: 'host-note', class: 'grow', placeholder: 'A word to the Director (optional)', value: ui.hostNote, oninput: (e) => { ui.hostNote = e.target.value; } }),
           h('button', { class: 'go', onclick: async () => { const r = await post('/api/director', { reason: 'The host asks you to continue.', hostNote: ui.hostNote }); if (!r.ok) toast(r.error); ui.hostNote = ''; } }, 'Director, go')),
         d && d.last ? h('div', { class: 'log' }, d.last.error ? `Error: ${d.last.error}` : [
