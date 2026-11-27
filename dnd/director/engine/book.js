@@ -361,8 +361,28 @@ function readSpellcasting(text, title = '') {
   return out;
 }
 
+// Two features a book's text export ran together, the next one's name in the middle of the first's words:
+// "...slashing damage plus 3 (1d6) cold damage. Chilling Gaze. The yeti targets one creature..." (the Monster
+// Manual's yeti, 27 Nov: its claws dealt the gaze's 3d6 too, and it had no gaze). Each becomes its own.
+const GLUED = /(?<=[.)])\s+((?:[A-Z][a-z'’-]+)(?:\s+(?:[A-Z][a-z'’-]+|of|the|and|in|to)){0,4}(?:\s+\((?:Recharge[^)]*|\d+\/Day[^)]*|Costs \d+ Actions)\))?)\.\s+(?=(?:The|Each|If|When|While|As|This|It|A|An|Melee|Ranged|Until|Any|One)\b)/g;
+const NOT_A_NAME = /^(?:Hit|Miss|Failure|Success|Failed|Trigger|Response|Grappled|Restrained|Prone|Stunned|Paralyzed|Poisoned|Frightened|Charmed|Blinded|Deafened|Incapacitated|Invisible|Petrified|Unconscious|Exhaustion|Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma)$/;
+export function splitGlued(list) {
+  const out = [];
+  for (const a of list || []) {
+    const d = String((a && a.d) || '');
+    const cuts = [...d.matchAll(GLUED)].filter((m) => !NOT_A_NAME.test(m[1]) && /[a-z]$/.test(m[1].replace(/\s*\([^)]*\)$/, '')));
+    // A feature that lists its own choices ("one of the following breath weapons", "as detailed below") keeps them.
+    if (!cuts.length || (a && a.eng) || /\b(?:following|detailed below|as follows)\b|:\s*$/i.test(d.slice(0, cuts[0].index))) { out.push(a); continue; }
+    let at = 0; let name = a.n;
+    for (const m of cuts) { out.push({ n: name, d: d.slice(at, m.index).trim() }); name = m[1]; at = m.index + m[0].length; }
+    out.push({ n: name, d: d.slice(at).trim() });
+  }
+  return out;
+}
+
 export function compileMonster(m, gaps = []) {
   if (!m || m.eng) return m;
+  for (const sec of ['traits', 'actions', 'legendary', 'reactions']) if (Array.isArray(m[sec])) m[sec] = splitGlued(m[sec]);
   for (const sec of ['traits', 'actions', 'legendary', 'reactions']) for (const a of m[sec] || []) compileAction(a, m, gaps, sec);
   return mark(m);
 }

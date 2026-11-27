@@ -147,3 +147,16 @@ test('"bludgeoning or force damage (its choice)" is read as the first type (Enco
   compileMonster(mon, []);
   assert.deepEqual(mon.actions[0].dmg, [['6d6+6', 'bludgeoning']]);
 });
+
+test('two features a book export ran together become two, a list of choices stays whole (the yeti, 27 Nov)', async () => {
+  const { splitGlued, compileMonster } = await import('../engine/book.js');
+  const yeti = { id: 'yeti', name: 'Yeti', ab: [18, 13, 16, 8, 12, 7], traits: [], actions: [
+    { n: 'Claw', d: 'Melee Weapon Attack: +6 to hit, reach 5 ft., one target. Hit: 7 (1d6 + 4) slashing damage plus 3 (1d6) cold damage. Chilling Gaze. The yeti targets one creature it can see within 30 feet of it. If the target can see the yeti, the target must succeed on a DC 13 Constitution saving throw against this magic or take 10 (3d6) cold damage and then be paralyzed for 1 minute.' }] };
+  compileMonster(yeti);
+  assert.deepEqual(yeti.actions.map((a) => a.n), ['Claw', 'Chilling Gaze']);
+  assert.deepEqual(yeti.actions[0].dmg, [['1d6+4', 'slashing'], ['1d6', 'cold']], 'the claw no longer deals the gaze\'s 3d6');
+  const breath = [{ n: 'Breath Weapons (Recharge 5-6)', d: 'The dragon uses one of the following breath weapons. Fire Breath. The dragon exhales fire in a 20-foot line. Sleep Breath. The dragon exhales sleep gas.' }];
+  assert.equal(splitGlued(breath).length, 1);
+  const grab = [{ n: 'Tentacle', d: 'Hit: 9 (2d6 + 2) bludgeoning damage, and the target is grappled (escape DC 13). Until this grapple ends, the target is Restrained. The kraken can grapple one target.' }];
+  assert.equal(splitGlued(grab).length, 1);
+});
