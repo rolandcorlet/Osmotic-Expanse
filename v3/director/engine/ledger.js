@@ -3433,7 +3433,8 @@ const MAP_HANDLERS = {
         const path = MAP.zonePath(zones, from.zone, zone.id);
         if (!path) throw new RuleError(`${zone.name} cannot be reached from here.`);
         cell = MAP.freeNear(g, held, ...MAP.anchor(g, MAP.sideToward(zone, MAP.zoneOf(zones, path[path.length - 2]))));
-      } else throw new RuleError('Say where to move: a zone or a square.');
+      } else if (a.zone) return; // already in that zone: nothing to do
+      else throw new RuleError('Say where to move: a zone or a square.');
       if (!cell) throw new RuleError(`There is no room left in ${zone.name}.`);
       const to = { site: siteId, zone: zone.id, x: cell[0], y: cell[1] };
       if (from.zone === to.zone && from.x === to.x && from.y === to.y) return;

@@ -271,3 +271,14 @@ test('move_creature with no place, in a fight: the monster closes on a character
   const tb2 = toolbox({ state: T.s, adventure: ADV, srd, rng: makeRng(1), now: 1 });
   assert.match(tb2.run('move_creature', { who: ['Sentry 2'] }).note, /give to_zone/);
 });
+
+test('moving someone to the zone they already stand in changes nothing and is not refused (Far North bench, 28 Nov)', () => {
+  const T = table();
+  T.host({ type: 'site.move', siteId: 'gate' });
+  const foe = Object.values(T.s.foes).find((f) => f.siteId === 'gate');
+  const was = { ...T.s.map.at[`foe:${foe.id}`] };
+  const z = T.s.map.zones.gate.find((x) => x.id === was.zone);
+  T.ai({ type: 'map.move', who: `foe:${foe.id}`, zone: z.name });
+  assert.deepEqual(T.s.map.at[`foe:${foe.id}`], was);
+  assert.match(T.s.map.lastNote, /already in/);
+});

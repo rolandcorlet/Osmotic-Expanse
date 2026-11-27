@@ -104,3 +104,10 @@ test('the Director\'s briefing shows the zones and who stands in each, and stops
   t.host({ type: 'map.show', zones: false, grid: false });
   assert.doesNotMatch(briefing(t.s, scenario, bestiary, {}), /# THE MAP/);
 });
+
+test('moving an organism to the zone it already stands in changes nothing and is not refused', () => {
+  const t = seated();
+  const was = { ...t.s.map.at['org:wall'] };
+  t.as('p1', { type: 'map.move', who: 'wall', zone: was.zone });
+  assert.deepEqual(t.s.map.at['org:wall'], was);
+});

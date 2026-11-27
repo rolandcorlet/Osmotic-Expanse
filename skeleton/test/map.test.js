@@ -168,3 +168,12 @@ test('a game\'s own condition that stops moving holds a character in place (Salt
   assert.equal(T.s.map.at[`char:${a.id}`].zone, 'middle');
   assert.equal(MAP.budget({ conds: ['snared'] }, { speed: 6, used: { moved: 0 }, stuck: ['snared'] }).left, 0);
 });
+
+test('moving someone to the zone they already stand in changes nothing and is not refused', () => {
+  const T = table(6);
+  const a = diver(T, 'p1', 0);
+  const was = { ...T.s.map.at[`char:${a.id}`] };
+  T.as('p1', { type: 'map.move', who: a.id, zone: was.zone });
+  assert.deepEqual(T.s.map.at[`char:${a.id}`], was);
+  assert.match(T.s.map.lastNote, /already in/);
+});

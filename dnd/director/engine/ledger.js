@@ -2152,6 +2152,10 @@ H['map.move'] = (s, a, ctx) => {
     const path = MAP.zonePath(zones, from.zone, zone.id);
     if (!path) no(`${zone.name} cannot be reached from ${MAP.zoneOf(zones, from.zone).name}: there is no way through.`);
     cell = MAP.freeNear(g, held, ...MAP.anchor(g, MAP.sideToward(zone, MAP.zoneOf(zones, path[path.length - 2]))));
+  } else if (a.zone) {
+    // Already there (Far North bench, 28 Nov: "to Far side" for a monster standing in Far side): nothing to do.
+    s.map.lastNote = `${t.o.name} is already in ${zone.name}.`;
+    return;
   } else no('Say where to move: a zone, a square, or someone to move up to.');
   if (!cell) no(`There is no room left in ${zone.name}.`);
   let to = { site: siteId, zone: zone.id, x: cell[0], y: cell[1] };
