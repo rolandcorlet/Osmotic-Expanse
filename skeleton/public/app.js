@@ -470,7 +470,11 @@ function picturesCard() {
   const rest = P.filter((p) => !here.includes(p));
   const label = (p) => (!p.link ? 'Show only' : p.link.kind === 'site' ? ((advNow().sites || []).find((x) => x.id === p.link.id) || {}).name || p.link.id : ((M.bestiary.creatures.find((x) => x.id === p.link.id) || {}).name || p.link.id));
   const row = (p) => h('div', { class: `pic-row${now && now.url === p.url ? ' on' : ''}` }, h('img', { src: p.url, alt: '', loading: 'lazy' }),
-    h('div', { class: 'grow pic-txt' }, h('small', { class: 'ell', title: p.about || '' }, p.about || 'A picture'), h('small', { class: 'faint' }, p.link ? `With: ${label(p)}` : 'Shows only when you press Show')),
+    h('div', { class: 'grow pic-txt' }, h('small', { class: 'ell', title: p.about || '' }, p.about || 'A picture'),
+      h('select', { class: 'pic-sel', title: 'When it shows by itself', onchange: async (e) => { const r = await post('/api/art-link', { url: p.url, show: e.target.value }); if (!r.ok) toast(r.error); else { p.show = e.target.value || undefined; p.link = r.link || undefined; render(); } } },
+        opt('', p.link && p.link.why !== 'the host' ? `Found: ${label(p)}` : 'Not linked: Show only', !p.show), opt('never', 'Never by itself', p.show === 'never'),
+        h('optgroup', { label: 'Arriving at' }, (advNow().sites || []).map((x) => opt(`site:${x.id}`, x.name, p.show === `site:${x.id}`))),
+        h('optgroup', { label: 'Fighting' }, M.bestiary.creatures.map((x) => opt(`creature:${x.id}`, x.name, p.show === `creature:${x.id}`))))),
     h('button', { title: 'Show it on the players\' screens and the table now', onclick: () => act({ type: 'art.show', url: p.url }) }, shown.has(p.url) ? 'Again' : 'Show'),
     h('button', { title: 'Use it as this place\'s picture behind the zone map', onclick: () => act({ type: 'map.site', url: p.url, w: p.w, h: p.h, cols: 0, rows: 0 }) }, 'Map'));
   return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Pictures'), h('small', { class: 'dim' }, `${P.length}`)),

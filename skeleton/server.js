@@ -439,6 +439,20 @@ const server = createServer(async (req, res) => {
         seen = state;
         persist(); push(); json(res, 200, { ok: true }); return;
       }
+      // What a book's picture goes with (the host's Pictures card): kept in the module's adventure file.
+      if (p === '/api/art-link') {
+        const adv = mod.ix.adventure[state.adventureId] || mod.adventures[0];
+        const pic = (adv.pictures || []).find((x) => x.url === b.url);
+        const show = String(b.show || '');
+        const ok = !show || show === 'never' || (/^site:(.+)$/.test(show) && (adv.sites || []).some((x) => `site:${x.id}` === show)) || (/^creature:(.+)$/.test(show) && mod.ix.creature[show.slice(9)]);
+        if (!pic || !ok) { json(res, 200, { ok: false, error: 'That picture or place is not in this adventure.' }); return; }
+        if (show) pic.show = show; else delete pic.show;
+        linkArt(adv, mod);
+        const file = join(MOD_DIR, mod.module.id, 'adventures', `${adv.id}.json`);
+        try { writeFileSync(file, `${JSON.stringify({ ...adv, pictures: adv.pictures.map(({ link, ...x }) => x) }, null, 2)}\n`); } catch (e) { json(res, 200, { ok: false, error: `It could not be saved: ${e.message}` }); return; }
+        json(res, 200, { ok: true, link: pic.link || null });
+        return;
+      }
       // The chronicle: End the night (a chapter now), or drop a chapter the host does not want.
       if (p === '/api/chronicle') {
         if (b.op === 'night') queueChapter({ siteId: state.scene.siteId, why: 'night' });
