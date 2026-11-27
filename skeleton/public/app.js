@@ -546,6 +546,24 @@ function hostWorld() {
           h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: !!f.hidden, onchange: (e) => { f.hidden = e.target.checked; } }), 'hidden')),
         h('button', { onclick: () => act({ type: 'creature.add', base: f.beast || M.bestiary.creatures[0].id, count: f.count || 1, hidden: !!f.hidden }) }, 'Add'))));
 }
+// A PDF for the converter: its text in reading order, and the words in its pictures and scanned pages
+// (public/pdfread.js, the D&D Director's Books reader: pdf.js and Tesseract.js, in this browser, no AI).
+async function pdfText(file) {
+  const C = ui.convert;
+  C.reading = `Reading ${file.name}…`; render();
+  try {
+    const { readPdf } = await import('/pdfread.js');
+    const r = await readPdf(await file.arrayBuffer(), { onProgress: (p) => { C.reading = `${file.name}: ${p.step}, page ${p.at} of ${p.of}`; render(); } });
+    const words = r.pictures.filter((x) => x.words).map((x) => `--- ${x.scanned ? 'A scanned page' : 'A picture'} on page ${x.page}: its words ---\n${x.words}`);
+    if (r.ocr) toast(r.ocr);
+    const text = [r.text, ...words].join('\n\n').trim();
+    if (!text.replace(/--- Page \d+ ---/g, '').trim()) toast(`${file.name} has no words that could be read.`);
+    return text;
+  } catch (e) {
+    toast(`${file.name} could not be read: ${e.message}`);
+    return '';
+  } finally { C.reading = ''; }
+}
 function hostConverter() {
   const C = ui.convert;
   const f = ui.form.cv = ui.form.cv || { mode: 'invent', base: S.moduleId, name: '', ideas: '', source: '', notes: '', sections: [] };
@@ -559,8 +577,12 @@ function hostConverter() {
         opt('', f.mode === 'convert' ? 'Keep the source\'s own dice (or the closest system)' : 'Let the converter choose (the d6 pool when unsure)', !f.dice),
         Object.entries(SYSTEMS).map(([id, x]) => opt(id, `${x.name}: ${x.for}`, f.dice === id)))),
       h('label', { class: 'fld' }, h('span', {}, 'Ideas: a few lines are enough ("sky whales, kite cities, smugglers, a storm that eats memories")'), h('textarea', { id: 'cv-ideas', rows: 4, value: f.ideas, oninput: (e) => { f.ideas = e.target.value; } })),
-      h('label', { class: 'fld' }, h('span', {}, `Source material: paste text, or add .txt / .md / .json files (${f.source.length.toLocaleString()} characters; the first 90,000 are used)`), h('textarea', { id: 'cv-source', rows: 7, value: f.source, oninput: (e) => { f.source = e.target.value; } })),
-      h('input', { type: 'file', multiple: true, accept: '.txt,.md,.json,.markdown,.csv', onchange: async (e) => { for (const file of e.target.files) f.source += `\n\n=== ${file.name} ===\n${await file.text()}`; render(); } }),
+      h('label', { class: 'fld' }, h('span', {}, `Source material: paste text, or add a PDF or .txt / .md / .json files (${f.source.length.toLocaleString()} characters; the first 90,000 are used)`), h('textarea', { id: 'cv-source', rows: 7, value: f.source, oninput: (e) => { f.source = e.target.value; } })),
+      h('input', { type: 'file', multiple: true, accept: '.pdf,.txt,.md,.json,.markdown,.csv', disabled: !!C.reading, onchange: async (e) => {
+        for (const file of [...e.target.files]) f.source += `\n\n=== ${file.name} ===\n${/\.pdf$/i.test(file.name) || file.type === 'application/pdf' ? await pdfText(file) : await file.text()}`;
+        render();
+      } }),
+      C.reading ? h('small', { class: 'dim' }, C.reading) : null,
       h('label', { class: 'fld' }, h('span', {}, 'Notes for the converter (optional: "convert chapter 2", "keep it for children", "make magic dangerous")'), h('input', { id: 'cv-notes', value: f.notes, oninput: (e) => { f.notes = e.target.value; } })),
       h('div', { class: 'row' }, h('small', {}, 'Sections:'), SECTIONS.map((s) => h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: f.sections.includes(s), onchange: (e) => { f.sections = e.target.checked ? [...f.sections, s] : f.sections.filter((x) => x !== s); } }), s)), h('small', { class: 'faint' }, '(none ticked: all, or creatures and an adventure when extending)')),
       h('div', { class: 'row' }, h('button', { class: 'go', disabled: C.running, onclick: async () => {

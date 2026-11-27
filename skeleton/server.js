@@ -274,7 +274,7 @@ async function runConvert(body) {
 }
 
 // ---------------------------------------------------------------- http
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.gz': 'application/gzip', '.wasm': 'application/wasm', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp' };
 const json = (res, code, x) => { res.writeHead(code, { 'content-type': 'application/json', 'cache-control': 'no-store' }); res.end(JSON.stringify(x)); };
 async function body(req, max = 4 << 20) {
   let size = 0; const parts = [];
@@ -466,6 +466,15 @@ const server = createServer(async (req, res) => {
     // The dice systems are shared with the screens (labels, odds, what to type).
     const eng = /^\/engine\/(dicesystems|dice|odds|seeds|scale|words|map)\.js$/.exec(p);
     if (eng) { res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-store' }); res.end(readFileSync(join(ROOT, 'engine', `${eng[1]}.js`))); return; }
+    // The PDF reader's libraries (pdf.js and Tesseract.js) are the D&D Director's, shared, not copied.
+    if (p.startsWith('/vendor/')) {
+      const VEN = join(ROOT, '..', 'dnd', 'director', 'public', 'vendor');
+      const f = normalize(join(VEN, p.slice(8)));
+      if (!f.startsWith(VEN) || !existsSync(f)) { res.writeHead(404); res.end('Not found'); return; }
+      res.writeHead(200, { 'content-type': TYPES[extname(f)] || 'application/octet-stream', 'cache-control': 'max-age=86400' });
+      res.end(readFileSync(f));
+      return;
+    }
     const file = ['/', '/host', '/table', '/play'].includes(p) ? join(PUB, 'index.html') : normalize(join(PUB, p));
     if (!file.startsWith(PUB) || !existsSync(file)) { res.writeHead(404); res.end('Not found'); return; }
     res.writeHead(200, { 'content-type': TYPES[extname(file)] || 'application/octet-stream', 'cache-control': 'no-store' });
