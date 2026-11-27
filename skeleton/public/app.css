@@ -132,3 +132,19 @@ main > .view { flex: 1; min-height: 0; display: grid; gap: 12px; }
 .warn-t { color: var(--warn-c); }
 .card.proposal { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
 .card.proposal textarea { width: 100%; resize: vertical; min-height: 90px; }
+
+/* A roll asked of a player: the edge of the screen flashes, a banner drops in, the card shakes, and a pill
+   stays at the top while the request is out of sight (from the D&D Director). */
+.req-flash { position: fixed; inset: 0; pointer-events: none; z-index: 900; animation: reqFlash .8s ease-in-out 3; }
+@keyframes reqFlash { 0%, 100% { box-shadow: inset 0 0 0 0 transparent; } 50% { box-shadow: inset 0 0 0 8px var(--accent), inset 0 0 70px 24px color-mix(in srgb, var(--accent) 40%, transparent); } }
+.req-banner { position: fixed; top: 12px; left: 50%; z-index: 901; display: flex; flex-direction: column; gap: 2px; align-items: center; max-width: min(560px, 92vw); padding: 10px 22px; border: 2px solid var(--accent); border-radius: 14px; background: var(--panel); color: var(--ink); font: inherit; text-align: center; cursor: pointer; box-shadow: 0 10px 40px color-mix(in srgb, #000 45%, transparent), 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent); transform: translate(-50%, -160%); animation: reqDrop .4s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+.req-banner b { font-size: 18px; color: var(--accent); }
+.req-banner span { font-size: 13.5px; color: var(--dim); }
+.req-banner.gone { transition: transform .4s ease-in, opacity .4s; transform: translate(-50%, -160%); opacity: 0; animation: none; }
+@keyframes reqDrop { to { transform: translate(-50%, 0); } }
+.card.req-pulse { animation: reqPulse .7s ease-in-out 3; }
+@keyframes reqPulse { 0%, 100% { box-shadow: 0 0 0 0 transparent; transform: none; } 20% { transform: translateX(-5px); } 45% { box-shadow: 0 0 0 4px var(--accent), 0 0 30px color-mix(in srgb, var(--accent) 55%, transparent); transform: translateX(5px); } 70% { transform: translateX(-3px); } }
+.req-card { scroll-margin-top: 72px; }
+.req-pill { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); z-index: 850; padding: 7px 16px; white-space: nowrap; border-radius: 999px; border: 2px solid var(--accent); background: var(--panel); color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; box-shadow: 0 6px 24px color-mix(in srgb, #000 40%, transparent); animation: reqBob 1.6s ease-in-out infinite; }
+@keyframes reqBob { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -4px); } }
+@media (prefers-reduced-motion: reduce) { .req-flash { animation: reqFlash .8s ease-in-out 1; } .card.req-pulse { animation: none; box-shadow: 0 0 0 4px var(--accent); } .req-banner { animation: none; transform: translate(-50%, 0); } .req-pill { animation: none; } }

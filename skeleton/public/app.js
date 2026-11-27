@@ -61,6 +61,44 @@ function specFor(c, stat, skill) {
   return S.sys.spec(S.o, { stat: c.stats[stat] ?? 0, skill: skill ? (c.skills[skill] || 0) : 0, mods });
 }
 const pct = (p) => `${Math.round(p * 100)}%`;
+// ---- roll alerts: the screen's edge flashes, a banner drops in, the phone buzzes and the roll card comes into
+// view; while it is out of sight a "waiting" pill stays at the top (from the D&D Director, 27 Nov).
+ui.seenReq = {};
+const calmMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function toRequest() {
+  const card = document.querySelector('.req-card');
+  if (!card) return;
+  const how = calmMotion() ? 'auto' : 'smooth';
+  for (let el = card.parentElement; el && el !== document.body; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTo({ top: 0, behavior: how });
+  card.scrollIntoView({ behavior: how, block: 'start' });
+  card.classList.remove('req-pulse'); void card.offsetWidth; card.classList.add('req-pulse');
+}
+function requestAlert(q) {
+  document.querySelectorAll('.req-flash, .req-banner').forEach((x) => x.remove());
+  const flash = document.createElement('div'); flash.className = 'req-flash'; document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 2600);
+  const bar = document.createElement('button'); bar.className = 'req-banner';
+  bar.append(h('b', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('span', {}, q.reason || 'The Director asks you to roll.'));
+  bar.onclick = () => { toRequest(); bar.remove(); };
+  document.body.appendChild(bar);
+  setTimeout(() => bar.classList.add('gone'), 3200);
+  setTimeout(() => bar.remove(), 3700);
+  try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) { /* no buzz here */ }
+  setTimeout(toRequest, 350);
+}
+let reqSeen = null; let reqCard = null;
+function watchRequest() {
+  let pill = document.getElementById('req-pill');
+  const card = ROLE === 'player' ? document.querySelector('.req-card') : null;
+  if (!card || typeof IntersectionObserver === 'undefined') { if (pill) pill.hidden = true; if (reqSeen) { reqSeen.disconnect(); reqSeen = null; reqCard = null; } return; }
+  if (!pill) { pill = document.createElement('button'); pill.id = 'req-pill'; pill.className = 'req-pill'; pill.hidden = true; pill.onclick = () => toRequest(); document.body.appendChild(pill); }
+  pill.textContent = `🎲 ${card.querySelector('h2') ? card.querySelector('h2').textContent : 'A roll'} is waiting ↑`;
+  if (reqCard === card) return;
+  if (reqSeen) reqSeen.disconnect();
+  reqCard = card;
+  reqSeen = new IntersectionObserver((list) => { for (const e of list) document.getElementById('req-pill').hidden = e.isIntersecting; });
+  reqSeen.observe(card);
+}
 const me = () => { const p = S && S.players[PID]; return p && p.charId ? S.chars[p.charId] : null; };
 const curKey = () => (S.fight && S.fight.order.length ? S.fight.order[S.fight.turn].key : null);
 const nameOfKey = (key) => { if (!key) return ''; const [k, id] = key.split(':'); return ((k === 'char' ? S.chars : S.creatures)[id] || {}).name || '?'; };
@@ -336,7 +374,7 @@ function playerStory() {
     h('div', { class: 'card' }, storyView(),
       h('div', { class: 'say-box' }, h('input', { id: 'say', placeholder: `What does ${c.name} do or say?`, value: ui.say, oninput: (e) => { ui.say = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter') sendSay(); } }), h('button', { class: 'go', onclick: sendSay }, 'Say'))),
     h('div', { class: 'side' },
-      mine.map((q) => { const sp = specFor(c, q.stat, q.skill); return h('div', { class: 'card roll-card' }, h('h2', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('small', {}, q.reason),
+      mine.map((q) => { const sp = specFor(c, q.stat, q.skill); return h('div', { class: 'card roll-card req-card' }, h('h2', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('small', {}, q.reason),
         h('div', { class: 'row' }, h('span', { class: 'pill acc' }, sp.label), h('small', {}, `about ${pct(chance(SYS(), sp, q.at))} to succeed`)),
         h('div', { class: 'row' }, h('button', { class: 'go', onclick: () => act({ type: 'roll.make', id: q.id }) }, 'Roll the dice'),
           h('input', { id: `own-${q.id}`, placeholder: `or type your dice: ${ownDiceHint(sp)}`, style: 'flex:1;min-width:160px', value: ui.form[`own-${q.id}`] || '', oninput: (e) => { ui.form[`own-${q.id}`] = e.target.value; } }),
@@ -643,6 +681,7 @@ function render() {
   const scrolls = {}; document.querySelectorAll('[data-key]').forEach((el) => { scrolls[el.dataset.key] = [el.scrollTop, el.scrollHeight - el.clientHeight - el.scrollTop < 30]; });
   document.getElementById('tabs').replaceChildren(...tabs.map(([k, label]) => h('button', { class: ui.tab === k ? 'on' : '', onclick: () => { ui.tab = k; store.set(`tab-${ROLE}`, k); render(); } }, label)));
   document.getElementById('main').replaceChildren(view());
+  watchRequest();
   document.querySelectorAll('[data-key]').forEach((el) => { const s = scrolls[el.dataset.key]; if (el.dataset.key === 'story') { el.scrollTop = !s || s[1] ? el.scrollHeight : s[0]; } else if (s) el.scrollTop = s[0]; });
   if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* number inputs */ } } }
 }
@@ -686,8 +725,14 @@ if (ROLE !== 'host') initScene({ store });
     const reload = S && next.moduleId !== S.moduleId;
     S = next;
     if (reload) { location.reload(); return; }
+    // A roll asked of this player: to the Story tab, then the alert (the flash, the banner, the buzz).
+    const asked = ROLE === 'player' && me() ? S.requests.find((q) => q.charId === me().id && !ui.seenReq[q.id]) : null;
+    if (ROLE === 'player') for (const q of S.requests) ui.seenReq[q.id] = true;
+    if (asked && ui.reqReady) ui.tab = 'story';
     render(); speakNew();
     if (ROLE !== 'host') scene();
+    if (asked && ui.reqReady) requestAlert(asked);
+    ui.reqReady = true; // not for the rolls already waiting when this screen opened: only the card shows those
   });
   es.addEventListener('director', (e) => { ui.director = JSON.parse(e.data); if (ui.tab === 'play') render(); });
   es.addEventListener('convert', (e) => { ui.convert.log.push(JSON.parse(e.data)); if (ui.tab === 'convert') render(); });
