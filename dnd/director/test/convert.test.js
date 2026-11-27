@@ -449,3 +449,29 @@ test('a last stat block stops at the book\'s licence pages', () => {
   const [m] = C.readStatBlocks(text).monsters;
   assert.deepEqual(m.actions.map((a) => a.n), ['Shortsword']);
 });
+
+test('places nobody can reach get a way there from the first place, and a way back (Encounters in the Far North, 27 Nov)', async () => {
+  const { linkStrays } = await import('../brain/convert.js');
+  const adv = { sites: [
+    { id: 'hub', name: 'Ten-Towns', exits: [{ to: 'road', label: 'the road' }] },
+    { id: 'road', name: 'The Road', exits: [{ to: 'hub', label: 'back' }] },
+    { id: 'cave', name: 'Yeti Lair', exits: [] },
+    { id: 'spire', name: 'Ice Spire', exits: [{ to: 'cave', label: 'down' }] },
+  ] };
+  assert.equal(linkStrays(adv), 2);
+  assert.deepEqual(adv.sites[0].exits.map((e) => e.to), ['road', 'cave', 'spire']);
+  assert.ok(adv.sites[2].exits.some((e) => e.to === 'hub') && adv.sites[3].exits.some((e) => e.to === 'hub'));
+  assert.equal(linkStrays(adv), 0, 'nothing left to link');
+});
+
+test('foe groups the words say only may turn up are marked maybe, and a fight leaves them out until named (27 Nov)', async () => {
+  const { markMaybe } = await import('../brain/convert.js');
+  const adv = { sites: [{ id: 'm', foes: [
+    { monster: 'cultist', count: 5, note: 'Scenario 1 only. Use assassin tactics.' },
+    { monster: 'kobold', count: 10, note: 'Only fights if the party is hostile.' },
+    { monster: 'yeti', count: 3, note: 'They wait inside for the party.' },
+    { monster: 'ogre', count: 1, note: 'Not present at first', maybe: false },
+  ] }] };
+  assert.equal(markMaybe(adv), 2);
+  assert.deepEqual(adv.sites[0].foes.map((f) => !!f.maybe), [true, true, false, false]);
+});

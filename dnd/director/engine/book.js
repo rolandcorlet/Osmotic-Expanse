@@ -160,7 +160,8 @@ const condIn = (t) => {
   const m = new RegExp(`(?<!\\b(?:can't|cannot|can|not|isn't|aren't|being|against) )\\b(?:is|be|are|become|becomes|falls?)\\s+(?:knocked\\s+)?(${CONDS})\\b`, 'i').exec(t);
   return m ? m[1].toLowerCase() : '';
 };
-const DMG_RX = new RegExp(`(?:(\\d+) \\((\\d+d\\d+(?:\\s*[+−–-]\\s*\\d+)?)\\)|\\b(\\d+)) (${DMG}) damage`, 'gi');
+// "27 (6d6 + 6) bludgeoning or force damage (its choice)" deals the first type (Encounters in the Far North, 27 Nov).
+const DMG_RX = new RegExp(`(?:(\\d+) \\((\\d+d\\d+(?:\\s*[+−–-]\\s*\\d+)?)\\)|\\b(\\d+)) (${DMG})(?:,?\\s+(?:or\\s+)?(?:${DMG}))* damage`, 'gi');
 // Each damage the words name, in order. "..., or 5 (1d8 + 1) piercing damage if used with two hands" is
 // another way to deal it (alt), not more damage; "plus 7 (2d6) fire damage" is more.
 function readDamage(text) {

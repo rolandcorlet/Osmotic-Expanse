@@ -235,11 +235,19 @@ export const TOOLS = [
   },
   {
     name: 'start_combat',
-    description: 'Start a fight with the monsters at this place (hidden ones join and are revealed). Players then roll initiative on their screens; the Engine rolls for monsters.',
-    parameters: obj({ surprised: A('Optional: names of anyone surprised (they lose their first turn).') }),
+    description: 'Start a fight with the monsters at this place (hidden ones join and are revealed; ones marked "only may turn up" join only if named here or revealed first). Players then roll initiative on their screens; the Engine rolls for monsters.',
+    parameters: obj({ surprised: A('Optional: names of anyone surprised (they lose their first turn).'), monsters: A('Optional: only these monsters fight (ids or names; a name brings its whole group). Leave out for everyone surely here.') }),
     run(a, T) {
       const before = T.state.seq;
-      const no = T.do({ type: 'fight.start', surprised: listOf(a.surprised) });
+      // Named monsters: each with the rest of its group ("Duergar" is all ten of them).
+      let foeIds;
+      if (listOf(a.monsters).length) {
+        const picked = listOf(a.monsters).map((x) => findFoe(T.state, x)).filter(Boolean);
+        if (!picked.length) return { note: `Nothing changed: no monster here is called ${listOf(a.monsters).join(', ')}. Here: ${here(T.state)}.` };
+        const groups = new Set(picked.map((f) => f.group).filter(Boolean));
+        foeIds = Object.values(T.state.foes).filter((f) => f.siteId === T.state.scene.siteId && !f.dead && (picked.includes(f) || (f.group && groups.has(f.group)))).map((f) => f.id);
+      }
+      const no = T.do({ type: 'fight.start', surprised: listOf(a.surprised), foeIds });
       if (no) return { refused: no };
       return { ...T.fightBrief(), ...since(T, before) };
     },

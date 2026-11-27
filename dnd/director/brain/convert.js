@@ -482,13 +482,15 @@ export async function aiCampaign({ ask, text, name = '', srd, onProgress = () =>
     const words = String(s.name || '').toLowerCase().split(/\W+/).filter((w) => w.length > 3);
     const where = parts.filter((p) => words.some((w) => p.toLowerCase().includes(w))).slice(0, 2).join('\n\n...\n\n') || parts[0];
     try {
-      const full = parseJson(await ask(system, `The adventure: ${adv.name}. Its places: ${sites.map((x) => `${x.id} (${x.name})`).join(', ')}. The campaign's own monsters: ${ownList}.\n\nWrite the whole site "${s.id}" (${s.name}) as JSON in the format: {"id":"${s.id}","name":"","region":"","level":${s.level || 1},"travelHours":${s.travelHours || 1},"read":"","notes":"","npcs":[{"name":"","who":"","voice":"","wants":""}],"checks":[{"skill":"perception","dc":12,"find":""}],"foes":[{"monster":"srd-or-own-id","count":1,"name":"","note":""}],"clocks":[],"rules":[{"id":"","when":"","do":""}],"treasure":"","exits":${JSON.stringify(s.exits || [])}}. Leave out what the place does not have.\n\nThe source, where it describes this place:\n${where}`));
+      const full = parseJson(await ask(system, `The adventure: ${adv.name}. Its places: ${sites.map((x) => `${x.id} (${x.name})`).join(', ')}. The campaign's own monsters: ${ownList}.\n\nWrite the whole site "${s.id}" (${s.name}) as JSON in the format: {"id":"${s.id}","name":"","region":"","level":${s.level || 1},"travelHours":${s.travelHours || 1},"read":"","notes":"","npcs":[{"name":"","who":"","voice":"","wants":""}],"checks":[{"skill":"perception","dc":12,"find":""}],"foes":[{"monster":"srd-or-own-id","count":1,"name":"","note":"","maybe":false}],"clocks":[],"rules":[{"id":"","when":"","do":""}],"treasure":"","exits":${JSON.stringify(s.exits || [])}}. Leave out what the place does not have. "foes" are the monsters that fight here; mark a group \"maybe\": true when the source says it only may turn up (one scenario of several, a random encounter, only if provoked, refused or attacked, not there yet), so the Engine leaves it out of the fight unless the story brings it.\n\nThe source, where it describes this place:\n${where}`));
       adv.sites.push({ ...s, ...full, id: s.id, exits: full.exits || s.exits || [] });
     } catch (e) { adv.sites.push({ ...s, read: '', notes: `Not converted: ${e.message}`, exits: s.exits || [] }); }
   }
   // 4. the checker, and its problems sent back once, place by place
   const book = { ...srd, monsters: [...(srd.monsters || []), ...own] };
   fixQuestDone(adv);
+  linkStrays(adv);
+  markMaybe(adv);
   let check = checkAdventure(adv, book);
   const bySite = {};
   // A rule's problem is reported under "rules" as "<site>: rule <id>: ...": it goes back with its place too.
@@ -547,6 +549,37 @@ export function fixQuestDone(adv) {
     for (const q of quests) { const n = [...sig(q)].filter((w) => want.has(w)).length; if (n > score) { score = n; best = q; } }
     if (best && score >= 1) qd.match = best.replace(/[.!?]+$/, '').split(/\s+/).slice(0, 5).join(' ');
   }
+}
+
+// Places nobody can reach (a book of separate encounters: Encounters in the Far North, 27 Nov, had 19 of its
+// 33 places with no way in). Each gets a way there from the first place, and a way back, so the party can go.
+export function linkStrays(adv) {
+  const sites = adv.sites || [];
+  if (sites.length < 2) return 0;
+  const byId = new Map(sites.map((s) => [s.id, s]));
+  const seen = new Set([sites[0].id]);
+  const walk = [sites[0].id];
+  while (walk.length) for (const e of (byId.get(walk.pop()) || {}).exits || []) if (e && byId.has(e.to) && !seen.has(e.to)) { seen.add(e.to); walk.push(e.to); }
+  const hub = sites[0];
+  let n = 0;
+  for (const s of sites) {
+    if (!s.id || seen.has(s.id)) continue;
+    hub.exits = [...(hub.exits || []), { to: s.id, label: `the way to ${s.name || s.id}` }];
+    if (!(s.exits || []).some((e) => e.to === hub.id)) s.exits = [...(s.exits || []), { to: hub.id, label: `back to ${hub.name || hub.id}` }];
+    seen.add(s.id);
+    n += 1;
+  }
+  return n;
+}
+
+// Foe groups the words say only may turn up ("Scenario 2 only", "not present", "fights only if the party is
+// hostile", "flees if combat starts"): marked maybe (Encounters in the Far North, 27 Nov: a monastery's three
+// scenarios, 18 monsters, were one fight). A group already marked either way is left alone.
+const MAYBE = /\b(?:scenario \d+ only|only in scenario|not (?:present|here|at)\b|only (?:if|when|fights?|attacks?|appears?|emerges?|manifests?)|(?:fights?|attacks?|appears?|emerges?|manifests?|returns?|animates?|hostile) (?:only )?(?:if|when|after|during)|if (?:the party|provoked|disturbed|threatened|attacked|refused|hungry)|flees? (?:if|when|immediately)|mostly passive|random encounter|unless (?:disturbed|provoked|attacked|threatened)|(?:aggressive|dangerous|hostile) if|may (?:appear|attack|ambush))/i;
+export function markMaybe(adv) {
+  let n = 0;
+  for (const s of adv.sites || []) for (const f of s.foes || []) if (f.maybe == null && MAYBE.test(String(f.note || ''))) { f.maybe = true; n += 1; }
+  return n;
 }
 
 // ---- 5. saving and loading ---------------------------------------------------------------------------
@@ -683,7 +716,9 @@ export function saveAdventure(dir, adv, original = '', files = []) {
 export function loadAdventures(dir) {
   if (!existsSync(dir)) return [];
   return readdirSync(dir).filter((f) => f.endsWith('.json')).map((f) => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } }).filter((a) => a && a.id && Array.isArray(a.sites))
-    .map((a) => (Array.isArray(a.monsters) ? { ...a, monsters: oneById(a.monsters) } : a));
+    .map((a) => (Array.isArray(a.monsters) ? { ...a, monsters: oneById(a.monsters) } : a))
+    // Saved before linkStrays: give their unreachable places a way in as they load.
+    .map((a) => { linkStrays(a); markMaybe(a); return a; });
 }
 
 // ---- pictures ---------------------------------------------------------------------------------------

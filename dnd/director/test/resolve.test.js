@@ -95,3 +95,21 @@ test('completing a written quest the party was never given is a note (bench part
   assert.match(r.note, /never took on a quest for "blackreed"/);
   assert.equal(tb.refusals, 0);
 });
+
+test('monsters that only may turn up stay out of a fight until named or revealed (Encounters in the Far North, 27 Nov)', () => {
+  const T = table(8);
+  hero(T, 'p1', 'Bryn');
+  T.host({ type: 'site.move', siteId: 'mill-road' });
+  for (const f of Object.values(T.s.foes)) delete T.s.foes[f.id];
+  T.host({ type: 'foe.add', monster: 'cultist', count: 2, hidden: true, maybe: true, group: 'm#0' });
+  T.host({ type: 'foe.add', monster: 'kobold', count: 3, hidden: true, maybe: true, group: 'm#1' });
+  const tb = toolbox({ state: T.s, adventure, srd, rng: makeRng(2), now: 2 });
+  const none = tb.run('start_combat', {});
+  assert.match(none.note, /only may turn up/);
+  assert.equal(tb.refusals, 0);
+  const named = tb.run('start_combat', { monsters: ['Kobold 1'] });
+  assert.ok(!named.refused, JSON.stringify(named));
+  const inFight = tb.state.fight.order.map((o) => o.key).filter((k) => k.startsWith('foe:')).map((k) => tb.state.foes[k.slice(4)].base);
+  assert.deepEqual([...new Set(inFight)], ['Kobold'], 'the whole kobold group, no cultists');
+  assert.equal(inFight.length, 3);
+});

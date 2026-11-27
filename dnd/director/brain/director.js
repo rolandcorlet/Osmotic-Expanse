@@ -80,7 +80,7 @@ export function briefing(state, adventure, srd, { reason = '', hostNote = '', ch
 
   const foes = Object.values(s.foes).filter((f) => f.siteId === site.id);
   if (foes.length) {
-    out.push(`\nMONSTERS HERE:\n${foes.map((f) => `- ${f.name} (id ${f.id}, ${f.mid})${f.dead ? `: ${f.fled ? 'fled' : 'down'}` : `: HP ${f.hp}/${f.maxHp}, AC ${f.ac}${f.conds.length ? `, ${f.conds.join(', ')}` : ''}${f.hidden ? ', HIDDEN (the players have not seen it)' : ''}${f.calm ? ', STANDING DOWN (not fighting; an attack on it starts a fight)' : ''}${Object.keys(f.spent || {}).length ? `, used: ${Object.keys(f.spent).join(', ')}` : ''}`}${f.note ? `. ${f.note}` : ''}`).join('\n')}`);
+    out.push(`\nMONSTERS HERE:\n${foes.map((f) => `- ${f.name} (id ${f.id}, ${f.mid})${f.dead ? `: ${f.fled ? 'fled' : 'down'}` : `: HP ${f.hp}/${f.maxHp}, AC ${f.ac}${f.conds.length ? `, ${f.conds.join(', ')}` : ''}${f.hidden ? (f.maybe ? ', ONLY MAY TURN UP (the adventure says so: it is not here unless the story brings it; reveal it or name it in start_combat if it does)' : ', HIDDEN (the players have not seen it)') : ''}${f.calm ? ', STANDING DOWN (not fighting; an attack on it starts a fight)' : ''}${Object.keys(f.spent || {}).length ? `, used: ${Object.keys(f.spent).join(', ')}` : ''}`}${f.note ? `. ${f.note}` : ''}`).join('\n')}`);
     const kinds = [...new Set(foes.filter((f) => !f.dead).map((f) => f.mid))];
     const ix = R.index(srd);
     if (kinds.length) out.push(`STAT BLOCKS (for you only):\n${kinds.map((k) => `- ${statLine(ix.monster[k])}`).join('\n')}`);

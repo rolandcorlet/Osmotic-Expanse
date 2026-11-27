@@ -163,6 +163,10 @@ export function checkAdventure(adv, srd) {
     // Monsters placed here.
     const names = new Map();
     const xps = [];
+    // The fight to rate: the groups surely here; if every group only may turn up (a scenario each), the hardest one.
+    const groupXp = (f) => { const mm = monster(f.monster); return (mm ? Number(mm.xp) || 0 : 0) * Math.max(1, Math.trunc(Number(f.count == null ? 1 : f.count)) || 1); };
+    const sureFoes = (s.foes || []).filter((f) => !f.maybe);
+    const rated = sureFoes.length ? sureFoes : [...(s.foes || [])].sort((x, y) => groupXp(y) - groupXp(x)).slice(0, 1);
     for (const f of s.foes || []) {
       const m = monster(f.monster);
       if (!m) { E(at, `The monster "${f.monster}" is not in the SRD${adv.monsters ? ' or the adventure\'s own monsters' : ''}.`); continue; }
@@ -176,7 +180,7 @@ export function checkAdventure(adv, srd) {
         if (!zones) W(at, `${f.name || m.name} has zone "${f.zone}", but the place has no zones of its own (it gets near side, middle and far side).`);
         else if (!MAP.findZone(zones, f.zone)) E(at, `${f.name || m.name} starts in zone "${f.zone}", which is not a zone here. Zones: ${zones.map((z) => z.name).join(', ')}.`);
       }
-      for (let k = 0; k < Math.max(1, Math.min(12, n || 1)); k++) xps.push(Number(m.xp) || 0);
+      if (rated.includes(f)) for (let k = 0; k < Math.max(1, Math.min(12, n || 1)); k++) xps.push(Number(m.xp) || 0);
     }
     // How hard the fight is for the party it is written for, at the level it has reached by here (a
     // place's own `level`, or by how deep it lies). In play it is fitted to the real party (engine/scale.js).

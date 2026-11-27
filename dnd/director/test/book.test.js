@@ -140,3 +140,10 @@ test('after its Multiattack, a monster has no attacks left this turn', () => {
   T.ai({ type: 'foe.act', foeId: bear.id, action: 'Multiattack', target: `pc:${pc.id}` });
   assert.throws(() => T.ai({ type: 'foe.act', foeId: bear.id, action: 'Claws', target: `pc:${pc.id}` }), /made all its attacks this turn/);
 });
+
+test('"bludgeoning or force damage (its choice)" is read as the first type (Encounters in the Far North, 27 Nov)', async () => {
+  const { compileMonster } = await import('../engine/book.js');
+  const mon = { id: 't', name: 'Tomb Tapper', actions: [{ n: 'Sledgehammer', d: "Melee or Ranged Weapon Attack: +10 to hit, reach 15 ft. or range 30/120 ft., one target. Hit: 27 (6d6 + 6) bludgeoning or force damage (tomb tapper's choice)." }] };
+  compileMonster(mon, []);
+  assert.deepEqual(mon.actions[0].dmg, [['6d6+6', 'bludgeoning']]);
+});

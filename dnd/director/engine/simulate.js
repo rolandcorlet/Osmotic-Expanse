@@ -60,7 +60,15 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
   if (!placed.length) return null;
   const fitted = ((s.fits || {})[siteId] || {}).text || '';
   // A place whose own rule starts the fight on arrival ("enter: fight") has it on already.
-  if (!s.fight && !tryHost({ type: 'fight.start', autoRoll: true })) return null;
+  // Every group here only may turn up (a scenario each): the hardest one is the fight to test.
+  let foeIds;
+  if (!placed.some((f) => !f.maybe)) {
+    const xp = {};
+    for (const f of placed) xp[f.group] = (xp[f.group] || 0) + (Number(f.xp) || 0);
+    const worst = Object.keys(xp).sort((a, b) => xp[b] - xp[a])[0];
+    foeIds = placed.filter((f) => f.group === worst).map((f) => f.id);
+  }
+  if (!s.fight && !tryHost({ type: 'fight.start', autoRoll: true, foeIds })) return null;
   if (s.fight && s.fight.phase === 'initiative') tryHost({ type: 'fight.begin' });
   const pcs = () => Object.values(s.pcs);
   const up = (p) => !p.dead && p.hp > 0;
@@ -131,7 +139,7 @@ function playOnce({ adventure, srd, siteId, party, seed, scale }) {
     if (s.fight) tryHost({ type: 'fight.next' });
   }
   const standing = Object.values(s.foes).some((f) => f.siteId === siteId && !f.dead && !f.calm && !f.hidden);
-  return { won: !s.fight && !standing ? true : !standing, wiped: false, anyDown, deaths: pcs().filter((p) => p.dead).length, rounds: round, fitted, foes: Object.values(s.foes).filter((f) => f.siteId === siteId).length, timedOut: !!s.fight };
+  return { won: !s.fight && !standing ? true : !standing, wiped: false, anyDown, deaths: pcs().filter((p) => p.dead).length, rounds: round, fitted, foes: Object.values(s.foes).filter((f) => f.siteId === siteId && (!f.maybe || !f.hidden)).length, timedOut: !!s.fight };
 }
 
 // The attacks of one turn, as the Multiattack line names them ("one with its bite and two with its

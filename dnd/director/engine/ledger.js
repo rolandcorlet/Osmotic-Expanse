@@ -83,7 +83,7 @@ export function openAdventure(state, adventure, ctx) {
   const first = ((adventure || {}).sites || [])[0];
   let out = state;
   const host = { ...ctx, role: 'host', pid: null, ai: false, adventure };
-  for (const [n, enc] of ((first && first.foes) || []).entries()) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, zone: enc.zone, group: `${first.id}#${n}` }, host);
+  for (const [n, enc] of ((first && first.foes) || []).entries()) out = apply(out, { type: 'foe.add', monster: enc.monster, count: enc.count, name: enc.name, hidden: true, maybe: !!enc.maybe, note: enc.note, zone: enc.zone, group: `${first.id}#${n}` }, host);
   for (const c of (first && first.clocks) || []) out = apply(out, { type: 'clock.add', ...c, siteId: first.id, quiet: true }, host);
   return out;
 }
@@ -731,7 +731,14 @@ H['fight.start'] = (s, a, ctx) => {
   hostOnly(ctx);
   if (s.fight) nop('A fight is already on.');
   fitFoes(s, ctx, s.scene.siteId);
-  const foes = Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead && (a.foeIds ? a.foeIds.includes(f.id) : true));
+  const here = Object.values(s.foes).filter((f) => f.siteId === s.scene.siteId && !f.dead);
+  // Without names: the monsters that are surely here. One the adventure says only may turn up joins once revealed.
+  const sure = here.filter((f) => !(f.maybe && f.hidden));
+  if (!a.foeIds && !sure.length && here.length) {
+    const groups = [...new Set(here.map((f) => f.base || f.name))];
+    nop(`Who fights here depends on the story: the adventure says these only may turn up (${groups.join(', ')}). Name the ones that do in start_combat (monsters), or reveal them first.`);
+  }
+  const foes = a.foeIds ? here.filter((f) => a.foeIds.includes(f.id)) : sure;
   if (!foes.length) refuse('There is nothing here to fight.', [], 'Add monsters first (add_monsters), or narrate the danger without a fight.');
   const pcs = Object.values(s.pcs).filter((p) => !p.dead);
   if (!pcs.length) no('Nobody in the party can fight.');
@@ -1218,6 +1225,9 @@ H['foe.add'] = (s, a, ctx) => {
     s.foes[id] = { id, mid: m.id, base, name: label, siteId: a.siteId || s.scene.siteId, hp, maxHp: hp, ac: m.ac, dexMod: R.mod(m.ab[1]), xp: m.xp, cr: m.cr, conds: [], dead: false, hidden: !!a.hidden, spent: {}, note: str(a.note, 200), legendary: m.legendary ? 3 : null };
     if (a.zone) s.foes[id].zone0 = str(a.zone, 40); // where on the map it starts (the adventure's zone for it)
     if (a.group != null) s.foes[id].group = String(a.group); // which of the place's foe groups (for fitting fights)
+    // A group the adventure says only may turn up (a scenario's, one that fights only if provoked): it stays out of
+    // a fight until it is revealed or named (Encounters in the Far North, 27 Nov: three scenarios' foes in one fight).
+    if (a.maybe) s.foes[id].maybe = true;
     out.push(s.foes[id]);
     if (s.fight && !a.hidden && (a.siteId || s.scene.siteId) === s.scene.siteId) joinFight(s, ctx, 'foe', id);
   }
@@ -1736,7 +1746,7 @@ H['site.move'] = (s, a, ctx) => {
   const m = mapUp(s);
   if (to.id !== here.id) { m.cameFrom = here.id; for (const k of Object.keys(m.at)) if (k.startsWith('pc:')) delete m.at[k]; }
   const first = !s.scene.visited.includes(to.id);
-  if (first) for (const [n, enc] of (to.foes || []).entries()) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, note: enc.note, siteId: to.id, zone: enc.zone, group: `${to.id}#${n}` }, { ...ctx, ai: false });
+  if (first) for (const [n, enc] of (to.foes || []).entries()) H['foe.add'](s, { monster: enc.monster, count: enc.count, name: enc.name, hidden: true, maybe: !!enc.maybe, note: enc.note, siteId: to.id, zone: enc.zone, group: `${to.id}#${n}` }, { ...ctx, ai: false });
   if (first) for (const c of to.clocks || []) if (!(s.clocks || []).some((x) => x.name === c.name)) H['clock.add'](s, { ...c, siteId: to.id, quiet: true }, { ...ctx, ai: false });
   if (to.travelHours) H['time.pass'](s, { hours: to.travelHours }, ctx);
   story(s, ctx, 'event', `The party arrives at ${to.name}.`, 'Engine', { move: true });

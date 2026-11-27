@@ -85,7 +85,8 @@ export function generateScript(adv, { places = 6, heroes = 2, route: how = 'walk
     }
     if (hop.back) { questsHere(k, site); continue; }
     const npc = (site.npcs || [])[0];
-    const foes = site.foes || [];
+    // The groups surely here; if each only may turn up, the first (the Director is asked to start that fight by name).
+    const foes = (site.foes || []).filter((f) => !f.maybe).length ? (site.foes || []).filter((f) => !f.maybe) : (site.foes || []).slice(0, 1);
     // A place whose fight starts on arrival (an ambush): the fight comes first.
     const ambush = (site.rules || []).some((r) => /^(?:enter|arrive)/i.test(String(r.when || '')) && r.do === 'fight');
     const fight = () => {
