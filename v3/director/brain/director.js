@@ -11,7 +11,7 @@ import { hazardBudget } from '../engine/ledger.js';
 import { seedHere } from '../engine/seeds.js';
 import { ProviderError } from './net.js';
 import * as R from '../engine/rules.js';
-import { wordsBrief, wordFlags, wordAsk, wordsUsed } from './words.js';
+import { wordsBrief, wordFlags, wordAsk, wordsUsed, glossInline } from './words.js';
 
 export const INSTRUCTIONS = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
 const MAX_STEPS = 16;
@@ -847,7 +847,9 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   narration = narration.replace(/\*\*/g, '').trim();
   const moved = T.state.scene.siteId !== state.scene.siteId;
   const gloss = (scenario.kit || {}).glossary || [];
-  let flags = checkNarration(narration, T.state, { moved, since: state.seq }).concat(prePlay ? [] : wordFlags(narration, gloss, T.state));
+  // The Engine's own plain line ("What does the Cohort do?") is not the Director's prose to check.
+  const ownLine = rescues.some((r) => r.kind === 'plain-line');
+  let flags = checkNarration(narration, T.state, { moved, since: state.seq }).concat(prePlay || ownLine ? [] : wordFlags(narration, gloss, T.state));
   // One rewrite before anyone sees it, for a suspected leak, a reply that runs long, or one that
   // does not end on a question. A better rewrite replaces the draft; otherwise the draft and its
   // flags stand (and a leak is held for the host).
@@ -857,7 +859,9 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
   const creDead = (f) => f.kind === 'rule' && /(?:is destroyed, but the Engine has it still fighting|^Says the fight is over, but)/.test(f.text);
   const unpaidClock = (f) => f.kind === 'rule' && /^Names .+ moving when nothing moved it/.test(f.text);
   const reversed = (f) => f.kind === 'rule' && /^Reverses /.test(f.text);
-  const fixable = (f) => unpaid(f) || buriedF(f) || creDead(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives |Uses a setting word|Uses \d+ new setting words)/.test(f.text));
+  const fixable = (f) => unpaid(f) || buriedF(f) || creDead(f) || unpaidClock(f) || reversed(f) || (f.kind === 'style' && /^(Long|Does not end|Reads out dice|Puts a new question|Puts the question to|Asks \d+ questions|Repeats an earlier|Mentions Pulse Points|Speaks of "the page"|Uses formatting|Contains characters|Gives )/.test(f.text))
+    // Two or more new words left bare are worth a rewrite; one gets its meaning added by the Engine below.
+    || (f.kind === 'style' && /^Uses a setting word/.test(f.text) && (f.words || []).length >= 2);
   if (flags.some((f) => isLeak(f) || fixable(f))) {
     const asks = [];
     if (flags.some(isLeak)) asks.push(`It gave away something the table must not hear: ${flags.filter(isLeak).map((f) => f.text).join(' ')} Leave out every creature number (no dice, Thresholds, Membrane Integrity, soak, or a count of how many Segments or sections are left) and do not name the briefing, the notes, the tools, the Engine or the Ledger: say what the organisms see and sense instead, and how much is left in the fiction - half of it, a scattering, still scenting you. "The page has nothing printed for that" is allowed.`);
@@ -902,6 +906,15 @@ async function oneAttempt({ state, scenario, bestiary, provider, rng, now = 0, r
         flags = [...again, { kind: 'note', text: `Rewritten once: ${why}.` }];
       }
     } catch (e) { /* the rewrite failed: keep the original and its flags */ }
+  }
+  // A new setting word still left bare (one alone, or what the rewrite missed): the Engine puts its plain
+  // meaning in brackets after it, so no player is left guessing (a human player, 27 Nov).
+  if (!prePlay && !rescues.some((r) => r.kind === 'plain-line') && flags.some((f) => /^Uses a setting word/.test(f.text))) {
+    const g = glossInline(narration, gloss, T.state);
+    if (g.words.length) {
+      narration = g.text;
+      flags = flags.filter((f) => !/^Uses a setting word/.test(f.text)).concat([{ kind: 'note', text: `The Engine added the plain meaning of ${g.words.join(', ')}.` }]);
+    }
   }
   // The model keeps asking the wrong seat even after a rewrite (bench 15 Nov, three times). The Engine
   // knows whose turn it is, so it sets the closing question itself rather than ship the wrong one.

@@ -17,6 +17,12 @@ const WORDS = [
   ['Dissolution Licence', 'Legal permission to dissolve a body for parts.'],
   ['Congregation', 'Pilgrims who live inside the Host on purpose. They run the ferry and know the way.'],
   ['Precept', 'One of the seven sacred laws everybody knows.'],
+  ['Unread', 'The vast living person the Cohort goes inside. It asked for your help.'],
+  ['Undersigned', 'A living person inside the Host who is the record of an ancient agreement.'],
+  ['Weep', 'The wound in the Host\'s side, where the shanty town stands.'],
+  ['Wastes', 'The barren region where the Host lies.'],
+  ['Reclaimers', 'The keepers of the dead who recycle bodies for parts. They hold the licence to dissolve the Host.'],
+  ['Ninth Response', 'The Host\'s last and strongest immune defence. When it comes, the way out closes.'],
 ].map(([word, plain]) => ({ word, plain }));
 
 export const kit = {

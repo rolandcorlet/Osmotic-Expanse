@@ -6,7 +6,8 @@
 export const COMMON = new Set(['hand', 'site', 'clock', 'strike', 'harvest', 'oath', 'ash', 'cycle', 'soak', 'breach', 'specimen',
   'guild', 'pathway', 'host', 'beat', 'marked', 'receipt', 'intake', 'goodwill', 'churn', 'director', 'stress',
   'condition', 'cohort', 'organism', 'vector', 'baseline', 'overflow', 'sentinel', 'nodule', 'precept', 'congregation',
-  'lattice', 'tonic', 'dormancy', 'flagellan', 'inhibitor']);
+  'lattice', 'tonic', 'dormancy', 'flagellan', 'inhibitor', 'line', 'row', 'fold', 'badge', 'patent', 'grievance',
+  'cohesion', 'drift', 'warden', 'lineage', 'synthesis', 'belt', 'weep', 'wastes', 'expanse', 'antigen']);
 // Words the table needs no telling about in a story: the game's own furniture.
 export const SKIP = new Set(['director', 'site', 'vector', 'hand']);
 
@@ -22,7 +23,8 @@ export function termsIn(text, glossary = [], names = []) {
   const out = [];
   const words = [...glossary].filter((g) => g && g.word && !SKIP.has(g.word.toLowerCase())).sort((a, b) => b.word.length - a.word.length);
   for (const g of words) {
-    const re = new RegExp(`(?<![\\w-])${escRe(g.word)}s?(?![\\w-])`, 'g');
+    // "The Line" is written with its article; in a sentence it is "the Line".
+    const re = new RegExp(`(?<![\\w-])${escRe(g.word.replace(/^The /, ''))}s?(?![\\w-])`, 'g');
     let m;
     while ((m = re.exec(t))) {
       const before = t.slice(0, m.index);

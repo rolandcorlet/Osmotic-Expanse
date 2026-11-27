@@ -14,7 +14,9 @@ export const kit = {
     'CARCASS advances when a Beat passes with nothing shipped, a new panel is opened, a pump starts, or the Cohort rests; rewinds when a panel is salted or a chamber drained. TOLL advances when the Cohort is loud in the channels (a Pulse War) or refuses the law; rewinds when it produces paper (a toll chit, a stamp). HUNGER advances when a body is left unharvested or the Cohort fights loudly; rewinds when it harvests what it kills.',
     'A panel opening is the site paying, not you: call `open_panel` the moment one comes loose, and it pays CARCASS for the first one in a scene. Never spend your own one advance on a panel, and do not call it twice in one scene.',
   ],
-  glossary: GLOSSARY,
+  glossary: [...GLOSSARY,
+    { word: 'Render Charge', plain: 'The blast that breaks up the whale carcass, on a fixed schedule. When it fires, everyone still inside must race out.' },
+  ],
 
   // One paragraph a new player can follow, read at the very start.
   pitch: 'A whale the size of a town has died across a river channel, and everyone wants a piece before it rots. You are a small crew with one day to get in, cut something valuable, get it weighed and stamped so it is legally yours, and get out. Three things are against you: the whale is going bad (CARCASS), the authorities are going to blow it up on a schedule (TOLL), and every hungry thing for miles can smell it (HUNGER). And something inside this whale is not whale.',

@@ -2051,12 +2051,18 @@ test('plain words: a new setting word with no meaning is sent back once, and the
   assert.equal(wordFlags(bare, gl, { ...s, words: ['Substrate'] }).length, 0, 'a word already explained is fine');
   assert.match(wordFlags('The Tonic, the Churn and the Substrate and the Codon wait. Bresk, what do you do?', gl, s).map((f) => f.text).join(' '), /new setting words in one reply/);
   assert.deepEqual(termsIn('Harvest it now. Bresk waits.', gl, []).map((h) => h.word), [], 'an ordinary word at the start of a sentence is English');
-  const make = scripted([{ text: bare }, { text: 'Bresk counts the Substrate, the money of this world, in the pouch. Bresk, what do you do?' }]);
-  const r = await directorTurn({ state: s, scenario, bestiary, provider: make(), rng, reason: 'test' });
-  assert.match(r.narration, /the money of this world/);
-  assert.ok(make.seen.some((t) => typeof t === 'string' && /New players do not know these words yet: Substrate/.test(t)));
+  // One bare word: the Engine adds its meaning itself, with no second model call.
+  const one = scripted([{ text: bare }]);
+  const r = await directorTurn({ state: s, scenario, bestiary, provider: one(), rng, reason: 'test' });
+  assert.match(r.narration, /the Substrate \(money\) in the pouch/);
+  assert.ok(!one.seen.some((t) => typeof t === 'string' && /New players do not know these words yet/.test(t)));
   assert.ok(r.state.words.includes('Substrate'));
   assert.match(briefing(r.state, scenario, bestiary), /Already explained to this table \(use freely\): Substrate/);
+  // Two bare words: sent back once to the model.
+  const two = scripted([{ text: 'Bresk weighs the Substrate and smells the Tonic. Bresk, what do you do?' }, { text: 'Bresk weighs the Substrate, the money here, and smells the Tonic, how salty the water is. Bresk, what do you do?' }]);
+  const r2 = await directorTurn({ state: seated(), scenario, bestiary, provider: two(), rng, reason: 'test' });
+  assert.ok(two.seen.some((t) => typeof t === 'string' && /New players do not know these words yet: Substrate .*; Tonic/.test(t)));
+  assert.match(r2.narration, /the money here/);
 });
 test('plain words: the briefing names the new words a place may need', () => {
   const s = seated();

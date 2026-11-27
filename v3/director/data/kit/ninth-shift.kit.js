@@ -13,6 +13,9 @@ const WORDS = [
   ['Patent', 'A legal claim to own a shape. Here somebody has patented a shape a living body was born with.'],
   ['Grievance', 'A formal complaint. Filing one is a real move with a real result.'],
   ['Cohesion', 'How well your group is pulling together. Shared meals build it.'],
+  ['Auditor', 'One of the officials who decide the case at the Licence Court.'],
+  ['Belt', 'The factory district where Shift Nine stands.'],
+  ['Pristine Sequence', 'A rare, perfect piece of living code. Very valuable.'],
 ].map(([word, plain]) => ({ word, plain }));
 
 export const kit = {

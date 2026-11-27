@@ -35,8 +35,28 @@ export function wordFlags(text, glossary, state) {
   const flags = [];
   const bare = hits.filter((h) => !glossedAt(text, h));
   if (bare.length) flags.push({ kind: 'style', text: `Uses a setting word the table has not been told yet without saying what it means: ${bare.map((h) => h.word).join(', ')}.`, words: bare.map((h) => ({ word: h.word, plain: h.plain })) });
-  if (hits.length > 2) flags.push({ kind: 'style', text: `Uses ${hits.length} new setting words in one reply (${hits.map((h) => h.word).join(', ')}); two at most.`, words: hits.map((h) => ({ word: h.word, plain: h.plain })) });
+  // Too many new words at once is reported, not sent back on its own (bench 27 Nov: the rewrite ran on two
+  // turns in five, which costs a whole model call each time on a local model).
+  if (hits.length > 2) flags.push({ kind: 'note', text: `Uses ${hits.length} new setting words in one reply (${hits.map((h) => h.word).join(', ')}); two at most.`, words: hits.map((h) => ({ word: h.word, plain: h.plain })) });
   return flags;
+}
+
+// A meaning short enough to sit in brackets: the first sentence, cut at a colon if it runs long.
+export function shortPlain(plain) {
+  let s = String(plain || '').split(/(?<=\.)\s/)[0].replace(/\.$/, '').trim();
+  if (s.length > 70) s = s.split(/[:;]/)[0].trim();
+  if (/^(?:The|A|An)\s/.test(s) || (/^[A-Z][a-z]+\b/.test(s) && !/^[A-Z][a-z]+\s+[A-Z]/.test(s))) s = s[0].toLowerCase() + s.slice(1);
+  return s;
+}
+
+// The Engine's own fix for a new word left bare: its plain meaning in brackets straight after it.
+// No model call (one bare word is not worth a rewrite), and nothing else in the reply changes.
+export function glossInline(text, glossary, state) {
+  const have = known(state);
+  const bare = termsIn(text, glossary, namesIn(state)).filter((h) => !have.has(h.word.toLowerCase()) && !glossedAt(text, h));
+  let out = String(text);
+  for (const h of [...bare].sort((a, b) => b.index - a.index)) out = `${out.slice(0, h.end)} (${shortPlain(h.plain)})${out.slice(h.end)}`;
+  return { text: out, words: bare.map((h) => h.word) };
 }
 
 // The ask that goes with those flags in the one rewrite.

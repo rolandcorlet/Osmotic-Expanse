@@ -53,6 +53,20 @@ export const GLOSSARY = [
   ['Chaperone Drone', 'A small folded-membrane official. Drones run tolls, gates and forms.'],
   ['Order II', 'The drones\' own service. Their stamp makes a thing legal.'],
   ['Lattice', 'Ancient machinery that can print living things. Nobody fully understands it.'],
+  // the peoples and the wider world (27 Nov: players met these in the story with no explanation)
+  ['Expanse', 'The whole world of the game: a vast living sea of cells.'],
+  ['Lineage', 'Which of the six peoples you were born into.'],
+  ['Phenotype', 'Your character\'s type: what your body is built to do, like a class.'],
+  ['Amoeban', 'One of the six peoples: shape-changers with no fixed wall. Chemists, digesters and thieves.'],
+  ['Epithalian', 'One of the six peoples: beings that grow in layers and sheets. Builders, foundry masters and contract-signers.'],
+  ['Lysosan', 'One of the six peoples: they carry borrowed viral code. Brokers, spies, and the only ones who can fool a scan.'],
+  ['Immunan', 'One of the six peoples: the recognisers. They mark and rank who belongs, and staff the Wardens.'],
+  ['Barophil', 'One of the six peoples: hardy beings of acid, pressure, heat and deep cold. Patient beyond belief.'],
+  ['Warden', 'The immune-system police. They guard gates and check who belongs.'],
+  ['Antigen', 'The chemical name-tag every body wears. Scans read it to tell a friend from a stranger.'],
+  ['Lytic', 'A kind of damage that eats armour, like acid.'],
+  ['Chemoreception', 'A skill: tasting and smelling the water to learn what is in it.'],
+  ['Synthesis', 'A skill: making and printing things from raw material.'],
 ].map(([word, plain]) => ({ word, plain }));
 
 export function gloss(word) {
