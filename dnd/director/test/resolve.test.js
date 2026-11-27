@@ -196,3 +196,18 @@ test('a quest the adventure\'s rules use as a mark is set, not refused, and its 
   const T = table(8, { adv });
   assert.throws(() => T.ai({ type: 'quest.done', id: 'dragon-slain' }), /no such quest/);
 });
+
+test('the Director\'s complete_quest sets a mark the rules use, and still refuses a made-up quest (Far North bench, 27 Nov)', () => {
+  const sites = adventure.sites.map((x) => ({ ...x }));
+  sites[0] = { ...sites[0], rules: [{ id: 'snowman-defeat', when: 'cleared', do: 'quest', quest: 'snowman-resolved' }] };
+  const adv = { ...adventure, sites };
+  const T = table(8, { adv });
+  hero(T, 'p1', 'Bryn');
+  const tb = toolbox({ state: T.s, adventure: adv, srd, rng: makeRng(2), now: 2 });
+  const set = tb.run('complete_quest', { quest: 'snowman-resolved' });
+  assert.equal(set.ok, true);
+  assert.match(set.assumed, /a mark the adventure's rules use/);
+  assert.deepEqual(tb.state.marks, ['snowman-resolved']);
+  assert.match(tb.run('complete_quest', { quest: 'snowman-resolved' }).note, /already done/);
+  assert.match(tb.run('complete_quest', { quest: 'dragon-slain' }).refused, /no such quest/);
+});

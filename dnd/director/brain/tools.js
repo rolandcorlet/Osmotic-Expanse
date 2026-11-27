@@ -512,7 +512,13 @@ export const TOOLS = [
       const low = ref.toLowerCase();
       const written = !q && ((T.adventure || {}).questDone || []).find((r) => r.match && (low.includes(r.match) || (words && r.match.includes(words))));
       if (written || (!q && low === T.state.scene.siteId)) return { note: `Nothing changed: the party never took on a quest for "${ref}". If they have taken it on, add_quest it first, then complete it. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ') || 'none'}.` };
-      if (!q) return { refused: `There is no such quest. Quests: ${T.state.quests.map((x) => `${x.id} (${x.text})`).join('; ')}.` };
+      // Not on the list: the Engine decides. A mark the adventure's rules use ("snowman-resolved", Far North
+      // bench 27 Nov) is set there, or is already done; anything else is refused by it as before.
+      if (!q) {
+        const no = T.do({ type: 'quest.done', id: ref });
+        if (!no) return { ok: true };
+        return T.lastNo && T.lastNo.kind === 'noop' ? { note: `Nothing changed: ${no}` } : { refused: no };
+      }
       const rule = q && ((T.adventure || {}).questDone || []).find((r) => q.text.toLowerCase().includes(r.match));
       if (q && q.done) return { note: `Nothing changed: "${q.text}" is already complete.` };
       if (rule && !rule.at.includes(T.state.scene.siteId)) return { note: `Not yet: "${q.text}" is complete only when ${rule.when}. Keep it open.` };
