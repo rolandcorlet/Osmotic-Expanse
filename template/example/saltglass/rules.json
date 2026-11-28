@@ -1,0 +1,82 @@
+{
+  "stats": [
+    { "id": "brawn", "name": "Brawn", "about": "Strength, endurance, holding your breath against the cold." },
+    { "id": "grace", "name": "Grace", "about": "Balance, quick hands, moving without a sound." },
+    { "id": "wits", "name": "Wits", "about": "Noticing, reasoning, remembering the old city's ways." },
+    { "id": "nerve", "name": "Nerve", "about": "Courage, will, keeping your head when the lamps go out." }
+  ],
+  "statPoints": { "start": 1, "spend": 6, "max": 4 },
+  "skills": [
+    { "id": "fight", "name": "Fight", "stat": "brawn", "about": "Hook, knife and fist, up close." },
+    { "id": "swim", "name": "Swim", "stat": "brawn", "about": "Moving fast or far in water, fighting a current." },
+    { "id": "sneak", "name": "Sneak", "stat": "grace", "about": "Unseen, unheard, through narrow glass." },
+    { "id": "shoot", "name": "Shoot", "stat": "grace", "about": "Harpoon, sling and thrown line." },
+    { "id": "sense", "name": "Sense", "stat": "wits", "about": "Seeing what moves in dark water; hearing the glass." },
+    { "id": "mend", "name": "Mend", "stat": "wits", "about": "Fixing lamps, lines and divers." },
+    { "id": "lore", "name": "Lore", "stat": "wits", "about": "The drowned city's guilds, songs and traps." },
+    { "id": "talk", "name": "Talk", "stat": "nerve", "about": "Bargain, bluff, calm a frightened friend." }
+  ],
+  "skillPoints": { "spend": 6, "max": 2 },
+  "ladder": [
+    { "at": 8, "name": "Shallow", "about": "Easy: most divers manage it." },
+    { "at": 12, "name": "Standard", "about": "A trained diver's work." },
+    { "at": 16, "name": "Deep", "about": "Hard: the best on the dock." },
+    { "at": 20, "name": "Abyssal", "about": "Extreme: a story told for years." },
+    { "at": 24, "name": "Legendary", "about": "Once in a generation." }
+  ],
+  "snag": {
+    "effect": "Each Crack (a 1) marks 1 Strain, even on a success.",
+    "table": [
+      { "snags": 1, "name": "Slip", "effect": "Drop something, lose your footing, or make a noise." },
+      { "snags": 2, "name": "Tangle", "effect": "You are Snared until you spend an action to cut free." },
+      { "snags": 3, "name": "Blackout", "effect": "The water closes in: lose 1d6 Breath." }
+    ]
+  },
+  "surge": {
+    "effect": "A Gleam (two 6s and no 1s): on an attack the weapon counts twice. On any other roll, choose one bonus.",
+    "options": [
+      "Do it in half the time.",
+      "Find something worth salvaging.",
+      "Learn one true thing about this place.",
+      "An ally gains +2 dice on their next roll."
+    ]
+  },
+  "health": { "name": "Breath", "base": 8, "stat": "brawn", "perStat": 2, "perLevel": 2 },
+  "strain": {
+    "name": "Strain",
+    "max": 6,
+    "penalties": [ { "at": 3, "dice": -1 }, { "at": 5, "dice": -2 } ],
+    "atMax": "Breakdown: you are Shaken until you rest, and your Strain drops to 3."
+  },
+  "defence": { "base": 8, "stat": "grace", "note": "Armour can add to it." },
+  "initiative": { "stat": "wits", "skill": "sense" },
+  "combat": {
+    "actionsPerTurn": 2,
+    "actions": [
+      { "id": "strike", "name": "Strike", "cost": 1, "does": "Attack once with a weapon." },
+      { "id": "move", "name": "Move", "cost": 1, "does": "Swim or climb to somewhere close." },
+      { "id": "brace", "name": "Brace", "cost": 1, "does": "+2 to your defence until your next turn." },
+      { "id": "steady", "name": "Steady", "cost": 1, "does": "Clear 1 Strain, or help a friend clear Shaken (Standard Nerve + Talk)." },
+      { "id": "use", "name": "Use", "cost": 1, "does": "Use an ability, a lamp or a tool." }
+    ]
+  },
+  "conditions": [
+    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or a friend's Steady action." },
+    { "id": "snared", "name": "Snared", "effect": "-1 die, and you cannot move.", "dice": -1, "ends": "Spend an action to cut free." },
+    { "id": "bleeding", "name": "Bleeding", "effect": "Lose 1 Breath at the start of each of your turns.", "ends": "A Standard Mend roll." },
+    { "id": "blinded", "name": "Blinded", "effect": "-2 dice on anything that needs sight.", "dice": -2, "ends": "Light, or the end of the scene." }
+  ],
+  "rest": {
+    "short": "A few minutes on a ledge with air: recover half your Breath and clear 2 Strain. The Tide ticks once.",
+    "long": "A night on the dock: recover all Breath, clear all Strain and all conditions."
+  },
+  "advancement": {
+    "xpPerLevel": 10,
+    "maxLevel": 10,
+    "perLevel": "Each Dive rank: +2 Breath and +1 skill rank (max 3). Every third rank: +1 to a stat (max 5)."
+  },
+  "rulings": [
+    { "q": "Can two divers roll together?", "a": "One rolls. Each helper adds 1 die, at most +2, and shares any Cracks." },
+    { "q": "What happens at 0 Breath?", "a": "You are drowning: you can only cling and hope. A friend can haul you up with a Standard Brawn + Swim roll." }
+  ]
+}

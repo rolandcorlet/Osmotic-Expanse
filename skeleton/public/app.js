@@ -885,7 +885,9 @@ function render() {
   const tabs = TABS[ROLE];
   if (!ui.tab || !tabs.some(([k]) => k === ui.tab)) ui.tab = tabs[0][0];
   document.getElementById('title').textContent = M.module.name;
-  document.getElementById('tag').textContent = ROLE === 'host' ? `Host · ${M.module.tagline}` : M.module.tagline;
+  // The worked example, loaded while modules/ has no game of its own (the template): say so to the host.
+  const isExample = ROLE === 'host' && ((HELLO && HELLO.modules) || []).some((m) => m.id === S.moduleId && m.example);
+  document.getElementById('tag').textContent = ROLE === 'host' ? `Host · ${M.module.tagline}${isExample ? ' · the worked example: make your own game on the Converter tab' : ''}` : M.module.tagline;
   document.title = `${M.module.name} · ${ROLE}`;
   const st = document.getElementById('status');
   st.textContent = S.fight ? `${nameOfKey(curKey())} is up` : (ROLE === 'player' && me() ? me().name : ROLE);

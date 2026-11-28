@@ -1,0 +1,89 @@
+// A bench script written from an adventure, so any module's adventure can be benched with no hand-written
+// script: walk its places from the start along the exits and say what players say there.
+//   - the way in ("We go on to The Sunken Causeway."), expecting the party to move;
+//   - a try at each hazard ("We push on through the Cold current."), expecting a roll (soft);
+//   - a search for the place's clues, and a word with someone who is there;
+//   - where a rule of the place calms its creatures on a success, a try at that (a roll), not a fight;
+//   - a fight with the creatures there ("Enough. We attack the Glass eel!"), expecting a fight, unless the
+//     place is in `avoid` (a fight meant to be won another way: the bench leaves out those the simulation
+//     says wipe the party);
+//   - finishing a quest at the place it is done at (quest.doneAt), once the walk has been everywhere before.
+//
+//   generateScript(mod, adventure, { places: 6, heroes: 2 }) -> [{ start }, { pid, say, expect, at, to }, ...]
+// Browser-safe, no state.
+export function generateScript(mod, adv, { places = 6, heroes = 2, avoid = new Set() } = {}) {
+  const sites = (adv && adv.sites) || [];
+  if (!sites.length) return [];
+  const byId = Object.fromEntries(sites.map((x) => [x.id, x]));
+  const pids = Array.from({ length: Math.max(1, heroes) }, (_, n) => `p${n + 1}`);
+  let turn = 0;
+  const who = () => pids[turn++ % pids.length];
+  const out = [{ start: true, expect: [] }];
+  const seen = new Set();
+  const route = [];
+  // The shortest way along the exits ([] when none: a road may run one way only).
+  const pathAlong = (from, to) => {
+    const prev = { [from]: null }; const q = [from];
+    while (q.length) { const id = q.shift(); if (id === to) break; for (const e of (byId[id] || {}).exits || []) if (byId[e] && !(e in prev)) { prev[e] = id; q.push(e); } }
+    if (!(to in prev) || from === to) return [];
+    const out = []; for (let id = to; id !== from; id = prev[id]) out.unshift(id);
+    return out;
+  };
+  // Depth first, and the way back follows the exits too (the D&D bench, 28 Nov: a one-way road walked backwards).
+  let stuck = false;
+  (function walk(id, from) {
+    if (seen.size >= places || seen.has(id) || !byId[id] || stuck) return;
+    seen.add(id);
+    route.push({ id, from });
+    for (const e of byId[id].exits || []) {
+      if (seen.size >= places || stuck) break;
+      if (!byId[e] || seen.has(e)) continue;
+      const before = route.length;
+      walk(e, id);
+      if (seen.size >= places || stuck) break;
+      const here = route.slice(before).reduce((at, h) => h.id, e);
+      const back = pathAlong(here, id);
+      if (!back.length) { stuck = true; break; }
+      let at = here;
+      for (const hop of back) { route.push({ id: hop, from: at, back: true }); at = hop; }
+    }
+  })(adv.start || sites[0].id, null);
+  const creatureName = (c) => String(((mod.ix.creature || {})[c.id] || {}).name || c.name || c.id).replace(/^the\s+/i, '');
+  const done = new Set();
+  for (const [k, hop] of route.entries()) {
+    const site = byId[hop.id];
+    if (hop.from) out.push({ pid: who(), say: `We ${hop.back ? 'head back' : 'go on'} to ${site.name}.`, expect: ['move_party'], at: hop.from, to: site.id });
+    if (hop.back) { questsHere(k, site); continue; }
+    for (const h of (site.hazards || []).slice(0, 2)) out.push({ pid: who(), say: `We push on through the ${h.name.toLowerCase()}, carefully.`, expect: ['ask_for_roll'], at: site.id });
+    if ((site.clues || []).length) out.push({ pid: who(), say: 'I search this place carefully for anything left behind.', expect: [], at: site.id });
+    const npc = (site.npcs || [])[0];
+    if (npc) out.push({ pid: who(), say: `I ask ${String(npc.name || npc).split(/\s+/)[0]} what is going on here.`, expect: [], at: site.id });
+    const foes = (site.creatures || []).filter((c) => (mod.ix.creature || {})[c.id]);
+    // A place whose own rule calms its creatures on a success (Saltglass's bell: a Lore roll rings it and the
+    // Tidewarden stands down; the bench, 27 Nov: two runs attacked it instead and were beaten): the script takes
+    // the way the adventure offers, a roll, and does not attack.
+    const calm = foes.length ? (site.rules || []).find((r) => r.do === 'calm' && /^succeed\s+\S+/.test(String(r.when || ''))) : null;
+    if (calm) {
+      const skill = String(calm.when).split(/\s+/)[1];
+      const sk = ((mod.ix.skill || {})[skill] || {}).name || skill.replace(/^\w/, (c) => c.toUpperCase());
+      out.push({ pid: pids[0], say: `We do not fight the ${creatureName(foes[0])}. I use my ${sk} to settle it the way this place asks.`, expect: ['ask_for_roll'], at: site.id });
+      // Then what the party came down for, which a quest finishes somewhere else (Saltglass: float the bell up
+      // to Lamp Dock; the bench, 27 Nov: never asked, so the quest at the dock could not finish).
+      if ((adv.quests || []).some((q) => (q.doneAt || []).length && !(q.doneAt || []).includes(site.id))) out.push({ pid: who(), say: 'With that settled, we take what we came for and get it ready to bring back.', expect: ['ask_for_roll'], at: site.id });
+    } else if (foes.length && !avoid.has(site.id)) out.push({ pid: pids[0], say: `Enough. We attack the ${creatureName(foes[0])}!`, expect: ['start_combat'], at: site.id });
+    questsHere(k, site);
+  }
+  return out;
+  // A quest done here (quest.doneAt), at the last visit the walk makes to that place.
+  function questsHere(k, site) {
+    for (const q of adv.quests || []) {
+      if (k === 0 || done.has(q.id) || !(q.doneAt || []).includes(site.id)) continue;
+      if (route.slice(k + 1).some((h) => (q.doneAt || []).includes(h.id))) continue; // a later visit finishes it
+      // A quest that is a choice ("Put out the lighthouse light, or keep it burning."): the players make one, the
+      // first (Gull Rock, 27 Nov: "see it through" left the Director asking which, and the quest open).
+      const goal = q.text.replace(/\.$/, '').split(/,\s+or\s+/i)[0];
+      out.push({ pid: who(), say: `We see it through: ${goal.replace(/^\w/, (c) => c.toLowerCase())}.`, expect: ['complete_quest'], at: site.id, quest: q.id });
+      done.add(q.id);
+    }
+  }
+}

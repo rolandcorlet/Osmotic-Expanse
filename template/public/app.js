@@ -1,0 +1,957 @@
+// The Skeleton screens: the host console (/host?key=...), the table screen (/table) and each
+// player's phone (/play). One file; the server sends each screen only what it may see.
+
+import { getSystem, chance, ownDiceHint, SYSTEMS } from '/engine/dicesystems.js';
+import * as SEEDS from '/engine/seeds.js';
+import { initScene, updateScene, rollD20, effectsMode, setEffects } from '/scene.js';
+import { vial, gems, sigil, seal, levelFlash } from '/flair.js';
+import { glossaryOf, termsIn } from '/engine/words.js';
+import { initMap, mapTabHtml, MAP_ACT, mapField } from '/map.js';
+// flair.js gives HTML; this puts it in the tree (a span or div with no box of its own).
+const raw = (html, tag = 'span') => { const e = document.createElement(tag); e.style.display = 'contents'; e.innerHTML = html; return e; };
+const callingName = (c) => (M.handbook.callings.find((x) => x.id === c.calling) || {}).name || '';
+const health = (c, key) => raw(vial(`${key}:${c.id}`, c.health / Math.max(1, c.healthMax), { title: `${T('health')} ${c.health} of ${c.healthMax}` }), 'div');
+const strainGems = (c, key) => raw(gems(`${key}:${c.id}`, [{ label: '', max: M.rules.strain.max, used: c.strain }], { cls: 'strain', title: `${T('strain')} ${c.strain} of ${M.rules.strain.max}: lit gems are what is left` }), 'div');
+
+const ROLE = location.pathname.startsWith('/host') ? 'host' : location.pathname.startsWith('/table') ? 'table' : 'player';
+const KEY = new URLSearchParams(location.search).get('key') || '';
+// The table code, for screens joining from outside the host's own network (the --online link): from the link
+// (?t=), else remembered on this device.
+const TCODE = (() => { const t = (new URLSearchParams(location.search).get('t') || '').toUpperCase(); try { if (t) localStorage.setItem('sk-t', t); return t || localStorage.getItem('sk-t') || ''; } catch (e) { return t; } })();
+const qs = (more = {}) => new URLSearchParams({ ...(KEY ? { key: KEY } : {}), ...(TCODE ? { t: TCODE } : {}), ...more }).toString();
+const PID = (() => { try { let p = localStorage.getItem('sk-pid'); if (!p) { p = `p${Math.random().toString(36).slice(2, 10)}`; localStorage.setItem('sk-pid', p); } return p; } catch (e) { return `p${Math.random().toString(36).slice(2, 10)}`; } })();
+const store = { get(k, d) { try { const v = localStorage.getItem(`sk-${k}`); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(`sk-${k}`, JSON.stringify(v)); } catch (e) { /* private mode */ } } };
+
+let S = null; // the game state (this screen's view)
+let HELLO = null; // module, settings
+let M = null; // the module
+const ui = {
+  tab: store.get(`tab-${ROLE}`, null), say: '', narrate: '', hostNote: '', search: '', director: null, convert: { log: [], running: false, result: null },
+  build: { origin: '', calling: '', stats: {}, skills: {}, name: '', look: '', want: '' }, lastRollId: null, models: [], readAloud: store.get('read', false),
+  form: {},
+};
+
+// ---------------------------------------------------------------- tiny DOM helper
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'class') el.className = v;
+    else if (k === 'value') el.value = v;
+    else if (k === 'checked' || k === 'disabled' || k === 'selected') el[k] = !!v;
+    else el.setAttribute(k, v === true ? '' : v);
+  }
+  for (const k of kids.flat(9)) if (k != null && k !== false) el.append(k.nodeType ? k : document.createTextNode(String(k)));
+  return el;
+}
+const opt = (value, text, sel) => h('option', { value, selected: sel }, text);
+const T = (k) => (M && M.module.terms[k]) || k;
+const statName = (id) => ((M.rules.stats || []).find((x) => x.id === id) || {}).name || id;
+const skillName = (id) => ((M.rules.skills || []).find((x) => x.id === id) || {}).name || id;
+const condName = (id) => ((M.rules.conditions || []).find((x) => x.id === id) || {}).name || id;
+const gearOf = (id) => (M.handbook.gear || []).find((x) => x.id === id);
+const abilityOf = (id) => (M.handbook.abilities || []).find((x) => x.id === id);
+// The module's dice system, and what a character rolls (the same sums as the Engine's poolFor).
+const SYS = () => getSystem(M.rules);
+function specFor(c, stat, skill) {
+  const S = SYS();
+  const mods = c.conds.map((id) => (M.rules.conditions || []).find((x) => x.id === id)).filter((x) => x && (x.dice ?? x.mod)).map((x) => ({ dice: x.dice ?? x.mod }));
+  let pen = 0; for (const p of (M.rules.strain && M.rules.strain.penalties) || []) if (c.strain >= p.at) pen = Math.min(pen, p.dice ?? p.mod ?? 0);
+  if (pen) mods.push({ dice: pen });
+  return S.sys.spec(S.o, { stat: c.stats[stat] ?? 0, skill: skill ? (c.skills[skill] || 0) : 0, mods });
+}
+const pct = (p) => `${Math.round(p * 100)}%`;
+// ---- roll alerts: the screen's edge flashes, a banner drops in, the phone buzzes and the roll card comes into
+// view; while it is out of sight a "waiting" pill stays at the top (from the D&D Director, 27 Nov).
+ui.seenReq = {};
+const calmMotion = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+function toRequest() {
+  const card = document.querySelector('.req-card');
+  if (!card) return;
+  const how = calmMotion() ? 'auto' : 'smooth';
+  for (let el = card.parentElement; el && el !== document.body; el = el.parentElement) if (el.scrollHeight > el.clientHeight + 2 && /auto|scroll/.test(getComputedStyle(el).overflowY)) el.scrollTo({ top: 0, behavior: how });
+  card.scrollIntoView({ behavior: how, block: 'start' });
+  card.classList.remove('req-pulse'); void card.offsetWidth; card.classList.add('req-pulse');
+}
+function requestAlert(q) {
+  document.querySelectorAll('.req-flash, .req-banner').forEach((x) => x.remove());
+  const flash = document.createElement('div'); flash.className = 'req-flash'; document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 2600);
+  const bar = document.createElement('button'); bar.className = 'req-banner';
+  bar.append(h('b', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('span', {}, q.reason || 'The Director asks you to roll.'));
+  bar.onclick = () => { toRequest(); bar.remove(); };
+  document.body.appendChild(bar);
+  setTimeout(() => bar.classList.add('gone'), 3200);
+  setTimeout(() => bar.remove(), 3700);
+  try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch (e) { /* no buzz here */ }
+  setTimeout(toRequest, 350);
+}
+let reqSeen = null; let reqCard = null;
+function watchRequest() {
+  let pill = document.getElementById('req-pill');
+  const card = ROLE === 'player' ? document.querySelector('.req-card') : null;
+  if (!card || typeof IntersectionObserver === 'undefined') { if (pill) pill.hidden = true; if (reqSeen) { reqSeen.disconnect(); reqSeen = null; reqCard = null; } return; }
+  if (!pill) { pill = document.createElement('button'); pill.id = 'req-pill'; pill.className = 'req-pill'; pill.hidden = true; pill.onclick = () => toRequest(); document.body.appendChild(pill); }
+  pill.textContent = `🎲 ${card.querySelector('h2') ? card.querySelector('h2').textContent : 'A roll'} is waiting ↑`;
+  if (reqCard === card) return;
+  if (reqSeen) reqSeen.disconnect();
+  reqCard = card;
+  reqSeen = new IntersectionObserver((list) => { for (const e of list) document.getElementById('req-pill').hidden = e.isIntersecting; });
+  reqSeen.observe(card);
+}
+const me = () => { const p = S && S.players[PID]; return p && p.charId ? S.chars[p.charId] : null; };
+const curKey = () => (S.fight && S.fight.order.length ? S.fight.order[S.fight.turn].key : null);
+const nameOfKey = (key) => { if (!key) return ''; const [k, id] = key.split(':'); return ((k === 'char' ? S.chars : S.creatures)[id] || {}).name || '?'; };
+
+function toast(text, good = false) {
+  const t = document.getElementById('toast');
+  t.textContent = text; t.className = `toast${good ? ' good' : ''}`; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 4500);
+}
+async function post(path, body) {
+  const r = await fetch(`${path}?${qs()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
+  return r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+}
+async function act(action) {
+  const r = await post('/api/act', { action, pid: PID });
+  if (!r.ok) toast(r.error || 'That did not work.');
+  return r.ok;
+}
+
+// ---------------------------------------------------------------- voice
+const SILENT_WAV = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+const V = { el: null, queue: [], busy: false, spoken: store.get(`spoken-${ROLE}`, '') };
+function audioEl() { if (!V.el) { V.el = new Audio(); V.el.preload = 'auto'; } return V.el; }
+function unlockAudio() { const a = audioEl(); if (a.dataset.unlocked) return; a.src = SILENT_WAV; a.play().then(() => { a.dataset.unlocked = '1'; }).catch(() => {}); try { speechSynthesis.speak(new SpeechSynthesisUtterance('')); } catch (e) { /* none */ } }
+for (const ev of ['pointerdown', 'touchend', 'keydown']) addEventListener(ev, unlockAudio, { passive: true });
+function sentences(t) { return String(t).match(/[^.!?]+[.!?]+["'’”]?|[^.!?]+$/g) || [t]; }
+function speak(text) { V.queue.push(...sentences(text).map((x) => x.trim()).filter(Boolean)); playNext(); }
+async function playNext() {
+  if (V.busy || !V.queue.length) return;
+  V.busy = true;
+  const line = V.queue.shift();
+  const done = () => { V.busy = false; playNext(); };
+  if (HELLO && HELLO.voice && HELLO.voice.out === 'server') {
+    try {
+      const r = await fetch(`/api/voice/say?${qs()}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: line }) });
+      if (r.ok && /audio/.test(r.headers.get('content-type') || '')) {
+        const a = audioEl(); a.src = URL.createObjectURL(await r.blob()); a.onended = done; a.onerror = done; await a.play().catch(done); return;
+      }
+    } catch (e) { /* fall back to the screen's voice */ }
+  }
+  try {
+    const u = new SpeechSynthesisUtterance(line);
+    const want = (HELLO && HELLO.voice && HELLO.voice.screenVoice) || 'gb-male';
+    const vs = speechSynthesis.getVoices();
+    const lang = want.startsWith('gb') ? 'en-GB' : want.startsWith('us') ? 'en-US' : 'en';
+    u.voice = vs.find((v) => v.lang === lang && (want.endsWith('female') ? /female|woman|zira|susan|serena|libby/i.test(v.name) : /male|man|daniel|george|ryan|david/i.test(v.name))) || vs.find((v) => v.lang === lang) || null;
+    u.onend = done; u.onerror = done; speechSynthesis.speak(u);
+  } catch (e) { done(); }
+}
+function speakNew() {
+  const narr = S.story.filter((e) => e.kind === 'narration');
+  const last = narr.at(-1);
+  if (!last) return;
+  const idx = narr.findIndex((e) => e.id === V.spoken);
+  const fresh = idx >= 0 ? narr.slice(idx + 1) : [];
+  V.spoken = last.id; store.set(`spoken-${ROLE}`, last.id);
+  if (!ui.readAloud || (ROLE === 'host' && !store.get('host-read', false))) return;
+  for (const e of fresh) speak(e.text);
+}
+const readBtn = (text) => h('button', { title: 'Read aloud', onclick: () => { unlockAudio(); speak(text); } }, '🔊');
+
+// ---------------------------------------------------------------- shared pieces
+function diceRow(r, fresh) {
+  const faces = r.faces || (r.dice || []).map((v) => ({ v, sides: 6, mark: v === 1 ? 'snag' : v === 6 ? 'six' : '' }));
+  return h('div', { class: 'dice' }, faces.map((f) => h('span', { class: `die${f.mark === 'snag' ? ' one' : f.mark === 'six' || f.mark === 'surge' ? ' six' : f.mark === 'hit' ? ' hit' : f.mark === 'wild' ? ' wild' : ''}${f.sides !== 6 ? ' wide' : ''}${fresh ? ' fresh' : ''}`, title: f.sides === 'F' ? 'Fate die' : `d${f.sides}` },
+    f.sides === 'F' ? (f.v > 0 ? '+' : f.v < 0 ? '−' : ' ') : f.v, f.sides !== 6 && f.sides !== 'F' ? h('sub', {}, `d${f.sides}`) : null)));
+}
+function rollCard(r) {
+  if (!r) return null;
+  const fresh = r.id !== ui.lastRollId;
+  ui.lastRollId = r.id;
+  return h('div', { class: 'card' },
+    h('div', { class: 'row' }, h('b', { class: 'grow' }, `${r.who}: ${r.label}`), r.surge ? h('span', { class: 'pill acc' }, T('surge')) : null, r.snags ? h('span', { class: 'pill no' }, `${r.snags} ${T('snag')}${r.snags > 1 ? 's' : ''}`) : null),
+    diceRow(r, fresh),
+    h('div', { class: 'row' }, h('span', { class: `result ${r.success === true ? 'ok' : r.success === false ? 'no' : ''}` }, r.total),
+      r.shown && r.success != null ? h('span', { class: 'dim' }, `${r.shown}: ${r.success ? (r.partial ? 'partial success' : 'success') : 'failure'}${r.dmg ? `, ${r.dmg} damage` : ''}`)
+        : r.at != null && r.shown == null ? h('span', { class: 'dim' }, `against ${r.at}: ${r.success ? `success, ${T('overflow').toLowerCase()} ${r.overflow}` : `short by ${r.shortBy}`}${r.dmg ? `, ${r.dmg} damage` : ''}`)
+          : h('span', { class: 'dim' }, `${r.pool || ''} unasked`)),
+    r.pool ? h('small', { class: 'faint' }, `Rolled ${r.pool}`) : null,
+    r.reason ? h('small', {}, r.reason) : null);
+}
+function bar(v, max, cls = '') { return h('div', { class: `bar ${cls}`, title: `${v} / ${max}` }, h('i', { style: `width:${Math.max(0, Math.min(100, (100 * v) / Math.max(1, max)))}%` })); }
+function storyView(big = false) {
+  const box = h('div', { class: `story${big ? ' table-big' : ''}${ROLE === 'host' ? '' : ' journal'}`, 'data-key': 'story' },
+    S.story.filter((e) => ROLE === 'host' || e.kind !== 'host').filter((e) => !e.quiet || ROLE === 'host').map((e) => h('div', { class: `ev ${e.kind}` },
+      e.kind === 'say' ? h('span', { class: 'who' }, e.who) : null, e.kind === 'narration' ? glossy(e.text) : e.text, e.kind === 'narration' && ROLE !== 'table' ? h('span', { style: 'margin-left:6px' }, readBtn(e.text)) : null)));
+  return box;
+}
+// Tap a word (plain words, 27 Nov): the first time one of the game's own words appears in a piece of
+// narration it is underlined; a tap or Enter shows what it means.
+function glossy(text) {
+  const t = String(text || '');
+  const hits = M ? termsIn(t, glossaryOf(M), [...Object.values(S.chars || {}), ...Object.values(S.creatures || {})].map((x) => x.name)) : [];
+  const out = [];
+  let at = 0;
+  for (const g of hits) {
+    out.push(t.slice(at, g.index), h('span', { class: 'gw', role: 'button', tabindex: '0', 'data-gloss': g.word, title: g.plain }, t.slice(g.index, g.end)));
+    at = g.end;
+  }
+  out.push(t.slice(at));
+  return out;
+}
+function glossPop(el) {
+  let pop = document.getElementById('gloss');
+  if (!el) { if (pop) pop.hidden = true; return; }
+  const g = glossaryOf(M).find((x) => x.word === el.dataset.gloss);
+  if (!g) return;
+  if (!pop) { pop = document.createElement('div'); pop.id = 'gloss'; pop.setAttribute('role', 'tooltip'); document.body.appendChild(pop); }
+  pop.replaceChildren(h('b', {}, g.word), g.plain);
+  pop.hidden = false;
+  const r = el.getBoundingClientRect();
+  const w = Math.min(300, window.innerWidth - 16);
+  pop.style.maxWidth = `${w}px`;
+  pop.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - w - 8))}px`;
+  pop.style.top = `${r.bottom + 8}px`;
+  if (r.bottom + 8 + pop.offsetHeight > window.innerHeight - 8) pop.style.top = `${Math.max(8, r.top - pop.offsetHeight - 8)}px`;
+}
+document.addEventListener('click', (e) => { const t = e.target; if (!(t.closest && t.closest('#gloss'))) glossPop((t.closest && t.closest('.gw')) || null); }, true);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') glossPop(null);
+  else if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('gw')) { e.preventDefault(); glossPop(e.target); }
+}, true);
+document.addEventListener('scroll', () => glossPop(null), true);
+function fightStrip() {
+  if (!S.fight) return null;
+  const cur = curKey();
+  return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, `Fight: round ${S.fight.round}`), h('span', { class: 'pill acc' }, `${nameOfKey(cur)} is up`)),
+    h('div', { class: 'order' }, S.fight.order.map((o) => h('span', { class: `pill${o.key === cur ? ' cur' : ''}` }, nameOfKey(o.key)))));
+}
+function partyList(compact = false) {
+  return Object.values(S.chars).map((c) => h('div', { class: `list-line${c.down ? ' down' : ''}${curKey() === `char:${c.id}` ? ' turn-now' : ''}` },
+    h('div', { class: 'grow' }, ROLE === 'host' ? null : raw(sigil(callingName(c), { small: true })), h('b', {}, c.name), h('small', {}, ` ${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name || ''} ${callingName(c)}`),
+      h('div', { class: 'grid2' }, h('div', {}, h('small', {}, `${T('health')} ${c.health}/${c.healthMax}`), ROLE === 'host' ? bar(c.health, c.healthMax) : health(c, 'party')), h('div', {}, h('small', {}, `${T('strain')} ${c.strain}/${M.rules.strain.max}`), ROLE === 'host' ? bar(c.strain, M.rules.strain.max, 'strain') : strainGems(c, 'party'))),
+      c.conds.length ? h('div', { class: 'row' }, c.conds.map((x) => h('span', { class: 'pill no' }, condName(x)))) : null,
+      compact ? null : h('small', { class: 'faint' }, c.playerId && S.players[c.playerId] ? `played by ${S.players[c.playerId].name}` : 'no player'))));
+}
+// The place's objects (a chest, a lever, a log): a player uses one as their own character, the host for
+// whoever they choose; the adventure's rules for it then happen (engine/triggers.js "use <object>").
+const objectsHere = () => {
+  const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+  const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
+  return (site.objects || []).map((o) => (typeof o === 'string' ? { name: o } : o)).filter((o) => o && o.name);
+};
+function objectsRow() {
+  const objs = objectsHere();
+  if (!objs.length) return null;
+  const c = ROLE === 'player' ? me() : null;
+  const alive = Object.values(S.chars).filter((x) => !x.down);
+  if (ROLE === 'host' && !alive.some((x) => x.id === ui.objWho)) ui.objWho = (alive[0] || {}).id;
+  return h('div', { class: 'objects' },
+    h('div', { class: 'row' }, h('small', { class: 'grow dim' }, 'Here'), ROLE === 'host' && alive.length > 1 ? h('select', { style: 'width:auto', title: 'Who uses it', onchange: (e) => { ui.objWho = e.target.value; } }, alive.map((x) => opt(x.id, x.name, x.id === ui.objWho))) : null),
+    objs.map((o) => h('div', { class: 'list-line' }, h('span', { class: 'grow', title: o.about || '' }, o.name, o.about ? h('small', {}, ` · ${o.about}`) : null),
+      (c && !c.down) || (ROLE === 'host' && ui.objWho) ? h('button', { onclick: () => act({ type: 'object.use', who: c ? c.id : ui.objWho, object: o.name }) }, 'Use') : null)));
+}
+function placeCard() {
+  const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+  const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
+  return h('div', { class: 'card' }, h('h3', {}, adv.name), h('h2', {}, site.name || ''), site.read ? h('small', {}, site.read, ' ', readBtn(site.read)) : null, objectsRow());
+}
+function clocksQuests(host = false) {
+  return h('div', { class: 'card' },
+    S.clocks.length ? h('h3', {}, 'Clocks') : null,
+    S.clocks.map((c) => h('div', { class: 'row' }, h('span', { class: 'grow' }, c.name), h('span', { class: 'clock' }, Array.from({ length: c.size }, (_, i) => h('i', { class: i < c.filled ? 'f' : '' }))),
+      host ? [h('button', { onclick: () => act({ type: 'clock.tick', id: c.id, n: -1 }) }, '−'), h('button', { onclick: () => act({ type: 'clock.tick', id: c.id, n: 1 }) }, '+')] : null)),
+    h('h3', {}, 'Quests'),
+    S.quests.map((q) => h('div', { class: 'row' }, h('span', { class: `grow${q.done ? ' faint' : ''}` }, raw(seal(q.id, q.done)), q.text), host && !q.done ? h('button', { onclick: () => act({ type: 'quest.done', id: q.id }) }, 'Done') : null)));
+}
+function rulesView(includeHidden) {
+  const q = ui.search.toLowerCase();
+  const all = bookSections(includeHidden).filter((b) => !q || `${b.title} ${b.text}`.toLowerCase().includes(q));
+  return h('div', { class: 'view v-one' }, h('div', { class: 'card scroll', 'data-key': 'rules' },
+    h('div', { class: 'row' }, h('input', { id: 'rules-search', placeholder: 'Search the books', value: ui.search, oninput: (e) => { ui.search = e.target.value; render(); } })),
+    all.slice(0, 120).map((b) => h('div', { class: 'list-line', style: 'align-items:flex-start' }, h('div', { class: 'grow' }, h('b', {}, `${b.book}: ${b.title}`), h('div', { class: 'book dim' }, b.text)), readBtn(b.text)))));
+}
+// The same books the Director searches, built on the screen from the module it was sent.
+function bookSections(hidden) {
+  const out = [];
+  const add = (book, title, text) => { if (text) out.push({ book, title, text: String(text) }); };
+  const R = M.rules;
+  { const S = SYS(); add('Rules', `The dice: ${S.name}`, S.sys.describe(S.o, M.module.terms)); }
+  add('Rules', `${T('difficulty')} ladder`, R.ladder.map((x) => `${x.at} ${x.name}${x.about ? `: ${x.about}` : ''}`).join('\n'));
+  add('Rules', `${T('snag')}s`, [R.snag.effect, ...(R.snag.table || []).map((t) => `${t.snags}${t.snags >= 3 ? '+' : ''} on a failure, ${t.name}: ${t.effect}`)].join('\n'));
+  add('Rules', T('surge'), [R.surge.effect, ...(R.surge.options || []).map((o) => `- ${o}`)].join('\n'));
+  add('Rules', 'Stats', R.stats.map((s) => `${s.name}: ${s.about || ''}`).join('\n'));
+  add('Rules', 'Skills', R.skills.map((s) => `${s.name} (${statName(s.stat)}): ${s.about || ''}`).join('\n'));
+  add('Rules', 'Combat', `${R.combat.actionsPerTurn} actions a turn.\n${R.combat.actions.map((a) => `${a.name}: ${a.does}`).join('\n')}`);
+  add('Rules', 'Conditions', R.conditions.map((c) => `${c.name}: ${c.effect}${c.ends ? ` Ends: ${c.ends}` : ''}`).join('\n'));
+  add('Rules', T('strain'), `0 to ${R.strain.max}. ${(R.strain.penalties || []).map((p) => `At ${p.at}: ${p.dice} dice.`).join(' ')} ${R.strain.atMax || ''}`);
+  add('Rules', 'Rest', `Short: ${R.rest.short}\nLong: ${R.rest.long}`);
+  for (const q of R.rulings || []) add('Rules', q.q, q.a);
+  add('Handbook', 'Introduction', M.handbook.intro);
+  for (const o of M.handbook.origins) add('Handbook', `Origin: ${o.name}`, `${o.about || ''} ${o.gift ? `Gift: ${o.gift}` : ''}`);
+  for (const c of M.handbook.callings) add('Handbook', `Calling: ${c.name}`, c.about);
+  for (const a of M.handbook.abilities || []) add('Handbook', `Ability: ${a.name}`, `${a.cost ? `Cost: ${a.cost}. ` : ''}${a.effect}`);
+  for (const g of M.handbook.gear || []) add('Handbook', `Gear: ${g.name}`, `${g.weapon != null ? `Weapon ${g.weapon}. ` : ''}${g.soak != null ? `Soak ${g.soak}. ` : ''}${g.about || ''}`);
+  add('Lore', 'The world', M.lore.world);
+  for (const s of M.lore.sections || []) add('Lore', s.title, s.text);
+  if ((M.lore.glossary || []).length) add('Lore', 'Glossary', M.lore.glossary.map((g) => `${g.term}: ${g.means}`).join('\n'));
+  for (const c of M.bestiary.creatures) add('Bestiary', c.name, hidden ? `Tier ${c.tier}. ${c.about || ''} ${T('health')} ${c.health}, soak ${c.soak || 0}, defence ${c.defence}. Attacks: ${c.attacks.map((a) => `${a.name} rating ${a.rating ?? a.dice}, weapon ${a.weapon}`).join('; ')}. ${c.tactics || ''}` : `${c.look || ''}`);
+  if (hidden) for (const a of M.adventures) { add('Adventure', `${a.name}: secrets`, a.secrets); for (const s of a.sites) add('Adventure', `${a.name}: ${s.name}`, s.notes); }
+  return out;
+}
+
+// ---------------------------------------------------------------- Colours tab
+const COLOUR_VARS = ['--bg', '--panel', '--panel2', '--line', '--ink', '--dim', '--faint', '--accent', '--accent2', '--ok', '--no', '--warn-c', '--input', '--btn', '--snag', '--six',
+  '--sky-night', '--sky-dawn', '--sky-day', '--sky-dusk', '--fx-leaf', '--fx-ember', '--fx-snow', '--fx-rain', '--fx-fog', '--fx-dust', '--fx-candle', '--fx-water', '--fx-star',
+  '--fx-vial', '--fx-gem', '--fx-seal', '--paper', '--paper-ink'];
+function applyColours() { const c = store.get('colours', {}); for (const [k, v] of Object.entries(c)) document.documentElement.style.setProperty(k, v); }
+// Ready-made looks (Roly, 27 Nov: the D&D screens had them, the Skeleton did not). A theme sets every colour it
+// names and puts the rest back to the screen's own defaults; any colour can still be changed after.
+const THEMES = {
+  'Deep water': {},
+  Lamplight: { '--bg': '#14110e', '--panel': '#1e1a16', '--panel2': '#29231d', '--line': '#3d342b', '--ink': '#efe6d8', '--dim': '#b2a38f', '--faint': '#7d705f', '--accent': '#d4a84a', '--accent2': '#c97b3a', '--ok': '#6fbf73', '--no': '#e0675c', '--warn-c': '#e09a4a', '--input': '#110e0b', '--btn': '#332b23', '--snag': '#e0675c', '--six': '#6fbf73' },
+  Parchment: { '--bg': '#efe4cc', '--panel': '#f8f0dc', '--panel2': '#eadcbc', '--line': '#cdb98f', '--ink': '#2b2016', '--dim': '#6c5a43', '--faint': '#93806a', '--accent': '#8a2c1b', '--accent2': '#9a5a12', '--ok': '#2f7a3a', '--no': '#a5281b', '--warn-c': '#9a5a12', '--input': '#fffaf0', '--btn': '#e8d9b5', '--snag': '#a5281b', '--six': '#2f7a3a', '--paper': '#f6ecd2', '--paper-ink': '#2b2016' },
+  Eldritch: { '--bg': '#0d0f0c', '--panel': '#151a14', '--panel2': '#1d241b', '--line': '#2f3a2b', '--ink': '#e4ecd9', '--dim': '#9fb08f', '--faint': '#6a7a5d', '--accent': '#8fd16a', '--accent2': '#b38bff', '--ok': '#8fd16a', '--no': '#e0605a', '--warn-c': '#d9b44a', '--input': '#0a0c09', '--btn': '#232c20', '--snag': '#e0605a', '--six': '#8fd16a', '--paper': '#1c2118', '--paper-ink': '#dfe8d2' },
+  Ash: { '--bg': '#121212', '--panel': '#1b1b1b', '--panel2': '#242424', '--line': '#383838', '--ink': '#f2f2f2', '--dim': '#b4b4b4', '--faint': '#7a7a7a', '--accent': '#e8e8e8', '--accent2': '#c0c0c0', '--ok': '#7fd18b', '--no': '#ff6b62', '--warn-c': '#f0b44c', '--input': '#0d0d0d', '--btn': '#2c2c2c', '--snag': '#ff6b62', '--six': '#7fd18b', '--paper': '#202020', '--paper-ink': '#f0f0f0' },
+};
+function useTheme(name) {
+  for (const k of COLOUR_VARS) document.documentElement.style.removeProperty(k);
+  store.set('colours', { ...THEMES[name] });
+  applyColours();
+  render();
+}
+function coloursView() {
+  const cs = getComputedStyle(document.documentElement);
+  return h('div', { class: 'view v-one' }, h('div', { class: 'card scroll' }, h('h2', {}, 'Colours'), h('small', {}, 'Every colour on this screen. Saved on this device only.'),
+    h('h3', {}, 'Themes'), h('div', { class: 'row' }, Object.keys(THEMES).map((n) => h('button', { onclick: () => useTheme(n) }, n))),
+    h('h3', {}, 'Each colour'),
+    COLOUR_VARS.map((k) => { const v = cs.getPropertyValue(k).trim(); return h('div', { class: 'swatch' }, h('span', {}, k.slice(2)), h('input', { type: 'color', value: /^#[0-9a-f]{6}$/i.test(v) ? v : '#000000', oninput: (e) => { const c = store.get('colours', {}); c[k] = e.target.value; store.set('colours', c); document.documentElement.style.setProperty(k, e.target.value); } }), h('small', {}, v)); }),
+    h('div', { class: 'row' }, h('button', { onclick: () => { store.set('colours', {}); for (const k of COLOUR_VARS) document.documentElement.style.removeProperty(k); render(); } }, 'Back to the defaults')),
+    ROLE === 'player' ? joinCard() : null,
+    ROLE === 'host' ? null : h('div', {}, h('h2', {}, 'Effects'), h('small', {}, 'The living backdrop: the place\'s weather and light, the glow on your turn, the dice. Light keeps the glows but stops the drifting and the tilt; it saves battery.'),
+      h('div', { class: 'row' }, ['full', 'light', 'off'].map((m) => h('button', { class: effectsMode() === m ? 'go' : '', onclick: () => { setEffects(m); render(); } }, `${m[0].toUpperCase()}${m.slice(1)}`))))));
+}
+
+// ---------------------------------------------------------------- the player's phone
+function playerViews() {
+  const p = S.players[PID];
+  if (!p) {
+    return h('div', { class: 'view v-one' }, h('div', { class: 'card', style: 'max-width:520px;margin:auto' }, h('h2', {}, `Join ${M.module.name}`), h('small', {}, M.module.tagline),
+      h('label', { class: 'fld' }, h('span', {}, 'Your name'), h('input', { id: 'join-name', value: ui.form.join || '', oninput: (e) => { ui.form.join = e.target.value; } })),
+      h('button', { class: 'go', onclick: () => act({ type: 'join', name: ui.form.join || 'Player' }) }, 'Join the table')));
+  }
+  if (!me()) return chooseView();
+  return null;
+}
+function chooseView() {
+  const taken = new Set(Object.values(S.chars).map((c) => c.name));
+  const R = M.rules;
+  const b = ui.build;
+  for (const s of R.stats) if (b.stats[s.id] == null) b.stats[s.id] = R.statPoints.start;
+  const calling = M.handbook.callings.find((c) => c.id === b.calling);
+  const spentStats = Object.values(b.stats).reduce((a, v) => a + v - R.statPoints.start, 0);
+  const skills = { ...b.skills }; for (const k of (calling && calling.skills) || []) skills[k] = Math.max(R.skillPoints.first ?? (getSystem(R).id === 'step' ? 4 : (R.skillPoints.step || 1)), skills[k] || 0);
+  const spentSkills = Object.values(skills).reduce((a, v) => a + v, 0);
+  const stepper = (val, set, lo, hi, st = 1) => h('div', { class: 'stepper' }, h('button', { disabled: val <= lo, onclick: () => { set(Math.max(lo, val - st)); render(); } }, '−'), h('b', {}, SYS().id === 'step' && val ? `d${val}` : val), h('button', { disabled: val >= hi, onclick: () => { set(Math.min(hi, val === 0 && SYS().id === 'step' ? 4 : val + st)); render(); } }, '+'));
+  const first = R.skillPoints.first ?? (SYS().id === 'step' ? 4 : (R.skillPoints.step || 1));
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card scroll', 'data-key': 'pregens' }, h('h2', {}, 'Choose a ready-made character'), h('small', {}, M.handbook.intro, ' ', readBtn(M.handbook.intro)),
+      h('div', { class: 'pregens' }, (M.handbook.pregens || []).map((pg, i) => {
+        const o = M.handbook.origins.find((x) => x.id === pg.origin) || {}; const c = M.handbook.callings.find((x) => x.id === pg.calling) || {};
+        const words = `${pg.name}, ${o.name} ${c.name}. ${pg.look || ''} Wants: ${pg.want || ''}`;
+        return h('div', { class: 'choice' }, h('b', {}, pg.name), h('small', {}, `${o.name} ${c.name}`), h('small', { class: 'dim' }, pg.look || ''), h('small', {}, `Wants: ${pg.want || ''}`),
+          h('small', { class: 'faint' }, Object.entries(pg.stats || {}).map(([k, v]) => `${statName(k)} ${v}`).join(', ')),
+          h('div', { class: 'row' }, h('button', { class: 'go', disabled: taken.has(pg.name), onclick: () => act({ type: 'char.pregen', index: i }) }, taken.has(pg.name) ? 'Taken' : 'Play this one'), readBtn(words)));
+      }))),
+    h('div', { class: 'card scroll', 'data-key': 'build' }, h('h2', {}, 'Or build your own'),
+      (M.handbook.chargen || []).length ? h('small', { class: 'dim' }, M.handbook.chargen.join(' ')) : null,
+      h('h3', {}, 'Origin'), h('div', { class: 'grid3' }, M.handbook.origins.map((o) => h('button', { class: `choice${b.origin === o.id ? ' on' : ''}`, onclick: () => { b.origin = o.id; render(); } }, h('b', {}, o.name), h('small', {}, o.about || '')))),
+      h('h3', {}, 'Calling'), h('div', { class: 'grid3' }, M.handbook.callings.map((c) => h('button', { class: `choice${b.calling === c.id ? ' on' : ''}`, onclick: () => { b.calling = c.id; render(); } }, h('b', {}, c.name), h('small', {}, c.about || '')))),
+      h('small', { class: 'faint' }, `Dice: ${SYS().name}.`),
+      h('h3', {}, `Stats (${R.statPoints.spend - spentStats} points left)`),
+      h('div', { class: 'grid2' }, R.stats.map((s) => h('div', { class: 'row' }, h('span', { class: 'grow', title: s.about }, s.name), stepper(b.stats[s.id], (v) => { b.stats[s.id] = v; }, R.statPoints.start, R.statPoints.max, R.statPoints.step || 1)))),
+      h('h3', {}, `Skills (${R.skillPoints.spend - spentSkills} ranks left)`),
+      h('div', { class: 'grid2' }, R.skills.map((s) => h('div', { class: 'row' }, h('span', { class: 'grow', title: s.about }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), stepper(skills[s.id] || 0, (v) => { b.skills[s.id] = v; }, calling && calling.skills.includes(s.id) ? first : 0, R.skillPoints.max, R.skillPoints.step || 1)))),
+      h('label', { class: 'fld' }, h('span', {}, 'Name'), h('input', { id: 'b-name', value: b.name, oninput: (e) => { b.name = e.target.value; } })),
+      h('label', { class: 'fld' }, h('span', {}, 'Look (one line)'), h('input', { id: 'b-look', value: b.look, oninput: (e) => { b.look = e.target.value; } })),
+      h('label', { class: 'fld' }, h('span', {}, 'What they want'), h('input', { id: 'b-want', value: b.want, oninput: (e) => { b.want = e.target.value; } })),
+      h('button', { class: 'go', onclick: () => act({ type: 'char.create', input: { ...b, skills } }) }, 'Make my character')));
+}
+function playerStory() {
+  const c = me();
+  const mine = S.requests.filter((q) => q.charId === c.id);
+  const lastRoll = S.rolls.at(-1);
+  const myTurn = S.fight && curKey() === `char:${c.id}`;
+  const foes = Object.values(S.creatures).filter((k) => k.siteId === S.scene.siteId && !k.down);
+  const weapons = c.gear.map(gearOf).filter((g) => g && g.kind === 'weapon');
+  ui.form.weapon = ui.form.weapon && weapons.some((w) => w.id === ui.form.weapon) ? ui.form.weapon : (weapons[0] || {}).id;
+  ui.form.target = ui.form.target && foes.some((k) => k.id === ui.form.target) ? ui.form.target : (foes[0] || {}).id;
+  return h('div', { class: 'view v-play' },
+    h('div', { class: 'card' }, storyView(),
+      h('div', { class: 'say-box' }, h('input', { id: 'say', placeholder: `What does ${c.name} do or say?`, value: ui.say, oninput: (e) => { ui.say = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter') sendSay(); } }), h('button', { class: 'go', onclick: sendSay }, 'Say'))),
+    h('div', { class: 'side' },
+      mine.map((q) => { const sp = specFor(c, q.stat, q.skill); return h('div', { class: 'card roll-card req-card' }, h('h2', {}, `Roll ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''}`), h('small', {}, q.reason),
+        h('div', { class: 'row' }, h('span', { class: 'pill acc' }, sp.label), h('small', {}, `about ${pct(chance(SYS(), sp, q.at))} to succeed`)),
+        h('div', { class: 'row' }, h('button', { class: 'go', onclick: () => act({ type: 'roll.make', id: q.id }) }, 'Roll the dice'),
+          h('input', { id: `own-${q.id}`, placeholder: `or type your dice: ${ownDiceHint(sp)}`, style: 'flex:1;min-width:160px', value: ui.form[`own-${q.id}`] || '', oninput: (e) => { ui.form[`own-${q.id}`] = e.target.value; } }),
+          h('button', { onclick: () => act({ type: 'roll.make', id: q.id, dice: String(ui.form[`own-${q.id}`] || '').match(/[+-]|\d+/g) || [] }) }, 'Use mine'))); }),
+      rollCard(lastRoll),
+      fightStrip(),
+      myTurn ? h('div', { class: 'card turn-now' }, h('h2', {}, 'Your turn'), h('small', {}, `${M.rules.combat.actionsPerTurn} action${M.rules.combat.actionsPerTurn > 1 ? 's' : ''} a turn. Used: ${S.fight.used || 0}. Your turn ends by itself after the last one.`),
+        weapons.length && foes.length ? h('div', { class: 'row' }, h('select', { onchange: (e) => { ui.form.weapon = e.target.value; } }, weapons.map((w) => opt(w.id, `${w.name} (${w.weapon})`, w.id === ui.form.weapon))),
+          h('select', { onchange: (e) => { ui.form.target = e.target.value; } }, foes.map((k) => opt(k.id, k.name, k.id === ui.form.target))),
+          h('button', { class: 'go', onclick: () => act({ type: 'attack', charId: c.id, gearId: ui.form.weapon, target: ui.form.target }) }, 'Attack')) : null,
+        h('div', { class: 'row' }, c.abilities.map(abilityOf).filter(Boolean).map((ab) => h('button', { title: ab.effect, onclick: () => act({ type: 'ability.use', charId: c.id, abilityId: ab.id }) }, ab.name)),
+          h('button', { onclick: () => act({ type: 'brace', charId: c.id }) }, 'Brace'), h('button', { class: 'go', onclick: () => act({ type: 'fight.next' }) }, 'End my turn'))) : null,
+      h('div', { class: 'card' }, h('h3', {}, 'The party'), partyList(true)),
+      placeCard()));
+}
+async function sendSay() { const t = ui.say.trim(); if (!t) return; if (await act({ type: 'say', text: t })) { ui.say = ''; render(); } }
+function sheetView(c) {
+  const R = M.rules;
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card scroll' }, h('h2', {}, raw(sigil(callingName(c))), c.name), h('small', {}, `${(M.handbook.origins.find((x) => x.id === c.origin) || {}).name} ${callingName(c)} · ${T('level')} ${c.level} · ${c.xp} ${T('xp')}`),
+      c.look ? h('small', { class: 'dim' }, c.look) : null, c.want ? h('small', {}, `Wants: ${c.want}`) : null,
+      h('div', { class: 'stat-tiles' }, R.stats.map((s) => h('div', { class: 'tile', title: s.about }, h('div', { class: 'k' }, s.name), h('div', { class: 'v' }, SYS().id === 'step' ? `d${c.stats[s.id]}` : SYS().id === 'percentile' ? `${c.stats[s.id]}%` : (c.stats[s.id] ?? 0))))),
+      h('div', {}, h('small', {}, `${T('health')} ${c.health} / ${c.healthMax}`), health(c, 'sheet')),
+      h('div', {}, h('small', {}, `${T('strain')} ${c.strain} / ${R.strain.max}`), strainGems(c, 'sheet')),
+      c.conds.length ? h('div', { class: 'row' }, c.conds.map((x) => h('span', { class: 'pill no', title: ((R.conditions.find((y) => y.id === x) || {}).effect) }, condName(x)))) : null,
+      h('h3', {}, `Skills (${SYS().name})`), R.skills.filter((s) => c.skills[s.id]).map((s) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, s.name, h('small', { class: 'faint' }, ` ${statName(s.stat)}`)), h('b', {}, SYS().id === 'step' ? `d${c.skills[s.id]}` : c.skills[s.id]), h('span', { class: 'pill' }, specFor(c, s.stat, s.id).label),
+        h('button', { title: 'Roll it for yourself (not asked for)', onclick: () => act({ type: 'roll.free', charId: c.id, stat: s.stat, skill: s.id }) }, '🎲')))),
+    h('div', { class: 'card scroll' }, h('h3', {}, 'Gear'), c.gear.map(gearOf).filter(Boolean).map((g) => h('div', { class: 'list-line' }, h('b', {}, g.name), h('small', { class: 'grow dim' }, `${g.weapon != null ? `weapon ${g.weapon} · ` : ''}${g.soak != null ? `soak ${g.soak} · ` : ''}${g.about || ''}`))),
+      (c.items || []).map((it) => h('div', { class: 'list-line' }, h('b', {}, it), h('small', { class: 'grow dim' }, 'found'))),
+      h('h3', {}, 'Abilities'), c.abilities.map(abilityOf).filter(Boolean).map((a) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, a.name), h('div', { class: 'dim' }, `${a.cost ? `${a.cost}. ` : ''}${a.effect}`)), readBtn(`${a.name}. ${a.effect}`))),
+      h('h3', {}, 'Notes'), h('textarea', { id: 'notes', value: ui.form.notes ?? c.notes, oninput: (e) => { ui.form.notes = e.target.value; } }),
+      h('button', { onclick: () => act({ type: 'char.notes', charId: c.id, text: ui.form.notes ?? c.notes }) }, 'Save notes')));
+}
+
+// ---------------------------------------------------------------- the table screen
+// Every way in (Roly, 27 Nov): the players' screen, the table screen and (on the host's own console) the host
+// console, on this network and from anywhere when the host started with the --online link.
+function joinCard() {
+  const L = (HELLO && HELLO.links) || {};
+  const lan = L.lan || {}; const on = L.online;
+  const line = (label, url) => (url ? h('div', { class: 'list-line' }, h('span', { style: 'min-width:120px' }, label), h('code', { class: 'grow', style: 'word-break:break-all' }, url),
+    h('button', { title: 'Copy the link', onclick: () => { try { navigator.clipboard.writeText(url); toast('Link copied.', true); } catch (e) { toast(url); } } }, 'Copy')) : null);
+  return h('div', { class: 'card' }, h('h3', {}, 'Join this game'),
+    h('small', { class: 'dim' }, 'On the same Wi-Fi or network:'),
+    line('Players', lan.play), line('Table screen', lan.table), ROLE === 'host' ? line('Host console', lan.host) : null,
+    h('small', { class: 'dim' }, 'From anywhere:'),
+    on ? [line('Players', on.play), line('Table screen', on.table), ROLE === 'host' ? line('Host console', on.host) : null,
+      L.code ? h('small', {}, `Table code: ${L.code} (it is in the links; anyone typing an address asks for it).`) : null,
+      ROLE === 'host' ? h('small', { class: 'faint' }, 'Keep the host console link to yourself: it holds the host key.') : null]
+      : h('small', { class: 'faint' }, ROLE === 'host' ? 'Start the host with Start game (online).bat for links that work from anywhere.' : 'Only on this network for now: the host can start an outside link.'));
+}
+function codeView() {
+  return h('div', { class: 'view v-one' }, h('div', { class: 'card', style: 'max-width:460px;margin:auto' }, h('h2', {}, 'Table code'),
+    h('small', {}, 'This game is joined from outside the host\'s own network: type the table code the host gave you.'),
+    h('input', { id: 'tcode', placeholder: 'ABCD', style: 'text-transform:uppercase' }),
+    h('button', { class: 'go', onclick: () => { const v = document.getElementById('tcode').value.trim().toUpperCase(); if (!v) return; const u = new URL(location.href); u.searchParams.set('t', v); location.href = u.toString(); } }, 'Join')));
+}
+function tableView() {
+  return h('div', { class: 'view v-table' },
+    h('div', { class: 'card' }, storyView(true)),
+    h('div', { class: 'side' }, placeCard(), fightStrip(), rollCard(S.rolls.at(-1)), h('div', { class: 'card' }, h('h3', {}, 'The party'), partyList()), clocksQuests(), joinCard(),
+      h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: ui.readAloud, onchange: (e) => { ui.readAloud = e.target.checked; store.set('read', ui.readAloud); unlockAudio(); } }), 'Read the Director aloud on this screen')));
+}
+
+// ---------------------------------------------------------------- the host console
+// The book's pictures (kept on the Converter tab): this place's first, Show puts one on the players' screens
+// and the table's; one linked to a place or a creature shows by itself the first time (engine/pictures.js).
+function picturesCard() {
+  const P = (advNow().pictures || []);
+  if (!P.length) return null;
+  const now = S.art && S.art.now;
+  const shown = new Set((S.art && S.art.shown) || []);
+  const here = P.filter((p) => p.link && p.link.kind === 'site' && p.link.id === S.scene.siteId);
+  const rest = P.filter((p) => !here.includes(p));
+  const label = (p) => (!p.link ? 'Show only' : p.link.kind === 'site' ? ((advNow().sites || []).find((x) => x.id === p.link.id) || {}).name || p.link.id : ((M.bestiary.creatures.find((x) => x.id === p.link.id) || {}).name || p.link.id));
+  const row = (p) => h('div', { class: `pic-row${now && now.url === p.url ? ' on' : ''}` }, h('img', { src: p.url, alt: '', loading: 'lazy' }),
+    h('div', { class: 'grow pic-txt' }, h('small', { class: 'ell', title: p.about || '' }, p.about || 'A picture'),
+      h('select', { class: 'pic-sel', title: 'When it shows by itself', onchange: async (e) => { const r = await post('/api/art-link', { url: p.url, show: e.target.value }); if (!r.ok) toast(r.error); else { p.show = e.target.value || undefined; p.link = r.link || undefined; render(); } } },
+        opt('', p.link && p.link.why !== 'the host' ? `Found: ${label(p)}` : 'Not linked: Show only', !p.show), opt('never', 'Never by itself', p.show === 'never'),
+        h('optgroup', { label: 'Arriving at' }, (advNow().sites || []).map((x) => opt(`site:${x.id}`, x.name, p.show === `site:${x.id}`))),
+        h('optgroup', { label: 'Fighting' }, M.bestiary.creatures.map((x) => opt(`creature:${x.id}`, x.name, p.show === `creature:${x.id}`))))),
+    h('button', { title: 'Show it on the players\' screens and the table now', onclick: () => act({ type: 'art.show', url: p.url }) }, shown.has(p.url) ? 'Again' : 'Show'),
+    h('button', { title: 'Use it as this place\'s picture behind the zone map', onclick: () => act({ type: 'map.site', url: p.url, w: p.w, h: p.h, cols: 0, rows: 0 }) }, 'Map'));
+  return h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Pictures'), h('small', { class: 'dim' }, `${P.length}`)),
+    now ? h('div', { class: 'row' }, h('small', { class: 'grow ell' }, `Showing: ${now.about || 'a picture'}`), h('button', { onclick: () => act({ type: 'art.close' }) }, 'Take down')) : null,
+    h('div', { class: 'pic-list scroll', 'data-key': 'pics' }, [...here, ...rest].map(row)));
+}
+// Players and the table: the picture comes up over the screen; a tap or 8 seconds puts it away here.
+let artTimer = null; let artSeen;
+function artOverlay() {
+  if (ROLE === 'host') return;
+  let el = document.getElementById('art');
+  if (!el) { el = document.createElement('div'); el.id = 'art'; el.className = 'art-card'; el.hidden = true; el.addEventListener('click', () => { el.hidden = true; }); document.body.appendChild(el); }
+  const now = S && S.art && S.art.now;
+  if (!now) { el.hidden = true; if (artSeen === undefined) artSeen = 0; return; }
+  if (artSeen === undefined) { artSeen = now.n; return; } // already up when this screen opened: not again
+  if (now.n === artSeen) return;
+  artSeen = now.n;
+  el.replaceChildren(h('figure', {}, h('img', { src: now.url, alt: now.about || '' }), now.about ? h('figcaption', {}, now.about) : null));
+  el.hidden = false;
+  clearTimeout(artTimer); artTimer = setTimeout(() => { el.hidden = true; }, 8000);
+}
+function hostPlay() {
+  const here = Object.values(S.creatures).filter((k) => k.siteId === S.scene.siteId);
+  const d = ui.director || (HELLO.lastDirector || HELLO.proposal ? { last: HELLO.lastDirector, proposal: HELLO.proposal } : null);
+  const alive = Object.values(S.chars).filter((c) => !c.down);
+  // Co-pilot: the Director's turn, held for the host to approve (its words editable), retry or discard.
+  const p = d && d.proposal;
+  if (p && ui.propId !== p.id) { ui.propId = p.id; ui.propText = p.narration; }
+  const decide = async (path, extra = {}) => { const r = await post(path, extra); if (!r.ok) toast(r.error); else if (r.stale) toast('The table moved on: the Director is looking again.'); };
+  const proposalCard = p ? h('div', { class: 'card proposal' },
+    h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'The Director proposes'), p.stale ? h('span', { class: 'pill warn', title: 'Something happened at the table since: approving asks the Director again' }, 'out of date') : null),
+    p.calls.length ? h('small', { class: 'dim' }, `Does: ${p.calls.join(', ')}`) : h('small', { class: 'dim' }, 'Words only'),
+    ...p.events.map((t) => h('small', {}, `• ${t}`)),
+    ...p.flags.map((t) => h('small', { class: 'warn-t' }, `⚑ ${t}`)),
+    h('textarea', { id: 'prop-edit', rows: 5, value: ui.propText || '', oninput: (e) => { ui.propText = e.target.value; const go = e.target.closest('.proposal').querySelector('.go'); if (go) go.textContent = ui.propText !== p.narration ? 'Approve with my words' : 'Approve'; } }),
+    h('div', { class: 'row' },
+      h('button', { class: 'go', onclick: () => decide('/api/director/approve', { text: ui.propText !== p.narration ? ui.propText : '' }) }, ui.propText !== p.narration ? 'Approve with my words' : 'Approve'),
+      h('button', { onclick: () => decide('/api/director', { reason: 'The host asked you to try that turn again, differently.', hostNote: ui.hostNote }) }, 'Retry'),
+      h('button', { onclick: () => decide('/api/director/discard') }, 'Discard'))) : null;
+  return h('div', { class: 'view v-play' },
+    h('div', { class: 'card' }, storyView(),
+      h('div', { class: 'say-box' }, h('input', { id: 'narrate', placeholder: 'Narrate as the Director (Enter to send)', value: ui.narrate, oninput: (e) => { ui.narrate = e.target.value; }, onkeydown: async (e) => { if (e.key === 'Enter' && ui.narrate.trim() && await act({ type: 'narrate', text: ui.narrate })) { ui.narrate = ''; render(); } } }),
+        h('button', { onclick: async () => { if (ui.narrate.trim() && await act({ type: 'narrate', text: ui.narrate })) { ui.narrate = ''; render(); } } }, 'Narrate'))),
+    h('div', { class: 'side' },
+      proposalCard,
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'AI Director'), d && d.busy ? h('span', { class: 'pill acc' }, 'thinking…') : null),
+        h('div', { class: 'row' }, h('select', { onchange: (e) => act({ type: 'director.mode', mode: e.target.value }) }, opt('off', 'Off: I run the table', S.director.mode === 'off'), opt('approve', 'Co-pilot: I approve each turn', S.director.mode === 'approve'), opt('auto', 'On: answers every player', S.director.mode === 'auto'))),
+        h('div', { class: 'row' }, h('input', { id: 'host-note', class: 'grow', placeholder: 'A word to the Director (optional)', value: ui.hostNote, oninput: (e) => { ui.hostNote = e.target.value; } }),
+          h('button', { class: 'go', onclick: async () => { const r = await post('/api/director', { reason: 'The host asks you to continue.', hostNote: ui.hostNote }); if (!r.ok) toast(r.error); ui.hostNote = ''; } }, 'Director, go')),
+        d && d.last ? h('div', { class: 'log' }, d.last.error ? `Error: ${d.last.error}` : [
+          `${(d.last.calls || []).map((c) => `${c.name}${c.result && c.result.refused ? ' (refused)' : c.result && c.result.note ? ' (note)' : ''}`).join(', ') || 'narration only'}`,
+          ...(d.last.flags || []).filter((f) => f.kind !== 'note').map((f) => `\n⚑ ${f.text}`),
+          ...(d.last.calls || []).filter((c) => c.result && c.result.refused).map((c) => `\n✗ ${c.name}: ${c.result.refused}`)]) : null),
+      S.requests.length ? h('div', { class: 'card roll-card' }, h('h3', {}, 'Rolls waiting'), S.requests.map((q) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, `${(S.chars[q.charId] || {}).name}: ${statName(q.stat)}${q.skill ? ` + ${skillName(q.skill)}` : ''} vs ${q.at} (${q.reason})`),
+        h('button', { onclick: () => act({ type: 'roll.make', id: q.id }) }, 'Roll for them'), h('button', { onclick: () => act({ type: 'roll.cancel', id: q.id }) }, '✕')))) : null,
+      rollCard(S.rolls.at(-1)),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Fight'),
+        S.fight ? [h('button', { onclick: () => act({ type: 'fight.next' }) }, 'Next turn'), h('button', { onclick: () => act({ type: 'fight.end' }) }, 'End fight')] : h('button', { onclick: () => act({ type: 'fight.start' }) }, 'Start a fight')),
+        S.fight ? h('div', { class: 'order' }, S.fight.order.map((o) => h('span', { class: `pill${o.key === curKey() ? ' cur' : ''}` }, `${nameOfKey(o.key)} ${o.init}`))) : null),
+      picturesCard(),
+      objectsHere().length ? h('div', { class: 'card' }, h('h3', {}, 'Objects here'), objectsRow()) : null,
+      h('div', { class: 'card' }, h('h3', {}, 'Creatures here'), here.length ? here.map((k) => {
+        const b = M.bestiary.creatures.find((x) => x.id === k.base) || { attacks: [] };
+        return h('div', { class: `list-line${k.down ? ' down' : ''}${curKey() === `creature:${k.id}` ? ' turn-now' : ''}` }, h('div', { class: 'grow' }, h('b', {}, k.name), h('small', {}, ` ${k.health}/${k.healthMax}${k.hidden ? ' · hidden' : ''}${k.conds.length ? ` · ${k.conds.join(', ')}` : ''}`), bar(k.health, k.healthMax)),
+          !k.down && alive.length ? b.attacks.map((a) => h('button', { title: `rating ${a.rating ?? a.dice}, weapon ${a.weapon}`, onclick: () => act({ type: 'creature.act', creature: k.id, attack: a.name, target: (alive[Math.floor(Math.random() * alive.length)] || {}).id }) }, a.name)) : null,
+          k.hidden ? h('button', { onclick: () => act({ type: 'creature.reveal', ids: [k.id] }) }, 'Reveal') : null,
+          !k.down ? h('button', { onclick: () => act({ type: 'creature.flee', creature: k.id }) }, 'Flees') : null);
+      }) : h('small', {}, 'None.')),
+      h('div', { class: 'card' }, h('h3', {}, 'The party'), partyList())));
+}
+function hostWorld() {
+  const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+  const site = adv.sites.find((x) => x.id === S.scene.siteId) || {};
+  const f = ui.form;
+  const everyone = [...Object.values(S.chars), ...Object.values(S.creatures).filter((k) => k.siteId === S.scene.siteId && !k.down)];
+  const std = (M.rules.ladder.find((x) => /^(standard|medium|regular|average|routine)$/i.test(x.name)) || M.rules.ladder[1] || M.rules.ladder[0]).at;
+  f.ask = f.ask || { chars: [], stat: M.rules.stats[0].id, skill: '', at: std, reason: '', dmg: 0, cond: '' };
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'side' },
+      h('div', { class: 'card' }, h('h3', {}, 'The place'), h('h2', {}, site.name), h('small', {}, site.read), site.notes ? h('small', { class: 'dim' }, `Notes: ${site.notes}`) : null,
+        (site.hazards || []).map((z) => h('small', {}, `Hazard: ${z.name}: ${statName(z.stat)}${z.skill ? ` + ${skillName(z.skill)}` : ''} vs ${z.at}; ${z.fail || ''}`)),
+        h('div', { class: 'row' }, h('small', {}, 'Go to:'), adv.sites.filter((x) => x.id !== site.id).map((x) => h('button', { class: (site.exits || []).includes(x.id) ? 'go' : '', onclick: () => act({ type: 'site.move', siteId: x.id }) }, x.name)))),
+      clocksQuests(true),
+      h('div', { class: 'card' }, h('div', { class: 'row' }, h('input', { id: 'q-new', class: 'grow', placeholder: 'A new quest', value: f.quest || '', oninput: (e) => { f.quest = e.target.value; } }), h('button', { onclick: async () => { if (await act({ type: 'quest.add', text: f.quest })) { f.quest = ''; render(); } } }, 'Add quest')),
+        h('div', { class: 'row' }, h('button', { onclick: () => act({ type: 'rest', kind: 'short' }) }, 'Short rest'), h('button', { onclick: () => act({ type: 'rest', kind: 'long' }) }, 'Long rest'),
+          h('input', { type: 'number', style: 'width:90px', value: f.xp || 5, oninput: (e) => { f.xp = e.target.value; } }), h('button', { onclick: () => act({ type: 'xp.award', amount: f.xp || 5, why: 'a milestone' }) }, `Give ${T('xp')}`)))),
+    h('div', { class: 'side' },
+      h('div', { class: 'card' }, h('h3', {}, 'Ask for a roll'),
+        h('div', { class: 'row' }, Object.values(S.chars).map((c) => h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: f.ask.chars.includes(c.id), onchange: (e) => { f.ask.chars = e.target.checked ? [...f.ask.chars, c.id] : f.ask.chars.filter((x) => x !== c.id); } }), c.name))),
+        h('div', { class: 'grid3' }, h('select', { onchange: (e) => { f.ask.stat = e.target.value; } }, M.rules.stats.map((s) => opt(s.id, s.name, s.id === f.ask.stat))),
+          h('select', { onchange: (e) => { f.ask.skill = e.target.value; } }, opt('', 'no skill', !f.ask.skill), M.rules.skills.map((s) => opt(s.id, s.name, s.id === f.ask.skill))),
+          h('select', { onchange: (e) => { f.ask.at = Number(e.target.value); } }, M.rules.ladder.map((r) => opt(r.at, `${r.name} ${r.at}`, r.at === Number(f.ask.at))))),
+        h('input', { id: 'ask-reason', placeholder: 'What for (the player sees this)', value: f.ask.reason, oninput: (e) => { f.ask.reason = e.target.value; } }),
+        h('div', { class: 'grid2' }, h('label', { class: 'fld' }, h('span', {}, `On a failure: lose ${T('health')}`), h('input', { type: 'number', value: f.ask.dmg, oninput: (e) => { f.ask.dmg = e.target.value; } })),
+          h('label', { class: 'fld' }, h('span', {}, 'On a failure: condition'), h('select', { onchange: (e) => { f.ask.cond = e.target.value; } }, opt('', 'none', !f.ask.cond), M.rules.conditions.map((c) => opt(c.id, c.name, c.id === f.ask.cond))))),
+        h('button', { class: 'go', onclick: () => act({ type: 'roll.ask', charIds: f.ask.chars, stat: f.ask.stat, skill: f.ask.skill, at: f.ask.at, reason: f.ask.reason, fail: { damage: Number(f.ask.dmg) || 0, cond: f.ask.cond } }) }, 'Ask')),
+      h('div', { class: 'card' }, h('h3', {}, 'Hurt, heal, conditions'),
+        h('div', { class: 'grid3' }, h('select', { onchange: (e) => { f.who = e.target.value; } }, opt('', 'who?', !f.who), everyone.map((o) => opt(o.id, o.name, o.id === f.who))),
+          h('input', { type: 'number', placeholder: 'amount', value: f.amt || '', oninput: (e) => { f.amt = e.target.value; } }),
+          h('select', { onchange: (e) => { f.cond = e.target.value; } }, opt('', 'condition', !f.cond), M.rules.conditions.map((c) => opt(c.id, c.name, c.id === f.cond)))),
+        h('div', { class: 'row' }, h('button', { onclick: () => act({ type: 'damage', target: f.who, amount: f.amt }) }, 'Damage'), h('button', { onclick: () => act({ type: 'heal', target: f.who, amount: f.amt }) }, 'Heal'),
+          h('button', { onclick: () => act({ type: 'cond.add', target: f.who, cond: f.cond }) }, 'Add condition'), h('button', { onclick: () => act({ type: 'cond.remove', target: f.who, cond: f.cond }) }, 'Remove'),
+          h('button', { onclick: () => act({ type: 'strain.mark', charId: f.who, n: Number(f.amt) || 1 }) }, `Mark ${T('strain')}`))),
+      h('div', { class: 'card' }, h('h3', {}, 'Bring in a creature'),
+        h('div', { class: 'grid3' }, h('select', { onchange: (e) => { f.beast = e.target.value; } }, M.bestiary.creatures.map((c) => opt(c.id, `${c.name} (tier ${c.tier})`, c.id === f.beast))),
+          h('input', { type: 'number', value: f.count || 1, oninput: (e) => { f.count = e.target.value; } }),
+          h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: !!f.hidden, onchange: (e) => { f.hidden = e.target.checked; } }), 'hidden')),
+        h('button', { onclick: () => act({ type: 'creature.add', base: f.beast || M.bestiary.creatures[0].id, count: f.count || 1, hidden: !!f.hidden }) }, 'Add'))));
+}
+// A PDF for the converter: its text in reading order, and the words in its pictures and scanned pages
+// (public/pdfread.js, the D&D Director's Books reader: pdf.js and Tesseract.js, in this browser, no AI).
+async function pdfText(file) {
+  const C = ui.convert;
+  C.reading = `Reading ${file.name}…`; render();
+  try {
+    const { readPdf } = await import('/pdfread.js');
+    const r = await readPdf(await file.arrayBuffer(), { onProgress: (p) => { C.reading = `${file.name}: ${p.step}, page ${p.at} of ${p.of}`; render(); } });
+    const words = r.pictures.filter((x) => x.words).map((x) => `--- ${x.scanned ? 'A scanned page' : 'A picture'} on page ${x.page}: its words ---\n${x.words}`);
+    // The pictures themselves, to review: art and maps kept, scanned pages of text left out to start with.
+    C.pics = [...(C.pics || []), ...r.pictures.map((x) => ({ data: x.data, w: x.w, h: x.h, page: x.page, keep: !x.scanned, about: (String(x.words || '').split('\n').map((l) => l.trim()).find((l) => l.length > 3) || '').slice(0, 120) }))].slice(0, 120);
+    if (r.ocr) toast(r.ocr);
+    const text = [r.text, ...words].join('\n\n').trim();
+    if (!text.replace(/--- Page \d+ ---/g, '').trim()) toast(`${file.name} has no words that could be read.`);
+    return text;
+  } catch (e) {
+    toast(`${file.name} could not be read: ${e.message}`);
+    return '';
+  } finally { C.reading = ''; }
+}
+function hostConverter() {
+  const C = ui.convert;
+  const f = ui.form.cv = ui.form.cv || { mode: 'invent', base: S.moduleId, name: '', ideas: '', source: '', notes: '', sections: [] };
+  const SECTIONS = ['module', 'rules', 'handbook', 'bestiary', 'lore', 'adventure'];
+  return h('div', { class: 'view v-play' },
+    h('div', { class: 'card scroll', 'data-key': 'cv' }, h('h2', {}, 'Converter'),
+      h('small', {}, 'Turn a rule book, a players\' handbook, a monster book, a campaign, or a few ideas into a module for this skeleton. It uses the AI chosen on the AI tab, writes one section at a time, checks each one and sends problems back to be fixed.'),
+      h('div', { class: 'grid3' }, Object.entries(HELLO.modes).map(([k, v]) => h('button', { class: `choice${f.mode === k ? ' on' : ''}`, onclick: () => { f.mode = k; render(); } }, h('b', {}, k === 'convert' ? 'Convert' : k === 'invent' ? 'Invent' : 'Extend'), h('small', {}, v)))),
+      f.mode === 'extend' ? h('label', { class: 'fld' }, h('span', {}, 'Module to extend'), h('select', { onchange: (e) => { f.base = e.target.value; } }, HELLO.modules.map((m) => opt(m.id, m.name, m.id === f.base)))) : h('label', { class: 'fld' }, h('span', {}, 'Name of the new game (optional)'), h('input', { id: 'cv-name', value: f.name, oninput: (e) => { f.name = e.target.value; } })),
+      h('label', { class: 'fld' }, h('span', {}, 'Dice system'), h('select', { onchange: (e) => { f.dice = e.target.value; } },
+        opt('', f.mode === 'convert' ? 'Keep the source\'s own dice (or the closest system)' : 'Let the converter choose (the d6 pool when unsure)', !f.dice),
+        Object.entries(SYSTEMS).map(([id, x]) => opt(id, `${x.name}: ${x.for}`, f.dice === id)))),
+      h('label', { class: 'fld' }, h('span', {}, 'Ideas: a few lines are enough ("sky whales, kite cities, smugglers, a storm that eats memories")'), h('textarea', { id: 'cv-ideas', rows: 4, value: f.ideas, oninput: (e) => { f.ideas = e.target.value; } })),
+      h('label', { class: 'fld' }, h('span', {}, `Source material: paste text, or add a PDF or .txt / .md / .json files (${f.source.length.toLocaleString()} characters; a long one is cut to the 90,000 that fit each section best)`), h('textarea', { id: 'cv-source', rows: 7, value: f.source, oninput: (e) => { f.source = e.target.value; } })),
+      h('input', { type: 'file', multiple: true, accept: '.pdf,.txt,.md,.json,.markdown,.csv', disabled: !!C.reading, onchange: async (e) => {
+        for (const file of [...e.target.files]) f.source += `\n\n=== ${file.name} ===\n${/\.pdf$/i.test(file.name) || file.type === 'application/pdf' ? await pdfText(file) : await file.text()}`;
+        render();
+      } }),
+      C.reading ? h('small', { class: 'dim' }, C.reading) : null,
+      (C.pics || []).length ? h('div', { class: 'pic-review' },
+        h('div', { class: 'row' }, h('small', { class: 'grow' }, `Pictures from the PDF: ${C.pics.filter((x) => x.keep).length} of ${C.pics.length} kept. They go with the adventure; one whose caption names a place or a creature shows by itself in play.`),
+          h('button', { onclick: () => { for (const x of C.pics) x.keep = true; render(); } }, 'Keep all'), h('button', { onclick: () => { for (const x of C.pics) x.keep = false; render(); } }, 'None'), h('button', { onclick: () => { C.pics = []; render(); } }, 'Clear')),
+        h('div', { class: 'pic-grid' }, C.pics.map((x, i) => h('div', { class: `pic-cell${x.keep ? ' on' : ''}` },
+          h('img', { src: x.data, alt: '', loading: 'lazy', onclick: () => { x.keep = !x.keep; render(); }, title: x.keep ? 'Kept: tap to leave it out' : 'Left out: tap to keep it' }),
+          h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: x.keep, onchange: (e) => { x.keep = e.target.checked; render(); } }), h('small', {}, `Page ${x.page}`)),
+          h('input', { id: `pic-about-${i}`, value: x.about, placeholder: 'What it shows (a place, a creature)', oninput: (e) => { x.about = e.target.value; } }))))) : null,
+      h('label', { class: 'fld' }, h('span', {}, 'Notes for the converter (optional: "convert chapter 2", "keep it for children", "make magic dangerous")'), h('input', { id: 'cv-notes', value: f.notes, oninput: (e) => { f.notes = e.target.value; } })),
+      h('div', { class: 'row' }, h('small', {}, 'Sections:'), SECTIONS.map((s) => h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: f.sections.includes(s), onchange: (e) => { f.sections = e.target.checked ? [...f.sections, s] : f.sections.filter((x) => x !== s); } }), s)), h('small', { class: 'faint' }, '(none ticked: all, or creatures and an adventure when extending)')),
+      h('div', { class: 'row' }, h('button', { class: 'go', disabled: C.running, onclick: async () => {
+        C.running = true; C.log = []; C.result = null; render();
+        // The kept pictures go to the picture store first (saves/maps), then with the conversion.
+        const pictures = [];
+        for (const x of (C.pics || []).filter((y) => y.keep)) {
+          try { pictures.push({ url: await uploadPicture(await (await fetch(x.data)).blob()), w: x.w, h: x.h, about: x.about, page: x.page }); } catch (e) { toast(`A picture from page ${x.page} could not be kept: ${e.message}`); }
+        }
+        const r = await post('/api/convert', { pictures, mode: f.mode, base: f.base, name: f.name, ideas: f.ideas, source: f.source, notes: f.notes, dice: f.dice || '', sections: f.sections.length ? SECTIONS.filter((s) => f.sections.includes(s)) : undefined });
+        C.running = false; C.result = r; if (r.savedAs) HELLO = await (await fetch(`/api/hello?${qs()}`)).json(); render();
+      } }, C.running ? 'Converting… (a minute or two a section)' : 'Convert'),
+      h('a', { href: '/docs/CONVERTER-PROMPT.md', target: '_blank' }, 'The copy-paste prompt'), h('a', { href: '/docs/DESIGNER-PROMPT.md', target: '_blank' }, 'The designer prompt'), h('a', { href: '/docs/MODULE-FORMAT.md', target: '_blank' }, 'The format'))),
+    h('div', { class: 'card scroll' }, h('h3', {}, 'Progress'),
+      h('div', { class: 'log' }, C.log.map((p) => `${p.section}: ${p.stage}${p.errors && p.errors.length ? ` (${p.errors.length} problem${p.errors.length > 1 ? 's' : ''})` : ''}\n`)),
+      C.result ? h('div', {}, C.result.error ? h('p', { class: 'result no' }, C.result.error) : [
+        h('p', {}, C.result.ok ? h('b', { class: 'result ok' }, `Saved as "${C.result.savedAs}": valid.`) : h('b', { class: 'result no' }, `Saved as "${C.result.savedAs}" with ${C.result.errors.length} problem(s).`)),
+        !C.result.ok ? h('div', { class: 'log' }, C.result.errors.map((e) => `• ${e}\n`)) : null,
+        (C.result.advice || []).length ? [h('p', {}, h('b', {}, `Advice: ${C.result.advice.length} (valid, but the Director is likely to stumble there)`)), h('div', { class: 'log' }, C.result.advice.map((e) => `~ ${e}\n`))] : null,
+        h('small', {}, `${(C.result.usage || {}).in || 0} tokens in, ${(C.result.usage || {}).out || 0} out. The files are in modules/${C.result.savedAs}/: edit them in any text editor, then press Check on the Game tab.`),
+        C.result.ok ? h('button', { class: 'go', onclick: async () => { if (confirm(`Start a new game of "${C.result.savedAs}"? The current game is saved and can be undone.`)) { const r = await post('/api/new', { module: C.result.savedAs }); if (r.ok) location.reload(); else toast(r.error); } } }, 'Play it now') : null]) : null));
+}
+function hostAI() {
+  const ai = HELLO.ai;
+  const p = HELLO.providers.find((x) => x.id === ai.provider) || HELLO.providers[0];
+  const f = ui.form.ai = ui.form.ai || { apiKey: '', baseUrl: ai.baseUrl || p.base, model: ai.model };
+  const save = async (extra = {}) => { const r = await post('/api/settings', { op: 'ai', ...extra }); if (r.ok) { HELLO.ai = r.ai; render(); toast('Saved.', true); } else toast(r.error); };
+  return h('div', { class: 'view v-two' }, h('div', { class: 'card scroll' }, h('h2', {}, 'The AI'),
+    h('small', {}, 'The Director and the converter use this. Keys stay on this computer.'),
+    h('label', { class: 'fld' }, h('span', {}, 'Provider'), h('select', { onchange: (e) => { ui.form.ai = null; ui.models = []; save({ provider: e.target.value }); } }, HELLO.providers.map((x) => opt(x.id, x.name, x.id === ai.provider)))),
+    p.hint ? h('small', { class: 'dim' }, p.hint) : null,
+    p.key !== 'none' ? h('label', { class: 'fld' }, h('span', {}, `API key ${ai.keySet ? '(set: type a new one to replace it)' : `(from ${p.keyFrom})`}`), h('input', { id: 'ai-key', type: 'password', value: f.apiKey, oninput: (e) => { f.apiKey = e.target.value; } })) : null,
+    p.url ? h('label', { class: 'fld' }, h('span', {}, 'Address'), h('input', { id: 'ai-url', value: f.baseUrl, oninput: (e) => { f.baseUrl = e.target.value; } })) : null,
+    h('div', { class: 'row' }, h('button', { onclick: async () => { await save({ apiKey: f.apiKey, baseUrl: f.baseUrl }); const r = await post('/api/models', {}); if (!r.ok) { toast(r.error); return; } ui.models = r.models; if (r.pick && !HELLO.ai.model) await save({ model: r.pick }); render(); } }, 'Save and list models')),
+    h('label', { class: 'fld' }, h('span', {}, 'Model'), ui.models.length ? h('select', { onchange: (e) => save({ model: e.target.value }) }, opt('', 'choose…', !ai.model), ui.models.map((m) => opt(m.id, m.name, m.id === ai.model))) : h('input', { id: 'ai-model', value: f.model, placeholder: 'press "Save and list models", or type a model id', oninput: (e) => { f.model = e.target.value; }, onchange: () => save({ model: f.model }) })),
+    p.group === 'local' ? h('label', { class: 'fld' }, h('span', {}, 'Thinking (local models)'), h('select', { onchange: (e) => save({ thinking: e.target.value }) }, ['default', 'off', 'low', 'medium'].map((x) => opt(x, x, x === ai.thinking)))) : null,
+    h('div', { class: 'row' }, h('button', { class: 'go', onclick: async () => { const r = await post('/api/test', {}); toast(r.ok ? `${r.works ? 'It works' : 'It answered, but did not call the test tool: the Director needs a model that can'} (${r.ms} ms).` : r.error, r.ok && r.works); } }, 'Test the connection'))));
+}
+// ---------------------------------------------------------------- Seeds tab
+// The host's own side-stories (engine/seeds.js). A When line brings one in by itself: the Engine rolls its
+// Chance when the party is getting nowhere or camps somewhere unsafe; the Director brings one in when the
+// party picks a fight with the one it names, or when it fits. The In play list shows every one that came.
+const SEED_TEMPLATE = `# Seed: A title
+Where: any
+When: any (or: lost after 6 turns / camp in the wild / the party picks a fight with Someone)
+Chance: 100%
+Limit: once (or daily, or always)
+Hook: How the party is drawn in.
+Truth: What is really going on.
+Encounter: none (or bestiary ids and counts: glass-eel x2; or any)
+Ending: How it can end.`;
+function hostSeeds() {
+  const f = ui.form.seed = ui.form.seed || { text: '', edit: null };
+  const seeds = S.seeds || [];
+  const log = (S.seedLog || []).slice(-14).reverse();
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card' }, h('h2', {}, 'Write a story seed'),
+      h('small', { class: 'dim' }, `Your own side-stories, twists and wandering trouble. Encounter names the bestiary's creatures (${(M.bestiary.creatures || []).map((c) => c.id).join(', ')}); they are sized so the meeting stays minor.`),
+      h('textarea', { id: 'seed-text', style: 'min-height:260px', value: f.text, placeholder: 'Write a seed, or start from the template', oninput: (e) => { f.text = e.target.value; } }),
+      h('div', { class: 'row' }, h('button', { onclick: () => { f.text = SEED_TEMPLATE; f.edit = null; render(); } }, 'Template'),
+        h('button', { class: 'go', disabled: !f.text.trim(), onclick: async () => { if (await act({ type: 'seed.save', text: f.text, id: f.edit || undefined })) { f.text = ''; f.edit = null; render(); } } }, f.edit ? 'Save changes' : 'Save seed'))),
+    h('div', { class: 'card scroll', 'data-key': 'seeds' }, h('h2', {}, 'Your seeds'),
+      h('small', { class: 'dim' }, 'Switched-on seeds are given to the AI Director. Players never see them.'),
+      seeds.length ? seeds.map((x) => {
+        const came = (S.seedLog || []).filter((r) => r.id === x.id && r.fired).length;
+        return h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, x.title), h('div', {}, h('small', { class: 'dim' }, `Comes in ${SEEDS.whenWords(SEEDS.seedPlan(x.text))}${came ? ` · came in ${came}×` : ''}`))),
+          h('button', { class: x.on ? 'go' : '', onclick: () => act({ type: 'seed.toggle', id: x.id }) }, x.on ? 'On' : 'Off'),
+          h('button', { onclick: () => { f.text = x.text; f.edit = x.id; render(); } }, 'Edit'),
+          h('button', { onclick: () => { if (confirm('Delete this seed?')) act({ type: 'seed.remove', id: x.id }); } }, 'Delete'));
+      }) : h('small', {}, 'No seeds yet.'),
+      h('h3', {}, 'In play'),
+      log.length ? log.map((r) => h('div', {}, h('small', {}, h('b', {}, r.title), r.fired ? `: came in (${r.by === 'engine' ? (r.roll != null ? `the Engine rolled ${r.roll} against ${r.chance}%` : 'the Engine') : r.by === 'director' ? `the Director's choice${r.why ? `: ${r.why}` : ''}` : 'you'})${(r.foes || []).length ? `, ${r.foes.join(', ')}` : ''}` : `: rolled ${r.roll} against ${r.chance}%, not this time`)))
+        : h('small', { class: 'dim' }, 'Nothing yet. The Engine brings a seed in at its moment and rolls its chance; the Director may bring one in when it fits. Both show here.')));
+}
+
+function hostVoice() {
+  const v = HELLO.voiceCfg.out;
+  const f = ui.form.voice = ui.form.voice || { url: v.url, model: v.model, voice: v.voice, key: '' };
+  const save = async (extra = {}) => { const r = await post('/api/settings', { op: 'voice', out: { url: f.url, model: f.model, voice: f.voice, key: f.key, ...extra } }); if (r.ok) { HELLO.voiceCfg = r.voiceCfg; HELLO.voice = { ...HELLO.voice, out: r.voiceCfg.out.engine, screenVoice: r.voiceCfg.out.screenVoice }; render(); toast('Saved.', true); } };
+  return h('div', { class: 'view v-two' }, h('div', { class: 'card scroll' }, h('h2', {}, 'Voice'),
+    h('label', { class: 'fld' }, h('span', {}, 'Who speaks the narration'), h('select', { onchange: (e) => save({ engine: e.target.value }) }, opt('browser', 'Each screen\'s own voice (free, no set-up)', v.engine === 'browser'), opt('server', 'A speech server (Kokoro, Piper or a cloud service)', v.engine === 'server'))),
+    h('label', { class: 'fld' }, h('span', {}, 'Screen voice'), h('select', { onchange: (e) => save({ screenVoice: e.target.value }) }, ['gb-male', 'gb-female', 'us-male', 'us-female', 'any'].map((x) => opt(x, x, x === v.screenVoice)))),
+    v.engine === 'server' ? [h('label', { class: 'fld' }, h('span', {}, 'Speech server address (ends in /v1)'), h('input', { id: 'v-url', value: f.url, oninput: (e) => { f.url = e.target.value; } })),
+      h('div', { class: 'grid2' }, h('label', { class: 'fld' }, h('span', {}, 'Model'), h('input', { id: 'v-model', value: f.model, oninput: (e) => { f.model = e.target.value; } })), h('label', { class: 'fld' }, h('span', {}, 'Voice'), h('input', { id: 'v-voice', value: f.voice, oninput: (e) => { f.voice = e.target.value; } }))),
+      h('label', { class: 'fld' }, h('span', {}, `Key ${v.keySet ? '(set)' : '(none needed on this PC)'}`), h('input', { id: 'v-key', type: 'password', value: f.key, oninput: (e) => { f.key = e.target.value; } }))] : null,
+    h('div', { class: 'row' }, h('button', { onclick: () => save() }, 'Save'), h('button', { class: 'go', onclick: () => { unlockAudio(); speak('The lamps gutter, and somewhere ahead something waits to be found.'); } }, 'Test')),
+    h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: store.get('host-read', false), onchange: (e) => { store.set('host-read', e.target.checked); ui.readAloud = e.target.checked; store.set('read', e.target.checked); } }), 'Also read aloud on this console')));
+}
+// Saved games (server.js /api/saves, slots.js): save under a name, load (Undo brings back the game before),
+// delete; the autosave keeps one slot per game, every five minutes while it changes.
+async function savesOp(op, extra = {}) {
+  ui.saves.busy = true;
+  const r = await post('/api/saves', { op, ...extra });
+  ui.saves.busy = false;
+  if (r.slots) ui.saves.slots = r.slots;
+  if (r.cloud) ui.saves.cloud = r.cloud;
+  if (r.cloudSlots) ui.saves.cloudSlots = r.cloudSlots;
+  if (!r.ok) toast(r.error || 'That did not work.');
+  else if (op === 'save') { ui.saves.name = ''; toast('Saved.'); } else if (op === 'load') toast('Loaded. Undo brings back the game before.');
+  else if (op === 'pushAll') toast(`${r.copied || 0} saved game${r.copied === 1 ? '' : 's'} copied to Supabase.`);
+  else if (op === 'restore') toast('It is on this computer now, under Saved games.');
+  render();
+  return r;
+}
+// The backup copy in Supabase (slots.js, the same table as the D&D Director's, ids sk-...).
+const MY_SUPABASE = 'https://rqxejhkatenyytjqpuzy.supabase.co';
+function cloudCard() {
+  const V = ui.saves; const C = V.cloud || {};
+  const status = !C.configured ? 'not set up' : C.status === 'ok' ? `working${C.at ? `, last copy ${new Date(C.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}` : C.status === 'error' ? 'not working' : 'set up, not tested';
+  return [h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'Backup copy in Supabase'), h('span', { class: `pill${C.status === 'ok' ? ' ok' : C.status === 'error' ? ' warn' : ''}` }, status)),
+    h('small', {}, 'Every save, and the autosave, is copied to your Supabase project, so a game survives this computer. Supabase\'s free plan pauses a project after 7 days without use: open the dashboard now and then.'),
+    h('label', { class: 'fld' }, h('span', {}, 'Project address'), h('input', { id: 'sv-url', value: V.url ?? (C.url || MY_SUPABASE), oninput: (e) => { V.url = e.target.value; } })),
+    h('label', { class: 'fld' }, h('span', {}, `Secret key${C.keySet ? ' (saved on this computer; paste a new one to change it)' : ''}`), h('input', { id: 'sv-key', type: 'password', autocomplete: 'off', placeholder: C.keySet ? '••••••••' : 'sb_secret_… from Project Settings, API Keys', value: V.key || '', oninput: (e) => { V.key = e.target.value; } })),
+    h('div', { class: 'row' },
+      h('button', { class: 'go', disabled: V.busy, onclick: async () => { const r = await savesOp('config', { url: V.url ?? (C.url || MY_SUPABASE), secret: V.key || '' }); if (!r.ok) return; V.key = ''; const t = await savesOp('test'); if (t.ok) toast('Supabase answered. Saves will be copied there.'); } }, 'Save and test'),
+      h('button', { disabled: V.busy || !C.configured, onclick: () => savesOp('pushAll') }, 'Copy all saves now'),
+      h('button', { disabled: V.busy || !C.configured, onclick: () => savesOp('cloudList') }, 'Show the backups')),
+    C.error ? h('div', { class: 'log' }, C.error) : null,
+    V.cloudSlots ? h('div', { class: 'saves-list', 'data-key': 'cloud' }, !V.cloudSlots.length ? h('small', {}, 'No copies yet.') : V.cloudSlots.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, x.name), h('br'), h('small', {}, `${x.vector || ''}${x.site ? ` · ${x.site}` : ''}`)),
+      h('button', { disabled: V.busy, title: 'Bring this copy onto this computer as a saved game', onclick: () => savesOp('restore', { id: x.id }) }, 'Bring back')))) : null];
+}
+function savesCard() {
+  const V = ui.saves = ui.saves || { slots: null, name: '', busy: false };
+  if (!V.slots && !V.busy) savesOp('list');
+  const when = (t) => { try { return new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return t; } };
+  return [h('h3', {}, 'Saved games'),
+    h('div', { class: 'row' }, h('input', { id: 'save-name', class: 'grow', placeholder: 'Name this save (or leave it for the date)', value: V.name, oninput: (e) => { V.name = e.target.value; } }),
+      h('button', { class: 'go', disabled: V.busy, onclick: () => savesOp('save', { name: V.name }) }, 'Save')),
+    h('div', { class: 'saves-list', 'data-key': 'saves' }, !V.slots ? h('small', {}, 'Loading…') : !V.slots.length ? h('small', {}, 'No saved games yet. The autosave starts after a few minutes of play.') :
+      V.slots.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('b', {}, x.name), x.auto ? h('span', { class: 'pill' }, 'auto') : null, h('br'), h('small', {}, `${when(x.savedAt)} · ${x.vector}${x.site ? ` · ${x.site}` : ''}${x.players ? ` · ${x.players}` : ''}`)),
+        h('button', { disabled: V.busy, onclick: () => { if (confirm(`Load "${x.name}"? The game now can be brought back with Undo.`)) savesOp('load', { id: x.id }); } }, 'Load'),
+        h('button', { class: 'warn', disabled: V.busy, onclick: () => { if (confirm(`Delete "${x.name}"? This cannot be undone.`)) savesOp('delete', { id: x.id }); } }, '✕'))))];
+}
+// The chronicle (server.js, brain/memory.js): a paragraph for each place left and each night ended, newest
+// first; End the night writes one now. The Director reads the latest three; search finds anything said.
+async function chronicleOp(op, extra = {}) {
+  ui.chron = ui.chron || {};
+  const r = await post('/api/chronicle', { op, ...extra });
+  if (!r.ok) { toast(r.error || 'That did not work.'); return; }
+  ui.chronicle = { chapters: r.chapters, kept: r.kept, writing: r.writing };
+  if (r.found) ui.chron.found = r.found;
+  render();
+}
+// The table's memory (engine/ledger.js cast.*): who and what the party has met, as the Director wrote it down.
+function castCard() {
+  const cards = Object.values(S.cast || {}).sort((a, b) => b.lastSeq - a.lastSeq);
+  const kinds = { person: 'Person', faction: 'Faction', place: 'Place', thread: 'Thread' };
+  const from = { page: 'from the adventure', table: 'came up at the table', improvised: 'made up in play' };
+  return h('div', { class: 'card scroll', 'data-key': 'cast' }, h('div', { class: 'row' }, h('h3', { class: 'grow' }, 'The table\'s memory'), h('small', { class: 'dim' }, `${cards.length}`)),
+    cards.length ? cards.map((c) => h('div', { class: 'cast-card' },
+      h('div', { class: 'row' }, h('b', { class: 'grow' }, c.name), h('span', { class: 'pill' }, kinds[c.kind] || c.kind), h('button', { title: 'Forget this card', onclick: () => { if (confirm(`Forget ${c.name}? The Director will not read this card again.`)) act({ type: 'cast.forget', id: c.id }); } }, '✕')),
+      h('small', { class: 'faint' }, from[c.origin] || c.origin),
+      c.facts.map((f, i) => h('div', { class: 'row cast-fact' }, h('small', { class: 'grow' }, f.text, f.seen ? '' : ' (players not told)'), h('button', { class: 'sm', title: 'Forget this fact', onclick: () => act({ type: 'cast.forget', id: c.id, fact: i }) }, '✕')))))
+      : h('small', { class: 'dim' }, 'Nobody yet. The Director writes down the people, places and threads the party meets, so they stay the same all game.'));
+}
+function hostChronicle() {
+  const C = ui.chronicle || HELLO.chronicle || { chapters: [] };
+  const Q = ui.chron = ui.chron || { q: '', found: null };
+  const when = (t) => { try { return new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); } catch (e) { return ''; } };
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card scroll', 'data-key': 'chron' },
+      h('div', { class: 'row' }, h('h2', { class: 'grow' }, 'Chronicle'), C.writing ? h('span', { class: 'pill acc' }, 'writing…') : null,
+        h('button', { class: 'go', title: 'Write a chapter for tonight now (the Director reads the latest three next time)', onclick: () => chronicleOp('night') }, 'End the night')),
+      h('small', {}, `A chapter is written each time the party leaves a place, and when you end the night: by the AI when the Director is on, else plainly by the Engine. The Director reads the latest three.${C.kept ? ` Kept for this game: ${C.kept.lines} lines, ${C.kept.chapters} chapter${C.kept.chapters === 1 ? '' : 's'}.` : ''}`),
+      !(C.chapters || []).length ? h('small', { class: 'dim' }, 'No chapters yet.') : [...C.chapters].reverse().map((c) => h('div', { class: 'chapter' },
+        h('div', { class: 'row' }, h('b', { class: 'grow' }, `${c.site}${c.why === 'night' ? ' · end of the night' : ''}`), h('small', { class: 'dim' }, `${when(c.t)} · ${c.by === 'ai' ? 'the AI' : 'the Engine'}`),
+          h('button', { title: 'Drop this chapter', onclick: () => { if (confirm('Drop this chapter? The Director will not read it again.')) chronicleOp('drop', { id: c.id }); } }, '✕')),
+        h('p', {}, c.text)))),
+    h('div', { class: 'side' }, castCard(), h('div', { class: 'card scroll' }, h('h3', {}, 'Search the game'),
+      h('div', { class: 'row' }, h('input', { id: 'chron-q', class: 'grow', placeholder: 'A name, a place, a thing', value: Q.q, oninput: (e) => { Q.q = e.target.value; }, onkeydown: (e) => { if (e.key === 'Enter' && Q.q.trim()) chronicleOp('search', { q: Q.q }); } }),
+        h('button', { onclick: () => { if (Q.q.trim()) chronicleOp('search', { q: Q.q }); } }, 'Search')),
+      Q.found ? (Q.found.hits.length ? Q.found.hits.map((x) => h('div', { class: 'list-line' }, h('div', { class: 'grow' }, h('small', { class: 'dim' }, `${x.from === 'chronicle' ? 'Chronicle' : x.who || ''}${x.site ? ` · ${x.site}` : ''}${x.when ? ` · ${x.when}` : ''}`), h('div', {}, x.text)))) : h('small', {}, 'Nothing found.')) : h('small', { class: 'dim' }, 'Everything said, narrated and done in this game, earlier nights included, and the chronicle.'))));
+}
+function hostGame() {
+  const f = ui.form.game = ui.form.game || { module: S.moduleId, adventure: S.adventureId };
+  return h('div', { class: 'view v-two' },
+    h('div', { class: 'card scroll' }, h('h2', {}, 'Game'),
+      h('small', {}, `Playing ${M.module.name}: ${(M.adventures.find((a) => a.id === S.adventureId) || {}).name}.`),
+      h('div', { class: 'row' }, h('button', { onclick: async () => { const r = await post('/api/undo', {}); if (!r.ok) toast(r.error); } }, 'Undo the last change')),
+      ...savesCard(),
+      h('h3', {}, 'New game'),
+      h('label', { class: 'fld' }, h('span', {}, 'Module'), h('select', { onchange: (e) => { f.module = e.target.value; render(); } }, HELLO.modules.map((m) => opt(m.id, `${m.name}: ${m.tagline}`, m.id === f.module)))),
+      f.module === S.moduleId ? h('label', { class: 'fld' }, h('span', {}, 'Adventure'), h('select', { onchange: (e) => { f.adventure = e.target.value; } }, M.adventures.map((a) => opt(a.id, a.name, a.id === f.adventure)))) : h('small', {}, 'Its first adventure starts; choose another after.'),
+      h('div', { class: 'row' }, h('button', { onclick: async () => { const r = await post('/api/check', { id: f.module }); ui.form.checked = r; render(); } }, 'Check the module'),
+        h('button', { class: 'warn', onclick: async () => { if (!confirm('Start a new game? The current one can be brought back with Undo only until the host restarts.')) return; const r = await post('/api/new', { module: f.module, adventure: f.module === S.moduleId ? f.adventure : undefined }); if (r.ok) location.reload(); else toast(r.error); } }, 'Start a new game')),
+      ui.form.checked ? h('div', { class: 'log' }, ui.form.checked.ok === false && ui.form.checked.error ? ui.form.checked.error : ui.form.checked.errors.length ? ui.form.checked.errors.map((e) => `• ${e}\n`) : ['Valid: every section checks out.\n', ...((ui.form.checked.advice || []).length ? [`\nAdvice (valid, but the Director is likely to stumble there):\n`, ...ui.form.checked.advice.map((e) => `~ ${e}\n`)] : [])]) : null),
+    h('div', { class: 'card scroll' }, ...cloudCard(), h('h3', {}, 'Players'), Object.values(S.players).map((p) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, p.name), h('small', {}, p.charId && S.chars[p.charId] ? S.chars[p.charId].name : 'no character'))),
+      h('h3', {}, 'Characters'), Object.values(S.chars).map((c) => h('div', { class: 'list-line' }, h('span', { class: 'grow' }, c.name), h('select', { style: 'width:auto;max-width:50%', onchange: (e) => act({ type: 'char.release', charId: c.id, playerId: e.target.value || null }) }, opt('', 'nobody', !c.playerId), Object.values(S.players).map((p) => opt(p.id, p.name, p.id === c.playerId))))),
+      joinCard()));
+}
+
+// ---------------------------------------------------------------- tabs and rendering
+// The Map tab (public/map.js): its HTML is built as text, and its clicks and fields come through here.
+const escHtml = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const advNow = () => M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+async function uploadPicture(blob) {
+  const r = await fetch(`/api/map/upload?${qs()}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: blob });
+  const j = await r.json().catch(() => ({ ok: false, error: `HTTP ${r.status}` }));
+  if (!j.ok) throw new Error(j.error || 'The picture could not be uploaded.');
+  return j.url;
+}
+initMap({
+  state: () => S, ui, esc: escHtml, role: ROLE, myPc: () => (ROLE === 'player' ? me() : null), curKey: () => (S ? curKey() : null),
+  adv: advNow, site: () => (advNow().sites || []).find((x) => x.id === S.scene.siteId) || {}, mod: () => M,
+  send: act, upload: uploadPicture, toast, render: () => render(),
+});
+function mapView() { const el = h('div', { class: 'view v-map' }); el.innerHTML = mapTabHtml(); return el; }
+document.addEventListener('click', (e) => {
+  if (ui.tab !== 'map') return;
+  const el = e.target.closest && e.target.closest('#main [data-act]');
+  if (!el) return;
+  const a = el.dataset.act;
+  if (a === 'tab') { ui.tab = el.dataset.t; store.set(`tab-${ROLE}`, ui.tab); render(); return; }
+  const f = MAP_ACT[a];
+  if (!f) return;
+  e.preventDefault();
+  const r = f({ ...el.dataset });
+  render();
+  if (r && r.then) r.then(() => render());
+});
+for (const ev of ['input', 'change']) document.addEventListener(ev, (e) => { if (ui.tab === 'map' && e.target.closest && e.target.closest('#main')) mapField(e); });
+
+const TABS = {
+  host: [['play', 'Play'], ['map', 'Map'], ['world', 'World'], ['seeds', 'Seeds'], ['chronicle', 'Chronicle'], ['rules', 'Books'], ['convert', 'Converter'], ['ai', 'AI'], ['voice', 'Voice'], ['game', 'Game'], ['colours', 'Colours']],
+  table: [['story', 'Story'], ['map', 'Map'], ['rules', 'Books'], ['colours', 'Colours']],
+  player: [['story', 'Story'], ['map', 'Map'], ['sheet', 'Sheet'], ['rules', 'Books'], ['voice', 'Voice'], ['colours', 'Colours']],
+};
+function view() {
+  const tab = ui.tab;
+  if (tab === 'colours') return coloursView();
+  if (tab === 'map' && (ROLE !== 'player' || !playerViews())) return mapView();
+  if (ROLE === 'host') {
+    if (tab === 'world') return hostWorld();
+    if (tab === 'seeds') return hostSeeds();
+    if (tab === 'chronicle') return hostChronicle();
+    if (tab === 'rules') return rulesView(true);
+    if (tab === 'convert') return hostConverter();
+    if (tab === 'ai') return hostAI();
+    if (tab === 'voice') return hostVoice();
+    if (tab === 'game') return hostGame();
+    return hostPlay();
+  }
+  if (ROLE === 'table') return tab === 'rules' ? rulesView(false) : tableView();
+  const gate = playerViews();
+  if (gate) return gate;
+  if (tab === 'sheet') return sheetView(me());
+  if (tab === 'rules') return rulesView(false);
+  if (tab === 'voice') return h('div', { class: 'view v-one' }, h('div', { class: 'card' }, h('h2', {}, 'Voice'), h('label', { class: 'row' }, h('input', { type: 'checkbox', style: 'width:auto', checked: ui.readAloud, onchange: (e) => { ui.readAloud = e.target.checked; store.set('read', ui.readAloud); unlockAudio(); } }), 'Read the Director aloud on my phone'), h('button', { onclick: () => { unlockAudio(); speak('The lamps gutter, and somewhere ahead something waits to be found.'); } }, 'Test')));
+  return playerStory();
+}
+function render() {
+  if (!S || !M) return;
+  const tabs = TABS[ROLE];
+  if (!ui.tab || !tabs.some(([k]) => k === ui.tab)) ui.tab = tabs[0][0];
+  document.getElementById('title').textContent = M.module.name;
+  // The worked example, loaded while modules/ has no game of its own (the template): say so to the host.
+  const isExample = ROLE === 'host' && ((HELLO && HELLO.modules) || []).some((m) => m.id === S.moduleId && m.example);
+  document.getElementById('tag').textContent = ROLE === 'host' ? `Host · ${M.module.tagline}${isExample ? ' · the worked example: make your own game on the Converter tab' : ''}` : M.module.tagline;
+  document.title = `${M.module.name} · ${ROLE}`;
+  const st = document.getElementById('status');
+  st.textContent = S.fight ? `${nameOfKey(curKey())} is up` : (ROLE === 'player' && me() ? me().name : ROLE);
+  // keep focus, caret and scroll positions through a re-render
+  const act0 = document.activeElement;
+  const focusId = act0 && act0.id; const sel = act0 && 'selectionStart' in act0 ? [act0.selectionStart, act0.selectionEnd] : null;
+  const scrolls = {}; document.querySelectorAll('[data-key]').forEach((el) => { scrolls[el.dataset.key] = [el.scrollTop, el.scrollHeight - el.clientHeight - el.scrollTop < 30]; });
+  document.getElementById('tabs').replaceChildren(...tabs.map(([k, label]) => h('button', { class: ui.tab === k ? 'on' : '', onclick: () => { ui.tab = k; store.set(`tab-${ROLE}`, k); render(); } }, label)));
+  document.getElementById('main').replaceChildren(view());
+  watchRequest();
+  document.querySelectorAll('[data-key]').forEach((el) => { const s = scrolls[el.dataset.key]; if (el.dataset.key === 'story') { el.scrollTop = !s || s[1] ? el.scrollHeight : s[0]; } else if (s) el.scrollTop = s[0]; });
+  if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (sel && el.setSelectionRange) try { el.setSelectionRange(sel[0], sel[1]); } catch (e) { /* number inputs */ } } }
+}
+
+// ---------------------------------------------------------------- the living backdrop (public/scene.js)
+// The place's own words pick the weather and light; this game has no clock, so outdoors is daylight. Your turn
+// glows, a bad wound pulses, and a single d20 (in the d20 systems) tumbles to its number.
+let sceneRoll = null;
+let sceneLevel = null;
+function scene() {
+  const adv = M.adventures.find((a) => a.id === S.adventureId) || M.adventures[0];
+  const site = (adv.sites || []).find((x) => x.id === S.scene.siteId) || {};
+  const c = ROLE === 'player' ? me() : null;
+  updateScene({
+    place: { name: site.name, region: '', read: site.read }, hour: null, fight: !!S.fight,
+    myTurn: !!c && curKey() === `char:${c.id}`, hp: c && c.healthMax ? Math.max(0, c.health) / c.healthMax : null, down: !!c && c.down,
+    rested: S.story.filter((e) => /^A long rest\b/.test(e.text)).length,
+  });
+  // A new level: a golden flare (flair.js), once, on that player's screen.
+  if (c) { if (sceneLevel != null && c.level > sceneLevel) levelFlash(`${T('level')} ${c.level}!`); sceneLevel = c.level; }
+  const r = S.rolls[S.rolls.length - 1];
+  if (!r || r.id === sceneRoll) return;
+  const first = sceneRoll === null; sceneRoll = r.id;
+  const f = r.faces || [];
+  if (!first && c && r.charId === c.id && f.length === 1 && f[0].sides === 20) rollD20(f[0].v, { label: r.label, crit: f[0].v === 20, fumble: f[0].v === 1 });
+}
+
+// ---------------------------------------------------------------- start
+applyColours();
+if (ROLE !== 'host') initScene({ store });
+(async () => {
+  HELLO = await (await fetch(`/api/hello?${qs()}`)).json();
+  // From outside the host's network without the table code: ask for it.
+  if (HELLO.need === 'code') { document.getElementById('main').replaceChildren(codeView()); return; }
+  if (ROLE === 'host' && HELLO.role !== 'host') { document.getElementById('main').replaceChildren(h('div', { class: 'card' }, 'This host link needs its key: use the address the host computer printed when it started.')); return; }
+  M = HELLO.module;
+  const es = new EventSource(`/api/events?${qs({ role: ROLE })}`);
+  es.addEventListener('links', async () => { try { HELLO.links = (await (await fetch(`/api/hello?${qs()}`)).json()).links; render(); } catch (e) { /* next time */ } });
+  es.addEventListener('state', (e) => {
+    const next = JSON.parse(e.data);
+    const reload = S && next.moduleId !== S.moduleId;
+    S = next;
+    if (reload) { location.reload(); return; }
+    // A roll asked of this player: to the Story tab, then the alert (the flash, the banner, the buzz).
+    const asked = ROLE === 'player' && me() ? S.requests.find((q) => q.charId === me().id && !ui.seenReq[q.id]) : null;
+    if (ROLE === 'player') for (const q of S.requests) ui.seenReq[q.id] = true;
+    if (asked && ui.reqReady) ui.tab = 'story';
+    render(); speakNew();
+    if (ROLE !== 'host') { scene(); artOverlay(); }
+    if (asked && ui.reqReady) requestAlert(asked);
+    ui.reqReady = true; // not for the rolls already waiting when this screen opened: only the card shows those
+  });
+  es.addEventListener('chronicle', (e) => { ui.chronicle = JSON.parse(e.data); if (ui.tab === 'chronicle') render(); });
+  es.addEventListener('director', (e) => { ui.director = JSON.parse(e.data); if (ui.tab === 'play') render(); });
+  es.addEventListener('convert', (e) => { ui.convert.log.push(JSON.parse(e.data)); if (ui.tab === 'convert') render(); });
+  es.onerror = () => { document.getElementById('status').textContent = 'reconnecting…'; };
+})();

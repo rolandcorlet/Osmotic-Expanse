@@ -1,0 +1,14 @@
+{
+  "world": "Brinemouth is a stilt-town of rope, tar and lamplight, built on the roofs of a city of glass that drowned three hundred years ago. Divers go down for salvage: lamps, glasswork, guild seals. The city's songs still sound in the deep water, and some of its guardians still keep their posts.",
+  "sections": [
+    { "title": "The Drowned City", "text": "Streets of green glass, cathedrals with walls you can see through, bells that ring when the tide turns. Most of it is still there, under forty fathoms of cold water." },
+    { "title": "The Lamp Guilds", "text": "The guilds that lit the old city still exist in Brinemouth, poor and proud. Their marks are on every lamp in the deep." },
+    { "title": "The Dock", "text": "Lamp Dock is where crews are hired, paid and cheated. Auntie Pell runs it." }
+  ],
+  "glossary": [
+    { "term": "Depth", "means": "How hard something is: Shallow 8, Standard 12, Deep 16, Abyssal 20, Legendary 24." },
+    { "term": "Crack", "means": "A 1 on a die. It scores nothing and marks 1 Strain." },
+    { "term": "Gleam", "means": "Two 6s and no 1s: the roll goes better than anyone hoped." },
+    { "term": "Breath", "means": "A diver's health." }
+  ]
+}

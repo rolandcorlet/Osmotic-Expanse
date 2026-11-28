@@ -1,0 +1,30 @@
+{
+  "creatures": [
+    { "id": "glass-eel", "name": "Glass eel", "tier": 1,
+      "about": "A long eel with a body like clear glass. Hunts in pairs.",
+      "look": "A ripple in the water, then teeth.",
+      "health": 10, "soak": 0, "defence": 11,
+      "attacks": [ { "name": "Bite", "dice": 4, "weapon": 2, "kind": "melee", "effect": "On a Gleam: Bleeding." } ],
+      "abilities": [ { "name": "Clear as water", "effect": "Sense rolls to spot it are Deep (16) until it bites." } ],
+      "tactics": "Strikes from hiding at whoever is alone, flees when hurt badly.",
+      "xp": 2 },
+    { "id": "drowned-choir", "name": "Drowned choir", "tier": 2,
+      "about": "The drowned singers of the old cathedral, still singing.",
+      "look": "Pale faces in the dark, mouths open, a sound like wet glass.",
+      "health": 16, "soak": 1, "defence": 12,
+      "attacks": [ { "name": "Grasping hands", "dice": 5, "weapon": 2, "kind": "melee", "effect": "On a hit: Snared." } ],
+      "abilities": [ { "name": "The song", "effect": "Once a round, every diver who hears it makes a Standard (12) Nerve roll or becomes Shaken." },
+                     { "name": "Hates light", "effect": "Loses 2 dice in white light." } ],
+      "tactics": "Surrounds, sings, drags divers down. Falls silent if its choirmaster is shown the bell.",
+      "xp": 4 },
+    { "id": "tidewarden", "name": "The Tidewarden", "tier": 3,
+      "about": "A guardian of glass and barnacle, made to keep the bell safe.",
+      "look": "A tall knight of green glass, a blade made of moving water.",
+      "health": 30, "soak": 2, "defence": 14,
+      "attacks": [ { "name": "Tide-blade", "dice": 6, "weapon": 3, "kind": "melee" },
+                   { "name": "Undertow", "dice": 5, "weapon": 1, "kind": "ranged", "effect": "On a hit: Snared and pulled close." } ],
+      "abilities": [ { "name": "Keeper", "effect": "Will not leave the bell chamber. Stops fighting anyone who rings the bell." } ],
+      "tactics": "Guards the bell. Strikes the nearest diver; uses Undertow on anyone who runs.",
+      "xp": 8 }
+  ]
+}

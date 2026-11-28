@@ -1,0 +1,38 @@
+{
+  "intro": "You are a salvage diver in Brinemouth, a stilt-town built on the roofs of a drowned glass city. The city below is full of treasure, songs, and things that should have stayed asleep. You work in a crew. You are always short of money.",
+  "origins": [
+    { "id": "reefborn", "name": "Reefborn", "about": "Raised on the stilt-towns, in and out of the water since you could walk.", "stats": { "brawn": 1 }, "gift": "Once a scene, ignore one Crack on a Swim roll." },
+    { "id": "lampkin", "name": "Lampkin", "about": "A child of the lamp guilds who keep the old lights burning.", "stats": { "wits": 1 }, "gift": "You can read the old city's guild marks." },
+    { "id": "driftfolk", "name": "Driftfolk", "about": "From the boat clans who never stay in one harbour.", "stats": { "grace": 1 }, "gift": "You always know which way is up, and the way out." }
+  ],
+  "callings": [
+    { "id": "hookhand", "name": "Hookhand", "about": "The crew's fighter: hook, line and stubbornness.", "skills": ["fight", "swim"], "gear": ["gaff-hook", "shell-plate"], "abilities": ["brace-the-line"] },
+    { "id": "lampwright", "name": "Lampwright", "about": "Keeper of the crew's light, and its mender.", "skills": ["mend", "lore"], "gear": ["glass-knife", "glass-lantern", "diving-leathers"], "abilities": ["steady-light"] },
+    { "id": "shellrunner", "name": "Shellrunner", "about": "Scout and harpooner, first in and first out.", "skills": ["sneak", "shoot"], "gear": ["harpoon-gun", "diving-leathers"], "abilities": ["slip-the-current"] }
+  ],
+  "abilities": [
+    { "id": "brace-the-line", "name": "Brace the Line", "level": 1, "cost": "1 Strain", "effect": "Anchor an ally: they ignore the next current, push or Snare this scene." },
+    { "id": "steady-light", "name": "Steady Light", "level": 1, "cost": "1 Strain", "roll": { "stat": "nerve", "skill": "lore" }, "effect": "Standard roll. Your lantern burns white: clear Blinded from the crew, and things below that hate light lose 2 dice until your next turn." },
+    { "id": "slip-the-current", "name": "Slip the Current", "level": 1, "cost": "1 Strain", "roll": { "stat": "grace", "skill": "sneak" }, "effect": "Standard roll. Move anywhere close and vanish from sight; your next attack this scene gains +2 dice." }
+  ],
+  "gear": [
+    { "id": "gaff-hook", "name": "Gaff hook", "kind": "weapon", "weapon": 3, "stat": "brawn", "skill": "fight", "about": "A long pole with a hook and a blade." },
+    { "id": "glass-knife", "name": "Glass knife", "kind": "weapon", "weapon": 2, "stat": "grace", "skill": "fight", "about": "Old-city glass, sharper than steel." },
+    { "id": "harpoon-gun", "name": "Harpoon gun", "kind": "weapon", "weapon": 4, "stat": "grace", "skill": "shoot", "about": "Spring-loaded; one shot, then an action to reload." },
+    { "id": "diving-leathers", "name": "Diving leathers", "kind": "armour", "soak": 1, "about": "Oiled and patched." },
+    { "id": "shell-plate", "name": "Shell plate", "kind": "armour", "soak": 2, "about": "Heavy plates of giant shell." },
+    { "id": "glass-lantern", "name": "Glass lantern", "kind": "tool", "about": "Burns underwater for a night." }
+  ],
+  "chargen": [
+    "Choose an origin, and add its stat bonus.",
+    "Choose a calling: it gives you two skills at rank 1, your gear and an ability.",
+    "Every stat starts at 1. Spend 6 more points (none above 4).",
+    "Spend 6 skill ranks (none above 2 at the start, counting your calling's ranks).",
+    "Name your diver, describe them in a line, and say what they want."
+  ],
+  "pregens": [
+    { "name": "Moll Tarrow", "origin": "reefborn", "calling": "hookhand", "stats": { "brawn": 4, "grace": 2, "wits": 2, "nerve": 2 }, "skills": { "fight": 2, "swim": 2, "sense": 1, "talk": 1 }, "look": "Scarred knuckles, a quick grin, a hook over one shoulder.", "want": "Pay off her mother's boat." },
+    { "name": "Ivo Glim", "origin": "lampkin", "calling": "lampwright", "stats": { "brawn": 2, "grace": 2, "wits": 4, "nerve": 2 }, "skills": { "mend": 2, "lore": 2, "sense": 1, "talk": 1 }, "look": "Soot on his fingers, a lantern older than he is.", "want": "Find the guild that lit the drowned city." },
+    { "name": "Sefa Rook", "origin": "driftfolk", "calling": "shellrunner", "stats": { "brawn": 2, "grace": 4, "wits": 2, "nerve": 2 }, "skills": { "sneak": 2, "shoot": 2, "swim": 1, "sense": 1 }, "look": "Small, quiet, braids full of fish-hooks.", "want": "Never be in debt to anyone." }
+  ]
+}

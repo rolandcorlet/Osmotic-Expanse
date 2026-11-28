@@ -62,3 +62,14 @@ dnd/director/Icewind dale/
 dnd/director/discworld/
 # a copy of the root launcher
 dnd/director/Sponge_dnd_alt_server.bat
+# The AI Director template and the rule systems copied from it (New rule system.bat)
+template/convert-*.log
+template/convert-*.exit.txt
+template/preflight-*.log
+template/preflight-*.exit.txt
+systems/*/convert-*.log
+systems/*/convert-*.exit.txt
+systems/*/preflight-*.log
+systems/*/preflight-*.exit.txt
+# A system's game modules come from rule books and campaigns: private, like the D&D library (remove this line to commit them)
+systems/*/modules/*/

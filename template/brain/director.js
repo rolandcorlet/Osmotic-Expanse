@@ -1,0 +1,293 @@
+// The AI Director: one turn at a time. It reads a briefing, calls tools (the Engine does the rules),
+// and ends with narration for the table. The same code runs for every game module: the module
+// supplies the words (instructions.md is filled in from module.json and rules.json).
+
+import { readFileSync } from 'node:fs';
+import { toolbox, toolsFor, charLine, mapBrief } from './tools.js';
+import { term, ladderName } from '../engine/module.js';
+import { getSystem } from '../engine/dicesystems.js';
+import { currentKey } from '../engine/ledger.js';
+import { rulesAt, ruleWords } from '../engine/triggers.js';
+import * as SEEDS from '../engine/seeds.js';
+import { glossaryOf, glossInline, wordsUsed, wordsBrief } from '../engine/words.js';
+import { dropForeign } from './foreign.js';
+
+const TEMPLATE = readFileSync(new URL('./instructions.md', import.meta.url), 'utf8');
+const MAX_STEPS = 14;
+
+export function instructions(mod) {
+  const T = mod.module.terms;
+  const fill = {
+    name: mod.module.name, tagline: mod.module.tagline, tone: mod.module.tone,
+    snag: T.snag, surge: T.surge, strain: T.strain, difficulty: T.difficulty, overflow: T.overflow.toLowerCase(), health: T.health,
+    ladder: (mod.rules.ladder || []).map((r) => `${r.name} ${r.at}`).join(', '),
+    middle: ((mod.rules.ladder || [])[1] || (mod.rules.ladder || [])[0] || {}).name || 'the middle difficulty',
+    actions: String(mod.rules.combat.actionsPerTurn),
+    terms: Object.entries(mod.module.rawTerms || {}).map(([k, v]) => `${v} (${k})`).join(', ') || 'the plain words',
+  };
+  const S = getSystem(mod.rules);
+  fill.dice = S.sys.describe(S.o, T);
+  fill.diceName = S.name;
+  return TEMPLATE.replace(/\{\{(\w+)\}\}/g, (m, k) => (k in fill ? fill[k] : m));
+}
+
+const site = (s, mod) => ((mod.ix.adventure[s.adventureId] || {}).sites || []).find((x) => x.id === s.scene.siteId) || {};
+
+// Everything the Director needs this turn, in words.
+export function briefing(s, mod, { reason = '', hostNote = '', lastSeq = -1, chapters = [] } = {}) {
+  const adv = mod.ix.adventure[s.adventureId];
+  const here = site(s, mod);
+  const L = [];
+  L.push(`ADVENTURE: ${adv.name}. ${adv.pitch}`);
+  L.push(`SECRETS (yours): ${adv.secrets}`);
+  // The chronicle so far (brain/memory.js): what happened before the story below, newest last. recall finds more.
+  if (chapters.length) L.push(`\nTHE STORY SO FAR (the chronicle, newest last; recall finds more):\n${chapters.map((c) => `- ${c.site}${c.why === 'night' ? ' (end of a night)' : ''}: ${c.text}`).join('\n')}`);
+  // The cast: who and what the table has met (engine/ledger.js cast.*), this place's first, then the latest.
+  {
+    const cards = Object.values(s.cast || {});
+    if (cards.length) {
+      const near = cards.filter((c) => c.siteId === here.id);
+      const recent = cards.filter((c) => c.siteId !== here.id).sort((a, b) => b.lastSeq - a.lastSeq).slice(0, 6);
+      const origin = { page: 'from the adventure', table: 'came up at the table', improvised: 'you made this up: it is true now' };
+      const line = (c) => `- ${c.name} (${c.kind}, first met at ${(adv.sites.find((x) => x.id === c.siteId) || {}).name || c.siteId}; ${origin[c.origin] || c.origin}): ${c.facts.slice(-3).map((f) => `${f.text}${f.seen ? '' : ' [players not told]'}`).join('; ') || 'no facts yet'}`;
+      L.push(`\nPEOPLE, PLACES AND THREADS THE TABLE HAS MET (${cards.length} on record; keep them the same, and remember new ones):`);
+      for (const c of [...near, ...recent]) L.push(line(c));
+      const rest = cards.length - near.length - recent.length;
+      if (rest > 0) L.push(`${rest} more on record: use recall to look anyone up before you bring them back.`);
+    }
+  }
+  L.push(`\nPLACE: ${here.name} (${here.id}). Exits: ${(here.exits || []).map((e) => { const x = adv.sites.find((y) => y.id === e); return x ? `${x.id} (${x.name})` : e; }).join(', ') || 'none'}.`);
+  L.push(`What they see: ${here.read}`);
+  if (here.notes) L.push(`Your notes: ${here.notes}`);
+  for (const h of here.hazards || []) L.push(`Hazard: ${h.name}: ${h.stat}${h.skill ? ` + ${h.skill}` : ''} against ${ladderName(mod, h.at)}; on a failure: ${h.fail || 'it costs them'}.`);
+  if ((here.clues || []).length) L.push(`Clues to find: ${here.clues.join(' / ')}`);
+  // The place's objects: a character who uses one goes through use_object, so the Engine does what the rules say.
+  if ((here.objects || []).length) L.push(`Objects here: ${here.objects.map((o) => (typeof o === 'string' ? o : `${o.name}${o.about ? `: ${o.about}` : ''}`)).join(', ')}. When a character uses one, call use_object.`);
+  // The adventure's own rules here: the Engine carries them out itself; the Director only narrates them.
+  const rules = rulesAt(adv, here.id).filter((r) => !(r.once && (s.fired || {})[r.key]));
+  if (rules.length) L.push(`Rules here (the Engine does these by itself when they happen; just narrate them): ${rules.map(ruleWords).join(' | ')}`);
+  const ks = Object.values(s.creatures).filter((k) => k.siteId === s.scene.siteId);
+  if (ks.length) L.push(`Creatures here: ${ks.map((k) => { const b = mod.ix.creature[k.base]; return `${k.id} ${k.name}${k.down ? ' (DOWN, out of the fight)' : k.hidden ? ' (hidden: reveal_creatures when found)' : ''}: ${k.health}/${k.healthMax} ${term(mod, 'health')}${k.conds.length ? `, ${k.conds.join(', ')}` : ''}; attacks ${b.attacks.map((x) => x.name).join(', ')}; tactics: ${b.tactics || ''}`; }).join(' | ')}`);
+  // The map: zones, who is where, who can strike whom (brain/tools.js mapBrief).
+  const mapText = mapBrief(s, mod);
+  if (mapText) L.push(mapText);
+  L.push(`\nTHE PARTY:`);
+  for (const c of Object.values(s.chars)) L.push(`- ${charLine(mod, c)}`);
+  if (!Object.keys(s.chars).length) L.push('- Nobody has a character yet. Welcome the table and ask who they will play.');
+  if (s.quests.length) L.push(`\nQUESTS: ${s.quests.map((q) => `${q.id} ${q.text}${q.done ? ' (done)' : ''}`).join('; ')}`);
+  // Quests finished here (the Gull Rock bench, 26 Nov: the rite was stopped and the Choir Master fell, but nobody
+  // called complete_quest): the Director is told which, so it marks them done when the scene does it.
+  const here2 = (adv.quests || []).filter((q) => (q.doneAt || []).includes(here.id) && !(s.quests.find((x) => x.id === q.id) || {}).done);
+  if (here2.length) L.push(`QUESTS THAT END HERE (call complete_quest the moment the story finishes one): ${here2.map((q) => `${q.id} ${q.text}`).join('; ')}`);
+  if (s.clocks.length) L.push(`CLOCKS: ${s.clocks.map((c) => { const d = (adv.clocks || []).find((x) => x.id === c.id); return `${c.id} ${c.name} ${c.filled}/${c.size}${d ? ` (ticks: ${d.ticks}; when full: ${d.fills})` : ''}`; }).join('; ')}`);
+  if (s.fight) {
+    const cur = currentKey(s);
+    const [kind, id] = (cur || ':').split(':');
+    const o = kind === 'char' ? s.chars[id] : s.creatures[id];
+    L.push(`\nFIGHT: round ${s.fight.round}. Order: ${s.fight.order.map((x) => { const [k2, i2] = x.key.split(':'); return (k2 === 'char' ? s.chars[i2] : s.creatures[i2] || {}).name; }).join(', ')}. Acting now: ${o ? `${o.name} (${id})` : 'nobody'}${kind === 'creature' ? ': play it now, then end_turn.' : `: a player's turn. Describe the moment and ask ${o ? o.name : 'that player'} what they do. Every creature waits for its own turn: call no creature_attack and no end_turn now (the turn ends on the player's screen, or by itself after their last action).`}`);
+  }
+  if (s.requests.length) L.push(`\nROLLS WAITING: ${s.requests.map((q) => `${(s.chars[q.charId] || {}).name} (${q.stat}${q.skill ? ` + ${q.skill}` : ''}, ${ladderName(mod, q.at)}: ${q.reason})`).join('; ')}. Do not move on past them.`);
+  const recent = s.story.filter((e) => e.kind !== 'host' && !e.quiet).slice(-14);
+  L.push(`\nTHE STORY SO FAR (latest last):`);
+  for (const e of recent) L.push(`${e.who || e.kind}: ${e.text.slice(0, 500)}`);
+  // A seed that has just come into play (the Engine's moment or the Director's own choice): play it now.
+  const now = s.seedNow && s.seedNow.seq > lastSeq ? (s.seeds || []).find((x) => x.id === s.seedNow.id) : null;
+  if (now) L.push(`\nA STORY SEED COMES INTO PLAY NOW (${s.seedNow.by === 'engine' ? `its moment came: ${s.seedNow.why}` : 'your choice'}). Bring it into the scene this turn${s.seedNow.foes.length ? `; these have arrived: ${s.seedNow.foes.join(', ')}` : ''}${s.fight ? ' (the fight is on)' : ''}:\n${now.text}`);
+  const seeds = (s.seeds || []).filter((x) => x.on && (!now || x.id !== now.id) && SEEDS.seedFree(x, s, here.id));
+  if (seeds.length) L.push(`\nSTORY SEEDS (the host's; call use_seed with the id when its moment comes or it fits; the Engine brings in "getting nowhere" and "camp" ones by itself):\n${seeds.map((x) => `[${x.id}] ${SEEDS.whenWords(SEEDS.seedPlan(x.text))}:\n${x.text}`).join('\n---\n')}`);
+  L.push(...wordsBrief(s, glossaryOf(mod), here));
+  if (hostNote) L.push(`\nTHE HOST ASKS: ${hostNote}`);
+  L.push(`\nNOW: ${reason || 'Continue the scene.'}`);
+  return L.join('\n');
+}
+
+// A roll to look, search or know asked before the player said they try anything like it, in a turn that also
+// asks them what they do (Roly, 27 Nov: a character walked outside, and the Director asked what he did and put up
+// an Investigation roll at once). The roll waits for the player's words: "I look around", "I search where the
+// lamp was".
+const OPEN_Q = /\b(what do(?:es)?\s+(?:you|[A-Z][\w'-]*(?:\s[A-Z][\w'-]*)?)\s+do|what(?:'s| is) (?:your|their|his|her) move|what now|what will you do|what would you like to do|how do you (?:proceed|respond))\b[^.!]*\?\s*$/i;
+const TRIES = /\b(look|search|investigat|examin|inspect|check|listen|stud(?:y|ies)|read|peer|scan|sniff|feel|probe|watch|observ|recall|rememb|know|sense|notic|spot|track|find|hunt|follow|scrutin|eye|sound out|size up)\w*/i;
+const INFO_SKILL = /investigat|percep|insight|search|look|listen|notice|spot|sense|lore|arcana|history|religion|nature|medicine|study|examin|occult|science|knowledge|read/i;
+function earlyRolls(before, after, narration, mod, sinceSeq) {
+  if (!OPEN_Q.test(String(narration).slice(-240))) return [];
+  const said = (before.story || []).filter((e) => e.kind === 'say' && e.seq > sinceSeq).map((e) => e.text).join(' ');
+  if (TRIES.test(said)) return [];
+  const old = new Set((before.requests || []).map((q) => q.id));
+  return (after.requests || []).filter((q) => !old.has(q.id) && q.by === 'ai' && q.skill && INFO_SKILL.test(`${q.skill} ${((mod.ix.skill || {})[q.skill] || {}).name || ''}`));
+}
+// A quest that ends at this place, not done yet, when every roll since the last narration succeeded and the
+// Director has not called complete_quest this turn.
+// A quest that ends at this place, not done yet, that the player's own words set out to finish ("We see it
+// through: put out the lighthouse light", the Gull Rock bench, 28 Nov: four runs running the Director put one
+// more obstacle in the way and the quest stayed open), with no complete_quest, no roll waiting and no fight.
+const QUEST_STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'for', 'with', 'from', 'what', 'who', 'it', 'its', 'we', 'see', 'through', 'go', 'on', 'our', 'their', 'his', 'her']);
+const questWords = (t) => String(t || '').toLowerCase().replace(/[^a-z\s'-]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !QUEST_STOP.has(w));
+export function questAsked(s, mod, said, calls) {
+  if (!said || calls.some((c) => c.name === 'complete_quest') || s.fight || (s.requests || []).length) return null;
+  const adv = mod.ix.adventure[s.adventureId];
+  if (!adv) return null;
+  const words = new Set(questWords(said));
+  return (adv.quests || []).find((q) => (q.doneAt || []).includes(s.scene.siteId) && !(s.quests.find((x) => x.id === q.id) || {}).done
+    && s.quests.some((x) => x.id === q.id) && (() => { const qw = questWords(q.text); const hit = qw.filter((w) => words.has(w)).length; return qw.length && hit >= Math.min(3, Math.ceil(qw.length * 0.6)); })()) || null;
+}
+function questWon(s, mod, sinceSeq, calls) {
+  if (calls.some((c) => c.name === 'complete_quest')) return null;
+  const adv = mod.ix.adventure[s.adventureId];
+  if (!adv) return null;
+  const open = (adv.quests || []).find((q) => (q.doneAt || []).includes(s.scene.siteId) && !(s.quests.find((x) => x.id === q.id) || {}).done);
+  if (!open) return null;
+  const rolls = s.story.filter((e) => e.roll && e.seq > sinceSeq && / rolls /.test(e.text));
+  if (!rolls.length || rolls.some((e) => /fail/i.test(e.text)) || !rolls.every((e) => /success/i.test(e.text))) return null;
+  return open;
+}
+const ROLL_WORDS = /\b(roll|make a|give me a|test your)\b[^.?!]*\b(check|roll|save|test)\b/i;
+// "The notes" only as the Director's notes ("the notes say"): a hymn's notes are story (Gull Rock bench, 28 Nov).
+const LEAK = /\b(the engine|the briefing|your notes|(?:tool|function) calls?|no tools? (?:needed|called|required|used)|ask_for_roll|creature_attack|difficulty \d+|defen[cs]e \d+|\d+\s*(?:health|hit points|hp)\b)|\b(?:in|from|per|according to|check(?:ing)?|following|consult(?:ing)?) the notes\b|\bthe notes (?:say|says|said|tell|tells|told|give|gives|gave|list|lists|listed|mention|mentions|mentioned|describe|describes|described|for this|for the)\b/i;
+
+// The narration takes the party to a place along an exit, but nobody called move_party (the D&D bench, 26 Nov):
+// the place it names, or null. A name in talk ("the bell is in the nave") is not travel: travel words must
+// come before it, within a sentence or two.
+const TRAVEL_WORDS = /\b(set (?:off|out)|head(?:s|ed|ing)? (?:off|out|for|to|toward|towards|down|up|back)|make (?:your|their|our) way|travel(?:s|led|ling)?|walk(?:s|ed|ing)?|ride|rode|march(?:es|ed)?|climb(?:s|ed)?|descend(?:s|ed)?|cross(?:es|ed)?|follow(?:s|ed)? the|arriv(?:e|es|ed|ing)|reach(?:es|ed)?|come to|came to|you are (?:now )?(?:at|in)|step (?:into|out onto)|lead(?:s)? (?:you|them) (?:to|into|down|up))\b/i;
+export function travelledInWords(text, s, mod) {
+  const adv = mod.ix.adventure[s.adventureId];
+  const here = site(s, mod);
+  const t = String(text || '');
+  for (const id of here.exits || []) {
+    const x = (adv.sites || []).find((y) => y.id === id);
+    if (!x) continue;
+    const name = x.name.replace(/^the\s+/i, '');
+    const at = t.toLowerCase().indexOf(name.toLowerCase());
+    if (at < 0) continue;
+    if (TRAVEL_WORDS.test(t.slice(Math.max(0, at - 220), at + name.length + 40))) return x;
+  }
+  return null;
+}
+
+// Light checks of a draft: what a table would notice at once.
+export function checkNarration(text, s, mod) {
+  const flags = [];
+  const words = text.split(/\s+/).filter(Boolean).length;
+  if (words > 140) flags.push({ kind: 'style', text: `Long: ${words} words.` });
+  if (!/\?\s*["'’”]?\s*$/.test(text.trim())) flags.push({ kind: 'style', text: 'Does not end on a question.' });
+  if (LEAK.test(text)) flags.push({ kind: 'leak', text: `Names the machinery or a hidden number ("${(text.match(LEAK) || [''])[0]}").` });
+  if (/[*#]{2,}|^\s*[-*] /m.test(text)) flags.push({ kind: 'style', text: 'Uses formatting.' });
+  for (const k of Object.values(s.creatures)) {
+    if (k.down || k.siteId !== s.scene.siteId) continue;
+    const n = k.name.replace(/\s+\d+$/, '').toLowerCase();
+    if (new RegExp(`${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^.]{0,40}\\b(dies|is dead|falls dead|lies still|is destroyed|collapses for good)`, 'i').test(text)) flags.push({ kind: 'rule', text: `Says ${k.name} is finished, but the Engine has it still standing.` });
+  }
+  void mod;
+  return flags;
+}
+
+// One turn. provider: the chat provider (brain/providers.js build()).
+// memory: { chapters (the latest chronicle chapters), search(q) } from brain/memory.js, when the game keeps one.
+export async function directorTurn({ state, mod, provider, rng, now = 0, reason = '', hostNote = '', memory = null }) {
+  const T = toolbox({ state, mod, rng, now, memory });
+  // Before the model's turn: is the party getting anywhere? (a "getting nowhere" seed), and trouble picked
+  // with nobody here to fight (a "picks a fight" seed may bring someone out).
+  const lastNarr = [...state.story].reverse().find((e) => e.kind === 'narration');
+  const saidNow = state.story.filter((e) => e.kind === 'say' && e.seq > (lastNarr ? lastNarr.seq : -1)).map((e) => e.text).join(' ');
+  if (lastNarr) {
+    const said = state.story.filter((e) => e.kind === 'say' && e.seq > lastNarr.seq).map((e) => e.text).join(' ');
+    const nobody = !Object.values(state.creatures).some((k) => k.siteId === state.scene.siteId && !k.down);
+    if (said && nobody && /\b(attack|punch|hit|stab|shove|grab|throttle|draw (?:my|his|her) (?:sword|knife|blade|gun))\b/i.test(said)) T.do({ type: 'seed.check', event: 'provoke', text: said });
+    T.do({ type: 'seed.check' });
+  }
+  const chat = provider.start({ system: instructions(mod), tools: toolsFor(mod) });
+  const calls = [];
+  const usage = { in: 0, out: 0 };
+  let reply = await chat.send(briefing(T.state, mod, { reason, hostNote, lastSeq: lastNarr ? lastNarr.seq : -1, chapters: memory ? memory.chapters : [] }));
+  let narration = '';
+  let rollNudged = false;
+  let silentNudged = false;
+  let moveNudged = false;
+  let questNudged = false;
+  let rollHeld = false;
+  for (let step = 0; step < MAX_STEPS + 2 * Object.keys(state.creatures).length; step++) {
+    usage.in += reply.usage.in; usage.out += reply.usage.out;
+    if (reply.calls.length) {
+      const results = reply.calls.map((c) => { const result = T.run(c.name, c.args); calls.push({ name: c.name, args: c.args, result }); return { call: c, result }; });
+      reply = await chat.results(results);
+      continue;
+    }
+    narration = String(reply.text || '').trim();
+    if (narration && !rollNudged && ROLL_WORDS.test(narration) && T.state.requests.length === state.requests.length) {
+      rollNudged = true; narration = '';
+      reply = await chat.send('You asked for a roll in words, but nothing is on anyone\'s screen. Call ask_for_roll for it now, then narrate again, ending on one question. If no roll is needed, narrate again without asking for one.');
+      continue;
+    }
+    // A journey told in words, with the party still where it was: once, ask for the move (or what stops them).
+    const went = narration && !moveNudged && !T.state.fight && T.state.scene.siteId === state.scene.siteId ? travelledInWords(narration, T.state, mod) : null;
+    if (went) {
+      moveNudged = true; narration = '';
+      reply = await chat.send(`Your narration takes the party toward ${went.name}, but they are still at ${site(T.state, mod).name}. If they have arrived there or are close enough to see it, call move_party with place "${went.id}" now, then narrate again. If something stops them on the way, keep them where they are and say what stops them. End on one question.`);
+      continue;
+    }
+    // A look-or-know roll before the player tried anything, with "what do you do?" (earlyRolls): withdrawn, once.
+    const early = narration && !rollHeld && !T.state.fight ? earlyRolls(state, T.state, narration, mod, lastNarr ? lastNarr.seq : -1) : [];
+    if (early.length) {
+      rollHeld = true;
+      for (const q of early) T.do({ type: 'roll.cancel', id: q.id });
+      calls.push({ name: '(engine)', args: {}, result: { note: 'A roll asked before the player said what they try was withdrawn.' } });
+      narration = '';
+      reply = await chat.send('You asked for a roll before the player said what their character tries, and you also asked what they do. The Engine has withdrawn the roll: wait for their words (they may say "I look around" or "I search where the lamp was"; then ask for it). Narrate again without any roll, ending on your one question.');
+      continue;
+    }
+    // Rolls that all succeeded where a quest ends, and no complete_quest (the Gull Rock bench, 27 Nov: three
+    // successes at the keeper's cottage found the diary, the blood and the cave-sand, and the quest stayed open):
+    // once, ask whether that finishes it.
+    const open = narration && !questNudged && !T.state.fight ? questWon(T.state, mod, lastNarr ? lastNarr.seq : -1, calls) : null;
+    const asked = narration && !questNudged && !open ? questAsked(T.state, mod, saidNow, calls) : null;
+    if (asked) {
+      questNudged = true; narration = '';
+      reply = await chat.send(`The player sets out to finish the quest "${asked.text}" (${asked.id}) here, where it ends. If nothing real stands in the way, let them do it: call complete_quest with quest "${asked.id}" now (and ask_for_roll first if the deed is risky), then narrate again. If something does still stand in the way, it must be something the briefing shows (a creature standing here, a hazard, an open clue), not a new one: narrate again and name it plainly. End on one question.`);
+      continue;
+    }
+    if (open) {
+      questNudged = true; narration = '';
+      reply = await chat.send(`Those rolls all succeeded here. Does that finish the quest "${open.text}" (${open.id})? If it does, call complete_quest with quest "${open.id}" now, then narrate again. If something is still left to do, narrate again as you would have and say what is left. End on one question.`);
+      continue;
+    }
+    if (narration || silentNudged) break;
+    silentNudged = true;
+    reply = await chat.send('You have not said anything to the table yet. Narrate now, in plain text, and end on one question.');
+  }
+  let flags = narration ? checkNarration(narration, T.state, mod) : [];
+  // One rewrite before anyone sees it.
+  if (flags.length) {
+    try {
+      const fix = await chat.send(`Rewrite your whole reply: ${flags.map((f) => f.text).join(' ')} Keep the same events, plain text, two to five sentences, ending on one question to one named character. Do not call any tools.`);
+      usage.in += fix.usage.in; usage.out += fix.usage.out;
+      const text = dropForeign(String(fix.text || '').trim());
+      if (text && !(fix.calls || []).length) {
+        const again = checkNarration(text, T.state, mod);
+        if (again.length < flags.length) { narration = text; flags = [...again, { kind: 'note', text: 'Rewritten once.' }]; }
+      }
+    } catch (e) { /* keep the draft */ }
+  }
+  // A creature that attacked on its turn and was left standing in it (Gull Rock, 27 Nov: the keeper swung his
+  // hatchet and the turn never ended): the Engine ends that turn, so the fight does not stall.
+  const startKey = currentKey(state);
+  if (T.state.fight && startKey && startKey.startsWith('creature:') && currentKey(T.state) === startKey
+    && calls.some((c) => c.name === 'creature_attack' && c.result && !c.result.refused) && !T.do({ type: 'fight.next' })) {
+    flags.push({ kind: 'note', text: 'The creature had acted; the Engine ended its turn.' });
+  }
+  if (!narration) {
+    const cur = currentKey(T.state);
+    const who = cur && cur.startsWith('char:') ? T.state.chars[cur.slice(5)].name : '';
+    narration = who ? `${who}, it is your turn. What do you do?` : 'What do you do?';
+    flags.push({ kind: 'rule', text: 'The Director said nothing; the Engine asked the table what is next.' });
+  }
+  if (T.refusals) flags.push({ kind: 'rule', text: `The Engine refused ${T.refusals} thing${T.refusals > 1 ? 's' : ''} the Director tried. Nothing refused took effect.` });
+  // One of the game's own words left unexplained: the Engine puts its short meaning in brackets after it,
+  // with no extra model call (plain words, 27 Nov).
+  const gloss = glossaryOf(mod);
+  narration = dropForeign(narration.replace(/\*\*/g, ''));
+  if (gloss.length && !flags.some((f) => /^The Director said nothing/.test(f.text))) {
+    const g = glossInline(narration, gloss, T.state);
+    if (g.words.length) { narration = g.text; flags.push({ kind: 'note', text: `The Engine added the plain meaning of ${g.words.join(', ')}.` }); }
+  }
+  T.do({ type: 'narrate', text: narration, words: wordsUsed(narration, gloss, T.state) });
+  return { state: T.state, narration, calls, flags, usage, refusals: T.refusals };
+}

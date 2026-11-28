@@ -1,0 +1,62 @@
+/* The living backdrop (scene.js): the same file in the D&D Director and the Skeleton. Every colour is a variable
+   the Colours tab can change. */
+:root {
+  --sky-night: #0b1020; --sky-dawn: #6b4a6e; --sky-day: #3d6a8e; --sky-dusk: #8a4b2e;
+  --fx-leaf: #c98a3a; --fx-ember: #ff8a3c; --fx-snow: #eef4ff; --fx-rain: #9fb6d0; --fx-fog: #c8c8c0;
+  --fx-dust: #9a8a70; --fx-candle: #e0a040; --fx-water: #a8d4e6; --fx-star: #fff6d8;
+  --fx-turn: var(--accent); --fx-hurt: var(--no);
+}
+.scene-sky, .scene-canvas, .scene-veil { position: fixed; pointer-events: none; z-index: 0; }
+.scene-sky { inset: -24px; transition: background 4s ease; will-change: transform; }
+.scene-canvas { inset: 0; width: 100%; height: 100%; }
+.scene-veil { inset: 0; transition: background .8s ease; }
+body:not(.fx-on) .scene-sky, body:not(.fx-on) .scene-canvas, body:not(.fx-on) .scene-veil { display: none; }
+.fx-on::before { opacity: .45; }
+.fx-on #app, .fx-on > header, .fx-on > nav, .fx-on > main { position: relative; z-index: 1; }
+.fx-on .card { background: color-mix(in srgb, var(--panel) 68%, transparent); -webkit-backdrop-filter: blur(5px); backdrop-filter: blur(5px); }
+.fx-on #head, .fx-on > header, .fx-on > nav { background: color-mix(in srgb, var(--panel) 55%, transparent); }
+.fx-light .card { background: color-mix(in srgb, var(--panel) 80%, transparent); }
+
+/* A fight: the edges darken. Your turn: a gold edge that breathes. Badly hurt: a red heartbeat. Down: grey. */
+.fx-fight .scene-veil { background: radial-gradient(ellipse at 50% 45%, transparent 42%, color-mix(in srgb, #000 58%, transparent) 100%); }
+.fx-myturn .scene-veil { animation: fx-turn 1.8s ease-in-out infinite; }
+@keyframes fx-turn {
+  0%, 100% { box-shadow: inset 0 0 0 2px var(--fx-turn), inset 0 0 40px color-mix(in srgb, var(--fx-turn) 30%, transparent); }
+  50% { box-shadow: inset 0 0 0 3px var(--fx-turn), inset 0 0 90px color-mix(in srgb, var(--fx-turn) 50%, transparent); }
+}
+.scene-veil::after { content: ""; position: absolute; inset: 0; opacity: 0; }
+.fx-low .scene-veil::after { animation: fx-hurt 1.3s ease-in-out infinite; }
+@keyframes fx-hurt {
+  0%, 100% { opacity: .35; box-shadow: inset 0 0 50px color-mix(in srgb, var(--fx-hurt) 35%, transparent); }
+  18% { opacity: 1; box-shadow: inset 0 0 130px color-mix(in srgb, var(--fx-hurt) 60%, transparent); }
+  32% { opacity: .5; }
+  46% { opacity: .9; }
+}
+.fx-down #main { filter: grayscale(.85) brightness(.85); transition: filter .8s ease; }
+/* A long rest: a campfire glow rises and fades into the morning. */
+.scene-veil::before { content: ""; position: absolute; inset: 0; opacity: 0; background: radial-gradient(60% 45% at 50% 108%, color-mix(in srgb, var(--fx-candle) 60%, transparent), transparent 70%); }
+.fx-camp .scene-veil::before { animation: fx-camp 6.5s ease forwards; }
+@keyframes fx-camp { 0% { opacity: 0; } 18% { opacity: 1; } 70% { opacity: .75; } 100% { opacity: 0; } }
+.fx-light .scene-veil, .fx-light .scene-veil::after { animation-duration: 3.5s; }
+
+/* The d20 that tumbles to its number. */
+.d20fx { position: fixed; left: 50%; top: 16%; transform: translateX(-50%); z-index: 70; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: auto; }
+.d20spin { position: relative; width: 112px; height: 112px; animation: d20-tumble .65s cubic-bezier(.2, .8, .3, 1.15) both; filter: drop-shadow(0 8px 18px color-mix(in srgb, #000 60%, transparent)); }
+.d20fx.still .d20spin { animation: none; }
+.d20spin svg { width: 100%; height: 100%; }
+.d20face { fill: var(--panel2); stroke: var(--accent); stroke-width: 3; }
+.d20inner { fill: color-mix(in srgb, var(--accent) 16%, var(--panel2)); stroke: var(--accent); stroke-width: 2; }
+.d20edge { stroke: color-mix(in srgb, var(--accent) 70%, transparent); stroke-width: 1.6; }
+.d20num { position: absolute; left: 0; right: 0; top: 47%; transform: translateY(-50%); text-align: center; font: 800 30px/1 var(--tale, var(--serif, Georgia)); color: var(--ink); }
+.d20label { font-size: 13px; color: var(--dim); background: color-mix(in srgb, var(--panel) 85%, transparent); padding: 2px 10px; border-radius: 99px; }
+.d20fx.crit .d20face { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 30%, var(--panel2)); }
+.d20fx.crit .d20num { color: var(--accent); }
+.d20burst { position: absolute; left: 50%; top: 56px; width: 10px; height: 10px; margin: -5px; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 80%, transparent); animation: d20-burst .9s .45s ease-out both; }
+.d20fx.fumble .d20face { stroke: var(--no); }
+.d20fx.fumble .d20num { color: var(--no); }
+.d20crack { stroke: var(--no); stroke-width: 2.4; stroke-dasharray: 90; stroke-dashoffset: 90; animation: d20-crack .35s .5s ease-out forwards; }
+@keyframes d20-tumble { 0% { transform: translateY(-120px) rotate(-540deg) scale(.4); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; } }
+@keyframes d20-burst { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 80%, transparent); } 100% { box-shadow: 0 0 0 90px transparent; } }
+@keyframes d20-crack { to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { .d20spin, .d20burst { animation: none; } }

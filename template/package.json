@@ -1,0 +1,16 @@
+{
+  "name": "ai-director-template",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A blank tabletop role-playing game with an AI Director: the dice Engine, the shared Ledger, the host, table and player screens, the map, memory, saves and the converter, with no game in it yet. Copy it with New rule system.bat and make your game with the converter.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test",
+    "convert": "node tools/convert.mjs",
+    "prompts": "node tools/make-prompts.mjs"
+  }
+}
