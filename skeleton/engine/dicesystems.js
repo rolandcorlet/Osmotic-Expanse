@@ -260,6 +260,57 @@ export const SYSTEMS = {
     },
     describe: (o, T) => `Roll ${o.n}d${o.sides} and try to roll at or under your target: the stat plus the skill, plus or minus modifiers. The ${T.difficulty} lowers the target (Average 0, Hard -2, Very hard -4; Easy adds 4). A roll of ${o.crit} or less is a ${T.surge}: it always succeeds, and on an attack the weapon counts twice. A roll of ${o.fumble} or more is a ${T.snag}: it always fails and marks 1 ${T.strain}. Damage = the weapon${o.damageAdd === 'degrees' ? ' + 1 per 2 you rolled under by' : ''} - soak, at least 1.`,
   },
+
+  'highest-die': {
+    name: 'Highest die (Forged in the Dark)',
+    for: 'Blades in the Dark and the games forged from it (Scum and Villainy, Band of Blades), and any game that reads only the best die.',
+    defaults: { sides: 6, partial: 4, damageAdd: 'degrees', modCap: 3 },
+    ladder: [{ at: 4, name: 'Easy' }, { at: 6, name: 'Standard' }, { at: 7, name: 'Desperate' }],
+    ranges: () => ({ stat: [0, 4], skill: [0, 4], at: [2, 7], rating: [0, 8], defence: [2, 7], mod: [-3, 3] }),
+    bonus: (o, v) => Number(v) || 0,
+    spec(o, { stat = 0, skill = 0, rating = null, mods = [] }) {
+      const n = (rating ?? ((Number(stat) || 0) + (Number(skill) || 0))) + sumMods(mods, o.modCap).applied;
+      // No dice: roll two and keep the lower.
+      return n > 0 ? { n, label: `${n}d${o.sides}, highest`, dice: Array(n).fill(o.sides) } : { n: 0, label: `2d${o.sides}, lowest`, dice: [o.sides, o.sides], lowest: true };
+    },
+    roll(o, spec, at, src) {
+      const dice = spec.dice.map(() => src(o.sides));
+      const top = spec.lowest ? Math.min(...dice) : Math.max(...dice);
+      const crit = !spec.lowest && dice.filter((d) => d === o.sides).length >= 2;
+      const total = crit ? o.sides + 1 : top;            // two of the highest face: a critical, one step past it
+      const full = total >= at;
+      const success = full || total >= Math.min(o.partial, at);
+      return { total, success, partial: success && !full, margin: total - at, degrees: crit ? 2 : full ? 1 : 0, snags: !success && top === 1 ? 1 : 0, surge: crit,
+        faces: dice.map((d) => face(d, o.sides, d === top ? (crit ? 'surge' : 'hit') : d === 1 ? 'snag' : '')), shown: `${spec.lowest ? 'lowest' : 'highest'} ${top}${crit ? ', a critical' : ''} against ${at}` };
+    },
+    describe: (o, T) => `Roll a pool of d${o.sides}s (the stat plus the skill, plus or minus modifiers, each a die) and read only the highest die. With no dice, roll two and read the lower. Meet the ${T.difficulty} for a full success (Standard ${o.sides}); a ${o.partial} or more short of it is a partial success: you do it, but at a cost, a complication or a harder position. Two ${o.sides}s are a critical (a ${T.surge}): an extra benefit, and it beats even a Desperate ${T.difficulty}. A failure that shows only 1s is a ${T.snag}.`,
+  },
+
+  'roll-keep': {
+    name: 'Roll and keep (d10s)',
+    for: 'Legend of the Five Rings and 7th Sea (first editions), and other roll-and-keep games.',
+    defaults: { sides: 10, explode: 10, damageAdd: 'margin', modCap: 3 },
+    ladder: [{ at: 10, name: 'Easy' }, { at: 15, name: 'Standard' }, { at: 20, name: 'Hard' }, { at: 25, name: 'Very hard' }, { at: 30, name: 'Heroic' }],
+    ranges: () => ({ stat: [1, 6], skill: [0, 6], at: [5, 50], rating: [2, 12], defence: [5, 45], mod: [-3, 3] }),
+    bonus: (o, v) => Number(v) || 0,
+    spec(o, { stat = 1, skill = 0, rating = null, mods = [] }) {
+      const m = sumMods(mods, o.modCap).applied;
+      const n = Math.max(1, (rating ?? ((Number(stat) || 0) + (Number(skill) || 0))) + m);
+      const keep = Math.max(1, Math.min(n, rating != null ? Math.ceil(rating / 2) : (Number(stat) || 1)));
+      return { n, keep, label: `${n}k${keep}`, dice: Array(n).fill(o.sides), explode: o.explode };
+    },
+    roll(o, spec, at, src) {
+      const groups = spec.dice.map(() => explode(src, o.sides, o.explode || 0));
+      const sums = groups.map((g) => g.reduce((a, d) => a + d, 0)).sort((x, y) => y - x);
+      const kept = sums.slice(0, spec.keep);
+      const total = kept.reduce((a, d) => a + d, 0);
+      const success = total >= at;
+      const ones = groups.filter((g) => g[0] === 1).length;
+      return { total, success, partial: false, margin: total - at, degrees: success ? Math.floor((total - at) / 5) : 0, snags: !success && ones * 2 > groups.length ? 1 : 0, surge: success && total - at >= 10,
+        faces: groups.flat().map((d) => face(d, o.sides, d === o.sides ? 'six' : d === 1 ? 'snag' : '')), shown: `kept ${kept.join(' + ')} = ${total} against ${at}` };
+    },
+    describe: (o, T) => `Roll d${o.sides}s equal to the stat plus the skill (plus or minus modifiers, each a die) and keep as many of the highest as the stat: "5k3" rolls five and keeps three. A ${o.explode} rolls again and adds. Add the kept dice and meet the ${T.difficulty} (Standard 15). Beating it by 10 or more is a ${T.surge}; a failure where more than half the dice show 1 is a ${T.snag}.`,
+  },
 };
 
 // The system a module uses, with its options filled in. No "dice" block: the d6 pool.

@@ -17,6 +17,8 @@ export const TUNE = {
   'success-pool': { stat: (v) => v, points: { start: 1, spend: 6, max: 4 }, skill: { spend: 6, max: 2 }, defence: { base: 1 }, rating: (t) => 3 + t, cdef: (t) => 1 + Math.floor(t / 2), weapon: (t) => t + 1, mod: (m) => m, at: 2 },
   fate: { stat: (v) => v - 1, points: { start: 0, spend: 4, max: 3 }, skill: { spend: 6, max: 2 }, defence: { base: 0, stat: 'grace' }, rating: (t) => 1 + t, cdef: (t) => t, weapon: (t) => t, mod: (m) => m, at: 2 },
   step: { stat: (v) => 2 + 2 * v, skillx: (r) => (r ? 4 + 2 * r : 0), points: { start: 4, spend: 8, max: 10, step: 2 }, skill: { spend: 18, max: 8, step: 2 }, defence: { base: 2, stat: 'grace' }, rating: (t) => 4 + 2 * t, cdef: (t) => 4 + t, weapon: (t) => `2d${2 + 2 * t}`, mod: (m) => m, at: 4 },
+  'highest-die': { stat: (v) => Math.min(4, Math.max(0, v - 1)), points: { start: 0, spend: 4, max: 3 }, skill: { spend: 6, max: 2 }, defence: { base: 3, stat: 'grace' }, rating: (t) => 1 + t, cdef: (t) => Math.min(7, 4 + Math.floor(t / 2)), weapon: (t) => t + 1, mod: (m) => Math.max(-3, Math.min(3, m)), at: 6 },
+  'roll-keep': { stat: (v) => v + 1, points: { start: 2, spend: 6, max: 5 }, skill: { spend: 6, max: 3 }, defence: { base: 10, stat: 'grace' }, rating: (t) => Math.min(12, 3 + 2 * t), cdef: (t) => 10 + 3 * t, weapon: (t) => t + 1, mod: (m) => Math.max(-3, Math.min(3, m)), at: 15 },
   'roll-under': { stat: (v) => 8 + v, points: { start: 8, spend: 10, max: 14 }, skill: { spend: 6, max: 2 }, defence: { base: 0 }, rating: (t) => 9 + t, cdef: (t) => t, weapon: (t) => t + 1, mod: (m) => m, at: 0 },
 };
 export function variant(system) {

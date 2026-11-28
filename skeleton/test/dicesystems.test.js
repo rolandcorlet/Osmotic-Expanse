@@ -9,10 +9,10 @@ import { instructions } from '../brain/director.js';
 import { TUNE, variant } from './variants.js';
 
 test('every system rolls, reads typed dice, and gives sane odds', () => {
-  const typed = { 'd6-pool': [[6, 6, 3, 2], 12], d20: [[20], 15], percentile: [[3], 0], '2d6': [[6, 6], 10], 'success-pool': [[10, 9, 8, 8, 2, 3], 1], fate: [['+', '+', '+', '0'], 1], step: [[8, 3, 2], 4], 'roll-under': [[1, 1, 2], 0] };
+  const typed = { 'highest-die': [[6, 6, 2], 6], 'roll-keep': [[10, 4, 9, 8, 2, 3], 15], 'd6-pool': [[6, 6, 3, 2], 12], d20: [[20], 15], percentile: [[3], 0], '2d6': [[6, 6], 10], 'success-pool': [[10, 9, 8, 8, 2, 3], 1], fate: [['+', '+', '+', '0'], 1], step: [[8, 3, 2], 4], 'roll-under': [[1, 1, 2], 0] };
   for (const id of Object.keys(SYSTEMS)) {
     const S = getSystem({ dice: { system: id } });
-    const vals = { 'd6-pool': { stat: 3, skill: 1 }, d20: { stat: 14, skill: 1 }, percentile: { stat: 40, skill: 20 }, '2d6': { stat: 1, skill: 1 }, 'success-pool': { stat: 3, skill: 2 }, fate: { stat: 2, skill: 1 }, step: { stat: 6, skill: 8 }, 'roll-under': { stat: 10, skill: 2 } }[id];
+    const vals = { 'highest-die': { stat: 2, skill: 1 }, 'roll-keep': { stat: 3, skill: 2 }, 'd6-pool': { stat: 3, skill: 1 }, d20: { stat: 14, skill: 1 }, percentile: { stat: 40, skill: 20 }, '2d6': { stat: 1, skill: 1 }, 'success-pool': { stat: 3, skill: 2 }, fate: { stat: 2, skill: 1 }, step: { stat: 6, skill: 8 }, 'roll-under': { stat: 10, skill: 2 } }[id];
     const spec = S.sys.spec(S.o, vals);
     const [own, at] = typed[id];
     const r = S.sys.roll(S.o, spec, at, makeSource(makeRng(1), own));
@@ -39,6 +39,24 @@ test('2d6 has partial successes; Fate ties are partial', () => {
   const F = getSystem({ dice: { system: 'fate' } });
   const f = F.sys.roll(F.o, F.sys.spec(F.o, { stat: 2 }), 2, makeSource(makeRng(1), ['0', '0', '0', '0']));
   assert.equal(f.partial, true);
+});
+test('highest die: a 4 or 5 is a partial success, no dice rolls two and keeps the lower, a lone 1 is a snag', () => {
+  const S = getSystem({ dice: { system: 'highest-die' } });
+  const r = S.sys.roll(S.o, S.sys.spec(S.o, { stat: 1, skill: 1 }), 6, makeSource(makeRng(1), [5, 2]));
+  assert.equal(r.success, true); assert.equal(r.partial, true);
+  const z = S.sys.spec(S.o, { stat: 0, skill: 0 });
+  assert.equal(z.dice.length, 2); assert.equal(z.lowest, true);
+  const low = S.sys.roll(S.o, z, 6, makeSource(makeRng(1), [6, 2]));
+  assert.equal(low.success, false); assert.equal(low.total, 2);
+  const bad = S.sys.roll(S.o, S.sys.spec(S.o, { stat: 1 }), 6, makeSource(makeRng(1), [1]));
+  assert.equal(bad.snags, 1);
+});
+test('roll and keep: 5k3 keeps the three best, and a 10 rolls again', () => {
+  const S = getSystem({ dice: { system: 'roll-keep' } });
+  const sp = S.sys.spec(S.o, { stat: 3, skill: 2 });
+  assert.equal(sp.label, '5k3');
+  const r = S.sys.roll(S.o, sp, 30, makeSource(makeRng(1), [10, 7, 6, 5, 2, 1]));
+  assert.equal(r.total, 17 + 6 + 5); assert.equal(r.success, false);
 });
 test('weapons can be numbers or dice; a surge counts them twice', () => {
   assert.equal(weaponDamage(3, true, Math.random), 6);
