@@ -2,7 +2,7 @@
 
 A blank tabletop role-playing game with an AI Director: everything the Osmotic Expanse, D&D and Skeleton Directors
 were built and benched with (28 Nov 2026), and no game in it. What is here is the frame every game needs: a dice
-Engine (a choice of eight systems, set by the game's own rules), a shared Ledger, host, table and player screens,
+Engine (a choice of ten systems, set by the game's own rules), a shared Ledger, host, table and player screens,
 the map (zones with a grid), memory and the chronicle, saved games, an AI Director that runs the table through
 tools, voice, and a **converter** that turns a rule book, a players' handbook, a monster book, a campaign or just a
 few ideas into a game **module** (a folder of JSON files).
@@ -88,6 +88,8 @@ Each game chooses its dice system in `rules.json` (`"dice": { "system": "d20" }`
 | `fate` | Fate: 4dF + skill on the ladder; ties at a cost, success with style |
 | `step` | Savage Worlds, Cortex: stats are d4 to d12, exploding, with a wild die; raises |
 | `roll-under` | GURPS and roll-under games: 3d6 (or d20) at or under a target |
+| `highest-die` | Blades in the Dark and Forged in the Dark games: a d6 pool read by its best die; 6 full, 4-5 partial, two 6s critical |
+| `roll-keep` | Legend of the Five Rings, 7th Sea: roll stat + skill d10s, keep as many as the stat (5k3); 10s explode |
 
 Each system has options (sides, targets, crit and fumble numbers, partial-success window, what a good roll adds to
 damage) and its own ranges for stats, difficulties, creature attacks and defences, which the validator checks.
@@ -95,6 +97,10 @@ Whatever the system, every roll has the same three parts, so the Engine and the 
 way: a **difficulty**, a **snag** (the system's penalty, such as a natural 1 or a fumble: each marks 1 strain) and a
 **surge** (its bonus, such as a natural 20 or a raise: an attack's weapon counts twice). Weapons are a number or
 dice ("1d8+2").
+
+**Advantage and disadvantage** (an *edge*) work in every system: the Director's `ask_for_roll` can give it when the
+situation clearly favours or works against a character, and a condition can carry it (`"edge": -1`). d20 rolls two
+and keeps the better or worse, percentile gets a bonus or penalty die, every other system counts it as +1 or -1.
 
 `node tools/dice-lab.mjs --module <id>` (or `--system d20`) prints the chance of success for every rating against every
 difficulty, for tuning. `MODULE-FORMAT.md` lists every system's options and ranges.
@@ -139,7 +145,7 @@ Then check it: **Check the module** on the Game tab, or `node tools/convert.mjs 
 
 ```
 engine/   dice.js, odds.js     random dice and the d6 pool's exact odds (from the Osmotic Director, unchanged)
-          dicesystems.js       the eight dice systems (also loaded by the screens)
+          dicesystems.js       the ten dice systems (also loaded by the screens)
           core.js              damage, strain, the snag table, health
           schema.js            the module format: templates and checks (the one source of truth)
           module.js            loading, saving and searching a module
@@ -164,7 +170,7 @@ match.
 
 ## What came from the Osmotic Expanse Director, and what did not
 
-Kept: the d6 dice and odds (now one of eight systems), the Ledger and Engine pattern (the Director asks, the Engine decides), the host, table and
+Kept: the d6 dice and odds (now one of ten systems), the Ledger and Engine pattern (the Director asks, the Engine decides), the host, table and
 player screens, the AI providers and the tool-calling Director loop with its narration checks, voice, undo and saves,
 and the lessons from its benches (harmless slips are notes, not refusals; a roll asked for in words is sent back to
 the tool; a creature narrated dead while still standing is caught).
