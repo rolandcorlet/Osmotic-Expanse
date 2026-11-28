@@ -412,8 +412,22 @@ export function adviseAdventure(mod, a) {
   for (const s of a.sites) if (s.id && !seen.has(s.id)) out.push(`${tag} site "${s.id}" cannot be reached from the start: give some site an exit to it.`);
   return out;
 }
+// The rules and the handbook: a skill that shares a stat's name (the Director then gives the skill as the stat:
+// Gull Rock's "look", 28 Nov), and a calling or ability no character can use.
+export function adviseRules(mod) {
+  const out = [];
+  const stats = ((mod.rules && mod.rules.stats) || []).filter((s) => s && s.id);
+  const said = (x) => String(x || '').trim().toLowerCase();
+  for (const k of (mod.rules && mod.rules.skills) || []) {
+    if (!k || !k.id) continue;
+    const st = stats.find((s) => [said(s.id), said(s.name)].some((w) => w && (w === said(k.id) || w === said(k.name))));
+    if (st) out.push(`rules: the skill "${k.id}" has the same name as the stat "${st.id}": give one of them another name, so a roll is never unclear.`);
+  }
+  for (const ab of (mod.handbook && mod.handbook.abilities) || []) if (ab && ab.id && !String(ab.effect || '').trim()) out.push(`handbook: the ability "${ab.id}" says nothing of what it does: write its effect in a sentence or two.`);
+  return out;
+}
 export function adviseAll(mod) {
-  return (mod.adventures || []).flatMap((a) => adviseAdventure(mod, a));
+  return [...adviseRules(mod), ...(mod.adventures || []).flatMap((a) => adviseAdventure(mod, a))];
 }
 
 export const SECTIONS = ['module', 'rules', 'handbook', 'bestiary', 'lore', 'adventure'];

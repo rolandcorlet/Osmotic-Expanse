@@ -34,3 +34,11 @@ test('each bench lesson is one line of advice, and none of it is an error', () =
   assert.ok(c.ok, c.errors.join('\n'));
   assert.equal(c.advice.length, tips.length);
 });
+test('a skill with a stat\'s name, and an ability that says nothing of what it does, get advice', () => {
+  const r = raw();
+  r.rules.skills[0].name = r.rules.stats[0].name;
+  if ((r.handbook.abilities || []).length) r.handbook.abilities[0].effect = '';
+  const c = check(prepare(r));
+  assert.ok(c.advice.some((t) => /same name as the stat/.test(t)), c.advice.join('\n'));
+  if ((r.handbook.abilities || []).length) assert.ok(c.advice.some((t) => /says nothing of what it does/.test(t)) || c.errors.length, c.advice.join('\n'));
+});
