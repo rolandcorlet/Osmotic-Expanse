@@ -610,7 +610,7 @@ function hostConverter() {
   const SECTIONS = ['module', 'rules', 'handbook', 'bestiary', 'lore', 'adventure'];
   return h('div', { class: 'view v-play' },
     h('div', { class: 'card scroll', 'data-key': 'cv' }, h('h2', {}, 'Converter'),
-      h('small', {}, 'Turn a rule book, a players\' handbook, a monster book, a campaign, or a few ideas into a module for this skeleton. It uses the AI chosen on the AI tab, writes one section at a time, checks each one and sends problems back to be fixed.'),
+      h('small', {}, 'Turn a rule book, a players\' handbook, a monster book, a campaign, or a few ideas into a module for this AI Director. It uses the AI chosen on the AI tab, writes one section at a time, checks each one and sends problems back to be fixed.'),
       h('div', { class: 'grid3' }, Object.entries(HELLO.modes).map(([k, v]) => h('button', { class: `choice${f.mode === k ? ' on' : ''}`, onclick: () => { f.mode = k; render(); } }, h('b', {}, k === 'convert' ? 'Convert' : k === 'invent' ? 'Invent' : 'Extend'), h('small', {}, v)))),
       f.mode === 'extend' ? h('label', { class: 'fld' }, h('span', {}, 'Module to extend'), h('select', { onchange: (e) => { f.base = e.target.value; } }, HELLO.modules.map((m) => opt(m.id, m.name, m.id === f.base)))) : h('label', { class: 'fld' }, h('span', {}, 'Name of the new game (optional)'), h('input', { id: 'cv-name', value: f.name, oninput: (e) => { f.name = e.target.value; } })),
       h('label', { class: 'fld' }, h('span', {}, 'Dice system'), h('select', { onchange: (e) => { f.dice = e.target.value; } },
