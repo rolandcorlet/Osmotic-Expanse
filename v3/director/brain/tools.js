@@ -116,7 +116,10 @@ const withTurn = (T, no) => {
 // Acting out of turn changes nothing: it is a note that says who is up, not a rule broken.
 const outOfTurn = (T, no, c) => (T.state.fight && /\bnot .*\bturn\b/i.test(String(no))
   ? { note: `${c.name} has no turn right now, so nothing changed. Acting now: ${T.fightBrief().acting_now}.`, ...T.fightBrief() }
-  : { refused: withTurn(T, no) });
+  // Out of Pulse Points for it (First Carve bench, 28 Nov: a Strike at 2 PP with 1 left): its turn is spent. A note.
+  : /costs? \d+ PP and .+ has \d+/i.test(String(no))
+    ? { note: `Nothing changed: ${no} Its Pulse Points are spent: end its turn.`, ...(T.state.fight ? T.fightBrief() : {}) }
+    : { refused: withTurn(T, no) });
 // The organism an away-player tool acts for. Only a directed organism is the Director's to play.
 const awayOrg = (T, ref) => {
   const o = findOrg(T.state, ref);
@@ -455,7 +458,8 @@ export const TOOLS = [
       // hazards are the one place the Engine was letting an unprinted ruling through.)
       const spec = hazardSpec(T.site());
       if (spec.none) return { refused: `No hazard is printed for ${T.site().name}. Nothing here hurts an organism on its own.` };
-      if (spec.amount == null) return { refused: `The Hazard note for ${T.site().name} prints no damage number, so nothing here costs an organism MI. It reads: "${spec.text}"` };
+      // No number printed (Long Swallow bench, 28 Nov: three crushes in the Churn): nothing to pay. A note; narrate it without MI lost.
+      if (spec.amount == null) return { note: `Nothing changed: the Hazard note for ${T.site().name} prints no damage number, so nothing here costs an organism MI. Narrate it without harm. It reads: "${spec.text}"` };
       // The Churn's fill is the Engine's own (it pays the surge when the CHURN Clock fills): a call for it
       // is nothing to do, not a broken rule (Long Swallow bench, 21 Nov).
       // Bench 27 Nov: trigger "the fill" with "the Churn's squeeze" in the why, at the Nine-Cycle Churn.
@@ -556,7 +560,10 @@ export const TOOLS = [
         const c = T.state.clocks[a.clock];
         return { clock: c.name, stopped: !!c.stopped };
       }
-      const d = Math.trunc(Number(a.change));
+      let d = Math.trunc(Number(a.change));
+      // A Clock moved by several at once (Long Swallow bench, 28 Nov: CHURN +4): it moves one segment, as the rules say.
+      const many = Math.abs(d) > 1;
+      if (many) d = Math.sign(d);
       if (d !== 1 && d !== -1) return { refused: 'A Clock moves one segment at a time: +1 or -1.' };
       // Your one advance is spent: that is a note, not a rule break, and it must not be narrated as a move.
       if (!T.state.clocks[a.clock]) return { refused: `No Clock called ${a.clock}. This Vector has: ${Object.keys(T.state.clocks).join(', ')}.` };
@@ -569,7 +576,7 @@ export const TOOLS = [
       const no = T.do({ type: 'clock', id: a.clock, delta: d, why: a.why, by: 'ai' });
       if (no) return { refused: no };
       const c = T.state.clocks[a.clock];
-      return { clock: c.name, now: `${c.filled}/${c.segments}` };
+      return { clock: c.name, now: `${c.filled}/${c.segments}`, ...(many ? { note: `A Clock moves one segment at a time, so ${c.name} moved ${d > 0 ? 'on' : 'back'} one, not ${Math.abs(Math.trunc(Number(a.change)))}. Narrate one segment.` } : {}) };
     },
   },
   {

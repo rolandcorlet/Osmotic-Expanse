@@ -76,6 +76,11 @@ test('unhurried and within Baseline: the tool answers that no roll is needed', (
   assert.equal(T.state.requests.length, 0);
 });
 
+test('a Clock moved by several at once moves one segment, and says so', () => {
+  const T = toolbox({ state: seated(), scenario, bestiary, rng });
+  const r = T.run('move_clock', { clock: 'TOLL', change: 4, why: 'a big noise' });
+  assert.equal(r.now, '1/5'); assert.match(r.note, /one segment at a time/);
+});
 test('the Engine refuses what is off the page', () => {
   const T = toolbox({ state: seated(), scenario, bestiary, rng });
   assert.match(T.run('bring_creatures', { block: 'protease-warden', count: 1 }).refused, /not printed for The Toll-Vent/);
@@ -106,7 +111,7 @@ test('a creature\'s turn: move, strike with real dice, bite within the swarm all
   const cid = Object.keys(s.creatures)[0];
   assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).note, /cannot strike yet/);
   assert.equal(T.run('creature_move', { creature: cid, band: 'contact' }).pulse_points_left, 1);
-  assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).refused, /costs 2 PP/);
+  assert.match(T.run('creature_strike', { creature: cid, target: 'wall' }).note, /costs 2 PP[\s\S]*end its turn/); // a note since 28 Nov
   T.do({ type: 'set', target: { kind: 'cre', id: cid }, field: 'pp', value: 2 });
   const hit = T.run('creature_strike', { creature: 'Gnaw Swarm', target: 'Bresk' });
   assert.equal(typeof hit.hit, 'boolean');
