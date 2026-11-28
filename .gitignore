@@ -73,3 +73,5 @@ systems/*/preflight-*.log
 systems/*/preflight-*.exit.txt
 # A system's game modules come from rule books and campaigns: private, like the D&D library (remove this line to commit them)
 systems/*/modules/*/
+# The template stays blank: a game made inside it by mistake is not committed (make games with New rule system.bat)
+template/modules/*/
