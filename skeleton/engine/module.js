@@ -23,6 +23,20 @@ export function listModules(dir) {
     });
 }
 
+// Where a module lives: the game's own modules/, else the worked example in example/ (the template ships
+// with an empty modules/ and Saltglass in example/, so it starts, tests and converts before any game exists).
+export function moduleHome(root, id) {
+  const own = join(root, 'modules');
+  return existsSync(join(own, String(id), 'module.json')) || !existsSync(join(root, 'example', String(id), 'module.json')) ? own : join(root, 'example');
+}
+export function allModules(root) {
+  const own = listModules(join(root, 'modules'));
+  const ex = listModules(join(root, 'example')).filter((m) => !own.some((o) => o.id === m.id)).map((m) => ({ ...m, example: true, name: `${m.name} (example)` }));
+  return [...own, ...ex];
+}
+// The module a tool uses when none is named: the first of the game's own, else the example.
+export const defaultModule = (root) => ((allModules(root)[0] || {}).id || 'saltglass');
+
 export function loadModule(dir, id) {
   const root = join(dir, id);
   const part = (f) => { const p = join(root, f); return existsSync(p) ? readJson(p) : null; };

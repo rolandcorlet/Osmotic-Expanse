@@ -12,7 +12,7 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadModule, listModules } from '../engine/module.js';
+import { loadModule, listModules, moduleHome, allModules } from '../engine/module.js';
 import { newSession, apply } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { toolbox, TOOLS } from '../brain/tools.js';
@@ -22,7 +22,7 @@ const root = join(here, '..');
 const args = process.argv.slice(2);
 const verbose = args.includes('-v');
 const mods = {};
-const modOf = (id) => { if (!(id in mods)) { try { mods[id] = loadModule(join(root, 'modules'), id); } catch (e) { mods[id] = null; } } return mods[id]; };
+const modOf = (id) => { if (!(id in mods)) { try { mods[id] = loadModule(moduleHome(root, id), id); } catch (e) { mods[id] = null; } } return mods[id]; };
 
 const files = args.filter((a) => !a.startsWith('-'));
 if (!files.length) for (const d of [root, join(root, 'test', 'replay')]) if (existsSync(d)) for (const f of readdirSync(d)) if (/\.calls\.jsonl$/.test(f)) files.push(join(d, f));
@@ -69,7 +69,7 @@ function states(mod) {
   return out;
 }
 let tries = 0; let bad = 0; let games = 0;
-for (const id of listModules(join(root, 'modules')).map((m) => m.id || m)) {
+for (const id of allModules(root).map((m) => m.id || m)) {
   const mod = modOf(id);
   if (!mod) continue;
   for (const st of states(mod)) {

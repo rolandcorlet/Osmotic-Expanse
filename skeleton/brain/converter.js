@@ -6,7 +6,7 @@
 // CONVERTER-PROMPT.md, for pasting into a chat with Claude or another AI by hand.
 
 import { readFileSync } from 'node:fs';
-import { DICE, TEMPLATES, checkModule, checkRules, checkHandbook, checkBestiary, checkLore, checkAdventure, FORMAT } from '../engine/schema.js';
+import { DICE, TEMPLATES, checkModule, checkRules, checkHandbook, checkBestiary, checkLore, checkAdventure, adviseAdventure, FORMAT } from '../engine/schema.js';
 import { prepare, check } from '../engine/module.js';
 import { SYSTEMS, getSystem } from '../engine/dicesystems.js';
 import { checkRules as checkAdventureRules } from '../engine/triggers.js';
@@ -158,6 +158,17 @@ export async function convert({ provider, mode = 'invent', source = '', ideas = 
       reply = await chat.send(`That ${section} JSON has problems:\n- ${errs.slice(0, 25).join('\n- ')}\nReply with the whole corrected JSON object only.`);
       usage.in += reply.usage.in; usage.out += reply.usage.out;
     }
+    // A valid adventure with advice (what made the Director stumble on the benches): one round to fix what applies.
+    if (section === 'adventure' && obj && !errs.length) {
+      let tips = [];
+      try { tips = adviseAdventure(prepare({ module: made.module, rules: made.rules, handbook: made.handbook, bestiary: made.bestiary, lore: made.lore, adventures: [obj] }), obj); } catch (e) { tips = []; }
+      if (tips.length) {
+        onProgress({ section, stage: 'improving', errors: tips });
+        const better = await chat.send(`That adventure is valid. Before it is played, fix what applies here (each made the AI Director stumble in testing; keep everything else as it is):\n- ${tips.slice(0, 20).join('\n- ')}\nReply with the whole corrected JSON object only.`);
+        usage.in += better.usage.in; usage.out += better.usage.out;
+        try { const o2 = parseJson(better.text); if (!checker(section, made)(o2).length) obj = o2; } catch (e) { /* keep the valid one */ }
+      }
+    }
     log.push({ section, ok: !errs.length, errors: errs });
     onProgress({ section, stage: errs.length ? 'problems' : 'done', errors: errs });
     if (!obj) continue;
@@ -167,5 +178,5 @@ export async function convert({ provider, mode = 'invent', source = '', ideas = 
   }
   const mod = prepare({ module: made.module, rules: made.rules, handbook: made.handbook, bestiary: made.bestiary, lore: made.lore, adventures: made.adventures });
   const result = check(mod);
-  return { mod, ok: result.ok, errors: result.errors, log, usage };
+  return { mod, ok: result.ok, errors: result.errors, advice: result.advice || [], log, usage };
 }

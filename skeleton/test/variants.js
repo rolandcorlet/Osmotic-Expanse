@@ -2,8 +2,11 @@
 import { readFileSync } from 'node:fs';
 import { getSystem } from '../engine/dicesystems.js';
 import { prepare } from '../engine/module.js';
+import { existsSync as hasFile } from 'node:fs';
+// The worked example: modules/saltglass in the Skeleton, example/saltglass in the template.
+const SALT = hasFile(new URL('../example/saltglass/module.json', import.meta.url)) ? 'example' : 'modules';
 
-const read = (f) => JSON.parse(readFileSync(new URL(`../modules/saltglass/${f}`, import.meta.url)));
+const read = (f) => JSON.parse(readFileSync(new URL(`../${SALT}/saltglass/${f}`, import.meta.url)));
 const base = () => ({ module: read('module.json'), rules: read('rules.json'), handbook: read('handbook.json'), bestiary: read('bestiary.json'), lore: read('lore.json'), adventures: [read('adventures/bell-under-brine.json')] });
 
 // Saltglass, re-tuned for each dice system: what a converter or a designer would do.

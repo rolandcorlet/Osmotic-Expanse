@@ -6,9 +6,12 @@
 // sample module (Saltglass) section by section, under the id "fake-game".
 import http from 'node:http';
 import { readFileSync } from 'node:fs';
+import { existsSync as hasFile } from 'node:fs';
+// The worked example: modules/saltglass in the Skeleton, example/saltglass in the template.
+const SALT = hasFile(new URL('../example/saltglass/module.json', import.meta.url)) ? 'example' : 'modules';
 
 const port = Number(process.argv[2] || 8799);
-const read = (f) => JSON.parse(readFileSync(new URL(`../modules/saltglass/${f}`, import.meta.url), 'utf8'));
+const read = (f) => JSON.parse(readFileSync(new URL(`../${SALT}/saltglass/${f}`, import.meta.url), 'utf8'));
 const SECTIONS = { module: () => ({ ...read('module.json'), id: 'fake-game', name: 'Fake Game' }), rules: () => read('rules.json'), handbook: () => read('handbook.json'), bestiary: () => read('bestiary.json'), lore: () => read('lore.json'), adventure: () => read('adventures/bell-under-brine.json') };
 
 function reply(body) {

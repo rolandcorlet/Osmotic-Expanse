@@ -14,15 +14,15 @@ import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadModule, check } from '../engine/module.js';
+import { loadModule, check, moduleHome, defaultModule } from '../engine/module.js';
 import { simulateAdventure, simText } from '../engine/simulate.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 && args[i + 1] ? args[i + 1] : d; };
-const id = opt('--module', 'saltglass');
-const mod = loadModule(join(root, 'modules'), id);
+const id = opt('--module', defaultModule(root));
+const mod = loadModule(moduleHome(root, id), id);
 if (!mod || !mod.module || !mod.module.name) { console.log(`There is no module "${id}" in modules/.`); process.exit(2); }
 const t0 = Date.now();
 let fail = 0;
@@ -32,6 +32,8 @@ const c = check(mod);
 console.log(`1. Module checker: ${c.errors.length} error${c.errors.length === 1 ? '' : 's'}.`);
 for (const e of c.errors.slice(0, 40)) console.log(`  - ${e}`);
 fail += c.errors.length;
+// Advice (28 Nov benches): valid, but the Director is likely to stumble there. Reported, not failed.
+if ((c.advice || []).length) { console.log(`   Advice, ${c.advice.length} (valid, but worth fixing before a bench):`); for (const a of c.advice.slice(0, 30)) console.log(`  ~ ${a}`); }
 
 export function mapProblems(mod, adv) {
   const out = [];

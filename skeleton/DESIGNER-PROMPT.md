@@ -100,6 +100,15 @@ THE CHECKLIST
   quest can be finished somewhere.
 - The tone line tells the Director how to sound in one or two sentences.
 
+WHAT MAKES AN ADVENTURE PLAY WELL WITH THE AI DIRECTOR (learned from test games; the checker gives advice on each)
+- Every quest says where it ends: "doneAt" lists the site or sites where the story finishes it. Without it the Director cannot tell when to mark the quest done, and it stays open.
+- A fight needs something to fight. If the source says "roll initiative" for a disaster (an avalanche, a flood, a collapse), write it as a hazard (a roll and a cost) or a rule that says what happens, not a fight. Only creatures placed at a site, or added by a rule, can fight.
+- Every hazard's "fail" has a cost the Engine can pay: a number ("Lose 3 Health") or a condition ("Gain shaken"). Never only words like "the crush".
+- Anyone the party is to rescue, protect or escort is an npc (in "npcs" and the site's notes), not a creature: creatures are what the party may fight, and the Director will fight them.
+- Every creature a site's text names is placed somewhere (hidden if it lurks), or it is only scenery: the Director brings in what it reads.
+- Every site can be reached from the start by its exits, and exits go both ways unless the way back is truly closed.
+- Keep the source's names, but no example text from another game: every name in a module belongs to that module.
+
 NUMBERS FOR THE d6 POOL (when moving a game onto the d6 pool, or inventing one for it, use these so every module plays alike)
 - Difficulty: d20 DC 10 or under -> 8; 11-13 -> 12; 14-16 -> 16; 17-19 -> 20; 20 or more -> 24. Percentile: easy (+20) -> 8, normal -> 12, hard (-20) -> 16, very hard (-40) -> 20.
 - Stats (1 to 5 dice): a 3-18 score: 3-7 -> 1, 8-11 -> 2, 12-14 -> 3, 15-17 -> 4, 18+ -> 5. A -1..+5 modifier: -1/0 -> 2, +1/+2 -> 3, +3/+4 -> 4, +5 -> 5. A percentile characteristic: under 35 -> 1, 35-49 -> 2, 50-64 -> 3, 65-79 -> 4, 80+ -> 5.

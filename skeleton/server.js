@@ -12,7 +12,7 @@ import { networkInterfaces } from 'node:os';
 import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { systemRng } from './engine/dice.js';
-import { listModules, loadModule, saveModule, check, books } from './engine/module.js';
+import { listModules, loadModule, saveModule, check, books, moduleHome, allModules } from './engine/module.js';
 import { newSession, apply, viewFor, RuleError } from './engine/ledger.js';
 import { createMapStore, MAX_PICTURE } from './mapfiles.js';
 import { cleanPictures, linkArt } from './engine/pictures.js';
@@ -59,7 +59,7 @@ let state = null;
 const history = []; // for undo
 
 function loadGame({ moduleId, adventureId, fresh = false }) {
-  const m = loadModule(MOD_DIR, moduleId);
+  const m = loadModule(moduleHome(ROOT, moduleId), moduleId);
   const r = check(m);
   if (!r.ok) throw new Error(`The module "${moduleId}" has problems:\n- ${r.errors.join('\n- ')}`);
   mod = m;
@@ -93,9 +93,9 @@ const slots = createSlots({
 });
 function loadSaved(rec) {
   if (!rec || !rec.state || !rec.state.chars || !rec.state.moduleId) throw new Error('That saved game is not a Skeleton game.');
-  if (!listModules(MOD_DIR).some((m) => m.id === rec.state.moduleId)) throw new Error(`That game needs the module "${rec.state.moduleId}", which is not in modules/.`);
+  if (!allModules(ROOT).some((m) => m.id === rec.state.moduleId)) throw new Error(`That game needs the module "${rec.state.moduleId}", which is not in modules/.`);
   const same = rec.state.moduleId === state.moduleId;
-  if (same) history.push(state); else { const m = loadModule(MOD_DIR, rec.state.moduleId); const r = check(m); if (!r.ok) throw new Error(`The module "${m.module.id}" has problems.`); mod = m; history.length = 0; }
+  if (same) history.push(state); else { const m = loadModule(moduleHome(ROOT, rec.state.moduleId), rec.state.moduleId); const r = check(m); if (!r.ok) throw new Error(`The module "${m.module.id}" has problems.`); mod = m; history.length = 0; }
   const seq = state.seq;
   state = rec.state;
   state.seq = Math.max(seq + 1, state.seq || 0);
@@ -152,11 +152,12 @@ function chronicleView() {
 }
 
 {
-  const mods = listModules(MOD_DIR);
+  const mods = allModules(ROOT);
   let saved = null;
   try { saved = JSON.parse(readFileSync(join(SAVE_DIR, 'session.json'), 'utf8')); } catch (e) { /* none */ }
   const want = arg('module', '') || (saved && mods.some((m) => m.id === saved.moduleId) ? saved.moduleId : (mods[0] || {}).id);
-  if (!want) { console.error('No modules in modules/. Add one (or run the converter) and start again.'); process.exit(1); }
+  if (!want) { console.error('No modules in modules/ (and no example/). Add one (or run the converter) and start again.'); process.exit(1); }
+  if (!listModules(MOD_DIR).length) console.log('No game of your own in modules/ yet: the worked example is loaded. Make yours on the host\'s Converter tab.');
   loadGame({ moduleId: want, adventureId: arg('adventure', '') || undefined, fresh: process.argv.includes('--new') });
 }
 
@@ -252,7 +253,7 @@ let converting = null;
 async function runConvert(body) {
   if (converting) throw new Error('A conversion is already running.');
   const provider = settings.provider();
-  const existing = body.mode === 'extend' ? loadModule(MOD_DIR, body.base) : null;
+  const existing = body.mode === 'extend' ? loadModule(moduleHome(ROOT, body.base), body.base) : null;
   converting = { started: Date.now(), steps: [] };
   try {
     const out = await convert({
@@ -267,14 +268,14 @@ async function runConvert(body) {
     if (out.mod.module && out.mod.module.id && body.save !== false) {
       if (body.mode !== 'extend') {
         let id = out.mod.module.id;
-        const taken = new Set(listModules(MOD_DIR).map((m) => m.id));
+        const taken = new Set(allModules(ROOT).map((m) => m.id));
         for (let n = 2; taken.has(id); n++) id = `${out.mod.module.id}-${n}`;
         out.mod.module.id = id;
       }
       saveModule(MOD_DIR, out.mod);
       savedAs = out.mod.module.id;
     }
-    return { ok: out.ok, errors: out.errors, log: out.log, usage: out.usage, savedAs };
+    return { ok: out.ok, errors: out.errors, advice: out.advice || [], log: out.log, usage: out.usage, savedAs };
   } finally { converting = null; }
 }
 
@@ -343,7 +344,7 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/hello') {
       const host = isHostReq(url);
       const out = { role: host ? 'host' : 'player', module: moduleFor(host ? 'host' : 'player'), modes: MODES, voice: voice.publicView(), port: PORT, addresses: addresses(), links: links({ host, trusted: true }) };
-      if (host) Object.assign(out, { modules: listModules(MOD_DIR), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, proposal: proposalView(proposal, state), chronicle: chronicleView(), converting: !!converting });
+      if (host) Object.assign(out, { modules: allModules(ROOT), providers: publicProviders(), ai: settings.publicView(), voiceCfg: voice.hostView(), lastDirector, proposal: proposalView(proposal, state), chronicle: chronicleView(), converting: !!converting });
       json(res, 200, out);
       return;
     }
@@ -448,7 +449,7 @@ const server = createServer(async (req, res) => {
         if (!pic || !ok) { json(res, 200, { ok: false, error: 'That picture or place is not in this adventure.' }); return; }
         if (show) pic.show = show; else delete pic.show;
         linkArt(adv, mod);
-        const file = join(MOD_DIR, mod.module.id, 'adventures', `${adv.id}.json`);
+        const file = join(moduleHome(ROOT, mod.module.id), mod.module.id, 'adventures', `${adv.id}.json`);
         try { writeFileSync(file, `${JSON.stringify({ ...adv, pictures: adv.pictures.map(({ link, ...x }) => x) }, null, 2)}\n`); } catch (e) { json(res, 200, { ok: false, error: `It could not be saved: ${e.message}` }); return; }
         json(res, 200, { ok: true, link: pic.link || null });
         return;
@@ -472,7 +473,7 @@ const server = createServer(async (req, res) => {
         return;
       }
       if (p === '/api/test') { try { const t = await testConnection(settings.provider()); json(res, 200, { ok: true, works: t.ok, ms: t.ms, said: t.said }); } catch (e) { json(res, 200, { ok: false, error: e.message }); } return; }
-      if (p === '/api/check') { try { const m = loadModule(MOD_DIR, b.id || url.searchParams.get('id')); json(res, 200, { ok: true, ...check(m) }); } catch (e) { json(res, 200, { ok: false, error: e.message }); } return; }
+      if (p === '/api/check') { try { const id = b.id || url.searchParams.get('id'); const m = loadModule(moduleHome(ROOT, id), id); json(res, 200, { ok: true, ...check(m) }); } catch (e) { json(res, 200, { ok: false, error: e.message }); } return; }
       if (p === '/api/convert') { try { json(res, 200, await runConvert(b)); } catch (e) { json(res, 200, { ok: false, error: e.message }); } return; }
       json(res, 404, { ok: false, error: 'No such address.' });
       return;

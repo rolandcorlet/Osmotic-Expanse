@@ -353,7 +353,67 @@ export function checkAll(mod) {
   ];
   if (!Array.isArray(mod.adventures) || !mod.adventures.length) errors.push('The module needs at least one adventure.');
   for (const a of mod.adventures || []) errors.push(...checkAdventure(a, mod), ...(mod.ix ? checkAdventureRules(mod, a).map((e) => `adventure "${a.id}" ${e}`) : []));
-  return { ok: errors.length === 0, errors };
+  let advice = [];
+  try { advice = adviseAll(mod); } catch (e) { /* advice never blocks */ }
+  return { ok: errors.length === 0, errors, advice };
+}
+
+// Advice: what is valid but made the AI Director stumble on the benches (28 Nov 2026). Not errors: a module
+// with advice still plays, but each line is a turn the Director is likely to get wrong. In plain words.
+export function adviseAdventure(mod, a) {
+  const out = [];
+  const tag = `adventure "${(a && a.id) || '?'}"`;
+  if (!a || !Array.isArray(a.sites)) return out;
+  const creatures = ((mod.bestiary && mod.bestiary.creatures) || []).filter((c) => c && c.id);
+  const nameOf = (id) => ((creatures.find((c) => c.id === id) || {}).name || id);
+  const placed = new Set();
+  for (const s of a.sites) for (const c of s.creatures || []) if (c && c.id) placed.add(c.id);
+  const rulesOf = (s) => [...(s.rules || []), ...(a.rules || [])];
+  for (const r of [...(a.rules || []), ...a.sites.flatMap((s) => s.rules || [])]) if (r && r.do === 'add') for (const w of [].concat(r.who || [])) placed.add(String(w).split(/\s+/)[0]);
+  // A quest with no place it is finished at: the Director cannot tell when the story has finished it
+  // (Gull Rock: quests left open; the quest nudge and the bench both need doneAt).
+  for (const q of a.quests || []) if (q && q.id && !(Array.isArray(q.doneAt) && q.doneAt.length)) out.push(`${tag} quest "${q.id}" has no "doneAt": name the site(s) where the story finishes it, so the Director knows when to mark it done.`);
+  for (const s of a.sites) {
+    if (!s || !s.id) continue;
+    const here = (s.creatures || []).filter((c) => c && c.id);
+    const fights = here.length || rulesOf(s).some((r) => r && (r.do === 'add' || r.do === 'fight') && r.who);
+    // A fight promised with nothing to fight (Frozen Road: an avalanche whose text said "roll initiative").
+    for (const r of s.rules || []) {
+      const said = String((r && r.say) || '');
+      if (!fights && /\b(roll initiative|initiative|attacks? (?:the party|you|them)|a fight|combat begins)\b/i.test(said)) out.push(`${tag} site "${s.id}" rule "${r.id}" says a fight begins ("${said.slice(0, 60)}"), but nothing here can fight: place the creatures (or "do": "add"), or write it as a hazard with a roll and a cost.`);
+    }
+    // A hazard whose failure has no cost the Engine can pay: the Director invents one, or none at all
+    // (Long Swallow: "the crush" with no number; Saltglass "Lose 3 Breath" is the model).
+    for (const h of s.hazards || []) {
+      if (!h || !h.name) continue;
+      const fail = String(h.fail || '');
+      if (!fail.trim()) out.push(`${tag} site "${s.id}" hazard "${h.name}" has no "fail": say what failing costs, such as "Lose 3 Health" or a condition.`);
+      else if (!/\d/.test(fail) && !/\b(gain|gains|becomes?|is|are|knocked|falls?|lost|loses?)\b/i.test(fail)) out.push(`${tag} site "${s.id}" hazard "${h.name}" fails with "${fail.slice(0, 60)}": give it a number or a condition ("Lose 2 Health", "Gain shaken"), so the Engine can pay it.`);
+    }
+    // A creature the place's own words name, standing nowhere in the adventure (the Director brings in what
+    // it reads, then the Engine has nothing to roll for).
+    const words = `${s.read || ''} ${s.notes || ''}`.toLowerCase();
+    for (const c of creatures) {
+      if (placed.has(c.id) || !c.name || c.name.length < 4) continue;
+      if (words.includes(c.name.toLowerCase())) out.push(`${tag} site "${s.id}" names "${c.name}", which no site places: place it where it can be met (hidden if it lurks), or it is only scenery.`);
+    }
+  }
+  // Someone the party is to rescue or protect, placed as a creature: the Director may have the party (or a
+  // monster) attack them (Ice Road Trackers: Spritzel the otter, the one the party came for).
+  for (const q of a.quests || []) {
+    const t = String((q && q.text) || '').toLowerCase();
+    if (!/\b(rescue|save|free|protect|escort|bring back|find)\b/.test(t)) continue;
+    for (const id of placed) { const n = nameOf(id).toLowerCase(); if (n.length > 3 && t.includes(n)) out.push(`${tag} quest "${q.id}" is to rescue or protect "${nameOf(id)}", which is placed as a creature: write them as an npc instead, so nobody fights them.`); }
+  }
+  // Every place reachable: an exit only one way strands the party (the bench walked a one-way road backwards).
+  const ids = new Set(a.sites.map((s) => s.id));
+  const seen = new Set([a.start]); const todo = [a.start];
+  while (todo.length) { const at = todo.pop(); const s = a.sites.find((x) => x.id === at); for (const e of (s && s.exits) || []) if (ids.has(e) && !seen.has(e)) { seen.add(e); todo.push(e); } }
+  for (const s of a.sites) if (s.id && !seen.has(s.id)) out.push(`${tag} site "${s.id}" cannot be reached from the start: give some site an exit to it.`);
+  return out;
+}
+export function adviseAll(mod) {
+  return (mod.adventures || []).flatMap((a) => adviseAdventure(mod, a));
 }
 
 export const SECTIONS = ['module', 'rules', 'handbook', 'bestiary', 'lore', 'adventure'];

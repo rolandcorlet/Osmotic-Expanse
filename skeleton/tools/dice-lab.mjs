@@ -7,7 +7,7 @@
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SYSTEMS, getSystem, chance } from '../engine/dicesystems.js';
-import { loadModule } from '../engine/module.js';
+import { loadModule, moduleHome } from '../engine/module.js';
 
 const argv = process.argv.slice(2);
 const flag = (k) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : ''; };
@@ -30,7 +30,7 @@ function table(rules, ladder, title) {
 }
 
 if (flag('module')) {
-  const mod = loadModule(join(ROOT, 'modules'), flag('module'));
+  const mod = loadModule(moduleHome(ROOT, flag('module')), flag('module'));
   table(mod.rules, mod.rules.ladder, mod.module.name);
 } else {
   const ids = flag('system') ? [flag('system')] : Object.keys(SYSTEMS);

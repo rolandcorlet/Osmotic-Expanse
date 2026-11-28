@@ -7,19 +7,22 @@ import { fileURLToPath } from 'node:url';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { DICE, TEMPLATES, FORMAT } from '../engine/schema.js';
 import { GUIDE } from '../brain/converter.js';
+import { existsSync as hasFile } from 'node:fs';
+// The worked example: modules/saltglass in the Skeleton, example/saltglass in the template.
+const SALT = hasFile(new URL('../example/saltglass/module.json', import.meta.url)) ? 'example' : 'modules';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const fence = (t, lang = 'jsonc') => `\`\`\`${lang}\n${t}\n\`\`\``;
 const files = { module: 'module.json', rules: 'rules.json', handbook: 'handbook.json', bestiary: 'bestiary.json', lore: 'lore.json', adventure: 'adventures/<adventure-id>.json' };
 const templates = Object.entries(TEMPLATES).map(([k, t]) => `### ${files[k]}\n\n${fence(t)}`).join('\n\n');
-const sample = (f) => readFileSync(new URL(`../modules/saltglass/${f}`, import.meta.url), 'utf8').trim();
+const sample = (f) => readFileSync(new URL(`../${SALT}/saltglass/${f}`, import.meta.url), 'utf8').trim();
 
 // ---------------------------------------------------------------- the format
 writeFileSync(`${ROOT}MODULE-FORMAT.md`, `# The module format (${FORMAT})
 
 A game on the Skeleton is a **module**: a folder under \`modules/\` with one JSON file per section.
 The Engine, the AI Director, the screens, the validator and the converter all read this format.
-\`modules/saltglass/\` is a complete working example.
+\`${SALT}/saltglass/\` is a complete working example.
 
 \`\`\`
 modules/<module-id>/
@@ -32,6 +35,11 @@ modules/<module-id>/
 \`\`\`
 
 Check a module with \`node tools/convert.mjs --check <module-id>\` or the **Check the module** button on the host's Game tab.
+
+The check also gives **advice**: things that are valid but made the AI Director stumble in test games (a quest with
+no \`doneAt\`, a hazard whose failure has no number or condition, a fight promised where nothing can fight, someone to
+rescue placed as a creature, a creature named but never placed, a site nobody can reach). Advice never stops a game;
+fix it before a bench.
 
 ## The dice: choose a system
 
@@ -176,7 +184,7 @@ THE CHECKLIST
   quest can be finished somewhere.
 - The tone line tells the Director how to sound in one or two sentences.
 
-${GUIDE.slice(GUIDE.indexOf('NUMBERS'), GUIDE.indexOf('INVENTING FROM IDEAS')).trim()}
+${GUIDE.slice(GUIDE.indexOf('WHAT MAKES AN ADVENTURE'), GUIDE.indexOf('INVENTING FROM IDEAS')).trim()}
 
 THE TEMPLATES (one per file)
 ${templates}

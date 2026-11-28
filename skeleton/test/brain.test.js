@@ -6,6 +6,9 @@ import { toolbox } from '../brain/tools.js';
 import { directorTurn, instructions, briefing, checkNarration } from '../brain/director.js';
 import { convert, parseJson } from '../brain/converter.js';
 import { makeRng } from '../engine/dice.js';
+import { existsSync as hasFile } from 'node:fs';
+// The worked example: modules/saltglass in the Skeleton, example/saltglass in the template.
+const SALT = hasFile(new URL('../example/saltglass/module.json', import.meta.url)) ? 'example' : 'modules';
 
 // A stand-in AI: replies come from a script (a list, or a function of the message).
 function scripted(script) {
@@ -111,7 +114,7 @@ test('parseJson takes a fenced reply and forgives a trailing comma', () => {
   assert.deepEqual(parseJson('Here:\n```json\n{"a": [1, 2,],}\n```'), { a: [1, 2] });
 });
 test('the converter writes every section, sends problems back once, and ends with a valid module', async () => {
-  const read = (f) => JSON.parse(readFileSync(new URL(`../modules/saltglass/${f}`, import.meta.url)));
+  const read = (f) => JSON.parse(readFileSync(new URL(`../${SALT}/saltglass/${f}`, import.meta.url)));
   const files = { module: read('module.json'), rules: read('rules.json'), handbook: read('handbook.json'), bestiary: read('bestiary.json'), lore: read('lore.json'), adventure: read('adventures/bell-under-brine.json') };
   let brokeOnce = false;
   const provider = scripted((msg) => {
@@ -130,7 +133,7 @@ test('the converter writes every section, sends problems back once, and ends wit
   assert.equal(out.mod.adventures.length, 1);
 });
 test('an adventure whose rule names a creature it does not have is sent back to be fixed', async () => {
-  const read = (f) => JSON.parse(readFileSync(new URL(`../modules/saltglass/${f}`, import.meta.url)));
+  const read = (f) => JSON.parse(readFileSync(new URL(`../${SALT}/saltglass/${f}`, import.meta.url)));
   const good = read('adventures/bell-under-brine.json');
   const bad = JSON.parse(JSON.stringify(good));
   bad.sites[0].rules = [...(bad.sites[0].rules || []), { id: 'ghost', when: 'enter', do: 'reveal', who: 'no-such-thing' }];
@@ -141,8 +144,8 @@ test('an adventure whose rule names a creature it does not have is sent back to 
   assert.ok(out.ok, out.errors.join('\n'));
 });
 test('extend: new creatures are added to the bestiary and a new adventure uses them', async () => {
-  const beasts = JSON.parse(readFileSync(new URL('../modules/saltglass/bestiary.json', import.meta.url)));
-  const adv = JSON.parse(readFileSync(new URL('../modules/saltglass/adventures/bell-under-brine.json', import.meta.url)));
+  const beasts = JSON.parse(readFileSync(new URL(`../${SALT}/saltglass/bestiary.json`, import.meta.url)));
+  const adv = JSON.parse(readFileSync(new URL(`../${SALT}/saltglass/adventures/bell-under-brine.json`, import.meta.url)));
   const crab = { id: 'lantern-crab', name: 'Lantern crab', tier: 1, about: 'A crab with a lamp.', look: 'A glow.', health: 8, soak: 1, defence: 10, attacks: [{ name: 'Pinch', dice: 3, weapon: 1 }], tactics: 'Hides.', xp: 1 };
   const provider = scripted((msg) => {
     const section = (msg.match(/SECTION: (\w+)/) || [])[1];

@@ -16,6 +16,11 @@ modules/<module-id>/
 
 Check a module with `node tools/convert.mjs --check <module-id>` or the **Check the module** button on the host's Game tab.
 
+The check also gives **advice**: things that are valid but made the AI Director stumble in test games (a quest with
+no `doneAt`, a hazard whose failure has no number or condition, a fight promised where nothing can fight, someone to
+rescue placed as a creature, a creature named but never placed, a site nobody can reach). Advice never stops a game;
+fix it before a bench.
+
 ## The dice: choose a system
 
 A module chooses its dice in `rules.json`:

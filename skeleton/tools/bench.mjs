@@ -27,7 +27,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync } from 'node:fs
 import { gzipSync } from 'node:zlib';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadModule } from '../engine/module.js';
+import { loadModule, moduleHome, defaultModule } from '../engine/module.js';
 import { newSession, apply, currentKey } from '../engine/ledger.js';
 import { makeRng } from '../engine/dice.js';
 import { directorTurn } from '../brain/director.js';
@@ -50,9 +50,10 @@ const model = opt('--model', cfg.model || '');
 const baseUrl = opt('--url', cfg.baseUrl || '');
 const runs = Math.max(1, Number(opt('--runs', 1)) || 1);
 const logFile = opt('--log', '');
-const mod = loadModule(join(root, 'modules'), opt('--module', 'saltglass'));
+const modId = opt('--module', defaultModule(root));
+const mod = loadModule(moduleHome(root, modId), modId);
 const STUCK = [...NO_MOVE_CONDS, ...mapRules(mod).stuck]; // conditions that keep a character where they are
-if (!mod) { console.log(`There is no module "${opt('--module', 'saltglass')}" in modules/.`); process.exit(2); }
+if (!mod) { console.log(`There is no module "${modId}" in modules/.`); process.exit(2); }
 const advId = opt('--adventure', (mod.adventures[0] || {}).id);
 const adv = mod.ix.adventure[advId];
 if (!adv) { console.log(`There is no adventure "${advId}". Adventures: ${mod.adventures.map((a) => a.id).join(', ')}.`); process.exit(2); }
@@ -68,7 +69,7 @@ const paths = logFile ? { log: logFile, status: `${logFile.replace(/\.log$/, '')
 if (paths) { writeFileSync(paths.log, ''); writeFileSync(paths.calls, ''); }
 const put = (t) => { if (paths) appendFileSync(paths.log, t); };
 const say = (t) => { put(`${t}\n`); if (!quiet) console.log(t); };
-const status = { state: 'running', module: mod.module.id || opt('--module', 'saltglass'), adventure: adv.id, provider: fake ? 'fake' : provider, model: fake ? '-' : model, runs, log: logFile, pid: process.pid, startedAt: new Date().toISOString(), heartbeatAt: '', progressAt: '' };
+const status = { state: 'running', module: mod.module.id || modId, adventure: adv.id, provider: fake ? 'fake' : provider, model: fake ? '-' : model, runs, log: logFile, pid: process.pid, startedAt: new Date().toISOString(), heartbeatAt: '', progressAt: '' };
 const writeStatus = (extra = {}) => { if (paths) { Object.assign(status, extra); writeFileSync(paths.status, JSON.stringify(status, null, 1)); } };
 writeStatus();
 const beat = setInterval(() => writeStatus({ heartbeatAt: new Date().toISOString() }), 30000);

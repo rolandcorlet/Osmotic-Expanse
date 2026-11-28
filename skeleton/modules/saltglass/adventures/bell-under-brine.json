@@ -45,7 +45,7 @@
   ],
   "quests": [
     { "id": "bell", "text": "Bring the glass bell up to Lamp Dock.", "doneAt": ["dock"] },
-    { "id": "saltmarks", "text": "Find out what happened to the Saltmark crew." }
+    { "id": "saltmarks", "text": "Find out what happened to the Saltmark crew.", "doneAt": ["nave"] }
   ],
   "clocks": [
     { "id": "tide", "name": "The Tide", "size": 6, "ticks": "When the divers rest, fight loudly, or fail a roll with a Blackout.", "fills": "The cathedral floods: every diver must make an Abyssal Brawn + Swim roll to reach the surface." }
