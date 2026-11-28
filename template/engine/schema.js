@@ -97,7 +97,7 @@ export const TEMPLATES = {
     "actions": [ { "id": "strike", "name": "Strike", "cost": 1, "does": "Attack once with a weapon." } ]
   },
   "conditions": [                            // the states the Engine can put on anyone
-    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or an ally steadies you (Standard Nerve)." }   // "dice" (or "mod"): the modifier, in the system's units
+    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or an ally steadies you (Standard Nerve)." }   // "dice" (or "mod"): the modifier, in the system's units; or "edge": -1 for disadvantage (+1 advantage): d20 rolls two and keeps the worse, percentile a penalty die, other systems -1
   ],
   "rest": { "short": "Recover half your Breath; clear 2 Strain.", "long": "Recover all Breath; clear all Strain and conditions." },
   "advancement": { "xpPerLevel": 10, "maxLevel": 10, "perLevel": "+1 skill rank; every 3rd level +1 stat (max 5)." },
@@ -237,6 +237,7 @@ export function checkRules(r) {
     if (!text(x.effect)) errs.push(`rules.conditions "${x.id}" needs an "effect".`);
     const m = x.dice ?? x.mod;
     if (m != null && !num(m, R.mod[0], R.mod[1])) errs.push(`rules.conditions "${x.id}" modifier must be ${R.mod[0]} to ${R.mod[1]} in ${D.id}.`);
+    if (x.edge != null && ![1, -1].includes(x.edge)) errs.push(`rules.conditions "${x.id}" "edge" must be 1 (advantage) or -1 (disadvantage).`);
   }
   if (!r.rest || !text(r.rest.short) || !text(r.rest.long)) errs.push('rules.rest needs "short" and "long".');
   const a = r.advancement || {};

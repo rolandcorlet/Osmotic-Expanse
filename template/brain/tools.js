@@ -147,6 +147,7 @@ export const TOOLS = [
       reason: S('What the roll is for, in a few words the player sees.'),
       on_fail_damage: N('Health lost on a failure (0 for none).'),
       on_fail_condition: S('A condition id put on a failure, or empty.'),
+      edge: S('Optional: "advantage" when the situation clearly favours them, "disadvantage" when it clearly works against them; else empty.'),
     }, ['characters', 'stat', 'difficulty', 'reason']),
     run(a, T) {
       // Every roll is said to the player with what it is for (Roly, 27 Nov): no reason, no roll.
@@ -155,7 +156,7 @@ export const TOOLS = [
       if (!ids.length) return { note: `Nothing asked: name a character of the party: ${T.party()}. A creature does not roll on a screen; use creature_attack, or decide.` };
       const waiting = ids.filter((id) => T.state.requests.some((q) => q.charId === id));
       if (waiting.length === ids.length) return { note: `Nothing changed: ${waiting.map((id) => T.state.chars[id].name).join(', ')} already ${waiting.length > 1 ? 'have' : 'has'} a roll waiting. Wait for it.` };
-      const no = T.do({ type: 'roll.ask', charIds: ids, stat: lower(a.stat), skill: lower(a.skill), at: a.difficulty, reason: a.reason, fail: { damage: Number(a.on_fail_damage) || 0, cond: lower(a.on_fail_condition) } });
+      const no = T.do({ type: 'roll.ask', charIds: ids, stat: lower(a.stat), skill: lower(a.skill), at: a.difficulty, reason: a.reason, fail: { damage: Number(a.on_fail_damage) || 0, cond: lower(a.on_fail_condition) }, edge: lower(a.edge) });
       return no ? { refused: no } : { ok: true, waiting_for: ids.map((id) => T.state.chars[id].name), note: 'Now narrate up to the roll and stop: the players roll on their screens and you continue when the result comes in.' };
     },
   },

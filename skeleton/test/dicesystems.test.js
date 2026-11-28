@@ -58,6 +58,35 @@ test('roll and keep: 5k3 keeps the three best, and a 10 rolls again', () => {
   const r = S.sys.roll(S.o, sp, 30, makeSource(makeRng(1), [10, 7, 6, 5, 2, 1]));
   assert.equal(r.total, 17 + 6 + 5); assert.equal(r.success, false);
 });
+test('advantage and disadvantage: d20 keeps the better or worse of two, percentile a bonus or penalty die, the rest a die', () => {
+  const D = getSystem({ dice: { system: 'd20' } });
+  const adv = D.sys.spec(D.o, { stat: 10, mods: [{ label: 'Advantage', edge: 1 }] });
+  assert.equal(adv.dice.length, 2); assert.match(adv.label, /2d20/);
+  assert.equal(D.sys.roll(D.o, adv, 15, makeSource(makeRng(1), [4, 17])).total, 17);
+  const dis = D.sys.spec(D.o, { stat: 10, mods: [{ edge: -1 }] });
+  assert.equal(D.sys.roll(D.o, dis, 15, makeSource(makeRng(1), [4, 17])).total, 4);
+  assert.equal(D.sys.spec(D.o, { stat: 10, mods: [{ edge: 1 }, { edge: -1 }] }).dice.length, 1, 'they cancel');
+  const P = getSystem({ dice: { system: 'percentile' } });
+  const bonus = P.sys.spec(P.o, { stat: 50, mods: [{ edge: 1 }] });
+  assert.equal(P.sys.roll(P.o, bonus, 0, makeSource(makeRng(1), [80, 30])).success, true);
+  const pool = getSystem({ dice: { system: 'd6-pool' } });
+  assert.equal(pool.sys.spec(pool.o, { stat: 3, skill: 1, mods: [{ edge: 1 }] }).n, 5);
+  const two = getSystem({ dice: { system: '2d6' } });
+  assert.equal(two.sys.spec(two.o, { stat: 1, mods: [{ edge: -1 }] }).add, 0);
+});
+test('the one asking can give advantage; a condition can carry disadvantage', () => {
+  const mod = variant('d20');
+  const rng = makeRng(3);
+  let s = { ...newSession(mod), fitOff: true };
+  const A = (a, role = 'host', pid = null) => { s = apply(s, a, { role, pid, rng, now: 1, mod }); };
+  A({ type: 'join', name: 'Ann' }, 'player', 'p1'); A({ type: 'char.pregen', index: 0 }, 'player', 'p1');
+  const ch = Object.values(s.chars)[0];
+  A({ type: 'roll.ask', charIds: [ch.id], stat: 'brawn', at: 'Medium', reason: 'x', edge: 'advantage' });
+  assert.equal(s.requests[0].edge, 1);
+  A({ type: 'roll.make', id: s.requests[0].id }, 'player', 'p1');
+  assert.equal(s.rolls.at(-1).faces.length, 2);
+});
+
 test('weapons can be numbers or dice; a surge counts them twice', () => {
   assert.equal(weaponDamage(3, true, Math.random), 6);
   const rng = makeRng(4);

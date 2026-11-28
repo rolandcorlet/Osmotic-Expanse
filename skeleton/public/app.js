@@ -164,7 +164,7 @@ const readBtn = (text) => h('button', { title: 'Read aloud', onclick: () => { un
 // ---------------------------------------------------------------- shared pieces
 function diceRow(r, fresh) {
   const faces = r.faces || (r.dice || []).map((v) => ({ v, sides: 6, mark: v === 1 ? 'snag' : v === 6 ? 'six' : '' }));
-  return h('div', { class: 'dice' }, faces.map((f) => h('span', { class: `die${f.mark === 'snag' ? ' one' : f.mark === 'six' || f.mark === 'surge' ? ' six' : f.mark === 'hit' ? ' hit' : f.mark === 'wild' ? ' wild' : ''}${f.sides !== 6 ? ' wide' : ''}${fresh ? ' fresh' : ''}`, title: f.sides === 'F' ? 'Fate die' : `d${f.sides}` },
+  return h('div', { class: 'dice' }, faces.map((f) => h('span', { class: `die${f.mark === 'snag' ? ' one' : f.mark === 'six' || f.mark === 'surge' ? ' six' : f.mark === 'hit' ? ' hit' : f.mark === 'dropped' ? ' dropped' : f.mark === 'wild' ? ' wild' : ''}${f.sides !== 6 ? ' wide' : ''}${fresh ? ' fresh' : ''}`, title: f.sides === 'F' ? 'Fate die' : `d${f.sides}` },
     f.sides === 'F' ? (f.v > 0 ? '+' : f.v < 0 ? '−' : ' ') : f.v, f.sides !== 6 && f.sides !== 'F' ? h('sub', {}, `d${f.sides}`) : null)));
 }
 function rollCard(r) {

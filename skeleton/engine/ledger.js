@@ -227,7 +227,7 @@ const ownChar = (s, ctx, id) => {
   return c;
 };
 const nameOf = (s, key) => { if (!key) return ''; const [k, id] = key.split(':'); return k === 'char' ? (s.chars[id] || {}).name : (s.creatures[id] || {}).name; };
-const condMods = (mod, conds) => conds.map((c) => mod.ix.cond[c]).filter((c) => c && (c.dice ?? c.mod)).map((c) => ({ label: c.name, dice: c.dice ?? c.mod }));
+const condMods = (mod, conds) => conds.map((c) => mod.ix.cond[c]).filter((c) => c && ((c.dice ?? c.mod) || c.edge)).map((c) => ({ label: c.name, dice: c.dice ?? c.mod ?? 0, edge: Math.sign(Number(c.edge) || 0) }));
 const armourOf = (mod, ch) => ch.gear.map((g) => mod.ix.gear[g]).filter((g) => g && g.kind === 'armour');
 export function charDefence(mod, ch) {
   const d = mod.rules.defence;
@@ -512,11 +512,13 @@ H['roll.ask'] = (s, a, ctx) => {
   const at = difficulty(mod, a.at);
   const RA = getSystem(mod.rules).ranges.at;
   if (at == null || at < RA[0] || at > RA[1]) no(`Give a ${term(mod, 'difficulty').toLowerCase()}: ${mod.rules.ladder.map((r) => `${r.name} ${r.at}`).join(', ')}.`);
+  // Advantage or disadvantage from the one asking (the situation, not a condition): +1, -1 or none.
+  const edge = /^(adv|advantage|\+1|1|bonus)$/i.test(String(a.edge ?? '').trim()) ? 1 : /^(dis|disadvantage|-1|penalty)$/i.test(String(a.edge ?? '').trim()) ? -1 : 0;
   const fail = a.fail && typeof a.fail === 'object' ? { damage: Math.max(0, Math.trunc(Number(a.fail.damage)) || 0), cond: mod.ix.cond[str(a.fail.cond, 30).toLowerCase()] ? str(a.fail.cond, 30).toLowerCase() : '' } : null;
   for (const id of ids) {
     if (s.chars[id].down) continue;
     s.requests = s.requests.filter((q) => q.charId !== id);
-    s.requests.push({ id: nextId(s, 'q'), charId: id, stat, skill, at, reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, fail });
+    s.requests.push({ id: nextId(s, 'q'), charId: id, stat, skill, at, reason: str(a.reason, 200), by: ctx.ai ? 'ai' : 'host', t: ctx.now || 0, fail, ...(edge ? { edge } : {}) });
   }
 };
 H['roll.cancel'] = (s, a, ctx) => {
@@ -532,7 +534,7 @@ H['roll.make'] = (s, a, ctx) => {
   const q = s.requests.find((x) => x.id === a.id);
   if (!q) no('That roll is no longer asked for.');
   const ch = ownChar(s, ctx, q.charId);
-  const pool = poolFor(mod, ch, q.stat, q.skill, a.help ? [{ label: 'Help', dice: Math.min(2, Math.max(0, Number(a.help) || 0)) }] : []);
+  const pool = poolFor(mod, ch, q.stat, q.skill, [...(a.help ? [{ label: 'Help', dice: Math.min(2, Math.max(0, Number(a.help) || 0)) }] : []), ...(q.edge ? [{ label: q.edge > 0 ? 'Advantage' : 'Disadvantage', edge: q.edge }] : [])]);
   const r = rollSpec(mod, ctx, pool, q.at, a.dice);
   s.requests = s.requests.filter((x) => x.id !== q.id);
   const label = `${mod.ix.stat[q.stat].name}${q.skill ? ` + ${mod.ix.skill[q.skill].name}` : ''}`;

@@ -14,8 +14,12 @@ import { successChance } from './odds.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const signed = (n) => (n >= 0 ? `+${n}` : `${n}`);
-function sumMods(mods, cap) {
-  const raw = (mods || []).reduce((a, m) => a + (Number(m && (m.dice ?? m.mod)) || 0), 0);
+// EDGE: advantage (+1) or disadvantage (-1), from a condition ("edge": -1) or the one asking for the roll. The
+// systems with their own edge roll for it (d20: two d20s, keep the better or worse; percentile: a bonus or
+// penalty die); every other system counts it as a +1 or -1 modifier. Edges cancel; at most one either way.
+export const edgeOf = (mods) => Math.sign((mods || []).reduce((a, m) => a + (Number(m && m.edge) || 0), 0));
+function sumMods(mods, cap, { edge = true } = {}) {
+  const raw = (mods || []).reduce((a, m) => a + (Number(m && (m.dice ?? m.mod)) || 0), 0) + (edge ? edgeOf(mods) : 0);
   return { raw, applied: clamp(raw, -cap, cap) };
 }
 
@@ -77,7 +81,8 @@ export const SYSTEMS = {
     ranges: () => ({ stat: [1, 5], skill: [0, 3], at: [2, 40], rating: [1, 15], defence: [2, 40], mod: [-5, 5] }),
     bonus: (o, v) => Number(v) || 0,
     spec(o, { stat = 0, skill = 0, rating = null, mods = [] }) {
-      const p = buildPool({ stat: rating ?? stat, skill: rating != null ? 0 : skill, mods });
+      const e = edgeOf(mods);
+      const p = buildPool({ stat: rating ?? stat, skill: rating != null ? 0 : skill, mods: e ? [...mods, { label: e > 0 ? 'Advantage' : 'Disadvantage', dice: e }] : mods });
       return { n: p.dice, label: `${p.dice}d6`, dice: Array(p.dice).fill(6), capped: p.capped };
     },
     roll(o, spec, at, src) {
@@ -99,18 +104,21 @@ export const SYSTEMS = {
     bonus: (o, v) => (o.statMode === 'bonus' ? Number(v) || 0 : Math.floor(((Number(v) || 10) - 10) / 2)),
     spec(o, { stat = 10, skill = 0, rating = null, mods = [] }) {
       const base = rating ?? (SYSTEMS.d20.bonus(o, stat) + (Number(skill) || 0) * o.perRank);
-      const add = base + sumMods(mods, o.modCap).applied;
-      return { add, label: `d20${add ? signed(add) : ''}`, dice: [20] };
+      const add = base + sumMods(mods, o.modCap, { edge: false }).applied;
+      const edge = edgeOf(mods);
+      return { add, edge, label: `${edge ? '2d20' : 'd20'}${add ? signed(add) : ''}${edge > 0 ? ', the better' : edge < 0 ? ', the worse' : ''}`, dice: edge ? [20, 20] : [20] };
     },
     roll(o, spec, at, src) {
-      const d = src(20);
+      const pair = spec.edge ? [src(20), src(20)] : null;
+      const d = pair ? (spec.edge > 0 ? Math.max(...pair) : Math.min(...pair)) : src(20);
       const total = d + spec.add;
       const surge = d >= o.crit;
       const snag = d <= o.fumble;
       const success = o.autoCrit && surge ? true : o.autoCrit && snag ? false : total >= at;
       const margin = total - at;
+      const other = pair ? (pair[0] === d ? pair[1] : pair[0]) : null;
       return { total, success, partial: false, margin, degrees: success ? Math.max(0, Math.floor(margin / 5)) : 0, snags: snag ? 1 : 0, surge,
-        faces: [face(d, 20, surge ? 'surge' : snag ? 'snag' : '')], shown: `${d}${spec.add ? signed(spec.add) : ''} = ${total} against ${at}` };
+        faces: [face(d, 20, surge ? 'surge' : snag ? 'snag' : ''), ...(pair ? [face(other, 20, 'dropped')] : [])], shown: `${pair ? `${pair.join(' and ')}, kept ` : ''}${d}${spec.add ? signed(spec.add) : ''} = ${total} against ${at}` };
     },
     describe: (o, T) => `Roll a d20 and add a modifier: the stat's bonus (${o.statMode === 'bonus' ? 'written as a bonus' : 'a score of 10 is +0, every 2 points above or below is +1 or -1'}) plus ${o.perRank} for each skill rank, plus or minus situational modifiers. Meet or beat the ${T.difficulty} (5 very easy, 10 easy, 15 medium, 20 hard, 25 very hard, 30 nearly impossible). A natural ${o.crit} is a ${T.surge}${o.autoCrit ? ' and always succeeds' : ''}: on an attack the weapon's dice count twice. A natural ${o.fumble} is a ${T.snag}${o.autoCrit ? ' and always fails' : ''}: it marks 1 ${T.strain}. Damage = the weapon's dice${o.damageAdd === 'degrees' ? ' + 1 per 5 the roll beat the target by' : ''} - soak, at least 1.`,
   },
@@ -123,18 +131,21 @@ export const SYSTEMS = {
     ranges: () => ({ stat: [1, 99], skill: [0, 99], at: [-60, 90], rating: [1, 99], defence: [-40, 60], mod: [-60, 60] }),
     bonus: (o, v) => Math.floor((Number(v) || 0) / 10),
     spec(o, { stat = 0, skill = 0, rating = null, mods = [] }) {
-      const target = clamp((rating ?? ((Number(stat) || 0) + (Number(skill) || 0))) + sumMods(mods, o.modCap).applied, 1, 99);
-      return { target, label: `${target}%`, dice: [100] };
+      const target = clamp((rating ?? ((Number(stat) || 0) + (Number(skill) || 0))) + sumMods(mods, o.modCap, { edge: false }).applied, 1, 99);
+      const edge = edgeOf(mods);
+      return { target, edge, label: `${target}%${edge > 0 ? ', a bonus die' : edge < 0 ? ', a penalty die' : ''}`, dice: edge ? [100, 100] : [100] };
     },
     roll(o, spec, at, src) {
-      const d = src(100);
+      // A bonus die keeps the lower of two rolls, a penalty die the higher.
+      const pair = spec.edge ? [src(100), src(100)] : null;
+      const d = pair ? (spec.edge > 0 ? Math.min(...pair) : Math.max(...pair)) : src(100);
       const eff = clamp(spec.target - at, 1, 99);
       const success = d <= eff;
       const surge = success && d <= Math.max(1, Math.floor(eff / o.extremeDiv));
       const snag = !success && d >= (eff < 50 ? o.fumbleFrom : 100);
       const degrees = !success ? 0 : o.levels === 'tens' ? Math.floor(eff / 10) - Math.floor(d / 10) : (d <= Math.floor(eff / o.extremeDiv) ? 2 : d <= Math.floor(eff / 2) ? 1 : 0);
       return { total: d, success, partial: false, margin: eff - d, degrees: Math.max(0, degrees), snags: snag ? 1 : 0, surge,
-        faces: [face(d, 100, surge ? 'surge' : snag ? 'snag' : '')], shown: `rolled ${d} against ${eff}%` };
+        faces: [face(d, 100, surge ? 'surge' : snag ? 'snag' : ''), ...(pair ? [face(pair[0] === d ? pair[1] : pair[0], 100, 'dropped')] : [])], shown: `rolled ${pair ? `${pair.join(' and ')}, kept ` : ''}${d} against ${eff}%` };
     },
     describe: (o, T) => `Roll d100 (1 to 100) and try to roll at or under your chance: the stat plus the skill, as a percentage, plus or minus modifiers. The ${T.difficulty} lowers the chance (Regular 0, Hard -20, Very hard -40; Easy adds 20). Rolling a fifth of your chance or less is a ${T.surge}: on an attack the weapon's dice count twice. A failed roll of ${o.fumbleFrom} or more (100 when the chance is 50 or more) is a ${T.snag}: it marks 1 ${T.strain}. ${o.levels === 'tens' ? 'Each 10 you roll under adds a degree of success.' : 'Half your chance or less is a hard success (1 degree); a fifth or less an extreme one (2).'} Damage = the weapon's dice${o.damageAdd === 'degrees' ? ' + 1 per degree' : ''} - soak, at least 1.`,
   },

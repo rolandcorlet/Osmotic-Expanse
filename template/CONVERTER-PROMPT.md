@@ -170,7 +170,7 @@ THE TEMPLATES (one per file)
     "actions": [ { "id": "strike", "name": "Strike", "cost": 1, "does": "Attack once with a weapon." } ]
   },
   "conditions": [                            // the states the Engine can put on anyone
-    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or an ally steadies you (Standard Nerve)." }   // "dice" (or "mod"): the modifier, in the system's units
+    { "id": "shaken", "name": "Shaken", "effect": "-1 die on every roll.", "dice": -1, "ends": "A rest, or an ally steadies you (Standard Nerve)." }   // "dice" (or "mod"): the modifier, in the system's units; or "edge": -1 for disadvantage (+1 advantage): d20 rolls two and keeps the worse, percentile a penalty die, other systems -1
   ],
   "rest": { "short": "Recover half your Breath; clear 2 Strain.", "long": "Recover all Breath; clear all Strain and conditions." },
   "advancement": { "xpPerLevel": 10, "maxLevel": 10, "perLevel": "+1 skill rank; every 3rd level +1 stat (max 5)." },
