@@ -187,6 +187,27 @@ test('rolls that all succeed where a quest ends get one question: does that fini
   assert.equal(asked2, 0);
 });
 
+test('a player who sets out to finish a quest where it ends gets one question: let them do it', async () => {
+  const T = table(); diver(T, 'p1', 0);
+  T.host({ type: 'narrate', text: 'Lamp Dock. What do you do?' });
+  T.as('p1', { type: 'say', text: 'We see it through: bring the glass bell up to Lamp Dock.' });
+  let asked = 0;
+  const provider = scripted((msg) => {
+    if (/sets out to finish the quest/.test(msg)) { asked += 1; return { calls: [{ name: 'complete_quest', args: { quest: 'bell' } }] }; }
+    return { text: 'A new wave rises over the dock. Moll, what now?' };
+  });
+  const out = await directorTurn({ state: T.s, mod, provider, rng: makeRng(1), reason: 'said' });
+  assert.equal(asked, 1);
+  assert.ok(out.state.quests.find((q) => q.id === 'bell').done);
+  // Words that are not the quest: no question.
+  const T2 = table(); diver(T2, 'p1', 0);
+  T2.host({ type: 'narrate', text: 'Lamp Dock. What do you do?' });
+  T2.as('p1', { type: 'say', text: 'I look at the boats.' });
+  let asked2 = 0;
+  await directorTurn({ state: T2.s, mod, provider: scripted((msg) => { if (/sets out to finish/.test(msg)) asked2 += 1; return { text: 'Moll, what now?' }; }), rng: makeRng(1), reason: 'said' });
+  assert.equal(asked2, 0);
+});
+
 test('a creature that attacked and was left in its turn has the turn ended by the Engine', async () => {
   const T = table(4); const m = diver(T, 'p1', 0); T.host({ type: 'site.move', siteId: 'causeway' });
   const B = toolbox({ state: T.s, mod, rng: makeRng(1) });

@@ -117,6 +117,19 @@ function earlyRolls(before, after, narration, mod, sinceSeq) {
 }
 // A quest that ends at this place, not done yet, when every roll since the last narration succeeded and the
 // Director has not called complete_quest this turn.
+// A quest that ends at this place, not done yet, that the player's own words set out to finish ("We see it
+// through: put out the lighthouse light", the Gull Rock bench, 28 Nov: four runs running the Director put one
+// more obstacle in the way and the quest stayed open), with no complete_quest, no roll waiting and no fight.
+const QUEST_STOP = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'to', 'in', 'on', 'at', 'for', 'with', 'from', 'what', 'who', 'it', 'its', 'we', 'see', 'through', 'go', 'on', 'our', 'their', 'his', 'her']);
+const questWords = (t) => String(t || '').toLowerCase().replace(/[^a-z\s'-]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !QUEST_STOP.has(w));
+export function questAsked(s, mod, said, calls) {
+  if (!said || calls.some((c) => c.name === 'complete_quest') || s.fight || (s.requests || []).length) return null;
+  const adv = mod.ix.adventure[s.adventureId];
+  if (!adv) return null;
+  const words = new Set(questWords(said));
+  return (adv.quests || []).find((q) => (q.doneAt || []).includes(s.scene.siteId) && !(s.quests.find((x) => x.id === q.id) || {}).done
+    && s.quests.some((x) => x.id === q.id) && (() => { const qw = questWords(q.text); const hit = qw.filter((w) => words.has(w)).length; return qw.length && hit >= Math.min(3, Math.ceil(qw.length * 0.6)); })()) || null;
+}
 function questWon(s, mod, sinceSeq, calls) {
   if (calls.some((c) => c.name === 'complete_quest')) return null;
   const adv = mod.ix.adventure[s.adventureId];
@@ -174,6 +187,7 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
   // Before the model's turn: is the party getting anywhere? (a "getting nowhere" seed), and trouble picked
   // with nobody here to fight (a "picks a fight" seed may bring someone out).
   const lastNarr = [...state.story].reverse().find((e) => e.kind === 'narration');
+  const saidNow = state.story.filter((e) => e.kind === 'say' && e.seq > (lastNarr ? lastNarr.seq : -1)).map((e) => e.text).join(' ');
   if (lastNarr) {
     const said = state.story.filter((e) => e.kind === 'say' && e.seq > lastNarr.seq).map((e) => e.text).join(' ');
     const nobody = !Object.values(state.creatures).some((k) => k.siteId === state.scene.siteId && !k.down);
@@ -224,6 +238,12 @@ export async function directorTurn({ state, mod, provider, rng, now = 0, reason 
     // successes at the keeper's cottage found the diary, the blood and the cave-sand, and the quest stayed open):
     // once, ask whether that finishes it.
     const open = narration && !questNudged && !T.state.fight ? questWon(T.state, mod, lastNarr ? lastNarr.seq : -1, calls) : null;
+    const asked = narration && !questNudged && !open ? questAsked(T.state, mod, saidNow, calls) : null;
+    if (asked) {
+      questNudged = true; narration = '';
+      reply = await chat.send(`The player sets out to finish the quest "${asked.text}" (${asked.id}) here, where it ends. If nothing real stands in the way, let them do it: call complete_quest with quest "${asked.id}" now (and ask_for_roll first if the deed is risky), then narrate again. If something does still stand in the way, it must be something the briefing shows (a creature standing here, a hazard, an open clue), not a new one: narrate again and name it plainly. End on one question.`);
+      continue;
+    }
     if (open) {
       questNudged = true; narration = '';
       reply = await chat.send(`Those rolls all succeeded here. Does that finish the quest "${open.text}" (${open.id})? If it does, call complete_quest with quest "${open.id}" now, then narrate again. If something is still left to do, narrate again as you would have and say what is left. End on one question.`);

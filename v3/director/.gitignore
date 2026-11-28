@@ -6,3 +6,5 @@ node_modules/
 # `--log bench_13nov.log`: the harness writes its own UTF-8 file, whereas a PowerShell
 # `>` redirect writes UTF-16LE and mangles every em dash in the transcript.
 *.log
+# ...and the exit codes the Sponge .bat files write beside them
+*.exit.txt
